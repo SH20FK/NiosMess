@@ -3,17 +3,46 @@ import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
+class PrivacySnapshot {
+  const PrivacySnapshot({
+    required this.rules,
+    required this.revision,
+  });
+
+  final Map<String, PrivacyRule> rules;
+  final int revision;
+}
+
+class PrivacyRuleResult {
+  const PrivacyRuleResult({
+    required this.rule,
+    required this.revision,
+  });
+
+  final PrivacyRule rule;
+  final int revision;
+}
+
+class RevisionConflictException implements Exception {
+  const RevisionConflictException(this.message);
+  final String message;
+
+  @override
+  String toString() => 'RevisionConflictException: $message';
+}
+
 class PrivacyRepository {
   const PrivacyRepository(this._ref);
 
   final Ref _ref;
 
-  Future<Map<String, PrivacyRule>> getPrivacy() async {
+  Future<PrivacySnapshot> getPrivacySnapshot() async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request('get_privacy', payload: <String, dynamic>{});
     final Map<String, dynamic> map = asStringMap(response);
 
+    final int revision = (map['revision'] as num?)?.toInt() ?? 0;
     final Map<String, PrivacyRule> result = <String, PrivacyRule>{};
 
     // Support either map of rules or list of rules
@@ -30,6 +59,7 @@ class PrivacyRepository {
       }
     } else if (map.isNotEmpty) {
       for (final MapEntry<String, dynamic> entry in map.entries) {
+        if (entry.key == 'revision') continue;
         if (entry.value is Map) {
           final Map<String, dynamic> ruleMap = asStringMap(entry.value);
           ruleMap['key'] = entry.key;
@@ -51,14 +81,20 @@ class PrivacyRepository {
       );
     }
 
-    return result;
+    return PrivacySnapshot(rules: result, revision: revision);
   }
 
-  Future<PrivacyRule> setPrivacy({
+  Future<Map<String, PrivacyRule>> getPrivacy() async {
+    final PrivacySnapshot snapshot = await getPrivacySnapshot();
+    return snapshot.rules;
+  }
+
+  Future<PrivacyRuleResult> setPrivacy({
     required String key,
     required PrivacyPolicy policy,
     List<int> alwaysAllow = const <int>[],
     List<int> neverAllow = const <int>[],
+    int? expectedRevision,
   }) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
@@ -69,20 +105,30 @@ class PrivacyRepository {
             'default_policy': policy.apiValue,
             'always_allow': alwaysAllow.take(500).toList(),
             'never_allow': neverAllow.take(500).toList(),
+            'expected_revision': ?expectedRevision,
           },
         );
 
     final Map<String, dynamic> map = asStringMap(response);
-    if (map.containsKey('key')) {
-      return PrivacyRule.fromJson(map);
+    if (map['status'] == 'error' || map['error'] != null) {
+      final String err = map['error']?.toString() ?? 'Failed to update privacy';
+      if (err.contains('conflict') || err.contains('revision')) {
+        throw RevisionConflictException(err);
+      }
+      throw Exception(err);
     }
 
-    return PrivacyRule(
-      key: key,
-      policy: policy,
-      alwaysAllow: alwaysAllow,
-      neverAllow: neverAllow,
-    );
+    final int newRevision = (map['revision'] as num?)?.toInt() ?? 0;
+    final PrivacyRule rule = map.containsKey('key')
+        ? PrivacyRule.fromJson(map)
+        : PrivacyRule(
+            key: key,
+            policy: policy,
+            alwaysAllow: alwaysAllow,
+            neverAllow: neverAllow,
+          );
+
+    return PrivacyRuleResult(rule: rule, revision: newRevision);
   }
 
   Future<bool> blockUser(int userId) async {

@@ -188,22 +188,17 @@ class _ChatTileState extends State<ChatTile>
                       Stack(
                         clipBehavior: Clip.none,
                         children: <Widget>[
-                          Hero(
-                            tag: widget.chatId != null
-                                ? 'chat_avatar_${widget.chatId}'
-                                : Object(),
-                            child: PulseAvatar(
-                              key: ValueKey<String>(
-                                '${widget.avatarText}_${widget.avatarUrl ?? ''}',
-                              ),
-                              radius: 25,
-                              name: widget.avatarText,
-                              avatarUrl: widget.avatarUrl,
-                              fallbackColor: widget.avatarColor,
-                              textColor: AppColors.avatarTextColorFor(
-                                widget.avatarColor,
-                                scheme,
-                              ),
+                          PulseAvatar(
+                            key: ValueKey<String>(
+                              '${widget.avatarText}_${widget.avatarUrl ?? ''}',
+                            ),
+                            radius: 26,
+                            name: widget.avatarText,
+                            avatarUrl: widget.avatarUrl,
+                            fallbackColor: widget.avatarColor,
+                            textColor: AppColors.avatarTextColorFor(
+                              widget.avatarColor,
+                              scheme,
                             ),
                           ),
                           if (widget.isOnline)

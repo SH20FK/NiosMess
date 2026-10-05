@@ -27,7 +27,6 @@ import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
-import 'package:flutter/rendering.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/chat/chat_actions_modal.dart';
@@ -111,8 +110,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         color: scheme.primary,
         backgroundColor: scheme.surfaceContainerHigh,
         elevation: 0,
-        child: NotificationListener<UserScrollNotification>(
-          onNotification: _handleUserScroll,
+        child: NotificationListener<ScrollNotification>(
+          onNotification: _handleScrollNotification,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: <Widget>[
@@ -155,11 +154,34 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     );
   }
 
-  bool _handleUserScroll(UserScrollNotification notification) {
-    if (notification.direction == ScrollDirection.reverse) {
-      ref.read(chatListFabVisibleProvider.notifier).hide();
-    } else if (notification.direction == ScrollDirection.forward) {
+  double _scrollDistance = 0.0;
+  static const double _kScrollHysteresis = 28.0;
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (notification.metrics.pixels <= 0) {
       ref.read(chatListFabVisibleProvider.notifier).show();
+      _scrollDistance = 0.0;
+      return false;
+    }
+    if (notification is ScrollUpdateNotification) {
+      final double delta = notification.scrollDelta ?? 0.0;
+      if (delta > 0) {
+        // Scrolling downwards: hide FAB after exceeding threshold
+        if (_scrollDistance < 0) _scrollDistance = 0;
+        _scrollDistance += delta;
+        if (_scrollDistance > _kScrollHysteresis) {
+          ref.read(chatListFabVisibleProvider.notifier).hide();
+        }
+      } else if (delta < 0) {
+        // Scrolling upwards: reveal FAB smoothly after threshold
+        if (_scrollDistance > 0) _scrollDistance = 0;
+        _scrollDistance += delta;
+        if (_scrollDistance < -_kScrollHysteresis) {
+          ref.read(chatListFabVisibleProvider.notifier).show();
+        }
+      }
+    } else if (notification is ScrollEndNotification) {
+      _scrollDistance = 0.0;
     }
     return false;
   }
@@ -217,7 +239,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       error: (Object error, StackTrace stack) => <Widget>[
         SliverFillRemaining(
           child: EmptyStateWidget(
-            title: context.l10n.chatListFailedLoad('$error'),
+            title: context.l10n.chatListFailedLoad(context.l10n.commonError),
             icon: Icons.error_outline_rounded,
           ),
         ),
@@ -240,8 +262,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         (ApiSearchMessage message) => message.chatId,
       ),
     };
-    final bool isSearchActive =
-        searchResult != null && searchResult.messages.isNotEmpty;
+    final bool isSearchActive = ref.watch(chatListSearchProvider.notifier).hasActiveQuery;
     final List<ApiChatSummary> searched = filtered
         .where((ApiChatSummary chat) {
           if (!isSearchActive) return true;
@@ -253,8 +274,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       return <Widget>[
         SliverFillRemaining(
           child: EmptyStateWidget(
-            title: context.l10n.chatListNoChats,
-            icon: Icons.chat_bubble_outline_rounded,
+            title: isSearchActive
+                ? 'Ничего не найдено'
+                : context.l10n.chatListNoChats,
+            subtitle: isSearchActive
+                ? 'Попробуйте изменить поисковый запрос'
+                : null,
+            icon: isSearchActive
+                ? Icons.search_off_rounded
+                : Icons.chat_bubble_outline_rounded,
           ),
         ),
       ];
@@ -561,14 +589,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         }
         return;
       case ChatActionResult.pin:
-        if (context.mounted) {
-          AppToast.showInfo(context, 'Действие сохранено');
-        }
-        return;
       case ChatActionResult.archive:
-        if (context.mounted) {
-          AppToast.showInfo(context, 'Чат перемещён в архив');
-        }
         return;
       case ChatActionResult.leave:
         await _leaveChat(context, chat);

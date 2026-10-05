@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
+import 'package:pulse_flutter/repositories/search_repository.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -217,8 +219,10 @@ class _UserSearchPickerSheetState extends ConsumerState<UserSearchPickerSheet> {
     TextTheme textTheme,
   ) {
     final List<ApiChatSummary> filtered = directChats.where((c) {
+      final int? partnerId = c.partnerUserId;
+      if (partnerId == null || partnerId <= 0) return false;
       if (widget.excludedUserIds != null &&
-          widget.excludedUserIds!.contains(c.id)) {
+          widget.excludedUserIds!.contains(partnerId)) {
         return false;
       }
       return true;
@@ -269,8 +273,9 @@ class _UserSearchPickerSheetState extends ConsumerState<UserSearchPickerSheet> {
             separatorBuilder: (_, _) => const Divider(height: 1, indent: 56),
             itemBuilder: (BuildContext context, int index) {
               final ApiChatSummary chat = filtered[index];
+              final int partnerId = chat.partnerUserId ?? chat.id;
               final ApiSearchUser user = ApiSearchUser(
-                id: chat.id,
+                id: partnerId,
                 username: chat.username ?? '',
                 displayName: chat.name,
                 avatarUrl: chat.avatarUrl,
@@ -402,16 +407,20 @@ class _UserSearchPickerSheetState extends ConsumerState<UserSearchPickerSheet> {
           color: scheme.primary,
         ),
       ),
-      onTap: () => _selectUser(
-        ApiSearchUser(
-          id: 0,
-          username: clean,
-          displayName: '@$clean',
-          avatarUrl: null,
-          bio: '',
-          badges: const [],
-        ),
-      ),
+      onTap: () async {
+        HapticService.tap();
+        final searchRepo = ref.read(searchRepositoryProvider);
+        final result = await searchRepo.search(clean);
+        final matched = result.users
+            .where((u) => u.username.toLowerCase() == clean.toLowerCase())
+            .firstOrNull;
+        if (!mounted) return;
+        if (matched != null && matched.id > 0) {
+          _selectUser(matched);
+        } else {
+          AppToast.showInfo(context, 'Пользователь @$clean не найден');
+        }
+      },
     );
   }
 

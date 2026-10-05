@@ -1,0 +1,51 @@
+# NiosMess Settings 2.0 Vector Illustrations Manifest
+schema_version: 1
+illustrations:
+  - id: account
+    path: assets/svg/settings_account.svg
+    title: Account & Profile
+    fallback_icon: person_rounded
+  - id: privacy
+    path: assets/svg/settings_privacy.svg
+    title: Privacy & Security
+    fallback_icon: lock_rounded
+  - id: storage
+    path: assets/svg/settings_storage.svg
+    title: Storage & Cache
+    fallback_icon: storage_rounded
+  - id: appearance
+    path: assets/svg/settings_appearance.svg
+    title: Appearance & Theme
+    fallback_icon: palette_rounded
+  - id: language
+    path: assets/svg/settings_language.svg
+    title: Language & Region
+    fallback_icon: language_rounded
+  - id: preferences
+    path: assets/svg/settings_preferences.svg
+    title: Chat Preferences
+    fallback_icon: tune_rounded
+  - id: sessions
+    path: assets/svg/settings_sessions.svg
+    title: Devices & Sessions
+    fallback_icon: devices_rounded
+  - id: e2ee
+    path: assets/svg/settings_e2ee.svg
+    title: End-to-End Encryption
+    fallback_icon: enhanced_encryption_rounded
+  - id: about
+    path: assets/svg/settings_about.svg
+    title: About NiosMess
+    fallback_icon: info_outline_rounded
+  - id: empty_feed
+    path: assets/svg/illustration_empty_feed.svg
+    title: Empty Feed
+    fallback_icon: dynamic_feed_rounded
+  - id: media_error
+    path: assets/svg/illustration_media_error.svg
+    title: Media Error
+    fallback_icon: broken_image_rounded
+  - id: media_placeholder
+    path: assets/svg/illustration_media_placeholder.svg
+    title: Media Loading
+    fallback_icon: image_rounded

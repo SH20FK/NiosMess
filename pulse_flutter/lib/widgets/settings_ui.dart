@@ -116,9 +116,7 @@ class SettingsScaffold extends ConsumerWidget {
         }
 
         final Widget rawScrollView = CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: <Widget>[
             SliverPadding(
               padding: EdgeInsets.fromLTRB(

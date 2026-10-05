@@ -5,10 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
-import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
+import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
+import 'package:pulse_flutter/features/settings/presentation/settings_responsive_shell.dart';
+import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -133,323 +138,405 @@ class SettingsPrivacyScreen extends ConsumerWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool isAndroid = !kIsWeb && Platform.isAndroid;
 
-    return SettingsShell(
+    return SettingsResponsiveShell(
       title: context.l10n.settingsPrivacyTitle,
       isEmbedded: isEmbedded,
-      children: <Widget>[
-        SettingsNavBanner(
-          illustrationCategory: SettingsIllustrationCategory.privacy,
-          subtitle: context.l10n.settingsPrivacyBannerSubtitle,
-          iconColor: scheme.primary,
-        ),
-
-        // 1. Связь
-        SettingsSection(
-          title: context.l10n.privacyCategoryCommunication,
-          subtitle: context.l10n.privacyCategoryCommunicationDesc,
-          children: <Widget>[
-            SettingsTile(
-              icon: Icons.call_rounded,
-              title: context.l10n.privacyRuleCalls,
-              subtitle: privacy.policyFor('calls').localized(context.l10n),
-              iconColor: scheme.primary,
-              onTap: () => _openRule(context, 'calls'),
-            ),
-            SettingsTile(
-              icon: Icons.chat_bubble_outline_rounded,
-              title: context.l10n.privacyRuleDirectMessages,
-              subtitle: privacy.policyFor('messages').localized(context.l10n),
-              iconColor: scheme.primary,
-              onTap: () => _openRule(context, 'messages'),
-            ),
-            SettingsTile(
-              icon: Icons.mic_none_rounded,
-              title: context.l10n.privacyRuleVoiceMessages,
-              subtitle: privacy.policyFor('voice_messages').localized(context.l10n),
-              iconColor: scheme.primary,
-              onTap: () => _openRule(context, 'voice_messages'),
-            ),
-          ],
-        ),
-
-        // 2. Личные данные
-        SettingsSection(
-          title: context.l10n.privacyCategoryPersonalData,
-          subtitle: context.l10n.privacyCategoryPersonalDataDesc,
-          children: <Widget>[
-            SettingsTile(
-              icon: Icons.phone_rounded,
-              title: context.l10n.privacyRulePhone,
-              subtitle: privacy.policyFor('phone').localized(context.l10n),
-              iconColor: scheme.secondary,
-              onTap: () => _openRule(context, 'phone'),
-            ),
-            SettingsTile(
-              icon: Icons.cake_rounded,
-              title: context.l10n.privacyRuleBirthDate,
-              subtitle: privacy.policyFor('birthday').localized(context.l10n),
-              iconColor: scheme.secondary,
-              onTap: () => _openRule(context, 'birthday'),
-            ),
-            SettingsTile(
-              icon: Icons.account_circle_outlined,
-              title: context.l10n.privacyRuleAvatar,
-              subtitle: privacy.policyFor('profile_photos').localized(context.l10n),
-              iconColor: scheme.secondary,
-              onTap: () => _openRule(context, 'profile_photos'),
-            ),
-            SettingsTile(
-              icon: Icons.notes_rounded,
-              title: context.l10n.privacyRuleBio,
-              subtitle: privacy.policyFor('bio').localized(context.l10n),
-              iconColor: scheme.secondary,
-              onTap: () => _openRule(context, 'bio'),
-            ),
-            SettingsTile(
-              icon: Icons.card_giftcard_rounded,
-              title: context.l10n.privacyRuleGifts,
-              subtitle: privacy.policyFor('gifts').localized(context.l10n),
-              iconColor: scheme.secondary,
-              onTap: () => _openRule(context, 'gifts'),
-            ),
-            SettingsTile(
-              icon: Icons.music_note_rounded,
-              title: context.l10n.privacyRuleMusic,
-              subtitle: privacy.policyFor('saved_music').localized(context.l10n),
-              iconColor: scheme.secondary,
-              onTap: () => _openRule(context, 'saved_music'),
-            ),
-          ],
-        ),
-
-        // 3. Активность
-        SettingsSection(
-          title: context.l10n.privacyCategoryActivity,
-          subtitle: context.l10n.privacyCategoryActivityDesc,
-          children: <Widget>[
-            SettingsTile(
-              icon: Icons.access_time_rounded,
-              title: context.l10n.privacyRuleLastSeen,
-              subtitle: privacy.policyFor('last_seen').localized(context.l10n),
-              iconColor: scheme.tertiary,
-              onTap: () => _openRule(context, 'last_seen'),
-            ),
-            SettingsTile(
-              icon: Icons.forward_rounded,
-              title: context.l10n.privacyRuleForwards,
-              subtitle: privacy.policyFor('forwards').localized(context.l10n),
-              iconColor: scheme.tertiary,
-              onTap: () => _openRule(context, 'forwards'),
-            ),
-            SettingsTile(
-              icon: Icons.group_add_rounded,
-              title: context.l10n.privacyRuleInvites,
-              subtitle: privacy.policyFor('invites').localized(context.l10n),
-              iconColor: scheme.tertiary,
-              onTap: () => _openRule(context, 'invites'),
-            ),
-            SettingsSwitchTile(
-              icon: Icons.visibility_off_rounded,
-              title: context.l10n.settingsPrivacyHideOnline,
-              subtitle: context.l10n.settingsPrivacyHideOnlineDesc,
-              iconColor: scheme.tertiary,
-              value: privacy.policyFor('last_seen') == PrivacyPolicy.nobody || settings.hideOnline,
-              onChanged: (bool value) async {
-                ref.read(uiSettingsProvider.notifier).setHideOnline(value);
-                await ref.read(privacyProvider.notifier).updateRule(
-                  key: 'last_seen',
-                  policy: value ? PrivacyPolicy.nobody : PrivacyPolicy.everyone,
-                );
-              },
-            ),
-          ],
-        ),
-
-        // 4. Безопасность и блокировки
-        SettingsSection(
-          title: context.l10n.privacyCategorySecurity,
-          children: <Widget>[
-            SettingsTile(
-              icon: Icons.block_rounded,
-              title: context.l10n.privacyBlacklist,
-              subtitle: privacy.blockedUsers.isEmpty
-                  ? context.l10n.privacyNoBlocked
-                  : context.l10n.privacyBlockedCount(privacy.blockedUsers.length),
-              iconColor: scheme.error,
-              onTap: () => _openBlockedUsers(context),
-            ),
-            SettingsTile(
-              icon: Icons.enhanced_encryption_rounded,
-              title: context.l10n.settingsSecretChatsTitle,
-              subtitle: context.l10n.settingsSecretChatsSubtitle,
-              iconColor: scheme.primary,
-              onTap: () {
-                if (isEmbedded) {
-                  ref
-                      .read(desktopSelectedSettingsSectionProvider.notifier)
-                      .setSelectedSection(SettingsSectionId.e2ee);
-                } else {
-                  context.push('/settings/e2ee');
-                }
-              },
-            ),
-            SettingsSwitchTile(
-              icon: Icons.link_rounded,
-              title: 'Предпросмотр ссылок в секретных чатах',
-              subtitle: 'Генерировать предпросмотр для отправляемых веб-ссылок',
-              iconColor: scheme.primary,
-              value: settings.linkPreviewsInSecretChats,
-              onChanged: (bool value) {
-                ref
-                    .read(uiSettingsProvider.notifier)
-                    .setLinkPreviewsInSecretChats(value);
-              },
-            ),
-            SettingsSwitchTile(
-              icon: Icons.screenshot_rounded,
-              title: 'Защита от снимков экрана',
-              subtitle: 'Блокировать скриншоты и запись экрана в секретных чатах',
-              iconColor: scheme.primary,
-              value: settings.secureScreenshotsInSecretChats,
-              onChanged: (bool value) {
-                ref
-                    .read(uiSettingsProvider.notifier)
-                    .setSecureScreenshotsInSecretChats(value);
-              },
-            ),
-          ],
-        ),
-
-        // 5. Удалить мой аккаунт
-        SettingsSection(
-          title: 'Удалить мой аккаунт',
-          subtitle: 'Автоматическое удаление аккаунта при длительном отсутствии',
-          children: <Widget>[
-            SettingsTile(
-              icon: Icons.delete_forever_rounded,
-              title: 'Если я не захожу',
-              subtitle: 'Срок отсутствия до полной очистки данных',
-              value: _formatSelfDestructPeriod(settings.accountSelfDestructMonths),
-              iconColor: scheme.error,
-              onTap: () => _showSelfDestructPicker(
-                context,
-                ref,
-                settings.accountSelfDestructMonths,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        children: <Widget>[
+          // 1. Связь & Сообщения
+          SettingsSection(
+            title: context.l10n.privacyCategoryCommunication,
+            subtitle: context.l10n.privacyCategoryCommunicationDesc,
+            children: <Widget>[
+              SettingsRow(
+                anchor: SettingId.privacyCalls.value,
+                leading: Icon(Icons.call_rounded, color: scheme.primary),
+                title: context.l10n.privacyRuleCalls,
+                control: NavigationControl(
+                  value: privacy.policyFor('calls').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'calls'),
               ),
-            ),
-          ],
-        ),
-
-        // 6. Фоновая работа
-        SettingsSection(
-          title: context.l10n.settingsBackgroundTitle,
-          subtitle: context.l10n.settingsBackgroundSubtitle,
-          children: <Widget>[
-            if (isAndroid) ...<Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    SegmentedButton<BackgroundMode>(
-                      showSelectedIcon: false,
-                      segments: const <ButtonSegment<BackgroundMode>>[
-                        ButtonSegment<BackgroundMode>(
-                          value: BackgroundMode.off,
-                          label: Text('Отключен'),
-                          icon: Icon(Icons.power_settings_new_rounded, size: 18),
-                        ),
-                        ButtonSegment<BackgroundMode>(
-                          value: BackgroundMode.economy,
-                          label: Text('Экономный'),
-                          icon: Icon(Icons.battery_saver_rounded, size: 18),
-                        ),
-                        ButtonSegment<BackgroundMode>(
-                          value: BackgroundMode.reliable,
-                          label: Text('Надежный'),
-                          icon: Icon(Icons.shield_rounded, size: 18),
-                        ),
-                      ],
-                      selected: <BackgroundMode>{settings.backgroundMode},
-                      onSelectionChanged: (Set<BackgroundMode> selected) async {
-                        final BackgroundMode newMode = selected.first;
-                        ref.read(uiSettingsProvider.notifier).setBackgroundMode(newMode);
-                        if (newMode == BackgroundMode.reliable) {
-                          await BackgroundService.startReliable();
-                          await BackgroundService.requestDisableBatteryOptimization();
-                        } else if (newMode == BackgroundMode.economy) {
-                          await BackgroundService.stop();
-                          await SystemUtils.requestIgnoreBatteryOptimizations();
-                        } else {
-                          await BackgroundService.stop();
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      switch (settings.backgroundMode) {
-                        BackgroundMode.off =>
-                          'Фоновое соединение отключено. Уведомления поступают через Google Play / FCM.',
-                        BackgroundMode.economy =>
-                          context.l10n.settingsBackgroundEconomyDesc,
-                        BackgroundMode.reliable =>
-                          context.l10n.settingsBackgroundReliableDesc,
-                      },
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.35,
-                          ),
-                    ),
-                    if (settings.backgroundMode == BackgroundMode.reliable) ...<Widget>[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: () async {
-                            await BackgroundService.requestDisableBatteryOptimization();
-                          },
-                          icon: const Icon(Icons.battery_charging_full_rounded, size: 16),
-                          label: Text(
-                            context.l10n.privacyBatteryOptimization,
-                            style: const TextStyle(fontSize: 12.5),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+              SettingsRow(
+                anchor: SettingId.privacyMessages.value,
+                leading: Icon(Icons.chat_bubble_outline_rounded, color: scheme.primary),
+                title: context.l10n.privacyRuleDirectMessages,
+                control: NavigationControl(
+                  value: privacy.policyFor('messages').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'messages'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyVoiceMessages.value,
+                leading: Icon(Icons.mic_none_rounded, color: scheme.primary),
+                title: context.l10n.privacyRuleVoiceMessages,
+                control: NavigationControl(
+                  value: privacy.policyFor('voice_messages').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'voice_messages'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyReadReceipts.value,
+                leading: Icon(Icons.done_all_rounded, color: scheme.primary),
+                title: 'Отчёты о прочтении',
+                subtitle: 'Показывать собеседникам, когда вы прочитали их сообщения',
+                control: ToggleControl(
+                  value: privacy.readReceiptsEnabled,
+                  onChanged: (bool value) async {
+                    try {
+                      await ref
+                          .read(privacyProvider.notifier)
+                          .setReadReceipts(value);
+                    } catch (e) {
+                      if (context.mounted) {
+                        AppToast.showError(
+                          context,
+                          'Не удалось сохранить настройки прочтения',
+                        );
+                      }
+                    }
+                  },
                 ),
               ),
-            ] else
-              SettingsInfoTile(
-                icon: Icons.info_outline_rounded,
-                title: context.l10n.settingsBackgroundNotAvailable,
-                subtitle: context.l10n.settingsBackgroundNotAvailableDesc,
-                iconColor: scheme.onSurfaceVariant,
-              ),
-          ],
-        ),
-
-        // 6. Спамблок
-        if (spamBlock)
-          SettingsSection(
-            title: context.l10n.settingsSpamBlockTitle,
-            subtitle: context.l10n.settingsSpamBlockSubtitle,
-            children: <Widget>[
-              SettingsInfoTile(
-                icon: Icons.block_rounded,
-                title: context.l10n.settingsServerLimitsTitle,
-                subtitle: context.l10n.settingsServerLimitsSubtitle,
-                value: context.l10n.settingsProduction,
-                iconColor: scheme.error,
+              SettingsRow(
+                anchor: SettingId.privacyTypingIndicators.value,
+                leading: Icon(Icons.keyboard_outlined, color: scheme.primary),
+                title: 'Индикатор набора текста',
+                subtitle: 'Транслировать статус печати собеседникам',
+                control: ToggleControl(
+                  value: privacy.typingIndicatorsEnabled,
+                  onChanged: (bool value) async {
+                    try {
+                      await ref
+                          .read(privacyProvider.notifier)
+                          .setTypingIndicators(value);
+                    } catch (e) {
+                      if (context.mounted) {
+                        AppToast.showError(
+                          context,
+                          'Не удалось сохранить настройки набора',
+                        );
+                      }
+                    }
+                  },
+                ),
               ),
             ],
           ),
-      ],
+
+          // 2. Личные данные
+          SettingsSection(
+            title: context.l10n.privacyCategoryPersonalData,
+            subtitle: context.l10n.privacyCategoryPersonalDataDesc,
+            children: <Widget>[
+              SettingsRow(
+                anchor: SettingId.privacyPhone.value,
+                leading: Icon(Icons.phone_rounded, color: scheme.secondary),
+                title: context.l10n.privacyRulePhone,
+                control: NavigationControl(
+                  value: privacy.policyFor('phone').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'phone'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyBirthday.value,
+                leading: Icon(Icons.cake_rounded, color: scheme.secondary),
+                title: context.l10n.privacyRuleBirthDate,
+                control: NavigationControl(
+                  value: privacy.policyFor('birthday').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'birthday'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyAvatar.value,
+                leading: Icon(Icons.account_circle_outlined, color: scheme.secondary),
+                title: context.l10n.privacyRuleAvatar,
+                control: NavigationControl(
+                  value: privacy.policyFor('profile_photos').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'profile_photos'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyBio.value,
+                leading: Icon(Icons.notes_rounded, color: scheme.secondary),
+                title: context.l10n.privacyRuleBio,
+                control: NavigationControl(
+                  value: privacy.policyFor('bio').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'bio'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyGifts.value,
+                leading: Icon(Icons.card_giftcard_rounded, color: scheme.secondary),
+                title: context.l10n.privacyRuleGifts,
+                control: NavigationControl(
+                  value: privacy.policyFor('gifts').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'gifts'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyMusic.value,
+                leading: Icon(Icons.music_note_rounded, color: scheme.secondary),
+                title: context.l10n.privacyRuleMusic,
+                control: NavigationControl(
+                  value: privacy.policyFor('saved_music').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'saved_music'),
+              ),
+            ],
+          ),
+
+          // 3. Активность
+          SettingsSection(
+            title: context.l10n.privacyCategoryActivity,
+            subtitle: context.l10n.privacyCategoryActivityDesc,
+            children: <Widget>[
+              SettingsRow(
+                anchor: SettingId.privacyLastSeen.value,
+                leading: Icon(Icons.access_time_rounded, color: scheme.tertiary),
+                title: context.l10n.privacyRuleLastSeen,
+                control: NavigationControl(
+                  value: privacy.policyFor('last_seen').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'last_seen'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyForwards.value,
+                leading: Icon(Icons.forward_rounded, color: scheme.tertiary),
+                title: context.l10n.privacyRuleForwards,
+                control: NavigationControl(
+                  value: privacy.policyFor('forwards').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'forwards'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyInvites.value,
+                leading: Icon(Icons.group_add_rounded, color: scheme.tertiary),
+                title: context.l10n.privacyRuleInvites,
+                control: NavigationControl(
+                  value: privacy.policyFor('invites').localized(context.l10n),
+                ),
+                onTap: () => _openRule(context, 'invites'),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyHideOnline.value,
+                leading: Icon(Icons.visibility_off_rounded, color: scheme.tertiary),
+                title: context.l10n.settingsPrivacyHideOnline,
+                subtitle: context.l10n.settingsPrivacyHideOnlineDesc,
+                control: ToggleControl(
+                  value: privacy.policyFor('last_seen') == PrivacyPolicy.nobody || settings.hideOnline,
+                  onChanged: (bool value) async {
+                    ref.read(uiSettingsProvider.notifier).setHideOnline(value);
+                    try {
+                      await ref.read(privacyProvider.notifier).updateRule(
+                            key: 'last_seen',
+                            policy: value ? PrivacyPolicy.nobody : PrivacyPolicy.everyone,
+                          );
+                    } catch (e) {
+                      if (context.mounted) {
+                        AppToast.showError(context, 'Не удалось сохранить статус видимости');
+                      }
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          // 4. Безопасность и блокировки
+          SettingsSection(
+            title: context.l10n.privacyCategorySecurity,
+            children: <Widget>[
+              SettingsRow(
+                anchor: SettingId.privacyBlockedUsers.value,
+                leading: Icon(Icons.block_rounded, color: scheme.error),
+                title: context.l10n.privacyBlacklist,
+                subtitle: privacy.blockedUsers.isEmpty
+                    ? context.l10n.privacyNoBlocked
+                    : context.l10n.privacyBlockedCount(privacy.blockedUsers.length),
+                control: const NavigationControl(),
+                onTap: () => _openBlockedUsers(context),
+              ),
+              SettingsRow(
+                leading: Icon(Icons.enhanced_encryption_rounded, color: scheme.primary),
+                title: context.l10n.settingsSecretChatsTitle,
+                subtitle: context.l10n.settingsSecretChatsSubtitle,
+                control: const NavigationControl(),
+                onTap: () {
+                  if (isEmbedded) {
+                    ref
+                        .read(desktopSelectedSettingsSectionProvider.notifier)
+                        .setSelectedSection(SettingsSectionId.e2ee);
+                  } else {
+                    context.push('/settings/e2ee');
+                  }
+                },
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyLinkPreviewsSecret.value,
+                leading: Icon(Icons.link_rounded, color: scheme.primary),
+                title: 'Предпросмотр ссылок в секретных чатах',
+                subtitle: 'Генерировать предпросмотр для отправляемых веб-ссылок',
+                control: ToggleControl(
+                  value: settings.linkPreviewsInSecretChats,
+                  onChanged: (bool value) {
+                    ref
+                        .read(uiSettingsProvider.notifier)
+                        .setLinkPreviewsInSecretChats(value);
+                  },
+                ),
+              ),
+              SettingsRow(
+                anchor: SettingId.privacyScreenshotsSecret.value,
+                leading: Icon(Icons.screenshot_rounded, color: scheme.primary),
+                title: 'Защита от снимков экрана',
+                subtitle: 'Блокировать скриншоты и запись экрана в секретных чатах',
+                control: ToggleControl(
+                  value: settings.secureScreenshotsInSecretChats,
+                  onChanged: (bool value) {
+                    ref
+                        .read(uiSettingsProvider.notifier)
+                        .setSecureScreenshotsInSecretChats(value);
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          // 5. Удалить мой аккаунт
+          SettingsSection(
+            title: 'Удалить мой аккаунт',
+            subtitle: 'Автоматическое удаление аккаунта при длительном отсутствии',
+            children: <Widget>[
+              SettingsRow(
+                anchor: SettingId.privacyAccountSelfDestruct.value,
+                leading: Icon(Icons.delete_forever_rounded, color: scheme.error),
+                title: 'Если я не захожу',
+                subtitle: 'Срок отсутствия до полной очистки данных',
+                control: NavigationControl(
+                  value: _formatSelfDestructPeriod(settings.accountSelfDestructMonths),
+                ),
+                onTap: () => _showSelfDestructPicker(
+                  context,
+                  ref,
+                  settings.accountSelfDestructMonths,
+                ),
+              ),
+            ],
+          ),
+
+          // 6. Фоновая работа
+          SettingsSection(
+            title: context.l10n.settingsBackgroundTitle,
+            subtitle: context.l10n.settingsBackgroundSubtitle,
+            children: <Widget>[
+              if (isAndroid) ...<Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      SegmentedButton<BackgroundMode>(
+                        showSelectedIcon: false,
+                        segments: const <ButtonSegment<BackgroundMode>>[
+                          ButtonSegment<BackgroundMode>(
+                            value: BackgroundMode.off,
+                            label: Text('Отключен'),
+                            icon: Icon(Icons.power_settings_new_rounded, size: 18),
+                          ),
+                          ButtonSegment<BackgroundMode>(
+                            value: BackgroundMode.economy,
+                            label: Text('Экономный'),
+                            icon: Icon(Icons.battery_saver_rounded, size: 18),
+                          ),
+                          ButtonSegment<BackgroundMode>(
+                            value: BackgroundMode.reliable,
+                            label: Text('Надежный'),
+                            icon: Icon(Icons.shield_rounded, size: 18),
+                          ),
+                        ],
+                        selected: <BackgroundMode>{settings.backgroundMode},
+                        onSelectionChanged: (Set<BackgroundMode> selected) async {
+                          final BackgroundMode newMode = selected.first;
+                          ref.read(uiSettingsProvider.notifier).setBackgroundMode(newMode);
+                          if (newMode == BackgroundMode.reliable) {
+                            await BackgroundService.startReliable();
+                            await BackgroundService.requestDisableBatteryOptimization();
+                          } else if (newMode == BackgroundMode.economy) {
+                            await BackgroundService.stop();
+                            await SystemUtils.requestIgnoreBatteryOptimizations();
+                          } else {
+                            await BackgroundService.stop();
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        switch (settings.backgroundMode) {
+                          BackgroundMode.off =>
+                            'Фоновое соединение отключено. Уведомления поступают через Google Play / FCM.',
+                          BackgroundMode.economy =>
+                            context.l10n.settingsBackgroundEconomyDesc,
+                          BackgroundMode.reliable =>
+                            context.l10n.settingsBackgroundReliableDesc,
+                        },
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              height: 1.35,
+                            ),
+                      ),
+                      if (settings.backgroundMode == BackgroundMode.reliable) ...<Widget>[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () async {
+                              await BackgroundService.requestDisableBatteryOptimization();
+                            },
+                            icon: const Icon(Icons.battery_charging_full_rounded, size: 16),
+                            label: Text(
+                              context.l10n.privacyBatteryOptimization,
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ] else
+                SettingsRow(
+                  anchor: SettingId.privacyBackgroundMode.value,
+                  leading: Icon(Icons.info_outline_rounded, color: scheme.onSurfaceVariant),
+                  title: context.l10n.settingsBackgroundNotAvailable,
+                  subtitle: context.l10n.settingsBackgroundNotAvailableDesc,
+                  control: const ValueControl(''),
+                ),
+            ],
+          ),
+
+          // 7. Спамблок
+          if (spamBlock)
+            SettingsSection(
+              title: context.l10n.settingsSpamBlockTitle,
+              subtitle: context.l10n.settingsSpamBlockSubtitle,
+              children: <Widget>[
+                SettingsRow(
+                  leading: Icon(Icons.block_rounded, color: scheme.error),
+                  title: context.l10n.settingsServerLimitsTitle,
+                  subtitle: context.l10n.settingsServerLimitsSubtitle,
+                  control: ValueControl(context.l10n.settingsProduction),
+                ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }

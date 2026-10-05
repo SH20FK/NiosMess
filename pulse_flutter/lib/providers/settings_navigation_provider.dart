@@ -15,7 +15,15 @@ enum SettingsSectionId {
   e2ee,
   sessions,
   energySaving,
-  plus,
+  plus;
+
+  static SettingsSectionId fromString(String? raw) {
+    if (raw == null) return SettingsSectionId.account;
+    for (final SettingsSectionId v in SettingsSectionId.values) {
+      if (v.name == raw) return v;
+    }
+    return SettingsSectionId.account;
+  }
 }
 
 class DesktopSettingsSectionNotifier extends Notifier<SettingsSectionId> {

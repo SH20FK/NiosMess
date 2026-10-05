@@ -11,6 +11,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/chat_actions_models.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
+import 'package:pulse_flutter/models/api/invite_models.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
@@ -290,9 +291,21 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
       }
 
       if (_chatType == 'group' && _selectedUserIds.isNotEmpty) {
-        await ref
+        final ChatInviteBatchResult batchResult = await ref
             .read(chatRepositoryProvider)
             .inviteUsers(result.chatId, _selectedUserIds.toList());
+
+        if (batchResult.isPartial && mounted) {
+          AppToast.showInfo(
+            context,
+            'Приглашены ${batchResult.invitedUserIds.length} из ${_selectedUserIds.length} участников',
+          );
+        } else if (batchResult.isFailure && mounted) {
+          AppToast.showError(
+            context,
+            'Не удалось пригласить выбранных участников',
+          );
+        }
       }
 
       await ref.read(chatsProvider.notifier).refresh();
@@ -307,7 +320,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
       widget.onChatCreated?.call(result.chatId);
     } catch (error) {
       if (!mounted) return;
-      AppToast.showError(context, error);
+      AppToast.showError(context, error.toString().replaceFirst(RegExp(r'^(Exception|StateError):\s*'), ''));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -909,10 +922,13 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
         itemBuilder: (BuildContext ctx, int index) {
           final ApiChatSummary c = contacts[index];
           final String username = c.username ?? '';
-          final bool isSelected = _selectedUsernames.containsValue(c.name);
+          final int? targetUserId = c.partnerUserId;
+          final bool isSelectable = targetUserId != null && targetUserId > 0;
+          final bool isSelected = isSelectable && _selectedUserIds.contains(targetUserId);
 
           return ListTile(
             dense: true,
+            enabled: isSelectable,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
             leading: PulseAvatar(
@@ -940,31 +956,39 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(5),
               ),
-              onChanged: (bool? val) {
-                HapticService.tap();
-                setState(() {
-                  if (val == true) {
-                    _selectedUsernames[c.id] = c.name;
-                    _selectedUserAvatars[c.id] = c.avatarUrl;
-                  } else {
-                    _selectedUsernames.remove(c.id);
-                    _selectedUserAvatars.remove(c.id);
-                  }
-                });
-              },
+              onChanged: !isSelectable
+                  ? null
+                  : (bool? val) {
+                      HapticService.tap();
+                      setState(() {
+                        if (val == true) {
+                          _selectedUserIds.add(targetUserId);
+                          _selectedUsernames[targetUserId] = c.name;
+                          _selectedUserAvatars[targetUserId] = c.avatarUrl;
+                        } else {
+                          _selectedUserIds.remove(targetUserId);
+                          _selectedUsernames.remove(targetUserId);
+                          _selectedUserAvatars.remove(targetUserId);
+                        }
+                      });
+                    },
             ),
-            onTap: () {
-              HapticService.tap();
-              setState(() {
-                if (isSelected) {
-                  _selectedUsernames.remove(c.id);
-                  _selectedUserAvatars.remove(c.id);
-                } else {
-                  _selectedUsernames[c.id] = c.name;
-                  _selectedUserAvatars[c.id] = c.avatarUrl;
-                }
-              });
-            },
+            onTap: !isSelectable
+                ? null
+                : () {
+                    HapticService.tap();
+                    setState(() {
+                      if (isSelected) {
+                        _selectedUserIds.remove(targetUserId);
+                        _selectedUsernames.remove(targetUserId);
+                        _selectedUserAvatars.remove(targetUserId);
+                      } else {
+                        _selectedUserIds.add(targetUserId);
+                        _selectedUsernames[targetUserId] = c.name;
+                        _selectedUserAvatars[targetUserId] = c.avatarUrl;
+                      }
+                    });
+                  },
           );
         },
       ),

@@ -3,7 +3,11 @@ import 'package:universal_io/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
+import 'package:pulse_flutter/features/storage/domain/storage_snapshot.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+export 'package:pulse_flutter/features/storage/domain/storage_snapshot.dart';
 
 class LocalStorageSnapshot {
   const LocalStorageSnapshot({
@@ -12,20 +16,25 @@ class LocalStorageSnapshot {
     required this.temporaryBytes,
     required this.draftBytes,
     required this.draftCount,
+    this.categoryBytes = const <StorageCategory, int>{},
   });
 
   const LocalStorageSnapshot.empty()
-    : documentsBytes = 0,
-      supportBytes = 0,
-      temporaryBytes = 0,
-      draftBytes = 0,
-      draftCount = 0;
+      : documentsBytes = 0,
+        supportBytes = 0,
+        temporaryBytes = 0,
+        draftBytes = 0,
+        draftCount = 0,
+        categoryBytes = const <StorageCategory, int>{};
 
   final int documentsBytes;
   final int supportBytes;
   final int temporaryBytes;
   final int draftBytes;
   final int draftCount;
+  final Map<StorageCategory, int> categoryBytes;
+
+  int bytesFor(StorageCategory category) => categoryBytes[category] ?? 0;
 
   int get totalBytes =>
       documentsBytes + supportBytes + temporaryBytes + draftBytes;
@@ -95,6 +104,11 @@ class LocalStorageService {
       draftBytes += value.length * 2;
     }
 
+    final Map<StorageCategory, int> categoryBytes = <StorageCategory, int>{
+      for (final StorageCategory cat in StorageCategory.values) cat: 0,
+    };
+    categoryBytes[StorageCategory.drafts] = draftBytes;
+
     int documentsBytes = 0;
     int supportBytes = 0;
     int temporaryBytes = 0;
@@ -107,9 +121,11 @@ class LocalStorageService {
       );
 
       final Set<String> countedPaths = <String>{};
-      documentsBytes = await _directorySizeUnique(documents, countedPaths);
-      supportBytes = support == null ? 0 : await _directorySizeUnique(support, countedPaths);
-      temporaryBytes = await _directorySizeUnique(temporary, countedPaths);
+      documentsBytes = await _scanDirectory(documents, countedPaths, categoryBytes);
+      supportBytes = support == null
+          ? 0
+          : await _scanDirectory(support, countedPaths, categoryBytes);
+      temporaryBytes = await _scanDirectory(temporary, countedPaths, categoryBytes);
     }
 
     final LocalStorageSnapshot result = LocalStorageSnapshot(
@@ -118,6 +134,7 @@ class LocalStorageService {
       temporaryBytes: temporaryBytes,
       draftBytes: draftBytes,
       draftCount: draftCount,
+      categoryBytes: categoryBytes,
     );
 
     _cachedSnapshot = result;
@@ -180,11 +197,34 @@ class LocalStorageService {
     );
   }
 
-  Future<void> clearTemporaryFiles() async {
+  Future<int> clearTemporaryFiles() async {
     await ensureInitialized();
     final Directory temporary = await getTemporaryDirectory();
-    await _clearDirectoryContents(temporary);
+    final int deleted = await _clearDirectoryContents(temporary);
     invalidateSnapshotCache();
+    return deleted;
+  }
+
+  Future<int> clearCategoryFiles(StorageCategory category) async {
+    await ensureInitialized();
+    if (category == StorageCategory.drafts) {
+      return clearDrafts();
+    }
+    if (category == StorageCategory.secretChatCache) {
+      await EncryptedMessageCache.clearAll();
+      invalidateSnapshotCache();
+      return 0;
+    }
+
+    int deleted = 0;
+    if (!kIsWeb) {
+      final Directory temporary = await getTemporaryDirectory();
+      deleted += await _deleteMatchingCategory(temporary, category);
+      final Directory documents = await getApplicationDocumentsDirectory();
+      deleted += await _deleteMatchingCategory(documents, category);
+    }
+    invalidateSnapshotCache();
+    return deleted;
   }
 
   Future<int> clearDrafts() async {
@@ -194,11 +234,16 @@ class LocalStorageService {
         .getKeys()
         .where((String key) => key.startsWith(_draftPrefix))
         .toList(growable: false);
+    int deletedBytes = 0;
     for (final String key in draftKeys) {
+      final String? value = prefs.getString(key);
+      if (value != null) {
+        deletedBytes += value.length * 2;
+      }
       await prefs.remove(key);
     }
     invalidateSnapshotCache();
-    return draftKeys.length;
+    return deletedBytes;
   }
 
   Future<Directory?> _tryDirectory(Future<Directory> Function() loader) async {
@@ -209,40 +254,77 @@ class LocalStorageService {
     }
   }
 
-  Future<int> _directorySizeUnique(
+  Future<int> _scanDirectory(
     Directory directory,
     Set<String> countedPaths,
+    Map<StorageCategory, int> categoryBytes,
   ) async {
     final String path = directory.absolute.path.toLowerCase();
     if (!countedPaths.add(path)) return 0;
-    return _directorySize(directory);
-  }
+    if (!await directory.exists()) return 0;
 
-  Future<int> _directorySize(Directory directory) async {
     int total = 0;
-    if (!await directory.exists()) return total;
     await for (final FileSystemEntity entity in directory.list(
       recursive: true,
       followLinks: false,
     )) {
       if (entity is File) {
         try {
-          total += await entity.length();
-        } catch (e) { debugPrint('[local_storage_service.dart] Error: $e'); }
+          final int length = await entity.length();
+          total += length;
+          final StorageCategory cat = StorageCategory.detectFromFilePath(entity.path);
+          categoryBytes[cat] = (categoryBytes[cat] ?? 0) + length;
+        } catch (e) {
+          debugPrint('[local_storage_service.dart] Error reading length: $e');
+        }
       }
     }
     return total;
   }
 
-  Future<void> _clearDirectoryContents(Directory directory) async {
-    if (!await directory.exists()) return;
+  Future<int> _deleteMatchingCategory(
+    Directory directory,
+    StorageCategory target,
+  ) async {
+    if (!await directory.exists()) return 0;
+    int deleted = 0;
+    await for (final FileSystemEntity entity in directory.list(
+      recursive: true,
+      followLinks: false,
+    )) {
+      if (entity is File) {
+        if (StorageCategory.detectFromFilePath(entity.path) == target) {
+          try {
+            final int len = await entity.length();
+            await entity.delete();
+            deleted += len;
+          } catch (e) {
+            debugPrint('[local_storage_service.dart] Error deleting: $e');
+          }
+        }
+      }
+    }
+    return deleted;
+  }
+
+  Future<int> _clearDirectoryContents(Directory directory) async {
+    if (!await directory.exists()) return 0;
+    int deleted = 0;
     await for (final FileSystemEntity entity in directory.list(
       followLinks: false,
     )) {
       try {
+        if (entity is File) {
+          deleted += await entity.length();
+        } else if (entity is Directory) {
+          deleted += await _scanDirectory(entity, <String>{}, <StorageCategory, int>{});
+        }
         await entity.delete(recursive: true);
-      } catch (e) { debugPrint('[local_storage_service.dart] Error: $e'); }
+      } catch (e) {
+        debugPrint('[local_storage_service.dart] Error: $e');
+      }
     }
+    return deleted;
   }
 }
 

@@ -76,36 +76,34 @@ class MessageContextMenuSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return SafeArea(
-      top: false,
-      bottom: true,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // 1. Compact Message Preview with real thumbnail
-            _MessagePreviewCard(message: message, isMine: isMine),
-            const SizedBox(height: 10),
+    // SingleChildScrollView allows smooth scrolling on text scale 2.0 / landscape.
+    // Bottom padding is managed by AppModal, eliminating duplicate SafeArea insets.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // 1. Compact Message Preview with real thumbnail
+          _MessagePreviewCard(message: message, isMine: isMine),
+          const SizedBox(height: 10),
 
-            // 2. Horizontal Quick Reactions (clean circles, no flower clips)
-            _ReactionsRow(
-              scheme: scheme,
-              onReact: onReact,
-              onShowAllReactions: onShowAllReactions,
-            ),
-            const SizedBox(height: 10),
-            Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.2)),
-            const SizedBox(height: 4),
+          // 2. Horizontal Quick Reactions (48dp touch targets, semantics, clean circles)
+          _ReactionsRow(
+            scheme: scheme,
+            onReact: onReact,
+            onShowAllReactions: onShowAllReactions,
+          ),
+          const SizedBox(height: 10),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.2)),
+          const SizedBox(height: 4),
 
-            // 3. Flat Action List
-            ..._buildStandardActions(context, scheme),
+          // 3. Flat Action List
+          ..._buildStandardActions(context, scheme),
 
-            // 4. Destructive Action (separate last row on error tonal background)
-            ..._buildDestructiveActions(context, scheme),
-          ],
-        ),
+          // 4. Destructive Action (separate last row on error tonal background)
+          ..._buildDestructiveActions(context, scheme),
+        ],
       ),
     );
   }
@@ -123,20 +121,38 @@ class MessageContextMenuSheet extends StatelessWidget {
       },
     ));
 
-    // Copy text (disabled in secret chats for anti-leak protection)
-    if (!isSecret && message.content.trim().isNotEmpty && !message.isDeleted) {
-      list.add(_ActionListTile(
-        icon: Icons.copy_rounded,
-        title: context.l10n.chatCopyText,
-        onTap: () {
-          Navigator.of(context).pop(const MessageActionResult(MessageActionType.copy));
-          onCopy?.call();
-        },
-      ));
+    // Copy text (with honest secret chat explanation if disabled)
+    if (message.content.trim().isNotEmpty && !message.isDeleted) {
+      if (isSecret) {
+        list.add(_ActionListTile(
+          icon: Icons.copy_rounded,
+          title: context.l10n.chatCopyText,
+          subtitle: 'Запрещено политикой секретного чата',
+          enabled: false,
+          onTap: () {},
+        ));
+      } else {
+        list.add(_ActionListTile(
+          icon: Icons.copy_rounded,
+          title: context.l10n.chatCopyText,
+          onTap: () {
+            Navigator.of(context).pop(const MessageActionResult(MessageActionType.copy));
+            onCopy?.call();
+          },
+        ));
+      }
     }
 
-    // Forward
-    if (!isSecret) {
+    // Forward (with honest secret chat explanation if disabled)
+    if (isSecret) {
+      list.add(_ActionListTile(
+        icon: Icons.forward_rounded,
+        title: context.l10n.chatResendTo,
+        subtitle: 'Пересылка недоступна в секретном чате',
+        enabled: false,
+        onTap: () {},
+      ));
+    } else {
       list.add(_ActionListTile(
         icon: Icons.forward_rounded,
         title: context.l10n.chatResendTo,
@@ -243,17 +259,19 @@ class _MessagePreviewCard extends StatelessWidget {
     if (previewText.isEmpty) {
       if (message.isSticker) {
         final String emoji = message.sticker?.emoji.trim() ?? '';
-        previewText = emoji.isNotEmpty ? 'Стикер $emoji' : 'Стикер';
+        previewText = emoji.isNotEmpty
+            ? '${context.l10n.chatPreviewSticker} $emoji'
+            : context.l10n.chatPreviewSticker;
       } else if (message.msgType == 'voice' ||
           (message.mediaType ?? '').toLowerCase().startsWith('audio/')) {
-        previewText = 'Голосовое сообщение';
+        previewText = context.l10n.chatPreviewVoice;
       } else if (message.msgType == 'circle' ||
           message.msgType == 'circle_video' ||
           message.msgType == 'video_note') {
-        previewText = 'Видеосообщение';
+        previewText = context.l10n.chatPreviewVideoNote;
       } else if (message.hasMedia) {
         final String name = (message.mediaName ?? '').trim();
-        previewText = name.isNotEmpty ? name : 'Вложение';
+        previewText = name.isNotEmpty ? name : context.l10n.chatPreviewFile;
       }
     }
 
@@ -370,7 +388,7 @@ class _ReactionsRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
@@ -379,30 +397,38 @@ class _ReactionsRow extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: <Widget>[
           for (final reaction in MessageContextMenuSheet._quickReactions)
-            TouchContainer(
-              onTap: () {
-                TriSync.reaction(ref: ref, context: context);
-                Navigator.of(context).pop(MessageActionResult(MessageActionType.react, emoji: reaction.emoji));
-                onReact?.call(reaction.emoji);
-              },
-              borderRadius: BorderRadius.circular(18),
-              width: 38,
-              height: 38,
-              child: Center(
-                child: Text(reaction.emoji, style: const TextStyle(fontSize: 20)),
+            Semantics(
+              button: true,
+              label: 'Реакция ${reaction.emoji}',
+              child: TouchContainer(
+                onTap: () {
+                  TriSync.reaction(ref: ref, context: context);
+                  Navigator.of(context).pop(MessageActionResult(MessageActionType.react, emoji: reaction.emoji));
+                  onReact?.call(reaction.emoji);
+                },
+                borderRadius: BorderRadius.circular(24),
+                width: 48,
+                height: 48,
+                child: Center(
+                  child: Text(reaction.emoji, style: const TextStyle(fontSize: 22)),
+                ),
               ),
             ),
-          TouchContainer(
-            onTap: () {
-              TriSync.pop(ref: ref, context: context);
-              Navigator.of(context).pop(const MessageActionResult(MessageActionType.showAllReactions));
-              onShowAllReactions?.call();
-            },
-            borderRadius: BorderRadius.circular(18),
-            width: 38,
-            height: 38,
-            child: Center(
-              child: Icon(Icons.add_rounded, size: 20, color: scheme.primary),
+          Semantics(
+            button: true,
+            label: 'Выбрать реакцию',
+            child: TouchContainer(
+              onTap: () {
+                TriSync.pop(ref: ref, context: context);
+                Navigator.of(context).pop(const MessageActionResult(MessageActionType.showAllReactions));
+                onShowAllReactions?.call();
+              },
+              borderRadius: BorderRadius.circular(24),
+              width: 48,
+              height: 48,
+              child: Center(
+                child: Icon(Icons.add_rounded, size: 22, color: scheme.primary),
+              ),
             ),
           ),
         ],
@@ -417,17 +443,23 @@ class _ActionListTile extends StatelessWidget {
     required this.title,
     required this.onTap,
     this.color,
+    this.subtitle,
+    this.enabled = true,
   });
 
   final IconData icon;
   final String title;
   final VoidCallback onTap;
   final Color? color;
+  final String? subtitle;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Color fg = color ?? scheme.onSurface;
+    final Color fg = !enabled
+        ? scheme.onSurface.withValues(alpha: 0.38)
+        : (color ?? scheme.onSurface);
 
     return ListTile(
       leading: Icon(icon, color: fg, size: 20),
@@ -439,13 +471,25 @@ class _ActionListTile extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
       ),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle!,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                fontSize: 11,
+              ),
+            )
+          : null,
+      enabled: enabled,
       visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onTap: () {
-        HapticService.tap();
-        onTap();
-      },
+      onTap: enabled
+          ? () {
+              HapticService.tap();
+              onTap();
+            }
+          : null,
     );
   }
 }

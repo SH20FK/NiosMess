@@ -11,9 +11,14 @@ import 'package:pulse_flutter/providers/niosgram_provider.dart';
 class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
   Timer? _debounce;
   int _seq = 0;
+  String _currentQuery = '';
+
+  String get currentQuery => _currentQuery;
+  bool get hasActiveQuery => _currentQuery.trim().isNotEmpty;
 
   @override
   ApiSearchResult build() {
+    _currentQuery = '';
     ref.onDispose(() {
       _debounce?.cancel();
     });
@@ -22,6 +27,7 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
 
   void search(String query) {
     _debounce?.cancel();
+    _currentQuery = query;
     final String trimmed = query.trim();
     if (trimmed.isEmpty) {
       state = const AsyncData<ApiSearchResult>(ApiSearchResult.empty());
@@ -181,6 +187,7 @@ class DebouncedSearchNotifier extends AsyncNotifier<ApiSearchResult> {
 
   void clear() {
     _debounce?.cancel();
+    _currentQuery = '';
     _seq++;
     state = const AsyncData<ApiSearchResult>(ApiSearchResult.empty());
   }

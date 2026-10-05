@@ -18,14 +18,12 @@ import 'package:pulse_flutter/screens/niosgram_screen.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
-import 'package:pulse_flutter/widgets/chat_creation_surfaces.dart';
-import 'package:pulse_flutter/widgets/chat/m3_speed_dial_fab.dart';
+import 'package:pulse_flutter/features/chats/presentation/compose_action_sheet.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/core/services/biometric_service.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
@@ -55,9 +53,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   late final Set<int> _activatedTabs;
   final TabTransitionController _tabTransition = TabTransitionController();
-  bool _isTabTransitionRunning = false;
 
-  bool _biometricLocked = false;
   double _desktopChatListWidth = 360.0;
   DateTime? _lastBackPressTime;
   Timer? _startupTimer;
@@ -75,8 +71,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   Future<void> _runStartupSequence() async {
     PermissionService().requestInitialPermissionsIfNeeded();
-    final bool unlocked = await _checkBiometricLock();
-    if (!unlocked || !mounted) return;
 
     // Sequence dialogs and background checks with lifecycle cancellation (АРХ-10)
     _startupTimer?.cancel();
@@ -97,15 +91,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
       ref.read(webSocketClientProvider).pauseForBackground();
-    }
-
-    // Re-lock when leaving the foreground; unlock (or exit) on return.
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      _biometricLocked = true;
-    } else if (state == AppLifecycleState.resumed && _biometricLocked) {
-      _biometricLocked = false;
-      _checkBiometricLock();
     }
   }
 
@@ -236,17 +221,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     }
   }
 
-  Future<bool> _checkBiometricLock() async {
-    final BiometricService biometric = ref.read(biometricServiceProvider);
-    final bool authenticated = await biometric.authenticateIfEnabled();
-    if (!authenticated && mounted) {
-      // Consolidate app exit into single clean call without double navigator pop (АРХ-11)
-      await SystemUtils.minimizeApp();
-      return false;
-    }
-    return true;
-  }
-
   @override
   void didUpdateWidget(covariant MainShellScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -297,19 +271,43 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   Widget _composeFab(BuildContext context) {
     final bool isVisible = ref.watch(chatListFabVisibleProvider);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-    return M3SpeedDialFab(
-      visible: isVisible,
-      heroTag: 'compose_chat_fab',
-      onSelectContacts: () {
-        context.push('/contacts');
-      },
-      onSelectGroup: () {
-        showCreateChatModal(context, chatType: 'group');
-      },
-      onSelectChannel: () {
-        showCreateChatModal(context, chatType: 'channel');
-      },
+    return AnimatedSlide(
+      offset: isVisible ? Offset.zero : const Offset(0, 0.35),
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      child: AnimatedOpacity(
+        opacity: isVisible ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        child: IgnorePointer(
+          ignoring: !isVisible,
+          child: FloatingActionButton(
+            heroTag: 'compose_chat_fab',
+            elevation: 0,
+            highlightElevation: 0,
+            focusElevation: 0,
+            hoverElevation: 1,
+            backgroundColor: scheme.primaryContainer,
+            foregroundColor: scheme.onPrimaryContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            tooltip: 'Начать общение',
+            onPressed: () {
+              final bool haptics =
+                  ref.read(uiSettingsProvider.select((s) => s.haptics));
+              if (haptics) {
+                HapticService.tap();
+              }
+              openComposeActions(context);
+            },
+            child: const Icon(Icons.edit_rounded),
+          ),
+        ),
+      ),
     );
   }
 
@@ -440,18 +438,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   ? const Duration(milliseconds: 180)
                   : const Duration(milliseconds: 220))
               : const Duration(milliseconds: 180),
-          onTransitionStateChanged: (bool running) {
-            if (mounted && _isTabTransitionRunning != running) {
-              setState(() => _isTabTransitionRunning = running);
-            }
-          },
           children: List<Widget>.generate(pages.length, (int index) {
             if (!_activatedTabs.contains(index)) {
               return const SizedBox.shrink();
             }
             final bool isActive = index == currentIndex;
             return TickerMode(
-              enabled: isActive && !_isTabTransitionRunning,
+              enabled: isActive,
               child: RepaintBoundary(child: pages[index]),
             );
           }),
@@ -609,19 +602,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   }
 
   Future<void> _showCreateMenu(BuildContext context) async {
-    final String? action = await showCreateChatMenu(context);
-
-    if (action == null || !context.mounted) return;
-
-    switch (action) {
-      case 'secret':
-        await showStartSecretChatDialog(context, ref);
-        return;
-      case 'group':
-      case 'channel':
-        await showCreateChatModal(context, chatType: action);
-        return;
-    }
+    await openComposeActions(context);
   }
 }
 

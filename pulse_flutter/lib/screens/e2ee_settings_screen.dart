@@ -139,11 +139,6 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       title: context.l10n.e2eeScreenTitle,
       isEmbedded: widget.isEmbedded,
       children: [
-        SettingsNavBanner(
-          illustrationCategory: SettingsIllustrationCategory.e2ee,
-          subtitle: context.l10n.e2eeBannerSubtitle,
-          iconColor: scheme.tertiary,
-        ),
         SettingsSection(
           title: context.l10n.e2eeDeviceKey,
           children: [

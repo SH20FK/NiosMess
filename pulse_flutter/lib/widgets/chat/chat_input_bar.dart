@@ -456,6 +456,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final TextTheme textTheme = theme.textTheme;
+    final bool isCompact = MediaQuery.sizeOf(context).width < 360;
 
     // Read physical keyboard height dynamically for 1:1 zero-jolt panel parity
     final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
@@ -787,6 +788,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                       decoration: InputDecoration(
                                         hintText:
                                             context.l10n.chatMessageHint,
+                                        hintMaxLines: 1,
                                         hintStyle: textTheme.bodyMedium
                                             ?.copyWith(
                                           fontSize: 15,
@@ -813,7 +815,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                 // AI Assistant Button
                                 if (widget.isAiProcessing)
                                   Tooltip(
-                                    message: 'Остановить',
+                                    message: context.l10n.commonCancel,
                                     child: TouchContainer(
                                       borderRadius: AppRadii.fullRadius,
                                       onTap: widget.onCancelAi,
@@ -839,7 +841,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                       ),
                                     ),
                                   )
-                                else
+                                else if (!isCompact)
                                   Tooltip(
                                     message: context.l10n.chatAiAssistant,
                                     child: TouchContainer(

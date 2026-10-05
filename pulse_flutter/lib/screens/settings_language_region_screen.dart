@@ -32,11 +32,6 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
       title: context.l10n.languageRegionTitle,
       isEmbedded: isEmbedded,
       children: <Widget>[
-        SettingsNavBanner(
-          illustrationCategory: SettingsIllustrationCategory.languageRegion,
-          subtitle: context.l10n.languageRegionSubtitle,
-          iconColor: scheme.primary,
-        ),
         SettingsSection(
           title: context.l10n.languageRegionAppLanguage,
           subtitle: context.l10n.settingsLanguageBannerDesc,

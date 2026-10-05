@@ -16,7 +16,7 @@ class EmptyFeedIllustration extends StatelessWidget {
     this.size = 180,
     this.primaryColor,
     this.accentColor,
-    this.animate = true,
+    this.animate = false,
   });
 
   /// Overall square dimension of the illustration.
@@ -28,7 +28,7 @@ class EmptyFeedIllustration extends StatelessWidget {
   /// Accent tint color for background glow and highlights. Defaults to [ColorScheme.secondary].
   final Color? accentColor;
 
-  /// Whether to play a gentle breathing float animation.
+  /// Whether to play a gentle entrance animation.
   final bool animate;
 
   @override
@@ -44,7 +44,9 @@ class EmptyFeedIllustration extends StatelessWidget {
       colorFilter: ColorFilter.mode(primary, BlendMode.srcIn),
     );
 
-    if (!animate) {
+    final bool shouldAnimate = animate && !MediaQuery.disableAnimationsOf(context);
+
+    if (!shouldAnimate) {
       return SizedBox(
         width: size,
         height: size,
@@ -74,18 +76,16 @@ class EmptyFeedIllustration extends StatelessWidget {
             accent: accent,
           ),
           svgGraphic
-              .animate(onPlay: (AnimationController c) => c.repeat(reverse: true))
+              .animate()
               .scaleXY(
-                begin: 0.98,
-                end: 1.02,
-                duration: const Duration(milliseconds: 2400),
-                curve: Curves.easeInOut,
+                begin: 0.94,
+                end: 1.0,
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeOutCubic,
               )
-              .moveY(
-                begin: 0,
-                end: -4,
-                duration: const Duration(milliseconds: 2400),
-                curve: Curves.easeInOut,
+              .fadeIn(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOut,
               ),
         ],
       ),

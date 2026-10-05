@@ -61,3 +61,19 @@ class ApiJoinBySlugResult {
     );
   }
 }
+
+class ChatInviteBatchResult {
+  const ChatInviteBatchResult({
+    required this.chatId,
+    required this.invitedUserIds,
+    required this.failedUserIds,
+  });
+
+  final int chatId;
+  final List<int> invitedUserIds;
+  final List<int> failedUserIds;
+
+  bool get isFullSuccess => failedUserIds.isEmpty && invitedUserIds.isNotEmpty;
+  bool get isPartial => invitedUserIds.isNotEmpty && failedUserIds.isNotEmpty;
+  bool get isFailure => invitedUserIds.isEmpty;
+}

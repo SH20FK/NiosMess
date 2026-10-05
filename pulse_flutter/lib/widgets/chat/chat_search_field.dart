@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/widgets/chat/chat_search_bar.dart';
+import 'package:pulse_flutter/features/chats/presentation/inbox_search_launcher.dart';
 
+export 'package:pulse_flutter/features/chats/presentation/inbox_search_launcher.dart';
 export 'package:pulse_flutter/widgets/chat/chat_search_bar.dart';
 
-/// Legacy alias for [ChatSearchBar] maintaining backwards compatibility.
+/// Expressive inbox search launcher maintaining backwards compatibility.
 class ChatSearchField extends StatelessWidget {
   const ChatSearchField({
     super.key,
@@ -16,8 +17,8 @@ class ChatSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChatSearchBar(
-      onAvatarTap: onAvatarTap,
+    return InboxSearchLauncher(
+      onTap: onAvatarTap,
       hintText: hintText,
     );
   }

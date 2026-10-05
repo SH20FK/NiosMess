@@ -5,6 +5,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// Message types supported by Nios Calls WebRTC signaling server.
 abstract class WebRtcSignalType {
+  static const String auth = 'auth';
   static const String ready = 'ready';
   static const String peerJoined = 'peer_joined';
   static const String peerLeft = 'peer_left';
@@ -73,14 +74,20 @@ class WebRtcSignalingClient {
     if (_connected || _disposed) return _connected;
 
     try {
-      final String sep = signalUrl.contains('?') ? '&' : '?';
-      final Uri uri = Uri.parse('$signalUrl${sep}token=${Uri.encodeComponent(token)}');
+      final Uri uri = Uri.parse(signalUrl);
+      final String safeLogUrl = uri.replace(queryParameters: const {}).toString();
 
-      debugPrint('[WebRtcSignaling] Connecting to $signalUrl...');
+      debugPrint('[WebRtcSignaling] Connecting to $safeLogUrl...');
       _channel = WebSocketChannel.connect(uri);
       await _channel!.ready.timeout(const Duration(seconds: 10));
 
       _connected = true;
+      if (token.isNotEmpty) {
+        send(<String, dynamic>{
+          'type': WebRtcSignalType.auth,
+          'token': token,
+        });
+      }
       _startHeartbeat();
 
       _sub = _channel!.stream.listen(

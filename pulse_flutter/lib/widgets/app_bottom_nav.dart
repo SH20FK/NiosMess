@@ -205,7 +205,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
       ),
       _NavItem(
         context.l10n.tabNiosgram,
-        Icons.grid_view_rounded,
+        Icons.grid_view_outlined,
         Icons.grid_view_rounded,
       ),
       _NavItem(
@@ -257,21 +257,13 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
                   ? scheme.onSecondaryContainer
                   : scheme.onSurfaceVariant;
 
-              final Widget iconWidget = AnimatedSwitcher(
-                duration: animate ? duration : Duration.zero,
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (Widget child, Animation<double> anim) {
-                  return FadeTransition(opacity: anim, child: child);
-                },
-                child: Icon(
-                  isSelected ? item.selectedIcon : item.icon,
-                  size: 24,
-                  color: slotColor,
-                  key: ValueKey<IconData>(
-                    isSelected ? item.selectedIcon : item.icon,
-                  ),
-                ),
+              final Widget iconWidget = TabMorphIcon(
+                outlineIcon: item.icon,
+                filledIcon: item.selectedIcon,
+                isSelected: isSelected,
+                color: slotColor,
+                animate: animate,
+                duration: duration,
               );
 
               // Decouple badge from icon transition to avoid restarting badge animations
@@ -397,3 +389,113 @@ class _NavItem {
   final IconData selectedIcon;
   final int badge;
 }
+
+class TabMorphIcon extends StatefulWidget {
+  const TabMorphIcon({
+    required this.outlineIcon,
+    required this.filledIcon,
+    required this.isSelected,
+    required this.color,
+    required this.animate,
+    required this.duration,
+    this.size = 24.0,
+    super.key,
+  });
+
+  final IconData outlineIcon;
+  final IconData filledIcon;
+  final bool isSelected;
+  final Color color;
+  final bool animate;
+  final Duration duration;
+  final double size;
+
+  @override
+  State<TabMorphIcon> createState() => _TabMorphIconState();
+}
+
+class _TabMorphIconState extends State<TabMorphIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+      value: widget.isSelected ? 1.0 : 0.0,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: M3SpringCurves.expressiveDecel,
+      reverseCurve: Curves.easeInCubic,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant TabMorphIcon oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.duration != widget.duration) {
+      _controller.duration = widget.duration;
+    }
+    if (oldWidget.isSelected != widget.isSelected) {
+      if (widget.animate) {
+        _controller.animateTo(
+          widget.isSelected ? 1.0 : 0.0,
+          duration: widget.duration,
+          curve: M3SpringCurves.expressiveDecel,
+        );
+      } else {
+        _controller.value = widget.isSelected ? 1.0 : 0.0;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (BuildContext context, _) {
+        final double t = _animation.value;
+        final double scale = 1.0 + 0.08 * (t * (1.0 - t) * 4);
+
+        return Transform.scale(
+          scale: scale,
+          child: SizedBox.square(
+            dimension: widget.size,
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                Opacity(
+                  opacity: (1.0 - t).clamp(0.0, 1.0),
+                  child: Icon(
+                    widget.outlineIcon,
+                    size: widget.size,
+                    color: widget.color,
+                  ),
+                ),
+                Opacity(
+                  opacity: t.clamp(0.0, 1.0),
+                  child: Icon(
+                    widget.filledIcon,
+                    size: widget.size,
+                    color: widget.color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+

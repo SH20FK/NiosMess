@@ -15,6 +15,7 @@ class SettingsSearchResult {
     required this.breadcrumb,
     required this.targetRoute,
     this.targetSectionId,
+    this.anchor,
     required this.score,
   });
 
@@ -24,6 +25,7 @@ class SettingsSearchResult {
   final String breadcrumb;
   final String targetRoute;
   final SettingsSectionId? targetSectionId;
+  final String? anchor;
   final double score;
 }
 
@@ -738,6 +740,7 @@ class SettingsRegistry {
             breadcrumb: '$parentTitle › $title',
             targetRoute: route,
             targetSectionId: sectionId,
+            anchor: childNode.id,
             score: score,
           ),
         );

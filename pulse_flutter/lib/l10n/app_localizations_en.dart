@@ -1106,6 +1106,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatListArchive => 'Archive';
 
   @override
+  String get chatListUnpin => 'Unpin';
+
+  @override
+  String get chatListUnarchive => 'Unarchive';
+
+  @override
   String get chatListMuteSubtitle => 'Mute is not available from API yet';
 
   @override

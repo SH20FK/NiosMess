@@ -13,6 +13,23 @@ enum ChatActionResult {
   leave,
 }
 
+/// Unified descriptor for actions inside [ChatActionsModal].
+class ChatActionDescriptor {
+  const ChatActionDescriptor({
+    required this.result,
+    required this.label,
+    required this.icon,
+    this.enabled = true,
+    this.isDestructive = false,
+  });
+
+  final ChatActionResult result;
+  final String label;
+  final IconData icon;
+  final bool enabled;
+  final bool isDestructive;
+}
+
 /// Unified Material 3 Expressive context actions modal for chats.
 /// Strictly delegates presentation to [AppModal.showActions], providing
 /// a consistent content contract across mobile sheets and desktop dialogs.
@@ -26,6 +43,7 @@ class ChatActionsModal {
     bool isMuted = false,
     bool isPinned = false,
     bool isArchived = false,
+    bool isOwnerOrAdmin = false,
   }) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
@@ -91,36 +109,42 @@ class ChatActionsModal {
       ),
     );
 
-    final List<Widget> actions = <Widget>[
-      ListTile(
-        leading: const Icon(Icons.done_all_rounded),
-        title: Text(context.l10n.chatListMarkRead),
-        onTap: () => Navigator.of(context).pop(ChatActionResult.markRead),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    final List<ChatActionDescriptor> descriptors = <ChatActionDescriptor>[
+      ChatActionDescriptor(
+        result: ChatActionResult.markRead,
+        label: context.l10n.chatListMarkRead,
+        icon: Icons.done_all_rounded,
+        enabled: chat.unreadCount > 0,
       ),
-      ListTile(
-        leading: Icon(isMuted
-            ? Icons.notifications_active_rounded
-            : Icons.notifications_off_rounded),
-        title: Text(isMuted
+      ChatActionDescriptor(
+        result: ChatActionResult.toggleMute,
+        label: isMuted
             ? context.l10n.profileUnmuteNotifications
-            : context.l10n.profileMuteNotifications),
-        onTap: () => Navigator.of(context).pop(ChatActionResult.toggleMute),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      ListTile(
-        leading: Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded),
-        title: Text(isPinned ? 'Открепить чат' : 'Закрепить чат'),
-        onTap: () => Navigator.of(context).pop(ChatActionResult.pin),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      ListTile(
-        leading: Icon(isArchived ? Icons.unarchive_rounded : Icons.archive_rounded),
-        title: Text(isArchived ? 'Извлечь из архива' : 'В архив'),
-        onTap: () => Navigator.of(context).pop(ChatActionResult.archive),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            : context.l10n.profileMuteNotifications,
+        icon: isMuted
+            ? Icons.notifications_active_rounded
+            : Icons.notifications_off_rounded,
       ),
     ];
+
+    final List<Widget> actions = descriptors.map((ChatActionDescriptor desc) {
+      return ListTile(
+        leading: Icon(
+          desc.icon,
+          color: desc.enabled ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.38),
+        ),
+        title: Text(
+          desc.label,
+          style: TextStyle(
+            color: desc.enabled ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.38),
+          ),
+        ),
+        enabled: desc.enabled,
+        onTap: desc.enabled ? () => Navigator.of(context).pop(desc.result) : null,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      );
+    }).toList(growable: false);
 
     final Widget destructiveTile = Container(
       decoration: BoxDecoration(
@@ -138,6 +162,7 @@ class ChatActionsModal {
         ),
         onTap: () => Navigator.of(context).pop(ChatActionResult.leave),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       ),
     );
 

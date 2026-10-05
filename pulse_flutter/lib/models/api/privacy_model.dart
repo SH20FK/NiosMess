@@ -71,6 +71,9 @@ class PrivacyRule {
     'bio',
     'saved_music',
     'invites',
+    'read_receipts',
+    'typing_indicators',
+    'default_disappearing_seconds',
   ];
 
   static String localizedKeyName(String key, [AppLocalizations? l10n]) {
@@ -100,6 +103,12 @@ class PrivacyRule {
           return l10n.privacyRuleMusic;
         case 'invites':
           return l10n.privacyRuleInvites;
+        case 'read_receipts':
+          return 'Отчёты о прочтении';
+        case 'typing_indicators':
+          return 'Индикатор набора текста';
+        case 'default_disappearing_seconds':
+          return 'Автоудаление сообщений';
         default:
           return key;
       }
@@ -129,6 +138,12 @@ class PrivacyRule {
         return 'Сохранённая музыка';
       case 'invites':
         return 'Приглашения в группы и каналы';
+      case 'read_receipts':
+        return 'Отчёты о прочтении';
+      case 'typing_indicators':
+        return 'Индикатор набора текста';
+      case 'default_disappearing_seconds':
+        return 'Автоудаление сообщений';
       default:
         return key;
     }

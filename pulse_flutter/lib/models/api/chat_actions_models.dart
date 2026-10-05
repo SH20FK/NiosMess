@@ -138,6 +138,8 @@ class ChatCreateResult {
     this.shareLink,
     this.commentsChatId,
     this.inviteToken,
+    this.invitedUserIds = const <int>[],
+    this.failedUserIds = const <int>[],
   });
 
   final int chatId;
@@ -147,6 +149,10 @@ class ChatCreateResult {
   final String? shareLink;
   final int? commentsChatId;
   final String? inviteToken;
+  final List<int> invitedUserIds;
+  final List<int> failedUserIds;
+
+  bool get hasMemberFailures => failedUserIds.isNotEmpty;
 
   String? get privateInviteUrl =>
       inviteToken != null && inviteToken!.isNotEmpty
@@ -162,6 +168,14 @@ class ChatCreateResult {
       shareLink: json['share_link'] as String?,
       commentsChatId: json['comments_chat_id'] as int?,
       inviteToken: json['invite_token'] as String?,
+      invitedUserIds: (json['invited_user_ids'] as List?)
+              ?.map((e) => (e as num).toInt())
+              .toList(growable: false) ??
+          const <int>[],
+      failedUserIds: (json['failed_user_ids'] as List?)
+              ?.map((e) => (e as num).toInt())
+              .toList(growable: false) ??
+          const <int>[],
     );
   }
 }

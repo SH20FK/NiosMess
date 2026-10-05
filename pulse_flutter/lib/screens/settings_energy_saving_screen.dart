@@ -28,12 +28,6 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
       title: 'Энергосбережение',
       isEmbedded: isEmbedded,
       children: <Widget>[
-        SettingsNavBanner(
-          illustrationCategory: SettingsIllustrationCategory.preferences,
-          subtitle: 'Управление анимациями и расходом батареи',
-          iconColor: scheme.primary,
-        ),
-
         // 1. Master Battery Threshold Card
         SettingsSection(
           title: 'Автоматическое включение',

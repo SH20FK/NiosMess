@@ -33,19 +33,14 @@ import 'package:pulse_flutter/widgets/notifications/in_app_notification_banner.d
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
+import 'package:pulse_flutter/features/security/application/app_lock_controller.dart';
+import 'package:pulse_flutter/features/security/presentation/app_lock_gate.dart';
 
 Future<void> main() async {
   await runZonedGuarded<Future<void>>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
-      // Precache GPU fragment shader for instant appearance settings screen mesh gradient
-      unawaited(
-        ShaderBuilder.precacheShader(
-          'packages/mesh_gradient/shaders/animated_mesh_gradient.frag',
-        ).catchError((Object _) {}),
-      );
       final AppLogger logger = AppLogger.instance;
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);
@@ -130,6 +125,9 @@ class _PulseAppState extends ConsumerState<PulseApp> {
     _lifecycleListener = AppLifecycleListener(
       onResume: () {
         try {
+          ref.read(appLockProvider.notifier).onAppResumed();
+        } catch (_) {}
+        try {
           ref.read(webSocketClientProvider).reconnectNow();
         } catch (_) {}
         try {
@@ -144,7 +142,20 @@ class _PulseAppState extends ConsumerState<PulseApp> {
         } catch (_) {}
       },
       onPause: () {
+        try {
+          ref.read(appLockProvider.notifier).onAppBackgrounded();
+        } catch (_) {}
         ref.read(uiSettingsProvider.notifier).flushPersist();
+      },
+      onHide: () {
+        try {
+          ref.read(appLockProvider.notifier).onAppBackgrounded();
+        } catch (_) {}
+      },
+      onInactive: () {
+        try {
+          ref.read(appLockProvider.notifier).onAppBackgrounded();
+        } catch (_) {}
       },
       onDetach: () {
         ref.read(uiSettingsProvider.notifier).flushPersist();
@@ -291,21 +302,23 @@ class _PulseAppState extends ConsumerState<PulseApp> {
                   );
                   return MediaQuery(
                     data: mediaQuery,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        SizedBox.expand(
-                          child: child ?? const SizedBox.shrink(),
-                        ),
-                        Consumer(
-                          builder: (BuildContext context, WidgetRef ref, _) =>
-                              ref.watch(incomingCallProvider) == null
-                                  ? const SizedBox.shrink()
-                                  : const IncomingCallOverlay(),
-                        ),
-                        const CallOverlay(),
-                        const InAppNotificationBannerOverlay(),
-                      ],
+                    child: AppLockGate(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          SizedBox.expand(
+                            child: child ?? const SizedBox.shrink(),
+                          ),
+                          Consumer(
+                            builder: (BuildContext context, WidgetRef ref, _) =>
+                                ref.watch(incomingCallProvider) == null
+                                    ? const SizedBox.shrink()
+                                    : const IncomingCallOverlay(),
+                          ),
+                          const CallOverlay(),
+                          const InAppNotificationBannerOverlay(),
+                        ],
+                      ),
                     ),
                   );
                 },

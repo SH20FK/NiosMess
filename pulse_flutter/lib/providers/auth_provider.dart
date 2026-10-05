@@ -128,10 +128,28 @@ class AuthNotifier extends Notifier<AuthState> {
     } catch (e) {
       debugPrint('[auth_provider] Secure storage read failed: $e');
     }
+    // One-time legacy migration from SharedPreferences to secure storage:
     if (raw == null || raw.isEmpty) {
       try {
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         raw = prefs.getString(_sessionKey);
+        if (raw != null && raw.isNotEmpty) {
+          try {
+            await _storage.write(key: _sessionKey, value: raw);
+          } catch (e) {
+            debugPrint('[auth_provider] Secure storage migration write failed: ');
+          }
+          await prefs.remove(_sessionKey);
+          debugPrint('[auth_provider] Migrated session from SharedPreferences to secure storage');
+        }
+      } catch (_) {}
+    } else {
+      // Proactively scrub any stale plaintext session from SharedPreferences
+      try {
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        if (prefs.containsKey(_sessionKey)) {
+          await prefs.remove(_sessionKey);
+        }
       } catch (_) {}
     }
 
@@ -179,10 +197,7 @@ class AuthNotifier extends Notifier<AuthState> {
     } catch (e) {
       debugPrint('[auth_provider] Secure storage write error: $e');
     }
-    try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_sessionKey, serialized);
-    } catch (_) {}
+    // Plaintext SharedPreferences write eliminated for security hardening (Audit P0 #3)
     ref.read(sessionAccessTokenProvider.notifier).setToken(session.accessToken);
   }
 

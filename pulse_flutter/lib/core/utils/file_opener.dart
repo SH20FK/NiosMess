@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
@@ -47,9 +48,35 @@ class FileOpener {
     }
 
     if (typeInfo.isApk) {
-      await _openApk(context, filePath);
+      final bool confirmed = await AppModal.confirm(
+        context: context,
+        icon: Icons.warning_amber_rounded,
+        title: 'Установка APK пакета',
+        message: 'Файл «$fileName» является установочным пакетом Android. '
+            'Установка приложений из внешних источников может быть небезопасной.\n\n'
+            'Продолжить установку?',
+        confirmLabel: 'Установить',
+        cancelLabel: context.l10n.commonCancel,
+      );
+      if (!confirmed) return;
+      if (context.mounted) {
+        await _openApk(context, filePath);
+      }
     } else if (typeInfo.isExe) {
-      await _openExe(context, filePath);
+      final bool confirmed = await AppModal.confirm(
+        context: context,
+        icon: Icons.warning_amber_rounded,
+        title: 'Запуск исполняемого файла',
+        message: 'Файл «$fileName» является исполняемой программой. '
+            'Запуск файлов из непроверенных источников может нанести вред вашей системе.\n\n'
+            'Запустить файл?',
+        confirmLabel: 'Запустить',
+        cancelLabel: context.l10n.commonCancel,
+      );
+      if (!confirmed) return;
+      if (context.mounted) {
+        await _openExe(context, filePath);
+      }
     } else {
       final String ext =
           fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';

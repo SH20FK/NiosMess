@@ -10,18 +10,26 @@ class PrivacyState {
   const PrivacyState({
     this.rules = const <String, PrivacyRule>{},
     this.blockedUsers = const <BlockedUser>[],
+    this.revision = 0,
     this.isLoading = false,
     this.error,
   });
 
   final Map<String, PrivacyRule> rules;
   final List<BlockedUser> blockedUsers;
+  final int revision;
   final bool isLoading;
   final String? error;
 
   PrivacyPolicy policyFor(String key) {
     return rules[key]?.policy ?? PrivacyPolicy.everyone;
   }
+
+  bool get readReceiptsEnabled =>
+      policyFor('read_receipts') != PrivacyPolicy.nobody;
+
+  bool get typingIndicatorsEnabled =>
+      policyFor('typing_indicators') != PrivacyPolicy.nobody;
 
   bool isUserBlocked(int userId) {
     return blockedUsers.any((BlockedUser u) => u.id == userId);
@@ -32,12 +40,14 @@ class PrivacyState {
   PrivacyState copyWith({
     Map<String, PrivacyRule>? rules,
     List<BlockedUser>? blockedUsers,
+    int? revision,
     bool? isLoading,
     String? error,
   }) {
     return PrivacyState(
       rules: rules ?? this.rules,
       blockedUsers: blockedUsers ?? this.blockedUsers,
+      revision: revision ?? this.revision,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -93,14 +103,15 @@ class PrivacyNotifier extends Notifier<PrivacyState> {
   Future<void> _loadInitial() async {
     try {
       final PrivacyRepository repo = ref.read(privacyRepositoryProvider);
-      final Map<String, PrivacyRule> rules = await repo.getPrivacy();
+      final PrivacySnapshot snapshot = await repo.getPrivacySnapshot();
       final List<BlockedUser> blocked = await repo.listBlockedUsers();
       state = state.copyWith(
-        rules: rules,
+        rules: snapshot.rules,
+        revision: snapshot.revision,
         blockedUsers: blocked,
         isLoading: false,
       );
-      final PrivacyRule? lastSeenRule = rules['last_seen'];
+      final PrivacyRule? lastSeenRule = snapshot.rules['last_seen'];
       if (lastSeenRule != null) {
         final bool isHidden = lastSeenRule.policy == PrivacyPolicy.nobody;
         ref.read(uiSettingsProvider.notifier).setHideOnline(isHidden);
@@ -114,35 +125,84 @@ class PrivacyNotifier extends Notifier<PrivacyState> {
     await _loadInitial();
   }
 
+  bool get readReceiptsEnabled =>
+      state.policyFor('read_receipts') != PrivacyPolicy.nobody;
+
+  bool get typingIndicatorsEnabled =>
+      state.policyFor('typing_indicators') != PrivacyPolicy.nobody;
+
+  Future<void> setReadReceipts(bool enabled) async {
+    await updateRule(
+      key: 'read_receipts',
+      policy: enabled ? PrivacyPolicy.everyone : PrivacyPolicy.nobody,
+    );
+  }
+
+  Future<void> setTypingIndicators(bool enabled) async {
+    await updateRule(
+      key: 'typing_indicators',
+      policy: enabled ? PrivacyPolicy.everyone : PrivacyPolicy.nobody,
+    );
+  }
+
   Future<void> updateRule({
     required String key,
     required PrivacyPolicy policy,
     List<int>? alwaysAllow,
     List<int>? neverAllow,
   }) async {
-    try {
-      final PrivacyRepository repo = ref.read(privacyRepositoryProvider);
-      final PrivacyRule current = state.rules[key] ??
-          PrivacyRule(key: key, policy: PrivacyPolicy.everyone);
+    final PrivacyRepository repo = ref.read(privacyRepositoryProvider);
+    final PrivacyRule current = state.rules[key] ??
+        PrivacyRule(key: key, policy: PrivacyPolicy.everyone);
 
-      final PrivacyRule updated = await repo.setPrivacy(
+    final Map<String, PrivacyRule> previousRules =
+        Map<String, PrivacyRule>.from(state.rules);
+
+    // Optimistic UI state application
+    final PrivacyRule optimisticRule = current.copyWith(
+      policy: policy,
+      alwaysAllow: alwaysAllow ?? current.alwaysAllow,
+      neverAllow: neverAllow ?? current.neverAllow,
+    );
+    final Map<String, PrivacyRule> optimisticRules =
+        Map<String, PrivacyRule>.from(state.rules);
+    optimisticRules[key] = optimisticRule;
+    state = state.copyWith(rules: optimisticRules);
+
+    if (key == 'last_seen') {
+      final bool isHidden = policy == PrivacyPolicy.nobody;
+      ref.read(uiSettingsProvider.notifier).setHideOnline(isHidden);
+    }
+
+    try {
+      final PrivacyRuleResult result = await repo.setPrivacy(
         key: key,
         policy: policy,
         alwaysAllow: alwaysAllow ?? current.alwaysAllow,
         neverAllow: neverAllow ?? current.neverAllow,
+        expectedRevision: state.revision,
       );
 
-      final Map<String, PrivacyRule> newRules =
+      final Map<String, PrivacyRule> committedRules =
           Map<String, PrivacyRule>.from(state.rules);
-      newRules[key] = updated;
-      state = state.copyWith(rules: newRules);
-
-      if (key == 'last_seen') {
-        final bool isHidden = policy == PrivacyPolicy.nobody;
-        ref.read(uiSettingsProvider.notifier).setHideOnline(isHidden);
-      }
+      committedRules[key] = result.rule;
+      state = state.copyWith(
+        rules: committedRules,
+        revision: result.revision,
+      );
     } catch (e) {
-      state = state.copyWith(error: '$e');
+      // Optimistic Rollback on conflict or failure
+      state = state.copyWith(
+        rules: previousRules,
+        error: '$e',
+      );
+      if (key == 'last_seen') {
+        final bool prevHidden =
+            (previousRules[key]?.policy ?? PrivacyPolicy.everyone) ==
+                PrivacyPolicy.nobody;
+        ref.read(uiSettingsProvider.notifier).setHideOnline(prevHidden);
+      }
+      unawaited(_loadInitial());
       rethrow;
     }
   }

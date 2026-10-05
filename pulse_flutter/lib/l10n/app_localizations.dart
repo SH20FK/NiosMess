@@ -2150,6 +2150,18 @@ abstract class AppLocalizations {
   /// **'Archive'**
   String get chatListArchive;
 
+  /// No description provided for @chatListUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get chatListUnpin;
+
+  /// No description provided for @chatListUnarchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Unarchive'**
+  String get chatListUnarchive;
+
   /// No description provided for @chatListMuteSubtitle.
   ///
   /// In en, this message translates to:

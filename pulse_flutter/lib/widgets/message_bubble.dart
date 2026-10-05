@@ -1,47 +1,50 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/network/api_constants.dart';
-import 'package:pulse_flutter/core/network/web_socket_client.dart';
-import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
-import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/core/utils/shared_utilities.dart';
+import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/core/network/web_socket_client.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/core/utils/message_formatter.dart';
+import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
-import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
+import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/providers/upload_queue_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_carousel.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_channel_comments.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_circle_player.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_footer.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_gestures.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_header.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_upload_overlay.dart';
 import 'package:pulse_flutter/widgets/chat/inline_keyboard_view.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_details_sheet.dart';
-import 'package:video_player/video_player.dart';
-import 'package:pulse_flutter/widgets/voice_message_player.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
-import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
-import 'package:pulse_flutter/providers/upload_queue_provider.dart';
-import 'package:universal_io/io.dart';
-import 'package:pulse_flutter/core/utils/message_formatter.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
-import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
-import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
-import 'package:pulse_flutter/core/services/app_url_launcher.dart';
-import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
-import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/voice_message_player.dart';
+import 'package:universal_io/io.dart';
 
-final RegExp _interactiveTokenRegExp = RegExp(
-  r"""((?:https?:\/\/|niosmess:\/\/|tg:\/\/)[^\s<>"'\)]+|\b(?:t\.me|telegram\.me|ni-os\.ru)\/[^\s<>"'\)]+|@([a-zA-Z0-9_]{3,32}))""",
-  caseSensitive: false,
-);
+export 'package:pulse_flutter/widgets/chat/bubble/bubble_carousel.dart';
+export 'package:pulse_flutter/widgets/chat/bubble/bubble_channel_comments.dart';
+export 'package:pulse_flutter/widgets/chat/bubble/bubble_circle_player.dart';
+export 'package:pulse_flutter/widgets/chat/bubble/bubble_footer.dart';
+export 'package:pulse_flutter/widgets/chat/bubble/bubble_gestures.dart';
+export 'package:pulse_flutter/widgets/chat/bubble/bubble_header.dart';
+export 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
+export 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';
+export 'package:pulse_flutter/widgets/chat/bubble/bubble_upload_overlay.dart';
 
 class MessageBubble extends ConsumerWidget {
   const MessageBubble({
@@ -188,7 +191,7 @@ class MessageBubble extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final _ForwardedPayload? forwarded = _parseForwarded(text);
+    final ForwardedPayload? forwarded = _parseForwarded(text);
     final List<ApiBadge> visibleBadges = senderBadges
         .take(2)
         .toList(growable: false);
@@ -326,7 +329,7 @@ class MessageBubble extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      _MessageBubbleHeader(
+                      MessageBubbleHeader(
                         isMine: isMine,
                         senderDisplayName: senderDisplayName,
                         senderAvatarUrl: senderAvatarUrl,
@@ -450,7 +453,7 @@ class MessageBubble extends ConsumerWidget {
                           scheme: scheme,
                           textTheme: textTheme,
                           hideFooter: hideFooter,
-                          footer: _MessageBubbleFooter(
+                          footer: MessageBubbleFooter(
                             isMine: isMine,
                             isE2ee: isE2ee,
                             isEdited: isEdited,
@@ -468,7 +471,7 @@ class MessageBubble extends ConsumerWidget {
                       else if (!hideFooter)
                         Align(
                           alignment: Alignment.bottomRight,
-                          child: _MessageBubbleFooter(
+                          child: MessageBubbleFooter(
                             isMine: isMine,
                             isE2ee: isE2ee,
                             isEdited: isEdited,
@@ -485,7 +488,7 @@ class MessageBubble extends ConsumerWidget {
                         ),
                       if (isChannel && onOpenComments != null) ...<Widget>[
                         const SizedBox(height: 6),
-                        _ChannelCommentsBar(
+                        ChannelCommentsBar(
                           commentsCount: commentsCount,
                           scheme: scheme,
                           textTheme: textTheme,
@@ -583,7 +586,7 @@ class MessageBubble extends ConsumerWidget {
     }
 
       if (onSwipeToReply != null) {
-        content = _SwipeToReply(
+        content = SwipeToReply(
           onReply: onSwipeToReply!,
           scheme: scheme,
           child: content,
@@ -664,7 +667,7 @@ class MessageBubble extends ConsumerWidget {
                         ),
                       )
                     : isAnimated
-                        ? _StickerVideoPlayer(url: url)
+                        ? StickerVideoPlayer(url: url)
                         : CachedNetworkImage(
                             imageUrl: url,
                             fit: BoxFit.contain,
@@ -700,7 +703,7 @@ class MessageBubble extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       if (expiresAt != null) ...<Widget>[
-                        _SelfDestructCountdownPill(
+                        SelfDestructCountdownPill(
                           expiresAt: expiresAt!,
                           color: scheme.onPrimary,
                         ),
@@ -790,7 +793,7 @@ class MessageBubble extends ConsumerWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            _CircleVideoInlinePlayer(
+            CircleVideoInlinePlayer(
               videoUrl: mediaUrl!,
               durationSeconds: mediaDuration ?? 0,
               isMine: isMine,
@@ -812,7 +815,7 @@ class MessageBubble extends ConsumerWidget {
             if (isSending || isFailed)
               Positioned.fill(
                 child: ClipOval(
-                  child: _UploadProgressOverlay(
+                  child: UploadProgressOverlay(
                     stage: uploadTask?.stage ??
                         (isFailed ? UploadStage.failed : UploadStage.uploading),
                     metrics: uploadTask?.metrics,
@@ -875,7 +878,7 @@ class MessageBubble extends ConsumerWidget {
     if (mediaIsImage) {
       final urls = mediaUrls;
       if (urls.length > 1) {
-        return _MediaCarousel(
+        return MediaCarousel(
           urls: urls,
           scheme: scheme,
           textStyle: textTheme.bodySmall?.copyWith(color: textColor) ?? const TextStyle(),
@@ -973,7 +976,7 @@ class MessageBubble extends ConsumerWidget {
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(radius),
-                child: _UploadProgressOverlay(
+                child: UploadProgressOverlay(
                   stage: uploadTask?.stage ??
                       (isFailed ? UploadStage.failed : UploadStage.uploading),
                   metrics: uploadTask?.metrics,
@@ -1284,14 +1287,14 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  _ForwardedPayload? _parseForwarded(String rawText) {
+  ForwardedPayload? _parseForwarded(String rawText) {
     final String trimmed = rawText.trim();
     final Match? result = MessageFormatter.fwdRegExp.firstMatch(trimmed);
     if (result == null) return null;
     final String sender = (result.group(1) ?? '').trim();
     final String body = (result.group(2) ?? '').trim();
     if (sender.isEmpty) return null;
-    return _ForwardedPayload(sender: sender, body: body);
+    return ForwardedPayload(sender: sender, body: body);
   }
 
   Widget _buildInlineKeyboard(ColorScheme scheme, TextTheme textTheme) {
@@ -1312,7 +1315,7 @@ class MessageBubble extends ConsumerWidget {
     required bool hideFooter,
     required Widget footer,
   }) {
-    final Widget textWidget = _InteractiveMessageText(
+    final Widget textWidget = InteractiveMessageText(
       text: text,
       baseStyle: textTheme.bodyMedium?.copyWith(
         color: textColor,
@@ -1360,1433 +1363,3 @@ class MessageBubble extends ConsumerWidget {
   }
 }
 
-class _ParsedTextToken {
-  const _ParsedTextToken({
-    required this.prefix,
-    required this.token,
-    required this.trailing,
-    required this.isMention,
-    required this.isLink,
-    required this.target,
-  });
-
-  final String prefix;
-  final String token;
-  final String trailing;
-  final bool isMention;
-  final bool isLink;
-  final String target;
-}
-
-class _InteractiveMessageText extends StatefulWidget {
-  const _InteractiveMessageText({
-    required this.text,
-    required this.baseStyle,
-    required this.isMine,
-    required this.scheme,
-  });
-
-  final String text;
-  final TextStyle baseStyle;
-  final bool isMine;
-  final ColorScheme scheme;
-
-  @override
-  State<_InteractiveMessageText> createState() => _InteractiveMessageTextState();
-}
-
-class _InteractiveMessageTextState extends State<_InteractiveMessageText> {
-  final List<TapGestureRecognizer> _recognizers = <TapGestureRecognizer>[];
-  final List<_ParsedTextToken> _tokens = <_ParsedTextToken>[];
-  String _trailingText = '';
-  late TextSpan _cachedSpan;
-
-  @override
-  void initState() {
-    super.initState();
-    _parseTokens();
-    _updateSpans();
-  }
-
-  @override
-  void didUpdateWidget(covariant _InteractiveMessageText oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.text != widget.text) {
-      _disposeRecognizers();
-      _parseTokens();
-      _updateSpans();
-    } else if (oldWidget.baseStyle != widget.baseStyle ||
-        oldWidget.isMine != widget.isMine ||
-        oldWidget.scheme != widget.scheme) {
-      _updateSpans();
-    }
-  }
-
-  @override
-  void dispose() {
-    _disposeRecognizers();
-    super.dispose();
-  }
-
-  void _disposeRecognizers() {
-    for (final TapGestureRecognizer recognizer in _recognizers) {
-      recognizer.dispose();
-    }
-    _recognizers.clear();
-  }
-
-  void _parseTokens() {
-    _tokens.clear();
-    final String text = widget.text;
-    final int lastMatch = text.length;
-    int lastEnd = 0;
-
-    for (final RegExpMatch match in _interactiveTokenRegExp.allMatches(text)) {
-      final String prefix = match.start > lastEnd ? text.substring(lastEnd, match.start) : '';
-      final String rawToken = match.group(0)!;
-      String token = rawToken;
-      String trailingPunctuation = '';
-
-      while (token.isNotEmpty &&
-          (token.endsWith('.') ||
-              token.endsWith(',') ||
-              token.endsWith('!') ||
-              token.endsWith('?') ||
-              token.endsWith(';') ||
-              token.endsWith(':') ||
-              token.endsWith(')') ||
-              token.endsWith(']'))) {
-        trailingPunctuation = token[token.length - 1] + trailingPunctuation;
-        token = token.substring(0, token.length - 1);
-      }
-
-      final bool isMention = token.startsWith('@');
-      final String target = isMention ? token.substring(1) : token;
-
-      final TapGestureRecognizer recognizer = TapGestureRecognizer()
-        ..onTap = () {
-          if (mounted) {
-            AppUrlLauncher.openUrl(context, isMention ? '/g/$target' : target);
-          }
-        };
-      _recognizers.add(recognizer);
-
-      _tokens.add(_ParsedTextToken(
-        prefix: prefix,
-        token: token,
-        trailing: trailingPunctuation,
-        isMention: isMention,
-        isLink: !isMention,
-        target: target,
-      ));
-
-      lastEnd = match.end;
-    }
-
-    _trailingText = lastEnd < lastMatch ? text.substring(lastEnd) : '';
-  }
-
-  void _updateSpans() {
-    final Color linkColor = widget.isMine
-        ? widget.scheme.onPrimaryContainer
-        : widget.scheme.primary;
-
-    final List<TextSpan> spans = <TextSpan>[];
-
-    for (int i = 0; i < _tokens.length; i++) {
-      final _ParsedTextToken t = _tokens[i];
-      if (t.prefix.isNotEmpty) {
-        spans.add(TextSpan(text: t.prefix));
-      }
-      final TapGestureRecognizer recognizer = _recognizers[i];
-      if (t.isMention) {
-        spans.add(TextSpan(
-          text: t.token,
-          style: widget.baseStyle.copyWith(
-            color: linkColor,
-            fontWeight: FontWeight.w600,
-          ),
-          recognizer: recognizer,
-        ));
-      } else {
-        spans.add(TextSpan(
-          text: t.token,
-          style: widget.baseStyle.copyWith(
-            color: linkColor,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.underline,
-            decorationColor: linkColor.withValues(alpha: 0.4),
-          ),
-          recognizer: recognizer,
-        ));
-      }
-      if (t.trailing.isNotEmpty) {
-        spans.add(TextSpan(text: t.trailing));
-      }
-    }
-
-    if (_trailingText.isNotEmpty) {
-      spans.add(TextSpan(text: _trailingText));
-    }
-
-    _cachedSpan = TextSpan(
-      style: widget.baseStyle,
-      children: spans,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(_cachedSpan);
-  }
-}
-
-class _ForwardedPayload {
-  const _ForwardedPayload({required this.sender, required this.body});
-
-  final String sender;
-  final String body;
-}
-
-class _MessageBubbleHeader extends StatelessWidget {
-  const _MessageBubbleHeader({
-    required this.isMine,
-    required this.senderDisplayName,
-    required this.senderAvatarUrl,
-    required this.visibleBadges,
-    required this.hiddenBadgeCount,
-    required this.scheme,
-    required this.textTheme,
-  });
-
-  final bool isMine;
-  final String? senderDisplayName;
-  final String? senderAvatarUrl;
-  final List<ApiBadge> visibleBadges;
-  final int hiddenBadgeCount;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isMine ||
-        ((senderDisplayName ?? '').trim().isEmpty && visibleBadges.isEmpty)) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 4,
-        runSpacing: 4,
-        children: <Widget>[
-          if (senderAvatarUrl != null && senderAvatarUrl!.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: CachedNetworkImage(
-                imageUrl: ApiConstants.resolve(senderAvatarUrl),
-                httpHeaders: cachedAuthHeaders(),
-                width: 16,
-                height: 16,
-                memCacheWidth: 32,
-                fit: BoxFit.cover,
-                errorWidget: (_, _, _) => const SizedBox.shrink(),
-              ),
-            ),
-          if ((senderDisplayName ?? '').trim().isNotEmpty)
-            Text(
-              senderDisplayName!,
-              style: textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppColors.avatarColorFor(
-                  senderDisplayName!,
-                  scheme,
-                ),
-              ),
-            ),
-          ...visibleBadges.map(
-            (ApiBadge badge) => BadgeChip(
-              id: badge.id,
-              name: badge.name,
-              icon: badge.icon,
-              color: badge.color,
-              interactive: false,
-            ),
-          ),
-          if (hiddenBadgeCount > 0) BadgeOverflowChip(count: hiddenBadgeCount),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChannelCommentsBar extends StatelessWidget {
-  const _ChannelCommentsBar({
-    required this.commentsCount,
-    required this.scheme,
-    required this.textTheme,
-    required this.onTap,
-    this.borderRadius = 8.0,
-  });
-
-  final int commentsCount;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-  final VoidCallback onTap;
-  final double borderRadius;
-
-  @override
-  Widget build(BuildContext context) {
-    final String label = commentsCount > 0
-        ? context.l10n.commentsCount(commentsCount)
-        : context.l10n.commentsHint;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          HapticService.tap();
-          onTap();
-        },
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.25),
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    size: 15,
-                    color: scheme.primary,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    label,
-                    style: textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: scheme.primary.withValues(alpha: 0.7),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MessageBubbleFooter extends StatelessWidget {
-  const _MessageBubbleFooter({
-    required this.isMine,
-    required this.isE2ee,
-    required this.isEdited,
-    required this.isDeleted,
-    required this.isRead,
-    required this.formattedTime,
-    required this.scheme,
-    required this.textTheme,
-    this.expiresAt,
-    this.isSending = false,
-    this.isFailed = false,
-    this.onRetrySend,
-  });
-
-  final bool isMine;
-  final bool isE2ee;
-  final bool isEdited;
-  final bool isDeleted;
-  final bool isRead;
-  final String formattedTime;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-  final DateTime? expiresAt;
-  final bool isSending;
-  final bool isFailed;
-  final VoidCallback? onRetrySend;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final Color footerTextColor = isMine
-        ? scheme.onPrimaryContainer.withValues(alpha: 0.70)
-        : scheme.onSurfaceVariant.withValues(alpha: 0.75);
-
-    final Color statusIconColor = isMine
-        ? (isSending
-            ? scheme.onPrimaryContainer.withValues(alpha: 0.60)
-            : (isDark ? scheme.primary : scheme.onPrimaryContainer.withValues(alpha: 0.85)))
-        : scheme.onSurfaceVariant;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        if (isE2ee) ...[
-          Icon(
-            Icons.lock_rounded,
-            size: 11,
-            color: scheme.tertiary.withValues(alpha: 0.7),
-          ),
-          const SizedBox(width: 3),
-        ],
-        if (expiresAt != null) ...[
-          _SelfDestructCountdownPill(
-            expiresAt: expiresAt!,
-            color: footerTextColor,
-          ),
-          const SizedBox(width: 4),
-        ],
-        if (isEdited)
-          Text(
-            context.l10n.chatEdited,
-            style: textTheme.labelSmall?.copyWith(
-              fontSize: 11,
-              color: footerTextColor,
-            ),
-          ),
-        if (isEdited) const SizedBox(width: 4),
-        Text(
-          formattedTime,
-          style: textTheme.labelSmall?.copyWith(
-            fontSize: 11,
-            color: footerTextColor,
-          ),
-        ),
-        if (isMine && !isDeleted) ...<Widget>[
-          const SizedBox(width: 3),
-          if (isFailed)
-            GestureDetector(
-              onTap: onRetrySend,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Icon(
-                  Icons.error_outline_rounded,
-                  size: 14,
-                  color: scheme.error,
-                ),
-              ),
-            )
-          else if (isSending)
-            Icon(
-              Icons.access_time_rounded,
-              size: 12,
-              color: statusIconColor,
-            )
-          else
-            Icon(
-              isRead ? Icons.done_all_rounded : Icons.check_rounded,
-              size: 13,
-              color: statusIconColor,
-            ),
-        ],
-      ],
-    );
-  }
-}
-
-class _SelfDestructCountdownPill extends StatefulWidget {
-  const _SelfDestructCountdownPill({
-    required this.expiresAt,
-    required this.color,
-  });
-
-  final DateTime expiresAt;
-  final Color color;
-
-  @override
-  State<_SelfDestructCountdownPill> createState() =>
-      _SelfDestructCountdownPillState();
-}
-
-class _SelfDestructCountdownPillState
-    extends State<_SelfDestructCountdownPill> {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _startTimer();
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant _SelfDestructCountdownPill oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.expiresAt != widget.expiresAt) {
-      _startTimer();
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  String _formatRemaining(Duration diff) {
-    if (diff.isNegative) return '0с';
-    final int secs = diff.inSeconds;
-    if (secs < 60) return '$secsс';
-    if (secs < 3600) return '${(secs / 60).ceil()}м';
-    return '${(secs / 3600).ceil()}ч';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Duration diff = widget.expiresAt.difference(DateTime.now().toUtc());
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Icon(
-          Icons.local_fire_department_rounded,
-          size: 11,
-          color: widget.color,
-        ),
-        const SizedBox(width: 2),
-        Text(
-          _formatRemaining(diff),
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: widget.color,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SwipeToReply extends StatefulWidget {
-  const _SwipeToReply({
-    required this.onReply,
-    required this.scheme,
-    required this.child,
-  });
-
-  final VoidCallback onReply;
-  final ColorScheme scheme;
-  final Widget child;
-
-  @override
-  State<_SwipeToReply> createState() => _SwipeToReplyState();
-}
-
-class _SwipeToReplyState extends State<_SwipeToReply>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  final ValueNotifier<double> _dragNotifier = ValueNotifier<double>(0.0);
-  static const double _maxDrag = 64;
-  bool _triggered = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    _controller.addListener(() {
-      _dragNotifier.value = _animation.value;
-    });
-  }
-
-  @override
-  void dispose() {
-    _dragNotifier.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onHorizontalDragStart: (_) {
-        _controller.stop();
-        _triggered = false;
-      },
-      onHorizontalDragUpdate: (DragUpdateDetails details) {
-        double delta = details.delta.dx;
-        // Apply friction if pulled past the threshold
-        if (_dragNotifier.value < -_maxDrag && delta < 0) {
-          delta *= 0.3;
-        }
-
-        final double next = (_dragNotifier.value + delta).clamp(-_maxDrag * 1.2, 0.0);
-        _dragNotifier.value = next;
-
-        if (next <= -_maxDrag && !_triggered) {
-          _triggered = true;
-          HapticService.reaction(); // Pop when threshold met
-        } else if (next > -_maxDrag + 12.0 && _triggered) {
-          _triggered = false; // Reset with hysteresis, without chatter vibration
-        }
-      },
-      onHorizontalDragEnd: (DragEndDetails details) {
-        final double current = _dragNotifier.value;
-        if (current <= -_maxDrag) {
-          HapticService.tap();
-          widget.onReply();
-        }
-
-        // Snap back without overshooting past 0
-        _animation = Tween<double>(
-          begin: current,
-          end: 0,
-        ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
-
-        _controller.forward(from: 0);
-      },
-      child: ValueListenableBuilder<double>(
-        valueListenable: _dragNotifier,
-        builder: (BuildContext context, double dragX, Widget? cachedChild) {
-          return Stack(
-            clipBehavior: Clip.none,
-            children: <Widget>[
-              Transform.translate(
-                offset: Offset(dragX, 0),
-                child: cachedChild,
-              ),
-              if (dragX < -8)
-                Positioned(
-                  right: 16,
-                  top: 0,
-                  bottom: 0,
-                  child: Transform.scale(
-                    scale: (dragX.abs() / _maxDrag).clamp(0.0, 1.0),
-                    child: Center(
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: widget.scheme.primaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.reply_rounded, color: widget.scheme.primary, size: 20),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-class _CircleVideoInlinePlayer extends StatefulWidget {
-  const _CircleVideoInlinePlayer({
-    required this.videoUrl,
-    required this.durationSeconds,
-    required this.isMine,
-    required this.isE2ee,
-    required this.isEdited,
-    required this.isDeleted,
-    required this.isRead,
-    this.isSending = false,
-    this.isFailed = false,
-    required this.formattedTime,
-    required this.scheme,
-    required this.textTheme,
-    required this.chatId,
-    required this.wsClient,
-    this.e2eeFileKey,
-    this.expiresAt,
-    this.onLongPress,
-  });
-
-  final String videoUrl;
-  final int durationSeconds;
-  final bool isMine;
-  final bool isE2ee;
-  final bool isEdited;
-  final bool isDeleted;
-  final bool isRead;
-  final bool isSending;
-  final bool isFailed;
-  final String formattedTime;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
-  final int chatId;
-  final WebSocketClient wsClient;
-  final String? e2eeFileKey;
-  final DateTime? expiresAt;
-  final VoidCallback? onLongPress;
-
-  @override
-  State<_CircleVideoInlinePlayer> createState() => _CircleVideoInlinePlayerState();
-}
-
-class _CircleVideoInlinePlayerState extends State<_CircleVideoInlinePlayer> {
-  VideoPlayerController? _videoController;
-  bool _initialized = false;
-  bool _playing = false;
-  bool _showThumbnail = true;
-  bool _isLoading = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final bool isTickerActive = TickerMode.valuesOf(context).enabled;
-    if (!isTickerActive && _videoController != null && _playing) {
-      AnimatedMediaControllerPool.instance.notifyPaused(widget.videoUrl);
-      _videoController!.pause();
-    }
-  }
-
-  void _playWithPool() {
-    if (_videoController == null) return;
-    final bool allowed = AnimatedMediaControllerPool.instance.requestPlay(
-      id: widget.videoUrl,
-      tier: PerformanceTier.tierA,
-      isUserInitiated: true,
-      onPause: () {
-        if (mounted && _videoController != null && _playing) {
-          _videoController!.pause();
-        }
-      },
-      onResume: () {
-        if (mounted && _videoController != null && !_playing && TickerMode.valuesOf(context).enabled) {
-          _videoController!.play();
-        }
-      },
-    );
-    if (allowed) {
-      _videoController!.play();
-    }
-  }
-
-  Future<void> _initVideo() async {
-    if (_isLoading) return;
-    _isLoading = true;
-    try {
-      Uint8List? fileKey;
-      if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
-        fileKey = base64Decode(widget.e2eeFileKey!);
-      }
-      final localPath = await WsMediaFetcher.fetchToLocalFile(
-        filePath: widget.videoUrl,
-        wsClient: widget.wsClient,
-        e2eeFileKey: fileKey,
-      );
-      if (!mounted) return;
-      _videoController = VideoPlayerController.file(
-        File(localPath),
-      );
-      await _videoController!.initialize();
-      await _videoController!.setLooping(true);
-      _videoController!.addListener(_onVideoStateChange);
-      if (mounted) {
-        setState(() {
-          _initialized = true;
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _initialized = false;
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _onVideoStateChange() {
-    if (!mounted) return;
-    final bool wasPlaying = _playing;
-    final bool nowPlaying = _videoController?.value.isPlaying ?? false;
-    if (wasPlaying != nowPlaying) setState(() => _playing = nowPlaying);
-  }
-
-  Future<void> _togglePlay() async {
-    if (_videoController == null && !_isLoading) {
-      await _initVideo();
-      if (!mounted || _videoController == null) return;
-      setState(() => _showThumbnail = false);
-      _playWithPool();
-      return;
-    }
-    if (!_initialized || _videoController == null) return;
-    if (_showThumbnail) {
-      setState(() => _showThumbnail = false);
-      _playWithPool();
-    } else if (_playing) {
-      AnimatedMediaControllerPool.instance.notifyPaused(widget.videoUrl);
-      _videoController!.pause();
-    } else {
-      _playWithPool();
-    }
-  }
-
-  @override
-  void dispose() {
-    AnimatedMediaControllerPool.instance.notifyDisposed(widget.videoUrl);
-    _videoController?.removeListener(_onVideoStateChange);
-    _videoController?.pause();
-    _videoController?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const double circleSize = 180;
-
-    return GestureDetector(
-      onTap: _togglePlay,
-      onLongPress: widget.onLongPress,
-      child: SizedBox(
-        width: circleSize,
-        height: circleSize,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Thumbnail or video
-            if (_showThumbnail || !_initialized)
-              _circleThumbnail(circleSize)
-            else
-              ClipOval(
-                child: SizedBox(
-                  width: circleSize,
-                  height: circleSize,
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: _videoController!.value.size.width > 0
-                          ? _videoController!.value.size.width
-                          : circleSize,
-                      height: _videoController!.value.size.height > 0
-                          ? _videoController!.value.size.height
-                          : circleSize,
-                      child: VideoPlayer(_videoController!),
-                    ),
-                  ),
-                ),
-              ),
-            // Play/pause overlay
-            if (_showThumbnail || !_playing)
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _showThumbnail 
-                      ? widget.scheme.surface.withValues(alpha: 0.3) 
-                      : widget.scheme.surface.withValues(alpha: 0.6),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _showThumbnail ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                  color: widget.scheme.onSurface,
-                  size: 28,
-                ),
-              ),
-            // Duration badge
-            if (_showThumbnail && widget.durationSeconds > 0)
-              Positioned(
-                bottom: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: widget.scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _formatDuration(widget.durationSeconds),
-                    style: TextStyle(color: widget.scheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            // Footer overlay
-            Positioned(
-              bottom: 8,
-              left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: widget.scheme.surface.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: _MessageBubbleFooter(
-                  isMine: widget.isMine,
-                  isE2ee: widget.isE2ee,
-                  isEdited: widget.isEdited,
-                  isDeleted: widget.isDeleted,
-                  isRead: widget.isRead,
-                  isSending: widget.isSending,
-                  isFailed: widget.isFailed,
-                  formattedTime: widget.formattedTime,
-                  scheme: widget.scheme,
-                  textTheme: widget.textTheme,
-                  expiresAt: widget.expiresAt,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _circleThumbnail(double circleSize) {
-    return Container(
-      width: circleSize,
-      height: circleSize,
-      decoration: BoxDecoration(
-        color: widget.isMine
-            ? widget.scheme.onPrimary.withValues(alpha: 0.12)
-            : widget.scheme.surfaceContainerHigh,
-        shape: BoxShape.circle,
-      ),
-      child: const Center(
-        child: Icon(Icons.videocam_rounded, size: 32),
-      ),
-    );
-  }
-
-  String _formatDuration(int seconds) {
-    final int m = seconds ~/ 60;
-    final int s = seconds % 60;
-    return '$m:${s.toString().padLeft(2, '0')}';
-  }
-}
-
-class _MediaCarousel extends StatefulWidget {
-  const _MediaCarousel({
-    required this.urls,
-    required this.scheme,
-    required this.textStyle,
-    required this.isMine,
-    required this.onOpenMedia,
-    required this.onLongPressMedia,
-    required this.chatId,
-    required this.isE2ee,
-    this.e2eeFileKey,
-    this.radius = 12.0,
-  });
-
-  final List<String> urls;
-  final ColorScheme scheme;
-  final TextStyle textStyle;
-  final bool isMine;
-  final VoidCallback? onOpenMedia;
-  final VoidCallback? onLongPressMedia;
-  final int chatId;
-  final bool isE2ee;
-  final String? e2eeFileKey;
-  final double radius;
-
-  @override
-  State<_MediaCarousel> createState() => _MediaCarouselState();
-}
-
-class _MediaCarouselState extends State<_MediaCarousel> {
-  final PageController _controller = PageController(viewportFraction: 1.0);
-  final ValueNotifier<int> _pageNotifier = ValueNotifier<int>(0);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _pageNotifier.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final double rad = widget.radius;
-    return InkWell(
-      onTap: widget.onOpenMedia,
-      onLongPress: widget.onLongPressMedia,
-      borderRadius: BorderRadius.circular(rad),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(rad),
-        child: SizedBox(
-          width: 240,
-          height: 190,
-          child: Stack(
-            children: <Widget>[
-              PageView.builder(
-                controller: _controller,
-                itemCount: widget.urls.length,
-                onPageChanged: (int index) => _pageNotifier.value = index,
-                itemBuilder: (BuildContext context, int index) {
-                  return WsCachedImage(
-                    e2eeFileKey: widget.e2eeFileKey,
-                    mediaUrl: widget.urls[index],
-                    chatId: widget.chatId,
-                    isE2ee: widget.isE2ee,
-                    width: 240,
-                    height: 190,
-                    fit: BoxFit.cover,
-                    placeholder: (BuildContext context) => SizedBox(
-                      width: 240,
-                      height: 190,
-                      child: Center(
-                        child: AppLoadingIndicator(
-                          color: widget.isMine
-                              ? widget.scheme.onPrimary
-                              : widget.scheme.primary,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (BuildContext context, Object error) => Container(
-                      width: 240,
-                      height: 190,
-                      alignment: Alignment.center,
-                      color: widget.isMine
-                          ? widget.scheme.onPrimary.withValues(alpha: 0.12)
-                          : widget.scheme.surfaceContainerHigh,
-                      child: Semantics(
-                        label: context.l10n.chatImageUnavailable,
-                        child: Text(
-                          context.l10n.chatImageUnavailable,
-                          style: widget.textStyle,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              if (widget.urls.length > 1)
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: ValueListenableBuilder<int>(
-                    valueListenable: _pageNotifier,
-                    builder: (BuildContext context, int page, Widget? _) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: widget.scheme.surfaceContainerHighest.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${page + 1}/${widget.urls.length}',
-                          style: TextStyle(
-                            color: widget.scheme.onSurface,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _UploadProgressOverlay extends StatelessWidget {
-  const _UploadProgressOverlay({
-    required this.stage,
-    this.metrics,
-    this.queuePosition,
-    required this.progress,
-    this.bytesSent,
-    this.totalBytes,
-    required this.isMine,
-    required this.scheme,
-    this.isCircle = false,
-    this.onCancel,
-    this.onRetry,
-  });
-
-  final UploadStage stage;
-  final UploadMetrics? metrics;
-  final int? queuePosition;
-  final double? progress;
-  final int? bytesSent;
-  final int? totalBytes;
-  final bool isMine;
-  final ColorScheme scheme;
-  final bool isCircle;
-  final VoidCallback? onCancel;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final double p = (progress ?? 0.0).clamp(0.0, 1.0);
-    final int percent = (p * 100).toInt();
-
-    final String progressLabel;
-    if (stage == UploadStage.failed) {
-      progressLabel = 'Не удалось отправить';
-    } else if (stage == UploadStage.queued) {
-      progressLabel = 'В очереди · позиция ${queuePosition ?? 1}';
-    } else if (stage == UploadStage.processing) {
-      progressLabel = 'Обработка...';
-    } else if (stage == UploadStage.sendingMessage) {
-      progressLabel = 'Отправка...';
-    } else if (stage == UploadStage.uploading) {
-      final String speedStr = UploadSpeedTracker.formatSpeed(
-        metrics?.smoothedBytesPerSecond ?? 0,
-      );
-      final String etaStr = UploadSpeedTracker.formatEta(metrics?.eta);
-      final List<String> parts = <String>['$percent%'];
-      if (speedStr.isNotEmpty) parts.add(speedStr);
-      if (etaStr.isNotEmpty) parts.add(etaStr);
-      progressLabel = parts.join(' · ');
-    } else {
-      progressLabel = '$percent%';
-    }
-
-    return Container(
-      color: Colors.black.withValues(alpha: 0.38),
-      child: Stack(
-        children: [
-          Center(
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (stage == UploadStage.failed) ...[
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: scheme.errorContainer.withValues(alpha: 0.92),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.refresh_rounded,
-                        color: scheme.onErrorContainer,
-                        size: 26,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withValues(
-                          alpha: 0.88,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        progressLabel,
-                        style: TextStyle(
-                          color: scheme.error,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (onRetry != null)
-                          GestureDetector(
-                            onTap: onRetry,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.primary,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'Повторить',
-                                style: TextStyle(
-                                  color: scheme.onPrimary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (onRetry != null && onCancel != null)
-                          const SizedBox(width: 8),
-                        if (onCancel != null)
-                          GestureDetector(
-                            onTap: onCancel,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.88),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'Отменить',
-                                style: TextStyle(
-                                  color: scheme.onSurface,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ] else ...[
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withValues(
-                          alpha: 0.88,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (stage == UploadStage.queued)
-                            Icon(
-                              Icons.hourglass_top_rounded,
-                              size: 22,
-                              color: scheme.primary,
-                            )
-                          else if (stage == UploadStage.processing ||
-                              stage == UploadStage.sendingMessage)
-                            SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: AppLoadingIndicator(
-                                size: 40,
-                                color: scheme.primary,
-                                backgroundColor: scheme.onSurface.withValues(
-                                  alpha: 0.2,
-                                ),
-                              ),
-                            )
-                          else
-                            SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: AppLoadingIndicator(
-                                size: 40,
-                                value: p > 0.01 ? p : null,
-                                backgroundColor: scheme.onSurface.withValues(
-                                  alpha: 0.2,
-                                ),
-                                color: scheme.primary,
-                              ),
-                            ),
-                          if (onCancel != null && stage != UploadStage.queued)
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                Icons.close_rounded,
-                                color: scheme.onSurface,
-                                size: 20,
-                              ),
-                              onPressed: onCancel,
-                              tooltip: 'Отменить',
-                            )
-                          else if (onCancel != null &&
-                              stage == UploadStage.queued)
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                Icons.close_rounded,
-                                color: scheme.onSurface,
-                                size: 18,
-                              ),
-                              onPressed: onCancel,
-                              tooltip: 'Отменить',
-                            )
-                          else
-                            Text(
-                              '$percent%',
-                              style: TextStyle(
-                                color: scheme.onSurface,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withValues(
-                          alpha: 0.88,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        progressLabel,
-                        style: TextStyle(
-                          color: scheme.onSurface,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          if (!isCircle && stage != UploadStage.failed)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: AppLoadingIndicator(
-                value: (stage == UploadStage.processing ||
-                        stage == UploadStage.sendingMessage)
-                    ? null
-                    : (stage == UploadStage.queued ? 0.0 : (p > 0.01 ? p : null)),
-                minHeight: 3.0,
-                color: scheme.primary,
-                backgroundColor: scheme.surfaceContainerHighest.withValues(
-                  alpha: 0.4,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StickerVideoPlayer extends ConsumerStatefulWidget {
-  const _StickerVideoPlayer({required this.url});
-  final String url;
-
-  @override
-  ConsumerState<_StickerVideoPlayer> createState() => _StickerVideoPlayerState();
-}
-
-class _StickerVideoPlayerState extends ConsumerState<_StickerVideoPlayer> {
-  VideoPlayerController? _controller;
-  bool _isInit = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initVideo();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final bool isTickerActive = TickerMode.valuesOf(context).enabled;
-    if (!isTickerActive && _controller != null && _controller!.value.isPlaying) {
-      AnimatedMediaControllerPool.instance.notifyPaused(widget.url);
-      _controller!.pause();
-    } else if (isTickerActive && _controller != null && _isInit && !_controller!.value.isPlaying) {
-      _requestPlay();
-    }
-  }
-
-  void _requestPlay() {
-    if (_controller == null) return;
-    final PerformanceTier tier = ref.read(adaptivePerformanceProvider).tier;
-    final bool allowed = AnimatedMediaControllerPool.instance.requestPlay(
-      id: widget.url,
-      tier: tier,
-      onPause: () {
-        if (mounted && _controller != null && _controller!.value.isPlaying) {
-          _controller!.pause();
-        }
-      },
-      onResume: () {
-        if (mounted && _controller != null && !_controller!.value.isPlaying && TickerMode.valuesOf(context).enabled) {
-          _controller!.play();
-        }
-      },
-    );
-    if (allowed && mounted && TickerMode.valuesOf(context).enabled) {
-      _controller!.play();
-    }
-  }
-
-  Future<void> _initVideo() async {
-    try {
-      final Uri uri = Uri.parse(widget.url);
-      _controller = VideoPlayerController.networkUrl(uri);
-      await _controller!.initialize();
-      await _controller!.setLooping(true);
-      await _controller!.setVolume(0.0);
-      if (mounted && TickerMode.valuesOf(context).enabled) {
-        _requestPlay();
-      }
-      if (mounted) setState(() => _isInit = true);
-    } catch (_) {
-      // Graceful fallback to static thumbnail
-    }
-  }
-
-  @override
-  void dispose() {
-    AnimatedMediaControllerPool.instance.notifyDisposed(widget.url);
-    _controller?.pause();
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_controller != null && _isInit && _controller!.value.isInitialized) {
-      return FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: _controller!.value.size.width,
-          height: _controller!.value.size.height,
-          child: VideoPlayer(_controller!),
-        ),
-      );
-    }
-    return CachedNetworkImage(
-      imageUrl: widget.url,
-      fit: BoxFit.contain,
-      memCacheWidth: 400,
-      memCacheHeight: 400,
-      placeholder: (_, _) => const AppLoadingIndicator(size: 24),
-      errorWidget: (_, _, _) => const Icon(Icons.sticky_note_2_outlined),
-    );
-  }
-}

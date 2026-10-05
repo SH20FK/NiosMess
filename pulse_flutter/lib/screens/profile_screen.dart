@@ -51,6 +51,10 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
+import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
+import 'package:pulse_flutter/features/settings/application/settings_health_controller.dart';
+import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
+import 'package:pulse_flutter/features/settings/presentation/settings_issue_card.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({this.initialSection, super.key});
@@ -407,6 +411,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             onTap: () {
               controller.closeView(result.title);
+              if (result.anchor != null && result.anchor!.isNotEmpty) {
+                ref.read(settingsAnchorControllerProvider.notifier).request(
+                  route: result.targetRoute,
+                  anchor: result.anchor!,
+                );
+              }
               if (isWide && result.targetSectionId != null) {
                 ref
                     .read(desktopSelectedSettingsSectionProvider.notifier)
@@ -977,7 +987,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                   // 3. Search Bar for Settings
                   _buildSearchAnchor(isWide: false),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
+
+                  // Settings Health Issues (max 2)
+                  ...ref.watch(settingsHealthProvider).take(2).map(
+                    (SettingsHealthIssue issue) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: SettingsIssueCard(issue: issue),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
 
                   // 4. Sections grouped into M3 Expressive Cards (exact from SettingsHub)
                   SettingsSection(
@@ -1121,7 +1140,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: <Widget>[
               // Search Anchor
               _buildSearchAnchor(isWide: true),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+
+              // Settings Health Issues (max 2)
+              ...ref.watch(settingsHealthProvider).take(2).map(
+                (SettingsHealthIssue issue) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: SettingsIssueCard(issue: issue),
+                ),
+              ),
+              const SizedBox(height: 6),
 
               // Compact Profile Header
               _buildQuickProfileHeader(

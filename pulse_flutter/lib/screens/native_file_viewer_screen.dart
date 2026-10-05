@@ -362,7 +362,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
 }
 
 // ── Markdown Document Viewer ──────────────────────────────────
-class _MarkdownViewer extends StatelessWidget {
+class _MarkdownViewer extends StatefulWidget {
   const _MarkdownViewer({
     required this.fileName,
     required this.bytes,
@@ -376,28 +376,62 @@ class _MarkdownViewer extends StatelessWidget {
   final bool showRawSource;
 
   @override
+  State<_MarkdownViewer> createState() => _MarkdownViewerState();
+}
+
+class _MarkdownViewerState extends State<_MarkdownViewer> {
+  String _content = '';
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContent();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarkdownViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.bytes != widget.bytes || oldWidget.localPath != widget.localPath) {
+      _loadContent();
+    }
+  }
+
+  Future<void> _loadContent() async {
+    String text = '';
+    if (widget.bytes != null) {
+      text = utf8.decode(widget.bytes!, allowMalformed: true);
+    } else if (widget.localPath != null && !kIsWeb) {
+      try {
+        text = await File(widget.localPath!).readAsString();
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() {
+        _content = text;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    String content = '';
-    if (bytes != null) {
-      content = utf8.decode(bytes!, allowMalformed: true);
-    } else if (localPath != null && !kIsWeb) {
-      try {
-        content = File(localPath!).readAsStringSync();
-      } catch (_) {}
-    }
-
-    if (content.isEmpty) {
+    if (_isLoading) {
       return const Center(child: AppLoadingIndicator(size: 32));
     }
 
-    if (showRawSource) {
+    if (_content.isEmpty) {
+      return const Center(child: AppLoadingIndicator(size: 32));
+    }
+
+    if (widget.showRawSource) {
       return _TextViewer(
-        fileName: fileName,
-        bytes: bytes,
-        localPath: localPath,
+        fileName: widget.fileName,
+        bytes: widget.bytes,
+        localPath: widget.localPath,
       );
     }
 
@@ -406,7 +440,7 @@ class _MarkdownViewer extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 860),
           child: Markdown(
-            data: content,
+            data: _content,
             selectable: true,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             onTapLink: (text, href, title) {
@@ -493,18 +527,20 @@ class _DocxViewerState extends State<_DocxViewer> {
     _parse();
   }
 
-  void _parse() {
+  Future<void> _parse() async {
     Uint8List? data = widget.bytes;
     if (data == null && widget.localPath != null && !kIsWeb) {
       try {
-        data = File(widget.localPath!).readAsBytesSync();
+        data = await File(widget.localPath!).readAsBytes();
       } catch (_) {}
     }
 
-    if (data != null && data.isNotEmpty) {
+    if (mounted && data != null && data.isNotEmpty) {
       _doc = DocxParser.parseBytes(data);
     }
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -713,6 +749,7 @@ class _TextViewer extends StatefulWidget {
 
 class _TextViewerState extends State<_TextViewer> {
   String _content = '';
+  bool _isLoading = true;
   bool _wrapLines = true;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -720,12 +757,23 @@ class _TextViewerState extends State<_TextViewer> {
   @override
   void initState() {
     super.initState();
+    _loadContent();
+  }
+
+  Future<void> _loadContent() async {
+    String text = '';
     if (widget.bytes != null) {
-      _content = utf8.decode(widget.bytes!, allowMalformed: true);
+      text = utf8.decode(widget.bytes!, allowMalformed: true);
     } else if (widget.localPath != null && !kIsWeb) {
       try {
-        _content = File(widget.localPath!).readAsStringSync();
+        text = await File(widget.localPath!).readAsString();
       } catch (_) {}
+    }
+    if (mounted) {
+      setState(() {
+        _content = text;
+        _isLoading = false;
+      });
     }
   }
 
@@ -737,6 +785,9 @@ class _TextViewerState extends State<_TextViewer> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: AppLoadingIndicator(size: 32));
+    }
     final scheme = Theme.of(context).colorScheme;
     final List<String> lines = _content.split('\n');
 

@@ -34,10 +34,10 @@ class AppModal {
       isDismissible: isDismissible,
       enableDrag: enableDrag,
       sheetAnimationStyle: const AnimationStyle(
-        curve: M3SpringCurves.spatial,
-        reverseCurve: M3SpringCurves.spatial,
-        duration: Duration(milliseconds: 320),
-        reverseDuration: Duration(milliseconds: 280),
+        curve: M3SpringCurves.expressiveDecel,
+        reverseCurve: M3SpringCurves.expressiveAccel,
+        duration: Duration(milliseconds: 300),
+        reverseDuration: Duration(milliseconds: 250),
       ),
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -96,7 +96,7 @@ class AppModal {
     return showGeneralDialog<T>(
       context: context,
       barrierDismissible: isDismissible,
-      barrierLabel: 'Dialog',
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: scheme.scrim.withValues(alpha: 0.45),
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (

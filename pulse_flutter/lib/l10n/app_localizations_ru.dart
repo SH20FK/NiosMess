@@ -1110,6 +1110,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatListArchive => 'Архивировать';
 
   @override
+  String get chatListUnpin => 'Открепить';
+
+  @override
+  String get chatListUnarchive => 'Извлечь из архива';
+
+  @override
   String get chatListMuteSubtitle => 'Пока не отключение звука не реализовано';
 
   @override

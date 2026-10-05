@@ -28,7 +28,8 @@ class BlobStoreService {
 
   /// Probes server whether this file blob already exists under caller's account.
   Future<BlobCheckResult> checkDedup(BlobCheckRequest request) async {
-    final String? token = request.token ?? _getToken();
+    // Strictly use session token from authProvider rather than trusting request token
+    final String? token = _getToken();
     final Uri uri = Uri.parse('${ApiConstants.origin}/api/blobs/check');
 
     final http.Response response = await _client.post(
@@ -49,7 +50,14 @@ class BlobStoreService {
 
     final Map<String, dynamic> data =
         jsonDecode(response.body) as Map<String, dynamic>;
-    return BlobCheckResult.fromJson(data);
+    final BlobCheckResult result = BlobCheckResult.fromJson(data);
+    if (result.alreadyExists && result.blobId.trim().isEmpty) {
+      throw ApiException(
+        statusCode: 502,
+        message: 'Invalid server response: already_exists without blob_id',
+      );
+    }
+    return result;
   }
 
   /// Streams a single chunk of a blob to the server.

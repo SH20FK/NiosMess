@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,36 +37,35 @@ class ChatSearchBar extends ConsumerStatefulWidget {
 
 class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
   late final SearchController _searchController;
-  Timer? _searchDebounce;
   SearchCategory _selectedCategory = SearchCategory.all;
+  String _lastQuery = '';
 
   @override
   void initState() {
     super.initState();
     _searchController = widget.controller ?? SearchController();
+    _searchController.addListener(_handleSearchChanged);
   }
 
   @override
   void dispose() {
-    _searchDebounce?.cancel();
+    _searchController.removeListener(_handleSearchChanged);
     if (widget.controller == null) {
       _searchController.dispose();
     }
     super.dispose();
   }
 
-  void _onSearchChanged(String value) {
+  void _handleSearchChanged() {
+    final String value = _searchController.text;
+    if (value == _lastQuery) return;
+    _lastQuery = value;
     widget.onQueryChanged?.call(value);
-    _searchDebounce?.cancel();
     if (value.trim().isEmpty) {
       ref.read(chatListSearchProvider.notifier).clear();
-      return;
+    } else {
+      ref.read(chatListSearchProvider.notifier).search(value);
     }
-    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
-      if (mounted) {
-        ref.read(chatListSearchProvider.notifier).search(value);
-      }
-    });
   }
 
   void _openMessage(ApiSearchMessage msg) {
@@ -80,8 +78,9 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
     ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(msg.chatId);
     final router = GoRouter.of(context);
     final currentPath = router.routeInformationProvider.value.uri.path;
+    final targetPath = '/chat/${msg.chatId}?highlight=${msg.id}&source=search';
     if (!currentPath.startsWith('/chat/${msg.chatId}')) {
-      context.push('/chat/${msg.chatId}');
+      context.push(targetPath);
     }
   }
 
@@ -191,8 +190,6 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
       ],
       suggestionsBuilder:
           (BuildContext context, SearchController controller) {
-        _onSearchChanged(controller.text);
-
         final String query = controller.text.trim();
         if (query.isEmpty) {
           return <Widget>[

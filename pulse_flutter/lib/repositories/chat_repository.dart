@@ -177,6 +177,7 @@ class ChatRepository {
     String? username,
     bool? commentsEnabled,
     bool isPrivate = false,
+    List<int>? memberUserIds,
   }) async {
     final String normalizedName = name.trim();
     if (normalizedName.isEmpty) {
@@ -198,6 +199,9 @@ class ChatRepository {
     if (commentsEnabled != null) {
       payload['comments_enabled'] = commentsEnabled;
     }
+    if (memberUserIds != null && memberUserIds.isNotEmpty) {
+      payload['member_user_ids'] = memberUserIds;
+    }
 
     final dynamic response = await _ref
         .read(webSocketClientProvider)
@@ -207,11 +211,34 @@ class ChatRepository {
       return null;
     }
 
-    return ChatCreateResult.fromJson(
+    ChatCreateResult result = ChatCreateResult.fromJson(
       response.map(
         (dynamic key, dynamic value) => MapEntry(key.toString(), value),
       ),
     );
+
+    // Fallback: If server created chat but did not process member_user_ids atomically,
+    // invite them via inviteUsers.
+    if (memberUserIds != null &&
+        memberUserIds.isNotEmpty &&
+        result.chatId > 0 &&
+        result.invitedUserIds.isEmpty &&
+        result.failedUserIds.isEmpty) {
+      final batch = await inviteUsers(result.chatId, memberUserIds);
+      result = ChatCreateResult(
+        chatId: result.chatId,
+        name: result.name,
+        username: result.username,
+        inviteLink: result.inviteLink,
+        shareLink: result.shareLink,
+        commentsChatId: result.commentsChatId,
+        inviteToken: result.inviteToken,
+        invitedUserIds: batch.invitedUserIds,
+        failedUserIds: batch.failedUserIds,
+      );
+    }
+
+    return result;
   }
 
   Future<ApiInvitePreview?> getInvitePreview(String slugOrUrl) async {
@@ -1147,12 +1174,24 @@ class ChatRepository {
         );
   }
 
-  Future<void> inviteUsers(int chatId, List<int> userIds) async {
+  Future<ChatInviteBatchResult> inviteUsers(int chatId, List<int> userIds) async {
+    final List<int> invited = <int>[];
+    final List<int> failed = <int>[];
+
     for (final int uid in userIds) {
       try {
         await inviteUser(chatId, uid);
-      } catch (_) {}
+        invited.add(uid);
+      } catch (_) {
+        failed.add(uid);
+      }
     }
+
+    return ChatInviteBatchResult(
+      chatId: chatId,
+      invitedUserIds: invited,
+      failedUserIds: failed,
+    );
   }
 
   Future<void> banUser(

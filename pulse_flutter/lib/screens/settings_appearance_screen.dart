@@ -1,10 +1,7 @@
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_shaders/flutter_shaders.dart';
-import 'package:mesh_gradient/mesh_gradient.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
@@ -14,10 +11,6 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:pulse_flutter/core/network/api_constants.dart';
-import 'package:pulse_flutter/widgets/pulse_avatar.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -193,17 +186,22 @@ class _AppearanceScreen extends ConsumerWidget {
     required bool optimizeForWeakDevices,
     required bool hideBubbleTails,
   }) {
-    final Widget heroBanner = _ConnectedMeshAndPaletteBanner(
+    final Widget colorField = NiosColorField(
       scheme: scheme,
       seedColor: seedColor,
-      optimizeForWeakDevices: optimizeForWeakDevices,
       useSystemDynamic: useSystemDynamic,
-      tier: tier,
+      paletteStyle: paletteStyle,
       onColorSelected: (Color color) {
         ref.read(uiSettingsProvider.notifier).setSeedColor(color);
       },
       onCustomColorTap: () {
         _openCustomColorPicker(context, ref, seedColor);
+      },
+      onToggleDynamic: (bool val) {
+        ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(val);
+      },
+      onSelectPaletteStyle: (PaletteStyle style) {
+        ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
       },
     );
 
@@ -229,7 +227,6 @@ class _AppearanceScreen extends ConsumerWidget {
       title: context.l10n.appearanceGeometry,
       subtitle: context.l10n.appearanceGeometryDesc,
       children: [
-        // Message Bubble Radius Slider
         _SliderSettingTile(
           icon: Icons.chat_bubble_outline_rounded,
           title: context.l10n.appearanceMessageRounding,
@@ -244,8 +241,6 @@ class _AppearanceScreen extends ConsumerWidget {
             ref.read(uiSettingsProvider.notifier).setMessageBubbleRadius(val);
           },
         ),
-
-        // UI Corner Radius Slider
         _SliderSettingTile(
           icon: Icons.rounded_corner_rounded,
           title: context.l10n.appearanceUiRounding,
@@ -260,8 +255,6 @@ class _AppearanceScreen extends ConsumerWidget {
             ref.read(uiSettingsProvider.notifier).setUiCornerRadius(val);
           },
         ),
-
-        // Font Scale Slider
         _FontScaleSliderTile(
           currentScale: fontScale,
           scheme: scheme,
@@ -269,8 +262,6 @@ class _AppearanceScreen extends ConsumerWidget {
             ref.read(uiSettingsProvider.notifier).setFontScale(scale);
           },
         ),
-
-        // Flat Bubbles / Hide Tails Switch
         SettingsSwitchTile(
           icon: Icons.bubble_chart_rounded,
           title: 'Скрывать хвосты у сообщений',
@@ -282,14 +273,6 @@ class _AppearanceScreen extends ConsumerWidget {
           },
         ),
       ],
-    );
-
-    final Widget chatPreview = _RealChatAppearancePreview(
-      scheme: scheme,
-      messageBubbleRadius: messageBubbleRadius,
-      fontScale: fontScale,
-      hideBubbleTails: hideBubbleTails,
-      pureBlackOled: pureBlackOled,
     );
 
     final Widget contrastSection = SettingsSection(
@@ -382,11 +365,9 @@ class _AppearanceScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          heroBanner,
+                          colorField,
                           const SizedBox(height: 16),
                           themeCard,
-                          const SizedBox(height: 16),
-                          chatPreview,
                         ],
                       ),
                     ),
@@ -417,11 +398,9 @@ class _AppearanceScreen extends ConsumerWidget {
             maxWidth: 860,
             children: [
               const SizedBox(height: 12),
-              heroBanner,
+              colorField,
               const SizedBox(height: 14),
               themeCard,
-              const SizedBox(height: 16),
-              chatPreview,
               const SizedBox(height: 16),
               geometrySection,
               const SizedBox(height: 16),
@@ -455,270 +434,246 @@ class _AppearanceScreen extends ConsumerWidget {
   }
 }
 
-/// Large Mesh Gradient Banner (195dp) with seamless attached docked bottom capsule
-/// holding 8 curated color orbs + 9th rainbow «+» custom color orb.
-/// The top has rounded corners (28dp) and flat bottom; the bottom capsule has flat top
-/// and rounded bottom (28dp), creating a unified, continuous Material 3 Expressive block.
-class _ConnectedMeshAndPaletteBanner extends StatefulWidget {
-  const _ConnectedMeshAndPaletteBanner({
+class NiosColorField extends StatelessWidget {
+  const NiosColorField({
     required this.scheme,
     required this.seedColor,
-    required this.optimizeForWeakDevices,
     required this.useSystemDynamic,
-    required this.tier,
+    required this.paletteStyle,
     required this.onColorSelected,
     required this.onCustomColorTap,
+    required this.onToggleDynamic,
+    required this.onSelectPaletteStyle,
+    super.key,
   });
 
   final ColorScheme scheme;
   final Color seedColor;
-  final bool optimizeForWeakDevices;
   final bool useSystemDynamic;
-  final PerformanceTier tier;
+  final PaletteStyle paletteStyle;
   final ValueChanged<Color> onColorSelected;
   final VoidCallback onCustomColorTap;
-
-  @override
-  State<_ConnectedMeshAndPaletteBanner> createState() =>
-      _ConnectedMeshAndPaletteBannerState();
-}
-
-class _ConnectedMeshAndPaletteBannerState
-    extends State<_ConnectedMeshAndPaletteBanner> {
-  static bool _precacheInitiated = false;
-  static bool _shaderWarm = false;
-
-  final ValueNotifier<Offset?> _touchNotifier = ValueNotifier<Offset?>(null);
-  bool _isShaderReady = _shaderWarm;
-
-  @override
-  void initState() {
-    super.initState();
-    // Warm up the fragment shader once globally for zero pop-in delay
-    if (!_shaderWarm && !_precacheInitiated) {
-      _precacheInitiated = true;
-      ShaderBuilder.precacheShader(
-        'packages/mesh_gradient/shaders/animated_mesh_gradient.frag',
-      ).then((_) {
-        _shaderWarm = true;
-        if (mounted) setState(() => _isShaderReady = true);
-      }).catchError((_) {
-        _shaderWarm = true;
-        if (mounted) setState(() => _isShaderReady = true);
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _touchNotifier.dispose();
-    super.dispose();
-  }
+  final ValueChanged<bool> onToggleDynamic;
+  final ValueChanged<PaletteStyle> onSelectPaletteStyle;
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = widget.scheme;
-    final PerformanceTier tier = widget.tier;
-    final bool optimize =
-        widget.optimizeForWeakDevices || tier != PerformanceTier.tierA || kIsWeb;
+    final ThemeData theme = Theme.of(context);
+    final TextTheme textTheme = theme.textTheme;
 
-    final bool isPresetSelected = _palettes.any(
-      (_PaletteEntry p) => p.color.toARGB32() == widget.seedColor.toARGB32(),
-    );
-
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final double bannerWidth = constraints.maxWidth;
-
-        return RepaintBoundary(
-          child: Column(
-            children: [
-              // 1. Large Mesh Gradient Canvas (195dp, rounded top corners) without 3D Parallax Tilt
-              ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(28)),
-                child: SizedBox(
-                  height: 195,
-                  child: GestureDetector(
-                    onPanStart: (DragStartDetails details) {
-                      _touchNotifier.value = details.localPosition;
-                    },
-                    onPanUpdate: (DragUpdateDetails details) {
-                      _touchNotifier.value = details.localPosition;
-                    },
-                    onPanEnd: (_) => _touchNotifier.value = null,
-                    onPanCancel: () => _touchNotifier.value = null,
-                    child: Stack(
-                      children: [
-                        // Smooth static linear fallback matching exact mesh tone palette
-                        Positioned.fill(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  scheme.primary,
-                                  scheme.tertiary,
-                                  scheme.secondary,
-                                  scheme.surfaceContainerHighest,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Single, optimized GPU AnimatedMeshGradient (Tier A only)
-                        if (!optimize)
-                          Positioned.fill(
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeOutCubic,
-                              opacity: _isShaderReady ? 1.0 : 0.0,
-                              child: ExcludeSemantics(
-                                child: AnimatedMeshGradient(
-                                  colors: [
-                                    scheme.primary,
-                                    scheme.tertiary,
-                                    scheme.secondary,
-                                    scheme.surfaceContainerHighest,
-                                  ],
-                                  options: AnimatedMeshGradientOptions(
-                                    frequency: 4.5,
-                                    amplitude: 28,
-                                    speed: 2.2,
-                                    grain: 0.03,
-                                  ),
-                                  child: const SizedBox.expand(),
-                                ),
-                              ),
-                            ),
-                          ),
-
-                        // Soft Vignette Overlay
-                        Positioned.fill(
-                          child: IgnorePointer(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: RadialGradient(
-                                  center: Alignment.center,
-                                  radius: 0.85,
-                                  colors: [
-                                    Colors.transparent,
-                                    scheme.surface.withValues(alpha: 0.08),
-                                    scheme.surface.withValues(alpha: 0.24),
-                                  ],
-                                  stops: const [0.4, 0.75, 1.0],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Interactive Touch Reactive Glow with dynamic bannerWidth via ValueNotifier + RepaintBoundary
-                        Positioned.fill(
-                          child: RepaintBoundary(
-                            child: ValueListenableBuilder<Offset?>(
-                              valueListenable: _touchNotifier,
-                              builder: (BuildContext context, Offset? touchPos, _) {
-                                if (touchPos == null) return const SizedBox.shrink();
-                                return IgnorePointer(
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: RadialGradient(
-                                        center: Alignment(
-                                          bannerWidth > 0
-                                              ? (touchPos.dx / bannerWidth - 0.5) * 2
-                                              : 0.0,
-                                          (touchPos.dy / 195.0 - 0.5) * 2,
-                                        ),
-                                        radius: 0.5,
-                                        colors: [
-                                          scheme.primary.withValues(alpha: 0.25),
-                                          Colors.transparent,
-                                        ],
-                                        stops: const [0.0, 1.0],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.20),
+          width: 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // 1. Source selector tabs: Системная / Nios / Своя
+          SegmentedButton<int>(
+            segments: const <ButtonSegment<int>>[
+              ButtonSegment<int>(
+                value: 0,
+                label: Text('Системная'),
+                icon: Icon(Icons.auto_awesome_rounded, size: 18),
               ),
-
-              // 2. Seamless Attached Docked Bottom Capsule (flat top, rounded bottom 28dp)
-              ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(28)),
-                child: Container(
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerLow,
-                    border: Border(
-                      left: BorderSide(
-                        color: scheme.outlineVariant.withValues(alpha: 0.25),
-                        width: 1,
-                      ),
-                      right: BorderSide(
-                        color: scheme.outlineVariant.withValues(alpha: 0.25),
-                        width: 1,
-                      ),
-                      bottom: BorderSide(
-                        color: scheme.outlineVariant.withValues(alpha: 0.25),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    itemCount: _palettes.length + 1,
-                    separatorBuilder: (_, _) => const SizedBox(width: 10),
-                    itemBuilder: (BuildContext context, int index) {
-                      if (index < _palettes.length) {
-                        final _PaletteEntry entry = _palettes[index];
-                        final bool isSelected = entry.color.toARGB32() ==
-                            widget.seedColor.toARGB32();
-                        return _ColorOrbItem(
-                          color: entry.color,
-                          label: entry.getName(context.l10n),
-                          isSelected: isSelected,
-                          onTap: () {
-                            HapticService.tap();
-                            widget.onColorSelected(entry.color);
-                          },
-                        );
-                      }
-
-                      // 9th Rainbow / Custom Color Orb
-                      final bool isCustomSelected =
-                          !isPresetSelected && !widget.useSystemDynamic;
-                      return _RainbowCustomOrbItem(
-                        isSelected: isCustomSelected,
-                        currentColor: widget.seedColor,
-                        onTap: () {
-                          HapticService.tap();
-                          widget.onCustomColorTap();
-                        },
-                      );
-                    },
-                  ),
-                ),
+              ButtonSegment<int>(
+                value: 1,
+                label: Text('Nios'),
+                icon: Icon(Icons.palette_rounded, size: 18),
+              ),
+              ButtonSegment<int>(
+                value: 2,
+                label: Text('Своя'),
+                icon: Icon(Icons.colorize_rounded, size: 18),
               ),
             ],
+            selected: <int>{
+              if (useSystemDynamic)
+                0
+              else if (_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32()))
+                1
+              else
+                2
+            },
+            onSelectionChanged: (Set<int> selected) {
+              final int choice = selected.first;
+              if (choice == 0) {
+                onToggleDynamic(true);
+              } else if (choice == 1) {
+                onToggleDynamic(false);
+                if (!_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32())) {
+                  onColorSelected(_palettes.first.color);
+                }
+              } else {
+                onToggleDynamic(false);
+                onCustomColorTap();
+              }
+            },
           ),
-        );
-      },
+          const SizedBox(height: 16),
+
+          // 2. Active field surface (interactive color visualizer, 136dp)
+          if (useSystemDynamic) ...[
+            Container(
+              height: 136,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    scheme.primaryContainer,
+                    scheme.secondaryContainer,
+                    scheme.tertiaryContainer,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: scheme.surface.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, size: 14, color: scheme.primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Material You Active',
+                              style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Цвета генерируются динамически из системных обоев вашего устройства.',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Container(
+              height: 136,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    seedColor,
+                    Color.lerp(seedColor, scheme.surfaceContainerHigh, 0.45) ?? seedColor,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: seedColor.withValues(alpha: 0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '#${seedColor.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      IconButton.filledTonal(
+                        onPressed: onCustomColorTap,
+                        icon: const Icon(Icons.colorize_rounded, size: 18),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.25),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Text(
+                    'Нажмите на палитру ниже или выберите собственный оттенок',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Curated color orbs dock
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final p in _palettes)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: _ColorOrbItem(
+                        color: p.color,
+                        label: p.getName(context.l10n),
+                        isSelected: !useSystemDynamic && seedColor.toARGB32() == p.color.toARGB32(),
+                        onTap: () {
+                          onToggleDynamic(false);
+                          onColorSelected(p.color);
+                        },
+                      ),
+                    ),
+                  _RainbowCustomOrbItem(
+                    isSelected: !useSystemDynamic && !_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32()),
+                    currentColor: seedColor,
+                    onTap: () {
+                      onToggleDynamic(false);
+                      onCustomColorTap();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
-
 class _ColorOrbItem extends StatefulWidget {
   const _ColorOrbItem({
     required this.color,
@@ -1712,258 +1667,3 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
     );
   }
 }
-
-class _RealChatAppearancePreview extends StatelessWidget {
-  const _RealChatAppearancePreview({
-    required this.scheme,
-    required this.messageBubbleRadius,
-    required this.fontScale,
-    required this.hideBubbleTails,
-    required this.pureBlackOled,
-  });
-
-  final ColorScheme scheme;
-  final double messageBubbleRadius;
-  final AppFontScale fontScale;
-  final bool hideBubbleTails;
-  final bool pureBlackOled;
-
-  @override
-  Widget build(BuildContext context) {
-    final double textScale = fontScale.scale;
-    final double radius = messageBubbleRadius;
-    final double tailRadius = hideBubbleTails ? radius : 4.0;
-
-    final BorderRadius incomingBorderRadius = BorderRadius.only(
-      topLeft: Radius.circular(radius),
-      topRight: Radius.circular(radius),
-      bottomLeft: Radius.circular(tailRadius),
-      bottomRight: Radius.circular(radius),
-    );
-
-    final BorderRadius outgoingBorderRadius = BorderRadius.only(
-      topLeft: Radius.circular(radius),
-      topRight: Radius.circular(radius),
-      bottomLeft: Radius.circular(radius),
-      bottomRight: Radius.circular(tailRadius),
-    );
-
-    return RepaintBoundary(
-      child: Container(
-        decoration: BoxDecoration(
-          color: pureBlackOled
-              ? Colors.black
-              : scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.22),
-            width: 1,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // Header info
-            Row(
-              children: <Widget>[
-                Icon(
-                  Icons.chat_bubble_rounded,
-                  size: 16,
-                  color: scheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Предпросмотр чата',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Message 1: @sh20fk -> "бурмалда" (Incoming, Left)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                PulseAvatar(
-                  name: 'SH20FK',
-                  avatarUrl: ApiConstants.resolve('uploads/avatars/2_c2f4f060ec9a46d0bca21906bbe62137.jpg'),
-                  radius: 16,
-                  fallbackColor: scheme.primaryContainer,
-                  textColor: scheme.onPrimaryContainer,
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHigh,
-                      borderRadius: incomingBorderRadius,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(
-                          'SH20FK',
-                          style: TextStyle(
-                            fontSize: 12 * textScale,
-                            fontWeight: FontWeight.w700,
-                            color: scheme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: <Widget>[
-                            Text(
-                              'бурмалда',
-                              style: TextStyle(
-                                fontSize: 15 * textScale,
-                                color: scheme.onSurface,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              '12:42',
-                              style: TextStyle(
-                                fontSize: 10 * textScale,
-                                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Message 2: @sanlsan -> "што?" (Outgoing, Right)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: outgoingBorderRadius,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(
-                          'sanlsan',
-                          style: TextStyle(
-                            fontSize: 12 * textScale,
-                            fontWeight: FontWeight.w700,
-                            color: scheme.onPrimary.withValues(alpha: 0.9),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: <Widget>[
-                            Text(
-                              'што?',
-                              style: TextStyle(
-                                fontSize: 15 * textScale,
-                                fontWeight: FontWeight.w500,
-                                color: scheme.onPrimary,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Text(
-                                  '12:43',
-                                  style: TextStyle(
-                                    fontSize: 10 * textScale,
-                                    color: scheme.onPrimary.withValues(alpha: 0.75),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.done_all_rounded,
-                                  size: 14,
-                                  color: scheme.onPrimary.withValues(alpha: 0.85),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                PulseAvatar(
-                  name: 'sanlsan',
-                  avatarUrl: ApiConstants.resolve('uploads/avatars/41_436afa1490cd4317a5d0160b04558620.jpg'),
-                  radius: 16,
-                  fallbackColor: scheme.secondaryContainer,
-                  textColor: scheme.onSecondaryContainer,
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Message 3: Real Sticker from Backend (set 5, id 2)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                PulseAvatar(
-                  name: 'SH20FK',
-                  avatarUrl: ApiConstants.resolve('uploads/avatars/2_c2f4f060ec9a46d0bca21906bbe62137.jpg'),
-                  radius: 16,
-                  fallbackColor: scheme.primaryContainer,
-                  textColor: scheme.onPrimaryContainer,
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: CachedNetworkImage(
-                    imageUrl: ApiConstants.resolve('uploads/stickers/5/6a5cee050cdb4f3c82bb9352ed7f665f.png'),
-                    fit: BoxFit.contain,
-                    placeholder: (context, url) => const Center(
-                      child: AppLoadingIndicator(size: 20),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Center(
-                        child: Text('✨', style: TextStyle(fontSize: 32)),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-

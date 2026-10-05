@@ -206,6 +206,9 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
           final String? loc = resp.headers['location'];
           if (loc != null && loc.isNotEmpty) {
             currentUri = Uri.parse(loc);
+            if (currentUri.scheme != 'https') {
+              throw HttpException('Небезопасный протокол перенаправления: ${currentUri.scheme}');
+            }
             redirectCount++;
             continue;
           }
@@ -321,27 +324,34 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       return;
     }
 
-    // Windows silent OTA installation:
+    // Windows OTA installation (Hardened per Forensic Audit P0 #4):
+    // Silent automatic execution disabled until cryptographically signed manifest is verified.
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      if (context != null && context.mounted) {
+        final bool confirmed = await AppModal.confirm(
+          context: context,
+          icon: Icons.system_update_rounded,
+          title: 'Установка обновления',
+          message: 'Скачан официальный инсталлятор ${state.updateInfo?.latestVersion ?? ""}.\n'
+              'Путь: $path\n\n'
+              'Запустить установщик NiosMess?',
+          confirmLabel: 'Запустить',
+          cancelLabel: 'Отмена',
+        );
+        if (!confirmed) {
+          state = state.copyWith(status: OtaStatus.readyToInstall);
+          return;
+        }
+      }
+
       state = state.copyWith(status: OtaStatus.installing);
       try {
-        // Run Inno Setup installer detached in silent mode:
-        // /VERYSILENT: completely background installation without wizard UI
-        // /SP-: skips "This will install... Do you wish to continue?" prompt
-        // /SUPPRESSMSGBOXES: suppresses any message boxes
-        // /NORESTART: prevents system reboot
+        // Run installer with standard user UI (interactive, not silent)
         await Process.start(
           path,
-          <String>[
-            '/VERYSILENT',
-            '/SP-',
-            '/SUPPRESSMSGBOXES',
-            '/NORESTART',
-          ],
+          <String>[],
           mode: ProcessStartMode.detached,
         );
-
-        // Instant clean exit so Inno Setup can overwrite files without file locks
         exit(0);
       } catch (e) {
         debugPrint('[OtaUpdateNotifier] Windows installer execution failed: $e');

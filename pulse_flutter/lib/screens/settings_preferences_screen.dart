@@ -24,11 +24,6 @@ class SettingsPreferencesScreen extends ConsumerWidget {
       title: context.l10n.settingsPreferencesTitle,
       isEmbedded: isEmbedded,
       children: <Widget>[
-        SettingsNavBanner(
-          illustrationCategory: SettingsIllustrationCategory.preferences,
-          subtitle: context.l10n.settingsPreferencesBannerSubtitle,
-          iconColor: scheme.primary,
-        ),
         SettingsSection(
           title: context.l10n.settingsPrivacyNotificationsTitle,
           children: <Widget>[

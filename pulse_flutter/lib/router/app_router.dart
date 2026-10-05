@@ -6,7 +6,6 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/chat_manage_screen.dart';
 import 'package:pulse_flutter/screens/chat_members_screen.dart';
-import 'package:pulse_flutter/screens/create_chat_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/join_chat_screen.dart';
 import 'package:pulse_flutter/screens/login_screen.dart';
@@ -44,6 +43,12 @@ import 'package:pulse_flutter/screens/settings_chats_screen.dart';
 import 'package:pulse_flutter/screens/calls/active_call_screen.dart';
 import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
+import 'package:pulse_flutter/features/chats/presentation/people_picker_screen.dart';
+import 'package:pulse_flutter/features/chats/application/people_picker_controller.dart';
+import 'package:pulse_flutter/features/chats/presentation/create_group_members_screen.dart';
+import 'package:pulse_flutter/features/chats/presentation/create_group_details_screen.dart';
+import 'package:pulse_flutter/features/chats/presentation/create_channel_screen.dart';
+import 'package:pulse_flutter/features/chats/presentation/inbox_search_screen.dart';
 
 class AppRouter {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -235,8 +240,43 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         pageBuilder: (context, state) => _page(state, MainShellScreen(tab: state.pathParameters['tab'] ?? 'chats'), pageKey: const ValueKey<String>('main-shell')),
       ),
       GoRoute(
+        path: '/chats/search',
+        pageBuilder: (context, state) =>
+            _page(state, const InboxSearchScreen()),
+      ),
+      GoRoute(
+        path: '/new-message',
+        pageBuilder: (context, state) {
+          final modeStr = state.uri.queryParameters['mode'];
+          final mode = modeStr == 'secret'
+              ? PeoplePickerMode.secret
+              : PeoplePickerMode.direct;
+          return _page(state, PeoplePickerScreen(mode: mode));
+        },
+      ),
+      GoRoute(
+        path: '/new-group/members',
+        pageBuilder: (context, state) =>
+            _page(state, const CreateGroupMembersScreen()),
+      ),
+      GoRoute(
+        path: '/new-group/details',
+        pageBuilder: (context, state) =>
+            _page(state, const CreateGroupDetailsScreen()),
+      ),
+      GoRoute(
+        path: '/new-channel',
+        pageBuilder: (context, state) =>
+            _page(state, const CreateChannelScreen()),
+      ),
+      GoRoute(
         path: '/chat/create',
-        pageBuilder: (context, state) => _page(state, CreateChatScreen(initialType: state.uri.queryParameters['type'])),
+        redirect: (context, state) {
+          final type = state.uri.queryParameters['type'];
+          if (type == 'channel') return '/new-channel';
+          if (type == 'group') return '/new-group/members';
+          return '/new-message';
+        },
       ),
       GoRoute(
         path: '/join',

@@ -26,6 +26,8 @@ class ChatWallpaperState {
     return chatOverrides[chatId] ?? global;
   }
 
+  bool hasCustomWallpaper(String chatId) => chatOverrides.containsKey(chatId);
+
   ChatWallpaperState copyWith({
     ChatWallpaperConfig? global,
     Map<String, ChatWallpaperConfig>? chatOverrides,

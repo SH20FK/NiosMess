@@ -415,7 +415,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
           );
         }
 
-        final bool isScreenshotMsg = message.content.startsWith('📷') ||
+        final bool isScreenshotMsg = message.isSystemEvent &&
             message.systemEventType == 'screenshot';
         if (message.isSystemEvent || isScreenshotMsg) {
           final Widget systemPill = _SystemEventPill(
@@ -488,11 +488,18 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             sticker: message.sticker,
             onStickerTap: () {
               final int? stickerId = message.sticker?.id;
-              if (stickerId != null && stickerId > 0) {
+              final int? targetSetId = message.resolvedStickerSetId ?? message.sticker?.setId;
+              if (targetSetId != null && targetSetId > 0) {
+                StickerSetDetailsSheet.show(
+                  context,
+                  setId: targetSetId,
+                  stickerId: stickerId,
+                );
+              } else if (stickerId != null && stickerId > 0) {
                 StickerSetDetailsSheet.showForSticker(
                   context,
                   stickerId: stickerId,
-                  knownSetId: message.resolvedStickerSetId ?? message.sticker?.setId,
+                  knownSetId: targetSetId,
                 );
               } else {
                 AppToast.showError(context, 'Стикерпак не найден');
@@ -804,11 +811,8 @@ class _SystemEventPill extends StatelessWidget {
         ? message.content
         : 'Системное уведомление';
 
-    final bool isScreenshot = message.systemEventType == 'screenshot' ||
-        message.content.startsWith('📷') ||
-        message.content.toLowerCase().contains('скриншот') ||
-        message.content.toLowerCase().contains('снимок экрана') ||
-        message.content.toLowerCase().contains('screenshot');
+    final bool isScreenshot = message.isSystemEvent &&
+        message.systemEventType == 'screenshot';
     final IconData icon = isScreenshot
         ? Icons.camera_alt_outlined
         : Icons.info_outline_rounded;

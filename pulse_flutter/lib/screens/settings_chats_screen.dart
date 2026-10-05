@@ -35,12 +35,6 @@ class SettingsChatsScreen extends ConsumerWidget {
       title: context.l10n.settingsChatsTitle,
       isEmbedded: isEmbedded,
       children: <Widget>[
-        SettingsNavBanner(
-          illustrationCategory: SettingsIllustrationCategory.preferences,
-          subtitle: context.l10n.settingsChatsSubtitle,
-          iconColor: scheme.primary,
-        ),
-
         // 1. Text input & Keyboard
         SettingsSection(
           title: context.l10n.settingsChatsSendSection,

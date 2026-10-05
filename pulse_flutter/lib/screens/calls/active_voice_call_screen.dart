@@ -185,7 +185,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                           ),
                           const SizedBox(width: 5),
                           Text(
-                            'E2EE ЗАЩИЩЕНО',
+                            'ЗАЩИЩЕНО ПРИ ПЕРЕДАЧЕ',
                             style: TextStyle(
                               color: callScheme.onSurface,
                               fontSize: 10,
@@ -394,7 +394,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                         if (data.verificationEmojis.isNotEmpty) ...[
                           const SizedBox(height: 14),
                           Tooltip(
-                            message: 'Ключ сквозного шифрования (E2EE)',
+                            message: 'Код безопасности соединения (DTLS)',
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 14,

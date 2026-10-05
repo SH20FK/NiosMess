@@ -73,12 +73,12 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
     if (widget.duration != null) return widget.duration!;
     return _isDesktop
         ? const Duration(milliseconds: 180)
-        : const Duration(milliseconds: 220);
+        : const Duration(milliseconds: 200);
   }
 
   double get _effectiveSlideDistance {
     if (widget.slideDistance != null) return widget.slideDistance!;
-    return _isDesktop ? 14.0 : 20.0;
+    return _isDesktop ? 12.0 : 16.0;
   }
 
   @override
@@ -129,21 +129,38 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
       }
 
       // Metrolist Rapid-Tap Handling:
-      // If user taps while transition is in-flight, smoothly retarget from current page.
-      setState(() {
-        if (_controller.isAnimating) {
-          _direction = widget.index > _currentIndex ? 1 : -1;
+      // Retarget smoothly without mid-flight forward(from: 0.0) phase reset.
+      if (_controller.isAnimating) {
+        if (widget.index == _outgoingIndex) {
+          final int temp = _currentIndex;
+          _currentIndex = _outgoingIndex!;
+          _outgoingIndex = temp;
+          _direction = -_direction;
+          _controller.reverse();
+          return;
+        }
+        if (_controller.value < 0.40) {
+          setState(() {
+            _direction = widget.index > (_outgoingIndex ?? 0) ? 1 : -1;
+            _currentIndex = widget.index;
+          });
+          return;
+        } else {
+          _controller.stop();
           _outgoingIndex = _currentIndex;
           _currentIndex = widget.index;
-        } else {
+          _direction = widget.index > _outgoingIndex! ? 1 : -1;
+          _controller.forward(from: 0.0);
+        }
+      } else {
+        setState(() {
           _direction = widget.index > oldWidget.index ? 1 : -1;
           _outgoingIndex = _currentIndex;
           _currentIndex = widget.index;
-        }
-      });
-
-      widget.onTransitionStateChanged?.call(true);
-      _controller.forward(from: 0.0);
+        });
+        widget.onTransitionStateChanged?.call(true);
+        _controller.forward(from: 0.0);
+      }
     }
   }
 
@@ -185,13 +202,7 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
         final Animation<double> incomingFade = Tween<double>(begin: 0.0, end: 1.0)
             .animate(CurvedAnimation(
           parent: _controller,
-          curve: const Interval(0.35, 1.0, curve: M3SpringCurves.expressiveDecel),
-        ));
-
-        final Animation<double> incomingScale = Tween<double>(begin: 0.965, end: 1.0)
-            .animate(CurvedAnimation(
-          parent: _controller,
-          curve: const Interval(0.35, 1.0, curve: M3SpringCurves.expressiveDecel),
+          curve: const Interval(0.40, 1.0, curve: M3SpringCurves.expressiveDecel),
         ));
 
         final Animation<Offset> incomingSlide = Tween<Offset>(
@@ -199,7 +210,7 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
           end: Offset.zero,
         ).animate(CurvedAnimation(
           parent: _controller,
-          curve: const Interval(0.35, 1.0, curve: M3SpringCurves.expressiveDecel),
+          curve: const Interval(0.40, 1.0, curve: M3SpringCurves.expressiveDecel),
         ));
 
         return Stack(
@@ -216,15 +227,12 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
                 ),
               ),
 
-            // Incoming page: delayed fade + subtle scale-up + directional slide.
+            // Incoming page: delayed fade + directional slide (strictly no full-page scale).
             FadeTransition(
               opacity: incomingFade,
-              child: ScaleTransition(
-                scale: incomingScale,
-                child: SlideTransition(
-                  position: incomingSlide,
-                  child: widget.children[_currentIndex],
-                ),
+              child: SlideTransition(
+                position: incomingSlide,
+                child: widget.children[_currentIndex],
               ),
             ),
           ],
