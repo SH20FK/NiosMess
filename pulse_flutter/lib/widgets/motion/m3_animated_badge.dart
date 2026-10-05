@@ -137,7 +137,7 @@ class _M3AnimatedBadgeState extends State<M3AnimatedBadge>
         style: widget.textStyle ??
             TextStyle(
               color: fg,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.0,
             ),

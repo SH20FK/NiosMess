@@ -218,7 +218,7 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
         color: scheme.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.15),
+            color: scheme.outlineVariant,
             width: 0.5,
           ),
         ),
@@ -261,8 +261,7 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
                         ? currentSet.title
                         : currentSet.name,
                     style: textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
+                      fontWeight: FontWeight.w700,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -272,8 +271,8 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
                 Text(
                   '${currentSet.stickers.length}',
                   style: textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.65),
-                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
                   ),
                 ),
               ],
@@ -417,7 +416,7 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
         color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
         border: Border(
           top: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.18),
+            color: scheme.outlineVariant,
             width: 0.5,
           ),
         ),
@@ -436,7 +435,7 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView> {
           return GestureDetector(
             onTap: () => _selectSet(index, s.id),
             child: AnimatedScale(
-              scale: isSelected ? 1.04 : 1.0,
+              scale: 1.0,
               duration: const Duration(milliseconds: 200),
               curve: M3SpringCurves.expressiveStandard,
               child: AnimatedContainer(
@@ -515,7 +514,7 @@ class _ExpressiveStickerTileState extends State<_ExpressiveStickerTile> {
       onTapCancel: () => setState(() => _isPressed = false),
       onLongPress: widget.onLongPress,
       child: AnimatedScale(
-        scale: _isPressed ? 0.96 : 1.0,
+        scale: 1.0,
         duration: const Duration(milliseconds: 140),
         curve: Curves.easeOutCubic,
         child: Container(
@@ -544,7 +543,7 @@ class _ExpressiveStickerTileState extends State<_ExpressiveStickerTile> {
             errorWidget: (_, _, _) => Icon(
               Icons.sticky_note_2_outlined,
               size: 26,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+              color: scheme.onSurfaceVariant,
             ),
           ),
         ),

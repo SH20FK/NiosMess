@@ -211,7 +211,7 @@ class MessageBubble extends ConsumerWidget {
             : scheme.onSurface);
     final Border? bubbleBorder = (!isMine && !isDark)
         ? Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.25),
+            color: scheme.outlineVariant,
             width: 0.8,
           )
         : null;
@@ -409,7 +409,7 @@ class MessageBubble extends ConsumerWidget {
                                     context.l10n.chatForwardedCard,
                                     style: textTheme.labelSmall?.copyWith(
                                       color: scheme.primary,
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -542,7 +542,7 @@ class MessageBubble extends ConsumerWidget {
                                 color: scheme.surfaceContainerHigh,
                                 borderRadius: AppRadii.fullRadius,
                                 border: Border.all(
-                                  color: scheme.outlineVariant.withValues(alpha: 0.25),
+                                  color: scheme.outlineVariant,
                                   width: 0.75,
                                 ),
                               ),
@@ -713,7 +713,7 @@ class MessageBubble extends ConsumerWidget {
                         formattedTime,
                         style: TextStyle(
                           color: scheme.onPrimary,
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
                       ),

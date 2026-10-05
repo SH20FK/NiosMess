@@ -70,7 +70,7 @@ class SessionDetailsSheet extends ConsumerWidget {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: scheme.outlineVariant.withValues(alpha: 0.4),
+                  color: scheme.outlineVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

@@ -100,7 +100,7 @@ class _HelpFaqScreenState extends ConsumerState<HelpFaqScreen> {
         color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
+          color: scheme.outlineVariant,
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
@@ -114,7 +114,7 @@ class _HelpFaqScreenState extends ConsumerState<HelpFaqScreen> {
               decoration: InputDecoration(
                 hintText: context.l10n.aboutSearchFaqHint,
                 hintStyle: textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  color: scheme.onSurfaceVariant,
                 ),
                 border: InputBorder.none,
                 isDense: true,
@@ -150,7 +150,7 @@ class _HelpFaqScreenState extends ConsumerState<HelpFaqScreen> {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
+          color: scheme.outlineVariant,
         ),
       ),
       clipBehavior: Clip.hardEdge,
@@ -169,7 +169,7 @@ class _HelpFaqScreenState extends ConsumerState<HelpFaqScreen> {
               if (!isLast)
                 Divider(
                   height: 1,
-                  color: scheme.outlineVariant.withValues(alpha: 0.15),
+                  color: scheme.outlineVariant,
                 ),
             ],
           );
@@ -191,7 +191,7 @@ class _HelpFaqScreenState extends ConsumerState<HelpFaqScreen> {
           Icon(
             Icons.search_off_rounded,
             size: 48,
-            color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+            color: scheme.onSurfaceVariant,
           ),
           const SizedBox(height: 12),
           Text(

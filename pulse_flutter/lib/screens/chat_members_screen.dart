@@ -393,7 +393,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                                                             style: textTheme.labelSmall?.copyWith(
                                                               color: scheme.primary,
                                                               fontWeight: FontWeight.w700,
-                                                              fontSize: 10,
+                                                              fontSize: 12,
                                                             ),
                                                           ),
                                                         ],
@@ -425,7 +425,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                                                             style: textTheme.labelSmall?.copyWith(
                                                               color: scheme.tertiary,
                                                               fontWeight: FontWeight.w700,
-                                                              fontSize: 10,
+                                                              fontSize: 12,
                                                             ),
                                                           ),
                                                         ],

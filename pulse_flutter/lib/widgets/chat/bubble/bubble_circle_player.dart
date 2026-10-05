@@ -230,7 +230,7 @@ class CircleVideoInlinePlayerState extends State<CircleVideoInlinePlayer> {
                   ),
                   child: Text(
                     _formatDuration(widget.durationSeconds),
-                    style: TextStyle(color: widget.scheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: widget.scheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),

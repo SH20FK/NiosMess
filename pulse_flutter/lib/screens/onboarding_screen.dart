@@ -170,8 +170,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       style: TextStyle(
                         fontFamily: AppFonts.headline,
                         fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
+                        fontWeight: FontWeight.w600,
                         color: scheme.onSurface,
                       ),
                     ),
@@ -257,7 +256,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           decoration: BoxDecoration(
                             color: active
                                 ? scheme.primary
-                                : scheme.outlineVariant.withValues(alpha: 0.5),
+                                : scheme.outlineVariant,
                             borderRadius: AppRadii.fullRadius,
                           ),
                         ),
@@ -330,8 +329,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                 : context.l10n.commonContinue,
                             style: textTheme.titleMedium?.copyWith(
                               color: scheme.onPrimary,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           style: FilledButton.styleFrom(
@@ -442,8 +440,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               title,
               textAlign: TextAlign.center,
               style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 8),
@@ -486,8 +483,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 context.l10n.setupLanguageTitle,
                 textAlign: TextAlign.center,
                 style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 4),
@@ -600,7 +596,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                       ? scheme.onPrimaryContainer
                                           .withValues(alpha: 0.75)
                                       : scheme.onSurfaceVariant,
-                                  fontSize: 11,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
@@ -668,7 +664,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                       ? scheme.onPrimaryContainer
                                           .withValues(alpha: 0.75)
                                       : scheme.onSurfaceVariant,
-                                  fontSize: 11,
+                                  fontSize: 12,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

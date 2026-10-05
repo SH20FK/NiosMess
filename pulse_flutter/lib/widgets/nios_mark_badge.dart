@@ -87,7 +87,7 @@ class _NiosMarkBadgeState extends ConsumerState<NiosMarkBadge>
                         mark.monogram,
                         style: textTheme.headlineMedium?.copyWith(
                           color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           fontFamily: 'Onest',
                         ),
                       ),

@@ -98,7 +98,7 @@ class UploadProgressOverlay extends StatelessWidget {
                         progressLabel,
                         style: TextStyle(
                           color: scheme.error,
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -123,7 +123,7 @@ class UploadProgressOverlay extends StatelessWidget {
                                 'Повторить',
                                 style: TextStyle(
                                   color: scheme.onPrimary,
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -148,7 +148,7 @@ class UploadProgressOverlay extends StatelessWidget {
                                 'Отменить',
                                 style: TextStyle(
                                   color: scheme.onSurface,
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -231,7 +231,7 @@ class UploadProgressOverlay extends StatelessWidget {
                               '$percent%',
                               style: TextStyle(
                                 color: scheme.onSurface,
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -254,7 +254,7 @@ class UploadProgressOverlay extends StatelessWidget {
                         progressLabel,
                         style: TextStyle(
                           color: scheme.onSurface,
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

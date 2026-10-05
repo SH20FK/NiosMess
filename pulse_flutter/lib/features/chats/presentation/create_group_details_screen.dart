@@ -157,7 +157,7 @@ class _CreateGroupDetailsScreenState
               color: scheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(AppRadii.lg),
               border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.2),
+                color: scheme.outlineVariant,
               ),
             ),
             child: Column(
@@ -228,7 +228,7 @@ class _CreateGroupDetailsScreenState
                 color: scheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(AppRadii.lg),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.2),
+                  color: scheme.outlineVariant,
                 ),
               ),
               child: ListView.separated(
@@ -320,7 +320,7 @@ class _CreateGroupDetailsScreenState
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadii.xl),
               side: BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: 0.2),
+                color: scheme.outlineVariant,
               ),
             ),
             child: ClipRRect(

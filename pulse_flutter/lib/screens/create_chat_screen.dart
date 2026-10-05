@@ -41,7 +41,7 @@ class CreateChatScreen extends ConsumerWidget {
                       color: scheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.20),
+                        color: scheme.outlineVariant,
                       ),
                     ),
                     child: ClipRRect(

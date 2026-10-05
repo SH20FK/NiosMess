@@ -99,7 +99,7 @@ class _CreateGroupMembersScreenState
                     color: scheme.surfaceContainerLow,
                     border: Border(
                       bottom: BorderSide(
-                        color: scheme.outlineVariant.withValues(alpha: 0.2),
+                        color: scheme.outlineVariant,
                       ),
                     ),
                   ),
@@ -160,7 +160,7 @@ class _CreateGroupMembersScreenState
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadii.xl),
               side: BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: 0.2),
+                color: scheme.outlineVariant,
               ),
             ),
             child: ClipRRect(

@@ -62,7 +62,7 @@ class SecurityStatusChip extends ConsumerWidget {
             break;
           case E2eeSessionStatus.none:
             bg = scheme.surfaceContainerHighest.withValues(alpha: 0.6);
-            fg = scheme.onSurfaceVariant.withValues(alpha: 0.75);
+            fg = scheme.onSurfaceVariant;
             icon = Icons.lock_outline_rounded;
             label = 'E2EE';
             break;
@@ -96,7 +96,7 @@ class SecurityStatusChip extends ConsumerWidget {
                     label,
                     style: TextStyle(
                       color: fg,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

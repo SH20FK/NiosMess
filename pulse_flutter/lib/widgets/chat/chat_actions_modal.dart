@@ -64,7 +64,7 @@ class ChatActionsModal {
         color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.16),
+          color: scheme.outlineVariant,
         ),
       ),
       child: Row(

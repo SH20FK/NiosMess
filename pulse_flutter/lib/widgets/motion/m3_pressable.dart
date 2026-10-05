@@ -14,7 +14,7 @@ class M3Pressable extends StatefulWidget {
     super.key,
     this.onPressed,
     this.onLongPress,
-    this.pressedScale = 0.96,
+    this.pressedScale = 1.0,
     this.pressedTranslationY = 0.0,
     this.duration = const Duration(milliseconds: 140),
     this.curve = M3SpringCurves.snappy,

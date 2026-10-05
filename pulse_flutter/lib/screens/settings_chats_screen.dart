@@ -90,7 +90,7 @@ class SettingsChatsScreen extends ConsumerWidget {
                             Text(
                               context.l10n.settingsChatsDoubleTapHint,
                               style: textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                color: scheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -130,7 +130,7 @@ class SettingsChatsScreen extends ConsumerWidget {
                               border: Border.all(
                                 color: isSelected
                                     ? scheme.primary
-                                    : scheme.outlineVariant.withValues(alpha: 0.3),
+                                    : scheme.outlineVariant,
                                 width: isSelected ? 2 : 1,
                               ),
                             ),

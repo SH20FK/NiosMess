@@ -135,7 +135,7 @@ class M3ModalSurface extends StatelessWidget {
         side: BorderSide(
           color: destructive
               ? scheme.error.withValues(alpha: 0.28)
-              : scheme.outlineVariant.withValues(alpha: 0.20),
+              : scheme.outlineVariant,
         ),
       ),
       clipBehavior: Clip.antiAlias,

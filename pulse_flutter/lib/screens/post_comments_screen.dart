@@ -424,7 +424,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                   color: scheme.surface,
                   border: Border(
                     top: BorderSide(
-                      color: scheme.outlineVariant.withValues(alpha: 0.2),
+                      color: scheme.outlineVariant,
                       width: 0.8,
                     ),
                   ),
@@ -508,7 +508,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                               decoration: InputDecoration(
                                 hintText: context.l10n.commentsHint,
                                 hintStyle: textTheme.bodyMedium?.copyWith(
-                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                  color: scheme.onSurfaceVariant,
                                 ),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
@@ -538,7 +538,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                                       : scheme.surfaceContainerHighest,
                                   foregroundColor: hasText
                                       ? scheme.onPrimary
-                                      : scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                      : scheme.onSurfaceVariant,
                                 ),
                                 onPressed: (_busy || !hasText) ? null : _send,
                                 child: _busy
@@ -605,7 +605,7 @@ class _PinnedPostHeader extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: scheme.outlineVariant.withValues(alpha: 0.2),
+              color: scheme.outlineVariant,
               width: 1,
             ),
           ),
@@ -652,8 +652,8 @@ class _PinnedPostHeader extends StatelessWidget {
                           child: Text(
                             '@${data.authorUsername.trim()}',
                             style: textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                              fontSize: 11,
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 12,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -664,8 +664,8 @@ class _PinnedPostHeader extends StatelessWidget {
                       Text(
                         formatMessageTime(data.createdAt),
                         style: textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                          fontSize: 11,
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -784,7 +784,7 @@ class CommentItemTile extends StatelessWidget {
                     border: Border.all(
                       color: isMine
                           ? scheme.primary.withValues(alpha: 0.2)
-                          : scheme.outlineVariant.withValues(alpha: 0.15),
+                          : scheme.outlineVariant,
                       width: 0.8,
                     ),
                   ),
@@ -822,7 +822,7 @@ class CommentItemTile extends StatelessWidget {
                               child: Text(
                                 'Автор',
                                 style: textTheme.labelSmall?.copyWith(
-                                  fontSize: 10,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: scheme.onPrimaryContainer,
                                 ),
@@ -835,8 +835,8 @@ class CommentItemTile extends StatelessWidget {
                               child: Text(
                                 '@${comment.senderUsername.trim()}',
                                 style: textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                                  fontSize: 11,
+                                  color: scheme.onSurfaceVariant,
+                                  fontSize: 12,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -847,8 +847,8 @@ class CommentItemTile extends StatelessWidget {
                           Text(
                             formatMessageTime(comment.sentAt),
                             style: textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                              fontSize: 11,
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 12,
                             ),
                           ),
                         ],
@@ -882,7 +882,7 @@ class CommentItemTile extends StatelessWidget {
                                   '${replyTarget!.senderDisplayName}: ${replyTarget!.content.trim()}',
                                   style: textTheme.labelSmall?.copyWith(
                                     color: scheme.onSurfaceVariant,
-                                    fontSize: 11,
+                                    fontSize: 12,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -904,7 +904,7 @@ class CommentItemTile extends StatelessWidget {
                           fontSize: 14,
                           height: 1.35,
                           color: comment.isDeleted
-                              ? scheme.onSurfaceVariant.withValues(alpha: 0.6)
+                              ? scheme.onSurfaceVariant
                               : scheme.onSurface,
                           fontStyle: comment.isDeleted ? FontStyle.italic : FontStyle.normal,
                         ),

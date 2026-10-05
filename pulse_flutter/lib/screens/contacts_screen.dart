@@ -316,8 +316,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               ? context.l10n.tabContacts
               : context.l10n.tabCalls,
           style: textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.6,
+            fontWeight: FontWeight.w600,
             color: scheme.onSurface,
           ),
         ),
@@ -395,7 +394,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                                 style: textTheme.labelSmall?.copyWith(
                                   color: scheme.onError,
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 10,
+                                  fontSize: 12,
                                 ),
                               ),
                             ),
@@ -697,8 +696,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               Text(
                 'Избранные',
                 style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(width: 6),
@@ -783,8 +781,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               Text(
                 'Все контакты',
                 style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1478,7 +1475,7 @@ class _StickyAlphabetHeaderDelegate extends SliverPersistentHeaderDelegate {
             child: Text(
               letter,
               style: textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 color: scheme.primary,
               ),
             ),
@@ -1486,7 +1483,7 @@ class _StickyAlphabetHeaderDelegate extends SliverPersistentHeaderDelegate {
           const SizedBox(width: 8),
           Expanded(
             child: Divider(
-              color: scheme.outlineVariant.withValues(alpha: 0.2),
+              color: scheme.outlineVariant,
               height: 1,
             ),
           ),

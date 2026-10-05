@@ -105,7 +105,7 @@ class _SpamBlockBannerState extends State<SpamBlockBanner> {
                       'Аккаунт временно ограничен (Спамблок)',
                       style: textTheme.titleSmall?.copyWith(
                         color: scheme.onErrorContainer,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),

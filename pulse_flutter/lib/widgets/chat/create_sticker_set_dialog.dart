@@ -194,7 +194,7 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: scheme.outlineVariant.withValues(alpha: 0.6),
+                color: scheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -275,7 +275,7 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
                 border: Border.all(
                   color: _pickedBytes != null
                       ? scheme.primary
-                      : scheme.outlineVariant.withValues(alpha: 0.5),
+                      : scheme.outlineVariant,
                   width: _pickedBytes != null ? 1.5 : 1.0,
                 ),
               ),

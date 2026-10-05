@@ -38,7 +38,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     _rippleController = AnimationController(
       vsync: this,
       duration: CallTokens.rippleAnimationDuration,
-    )..repeat();
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _listenToState());
   }
 
@@ -163,7 +163,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                         color: callScheme.surfaceContainerHigh.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: callScheme.outlineVariant.withValues(alpha: 0.20),
+                          color: callScheme.outlineVariant,
                         ),
                       ),
                       child: Row(
@@ -179,7 +179,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                             'ЗАЩИЩЕНО ПРИ ПЕРЕДАЧЕ',
                             style: TextStyle(
                               color: callScheme.onSurface,
-                              fontSize: 10,
+                              fontSize: 12,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.6,
                             ),
@@ -204,9 +204,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                         CallAudioRipple(
                           animation: _rippleController,
                           scheme: callScheme,
-                          isActive: data.state == CallSessionState.inCall ||
-                              data.state == CallSessionState.connecting ||
-                              data.state == CallSessionState.connected,
+                          isActive: false,
                           size: 140,
                           child: Container(
                             width: 140,
@@ -237,7 +235,6 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                           style: textTheme.headlineMedium?.copyWith(
                             color: callScheme.onSurface,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: -0.4,
                           ),
                           textAlign: TextAlign.center,
                           maxLines: 1,
@@ -448,7 +445,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                   context.l10n.callListenerModeNotice,
                                   style: TextStyle(
                                     color: callScheme.primary,
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),

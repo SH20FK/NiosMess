@@ -75,7 +75,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.20),
+            color: scheme.outlineVariant,
           ),
         ),
         child: Column(
@@ -221,8 +221,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
                     Text(
                       info.marketingName,
                       style: textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
+                        fontWeight: FontWeight.w600,
                         fontSize: 20,
                         color: scheme.onSurface,
                       ),
@@ -300,8 +299,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           Text(
             'Память и накопитель',
             style: textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.2,
+              fontWeight: FontWeight.w600,
               color: scheme.onSurface,
             ),
           ),
@@ -329,7 +327,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           Divider(
             height: 1,
-            color: scheme.outlineVariant.withValues(alpha: 0.2),
+            color: scheme.outlineVariant,
           ),
           const SizedBox(height: 16),
 
@@ -383,8 +381,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               Text(
                 'Характеристики',
                 style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
+                  fontWeight: FontWeight.w600,
                   color: scheme.onSurface,
                 ),
               ),
@@ -398,7 +395,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
                   'Нажмите для копирования',
                   style: textTheme.labelSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    fontSize: 10,
+                    fontSize: 12,
                   ),
                 ),
               ),
@@ -418,7 +415,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
             textTheme: textTheme,
           ),
           const SizedBox(height: 12),
-          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          Divider(height: 1, color: scheme.outlineVariant),
           const SizedBox(height: 12),
 
           // 2. Display
@@ -433,7 +430,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
             textTheme: textTheme,
           ),
           const SizedBox(height: 12),
-          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          Divider(height: 1, color: scheme.outlineVariant),
           const SizedBox(height: 12),
 
           // 3. Cameras
@@ -448,7 +445,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
             textTheme: textTheme,
           ),
           const SizedBox(height: 12),
-          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
+          Divider(height: 1, color: scheme.outlineVariant),
           const SizedBox(height: 12),
 
           // 4. Operating System & Security
@@ -490,7 +487,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
         text,
         style: textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.w700,
-          fontSize: 11,
+          fontSize: 12,
           color: isAccent ? scheme.primary : scheme.onSurfaceVariant,
         ),
       ),
@@ -516,7 +513,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                fontSize: 11,
+                fontSize: 12,
                 color: scheme.onSurface,
               ),
             ),
@@ -621,7 +618,7 @@ class _InteractiveBrandBadgeState extends State<_InteractiveBrandBadge> {
       },
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
-        scale: _isPressed ? 0.90 : 1.0,
+        scale: 1.0,
         duration: const Duration(milliseconds: 200),
         curve: M3SpringCurves.bouncy,
         child: M3Container(
@@ -763,8 +760,8 @@ class _AnimatedResourceMeterState extends State<_AnimatedResourceMeter>
             Text(
               widget.subtitle,
               style: widget.textTheme.labelSmall?.copyWith(
-                color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                fontSize: 11,
+                color: widget.scheme.onSurfaceVariant,
+                fontSize: 12,
               ),
             ),
           ],
@@ -818,7 +815,7 @@ class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
       onTap: _onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
-        scale: _isPressed ? 0.98 : 1.0,
+        scale: 1.0,
         duration: const Duration(milliseconds: 140),
         curve: M3SpringCurves.bouncy,
         child: Padding(
@@ -848,16 +845,15 @@ class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
                       style: widget.textTheme.labelSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: widget.scheme.onSurfaceVariant,
-                        fontSize: 11,
+                        fontSize: 12,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       widget.value,
                       style: widget.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: widget.scheme.onSurface,
-                        letterSpacing: -0.2,
+                        fontWeight: FontWeight.w600,
+                        color: widget.scheme.onSurface,
                         fontSize: 14,
                       ),
                     ),
@@ -865,8 +861,8 @@ class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
                     Text(
                       widget.subtitle,
                       style: widget.textTheme.labelSmall?.copyWith(
-                        color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                        fontSize: 11,
+                        color: widget.scheme.onSurfaceVariant,
+                        fontSize: 12,
                       ),
                     ),
                   ],

@@ -71,8 +71,7 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
         title: Text(
           context.l10n.niosgramTitle,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
+                fontWeight: FontWeight.w600,
                 color: scheme.onSurface,
               ),
         ),
@@ -332,8 +331,8 @@ class _NotificationsBell extends ConsumerWidget {
                   count > 99 ? '99+' : '$count',
                   style: TextStyle(
                     color: scheme.onError,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -385,8 +384,7 @@ class _NotificationsBell extends ConsumerWidget {
                       Text(
                         isRu ? 'Уведомления' : 'Notifications',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
+                              fontWeight: FontWeight.w600,
                             ),
                       ),
                       const Spacer(),
@@ -407,7 +405,7 @@ class _NotificationsBell extends ConsumerWidget {
                 ),
                 Divider(
                   height: 1,
-                  color: scheme.outlineVariant.withValues(alpha: 0.2),
+                  color: scheme.outlineVariant,
                 ),
                 Expanded(
                   child: list.isEmpty
@@ -467,7 +465,7 @@ class _NotificationsBell extends ConsumerWidget {
                           separatorBuilder: (context, index) => Divider(
                             height: 1,
                             indent: 68,
-                            color: scheme.outlineVariant.withValues(alpha: 0.15),
+                            color: scheme.outlineVariant,
                           ),
                           itemBuilder: (BuildContext context, int index) {
                             final n = list[index];
@@ -980,7 +978,7 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                                           ? scheme.error
                                           : scheme.onSurfaceVariant
                                               .withValues(alpha: 0.6),
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       fontWeight: isNearLimit
                                           ? FontWeight.w700
                                           : FontWeight.w500,

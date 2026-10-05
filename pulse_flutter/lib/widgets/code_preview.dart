@@ -32,7 +32,7 @@ class CodePreview extends StatelessWidget {
                     ? scheme.primary.withValues(alpha: 0.4)
                     : (isCurrent
                         ? scheme.primary
-                        : scheme.outlineVariant.withValues(alpha: 0.3)),
+                        : scheme.outlineVariant),
               ),
             ),
             alignment: Alignment.center,
@@ -42,7 +42,7 @@ class CodePreview extends StatelessWidget {
                 color: filled
                     ? scheme.onPrimaryContainer
                     : scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),

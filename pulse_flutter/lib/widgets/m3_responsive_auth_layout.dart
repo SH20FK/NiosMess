@@ -60,7 +60,7 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
               color: scheme.surfaceContainerHigh.withValues(alpha: 0.88),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.35),
+                color: scheme.outlineVariant,
                 width: 1.0,
               ),
             ),
@@ -108,8 +108,7 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                         Text(
                           'NiosMess',
                           style: textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.8,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -157,8 +156,7 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                     Text(
                       title,
                       style: textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.6,
+                        fontWeight: FontWeight.w600,
                         height: 1.15,
                       ),
                     ),
@@ -189,7 +187,7 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                       color: scheme.surfaceContainerHigh.withValues(alpha: 0.92),
                       borderRadius: BorderRadius.circular(36),
                       border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.40),
+                        color: scheme.outlineVariant,
                         width: 1.5,
                       ),
                     ),

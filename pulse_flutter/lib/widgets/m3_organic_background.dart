@@ -180,7 +180,7 @@ class _TopIconButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: radii.fullRadius,
             border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.25),
+              color: scheme.outlineVariant,
               width: 1,
             ),
           ),

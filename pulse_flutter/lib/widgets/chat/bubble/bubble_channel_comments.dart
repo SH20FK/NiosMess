@@ -38,7 +38,7 @@ class ChannelCommentsBar extends StatelessWidget {
             color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.25),
+              color: scheme.outlineVariant,
               width: 0.5,
             ),
           ),

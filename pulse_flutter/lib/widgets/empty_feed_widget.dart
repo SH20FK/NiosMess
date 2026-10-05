@@ -73,8 +73,7 @@ class EmptyFeedWidget extends StatelessWidget {
               Text(
                 title,
                 style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
+                  fontWeight: FontWeight.w600,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -87,7 +86,7 @@ class EmptyFeedWidget extends StatelessWidget {
                 child: Text(
                   description,
                   style: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+                    color: scheme.onSurfaceVariant,
                     height: 1.4,
                   ),
                   textAlign: TextAlign.center,
@@ -108,7 +107,7 @@ class EmptyFeedWidget extends StatelessWidget {
                       color: scheme.surfaceContainerHigh.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.2),
+                        color: scheme.outlineVariant,
                       ),
                     ),
                     child: Column(

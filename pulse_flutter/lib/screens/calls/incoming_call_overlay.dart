@@ -59,14 +59,12 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
-    )..repeat();
+    );
 
     _pulseScale = Tween<double>(begin: 1.0, end: 1.45).animate(
       CurvedAnimation(parent: _pulseController, curve: M3SpringCurves.gentle),
     );
-    _pulseOpacity = Tween<double>(begin: 0.45, end: 0.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
-    );
+    _pulseOpacity = const AlwaysStoppedAnimation<double>(0.0);
   }
 
   @override
@@ -115,7 +113,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                 color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.35),
+                  color: scheme.outlineVariant,
                   width: 1.0,
                 ),
               ),
@@ -147,7 +145,6 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                             data.initiatorName,
                             style: textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
-                              letterSpacing: -0.1,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -158,7 +155,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                                 ? context.l10n.callIncomingVideo
                                 : context.l10n.callIncomingVoice,
                             style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                              color: scheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                             ),
                           ),

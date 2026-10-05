@@ -401,8 +401,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           style: TextStyle(
             fontFamily: AppFonts.headline,
             fontSize: 34,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.6,
+            fontWeight: FontWeight.w700,
             color: scheme.onSurface,
           ),
           textAlign: TextAlign.center,
@@ -497,7 +496,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         color: scheme.surfaceContainerLow,
         borderRadius: AppRadii.lgRadius,
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.35),
+          color: scheme.outlineVariant,
           width: 1,
         ),
       ),
@@ -661,7 +660,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         color: scheme.surfaceContainerLow,
         borderRadius: AppRadii.lgRadius,
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.35),
+          color: scheme.outlineVariant,
           width: 1,
         ),
       ),
@@ -795,7 +794,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     color: Colors.white,
                     borderRadius: AppRadii.mdRadius,
                     border: Border.all(
-                      color: scheme.outlineVariant.withValues(alpha: 0.3),
+                      color: scheme.outlineVariant,
                       width: 1,
                     ),
                   ),
@@ -883,8 +882,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         context.l10n.loginTapToCopy,
                         style: TextStyle(
                           fontFamily: AppFonts.body,
-                          fontSize: 11,
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -944,7 +943,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           style: TextStyle(
             fontFamily: AppFonts.body,
             fontSize: 12,
-            color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+            color: scheme.onSurfaceVariant,
           ),
           textAlign: TextAlign.center,
         ),

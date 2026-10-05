@@ -86,8 +86,7 @@ class AppUpdateDialog extends ConsumerWidget {
                     Text(
                       context.l10n.updateAvailable,
                       style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
+                        fontWeight: FontWeight.w600,
                         color: scheme.onSurface,
                       ),
                     ),
@@ -145,7 +144,7 @@ class AppUpdateDialog extends ConsumerWidget {
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.35),
+                  color: scheme.outlineVariant,
                 ),
               ),
               child: SingleChildScrollView(

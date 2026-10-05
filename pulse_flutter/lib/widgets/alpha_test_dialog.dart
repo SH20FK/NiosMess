@@ -122,8 +122,8 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
                   'ALPHA PRE-RELEASE',
                   style: TextStyle(
                     color: scheme.primary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
                     letterSpacing: 1.1,
                   ),
                 ),
@@ -136,8 +136,7 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
           Text(
             context.l10n.alphaDialogTitle,
             style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
+              fontWeight: FontWeight.w700,
               color: scheme.onSurface,
             ),
             textAlign: TextAlign.center,
@@ -186,7 +185,7 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
                     Text(
                       context.l10n.alphaDialogReportTo,
                       style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         color: scheme.onSurface,
                         fontSize: 13,
                       ),
@@ -235,9 +234,8 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
               child: Text(
                 context.l10n.alphaDialogUnderstood,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   fontSize: 15,
-                  letterSpacing: -0.2,
                 ),
               ),
             ),

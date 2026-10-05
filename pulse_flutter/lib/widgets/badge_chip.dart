@@ -259,7 +259,7 @@ class BadgeChip extends StatelessWidget {
         style: TextStyle(
           color: color,
           fontSize: size * 0.85,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w600,
           height: 1,
         ),
         textAlign: TextAlign.center,

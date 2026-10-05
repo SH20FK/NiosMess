@@ -65,7 +65,7 @@ class InboxSearchLauncher extends ConsumerWidget {
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.50),
                 borderRadius: BorderRadius.circular(AppRadii.full),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.20),
+                  color: scheme.outlineVariant,
                 ),
               ),
               child: Padding(
@@ -98,7 +98,7 @@ class InboxSearchLauncher extends ConsumerWidget {
                           color: scheme.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(AppRadii.xs),
                           border: Border.all(
-                            color: scheme.outlineVariant.withValues(alpha: 0.3),
+                            color: scheme.outlineVariant,
                           ),
                         ),
                         child: Text(
@@ -107,7 +107,7 @@ class InboxSearchLauncher extends ConsumerWidget {
                               ? '⌘ K'
                               : 'Ctrl K',
                           style: textTheme.labelSmall?.copyWith(
-                            fontSize: 10,
+                            fontSize: 12,
                             color: scheme.onSurfaceVariant,
                             fontWeight: FontWeight.w600,
                           ),

@@ -487,7 +487,7 @@ class _CircleVideoRecorderScreenState
                                     ? Icons.face_rounded
                                     : Icons.photo_camera_back_rounded,
                                 size: 16,
-                                color: scheme.onSurface.withValues(alpha: 0.85),
+                                color: scheme.onSurface,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -496,7 +496,7 @@ class _CircleVideoRecorderScreenState
                                     ? 'Фронтальная'
                                     : 'Основная',
                                 style: textTheme.labelMedium?.copyWith(
-                                  color: scheme.onSurface.withValues(alpha: 0.85),
+                                  color: scheme.onSurface,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -595,7 +595,7 @@ class _CircleVideoRecorderScreenState
                             ? context.l10n.mediaViewerRecording
                             : context.l10n.chatCircleVideoHoldHint,
                         style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurface.withValues(alpha: 0.70),
+                          color: scheme.onSurface,
                           fontWeight: FontWeight.w500,
                         ),
                       ),

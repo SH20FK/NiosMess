@@ -38,7 +38,7 @@ class MessageBubbleFooter extends StatelessWidget {
 
     final Color footerTextColor = isMine
         ? scheme.onPrimaryContainer.withValues(alpha: 0.70)
-        : scheme.onSurfaceVariant.withValues(alpha: 0.75);
+        : scheme.onSurfaceVariant;
 
     final Color statusIconColor = isMine
         ? (isSending
@@ -68,7 +68,7 @@ class MessageBubbleFooter extends StatelessWidget {
           Text(
             context.l10n.chatEdited,
             style: textTheme.labelSmall?.copyWith(
-              fontSize: 11,
+              fontSize: 12,
               color: footerTextColor,
             ),
           ),
@@ -76,7 +76,7 @@ class MessageBubbleFooter extends StatelessWidget {
         Text(
           formattedTime,
           style: textTheme.labelSmall?.copyWith(
-            fontSize: 11,
+            fontSize: 12,
             color: footerTextColor,
           ),
         ),
@@ -182,7 +182,7 @@ class SelfDestructCountdownPillState
         Text(
           _formatRemaining(diff),
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: FontWeight.w700,
             color: widget.color,
           ),

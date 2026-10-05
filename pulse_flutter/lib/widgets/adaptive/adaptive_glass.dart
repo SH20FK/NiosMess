@@ -59,7 +59,7 @@ class AdaptiveGlass extends ConsumerWidget {
         borderRadius: radius,
         border: border ??
             Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.25),
+              color: scheme.outlineVariant,
               width: 1.0,
             ),
       ),

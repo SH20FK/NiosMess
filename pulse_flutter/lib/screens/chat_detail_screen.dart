@@ -168,7 +168,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             color: scheme.surfaceContainerHighest.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.25),
+              color: scheme.outlineVariant,
               width: 0.8,
             ),
           ),
@@ -541,7 +541,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                             color: scheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: scheme.outlineVariant.withValues(alpha: 0.2),
+                              color: scheme.outlineVariant,
                             ),
                           ),
                           child: Row(

@@ -201,7 +201,7 @@ class MediaErrorIllustration extends StatelessWidget {
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
         borderRadius: radius,
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
+          color: scheme.outlineVariant,
         ),
       ),
       child: Column(

@@ -51,7 +51,7 @@ class CallControlDock extends StatelessWidget {
           color: CallTokens.darkSurfaceContainerHigh.withValues(alpha: 0.94),
           borderRadius: BorderRadius.circular(CallTokens.dockBorderRadius),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.20),
+            color: scheme.outlineVariant,
             width: 1.0,
           ),
         ),

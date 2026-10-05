@@ -624,7 +624,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(radii.xl),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.35),
+          color: scheme.outlineVariant,
         ),
       ),
       child: Column(
@@ -1117,7 +1117,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 Text(
                   context.l10n.profileCommonGroups,
                   style: dialogTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1167,7 +1167,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 Text(
                   context.l10n.unblockAction,
                   style: dialogTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1243,7 +1243,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 Text(
                   context.l10n.profileBlock,
                   style: dialogTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1331,7 +1331,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 child: Text(
                   context.l10n.reportSelectReason,
                   style: sheetTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

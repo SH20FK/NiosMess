@@ -274,7 +274,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                 width: 38,
                 height: 4.5,
                 decoration: BoxDecoration(
-                  color: scheme.outlineVariant.withValues(alpha: 0.6),
+                  color: scheme.outlineVariant,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -309,8 +309,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                             ? 'Добавить в «${widget.setTitle}»'
                             : 'Добавить стикеры',
                         style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
+                          fontWeight: FontWeight.w600,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -337,7 +336,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                 color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.2),
+                  color: scheme.outlineVariant,
                 ),
               ),
               child: Column(

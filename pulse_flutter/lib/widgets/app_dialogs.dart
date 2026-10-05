@@ -88,8 +88,7 @@ class AppDialog extends StatelessWidget {
                               Text(
                                 title,
                                 style: textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.4,
+                                  fontWeight: FontWeight.w600,
                                   color: scheme.onSurface,
                                 ),
                               ),

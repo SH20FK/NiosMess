@@ -50,7 +50,7 @@ class InlineQueryOverlay extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.3),
+            color: scheme.outlineVariant,
             width: 0.8,
           ),
         ),
@@ -151,7 +151,7 @@ class InlineQueryOverlay extends StatelessWidget {
               Icon(
                 Icons.search_off_rounded,
                 size: 24,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                color: scheme.onSurfaceVariant,
               ),
               const SizedBox(height: 4),
               Text(
@@ -175,7 +175,7 @@ class InlineQueryOverlay extends StatelessWidget {
         height: 1,
         indent: 52,
         endIndent: 12,
-        color: scheme.outlineVariant.withValues(alpha: 0.2),
+        color: scheme.outlineVariant,
       ),
       itemBuilder: (BuildContext context, int index) {
         final InlineQueryResult result = state.results[index];

@@ -449,7 +449,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       borderRadius: BorderRadius.circular(isCompact ? 16 : 20),
       color: scheme.surfaceContainerLow,
       border: Border.all(
-        color: scheme.outlineVariant.withValues(alpha: 0.18),
+        color: scheme.outlineVariant,
         width: 1,
       ),
       padding: EdgeInsets.all(isCompact ? 12 : 14),
@@ -471,8 +471,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   displayName,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
+                        fontWeight: FontWeight.w700,
                       ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -494,7 +493,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     bio,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
-                          fontSize: 11,
+                          fontSize: 12,
                         ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -522,7 +521,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   'Изменить',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: scheme.primary,
                   ),
@@ -734,7 +733,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           Icon(
                             Icons.copy_rounded,
                             size: 11,
-                            color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                            color: scheme.onSurfaceVariant,
                           ),
                         ],
                       ),
@@ -1115,7 +1114,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 : scheme.surface.withValues(alpha: 0.65),
             border: Border(
               right: BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: 0.2),
+                color: scheme.outlineVariant,
                 width: 1,
               ),
             ),
@@ -1179,7 +1178,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 12),
               Divider(
                 height: 1,
-                color: scheme.outlineVariant.withValues(alpha: 0.15),
+                color: scheme.outlineVariant,
               ),
               const SizedBox(height: 12),
 
@@ -1530,7 +1529,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                   size: 18,
                   color: hasError
                       ? scheme.error
-                      : scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                      : scheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -1601,7 +1600,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                   size: 16,
                   color: hasError
                       ? scheme.error
-                      : scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                      : scheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -1781,7 +1780,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
             ),
             Divider(
               height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.15),
+              color: scheme.outlineVariant,
             ),
 
             // Scrollable Form
@@ -1872,7 +1871,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                         Divider(
                           height: 1,
                           indent: 50,
-                          color: scheme.outlineVariant.withValues(alpha: 0.12),
+                          color: scheme.outlineVariant,
                         ),
                         _buildInputField(
                           scheme: scheme,
@@ -1905,7 +1904,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                         Divider(
                           height: 1,
                           indent: 50,
-                          color: scheme.outlineVariant.withValues(alpha: 0.12),
+                          color: scheme.outlineVariant,
                         ),
                         _buildInputField(
                           scheme: scheme,
@@ -1923,7 +1922,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                         Divider(
                           height: 1,
                           indent: 50,
-                          color: scheme.outlineVariant.withValues(alpha: 0.12),
+                          color: scheme.outlineVariant,
                         ),
                         InkWell(
                           onTap: _selectBirthday,
@@ -1934,7 +1933,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                                 Icon(
                                   Icons.cake_outlined,
                                   size: 20,
-                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                                  color: scheme.onSurfaceVariant,
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -1961,7 +1960,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                                           fontWeight: FontWeight.w500,
                                           color: birthdayController.text.isNotEmpty
                                               ? scheme.onSurface
-                                              : scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                              : scheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -1970,7 +1969,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                                 Icon(
                                   Icons.calendar_today_rounded,
                                   size: 18,
-                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                  color: scheme.onSurfaceVariant,
                                 ),
                               ],
                             ),

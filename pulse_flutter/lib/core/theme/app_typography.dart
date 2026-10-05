@@ -40,8 +40,7 @@ class AppTypography {
         fontFamily: AppFonts.headline,
         fontSize: 57,
         height: 64 / 57,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.25,
+        fontWeight: FontWeight.w600,
         color: scheme.onSurface,
         fontVariations: const <FontVariation>[
           FontVariation('wght', 800),
@@ -171,7 +170,7 @@ class AppTypography {
       ),
       labelSmall: TextStyle(
         fontFamily: AppFonts.ui,
-        fontSize: 11,
+        fontSize: 12,
         height: 16 / 11,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.5,

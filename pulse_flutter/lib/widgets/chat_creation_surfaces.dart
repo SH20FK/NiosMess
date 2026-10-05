@@ -138,7 +138,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
             color: scheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.14),
+              color: scheme.outlineVariant,
             ),
           ),
           child: Row(
@@ -161,8 +161,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
                     Text(
                       title,
                       style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.1,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -178,7 +177,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.50),
+                color: scheme.onSurfaceVariant,
                 size: 22,
               ),
             ],
@@ -231,8 +230,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
                       Text(
                         context.l10n.groupCreateOrJoin,
                         style: textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -328,7 +326,7 @@ class _PressableScaleState extends State<_PressableScale> {
       onTapCancel: () => setState(() => _pressed = false),
       onTap: widget.onTap,
       child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1.0,
+        scale: 1.0,
         duration: const Duration(milliseconds: 140),
         curve: M3SpringCurves.spatial,
         child: widget.child,

@@ -113,7 +113,7 @@ class AppTheme {
           shape: RoundedSuperellipseBorder(
             borderRadius: BorderRadius.circular(settings.uiCornerRadius),
           ),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+          side: BorderSide(color: scheme.outlineVariant),
           foregroundColor: scheme.primary,
           textStyle: textTheme.labelLarge,
         ),
@@ -141,7 +141,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: scheme.surfaceContainerLow,
         selectedColor: scheme.secondaryContainer,
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+        side: BorderSide(color: scheme.outlineVariant),
         shape: RoundedSuperellipseBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -219,7 +219,7 @@ class AppTheme {
       searchViewTheme: SearchViewThemeData(
         backgroundColor: scheme.surfaceContainer,
         surfaceTintColor: Colors.transparent,
-        dividerColor: scheme.outlineVariant.withValues(alpha: 0.28),
+        dividerColor: scheme.outlineVariant,
         shape: RoundedSuperellipseBorder(
           borderRadius: BorderRadius.circular(
             settings.uiCornerRadius > 24 ? settings.uiCornerRadius : 28,
@@ -345,7 +345,7 @@ class AppTheme {
         }),
       ),
       dividerTheme: DividerThemeData(
-        color: scheme.outlineVariant.withValues(alpha: 0.22),
+        color: scheme.outlineVariant,
         space: 1,
         thickness: 1,
       ),
@@ -360,7 +360,7 @@ class AppTheme {
         indicatorColor: scheme.primary,
         labelColor: scheme.primary,
         unselectedLabelColor: scheme.onSurfaceVariant,
-        dividerColor: scheme.outlineVariant.withValues(alpha: 0.22),
+        dividerColor: scheme.outlineVariant,
       ),
       drawerTheme: DrawerThemeData(
         backgroundColor: scheme.surfaceContainerLow,
@@ -413,13 +413,13 @@ class AppTheme {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(settings.uiCornerRadius),
           borderSide: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.25),
+            color: scheme.outlineVariant,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(settings.uiCornerRadius),
           borderSide: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.25),
+            color: scheme.outlineVariant,
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -479,7 +479,7 @@ class AppTheme {
               return BorderSide(color: scheme.primary.withValues(alpha: 0.28));
             }
             return BorderSide(
-              color: scheme.outlineVariant.withValues(alpha: 0.22),
+              color: scheme.outlineVariant,
             );
           }),
           backgroundColor: WidgetStateProperty.resolveWith<Color?>((

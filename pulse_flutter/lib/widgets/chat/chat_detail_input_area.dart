@@ -146,7 +146,7 @@ class ChatDetailInputArea extends ConsumerWidget {
             color: scheme.surfaceContainerHigh.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.3),
+              color: scheme.outlineVariant,
             ),
           ),
           child: Row(
@@ -379,7 +379,7 @@ class _ChannelSubscriberBar extends ConsumerWidget {
             child: Text(
               context.l10n.chatOnlyAdminsCanPost,
               style: textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+                color: scheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),

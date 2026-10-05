@@ -264,7 +264,7 @@ class _StickerSetDetailsSheetState extends ConsumerState<StickerSetDetailsSheet>
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: scheme.outlineVariant.withValues(alpha: 0.6),
+                  color: scheme.outlineVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

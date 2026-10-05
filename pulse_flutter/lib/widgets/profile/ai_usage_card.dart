@@ -83,7 +83,7 @@ class AiUsageIndicatorCard extends StatelessWidget {
           color: scheme.surfaceContainerLow,
           borderRadius: AppRadii.lgRadius,
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.16),
+            color: scheme.outlineVariant,
           ),
         ),
         child: Row(
@@ -157,7 +157,7 @@ class AiUsageIndicatorCard extends StatelessWidget {
         color: scheme.surfaceContainerLow,
         borderRadius: AppRadii.lgRadius,
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.16),
+          color: scheme.outlineVariant,
         ),
       ),
       child: Column(

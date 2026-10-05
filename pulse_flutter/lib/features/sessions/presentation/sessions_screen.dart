@@ -175,7 +175,7 @@ class SessionsScreen extends ConsumerWidget {
                   color: scheme.surfaceContainerLow,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.2)),
+                    side: BorderSide(color: scheme.outlineVariant),
                   ),
                   child: Column(
                     children: sessions.where((s) => !s.isCurrent).map((AccountSession session) {

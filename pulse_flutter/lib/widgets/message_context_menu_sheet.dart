@@ -308,8 +308,8 @@ class _ActionListTile extends StatelessWidget {
           ? Text(
               subtitle!,
               style: TextStyle(
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                fontSize: 11,
+                color: scheme.onSurfaceVariant,
+                fontSize: 12,
               ),
             )
           : null,

@@ -273,19 +273,19 @@ class _OtpBoxCell extends StatelessWidget {
     } else {
       backgroundColor = scheme.surfaceContainerHigh.withValues(alpha: 0.45);
       border = Border.all(
-        color: scheme.outlineVariant.withValues(alpha: 0.3),
+        color: scheme.outlineVariant,
         width: 1.0,
       );
     }
 
     final TextStyle? digitStyle = isFilled
         ? (textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             color: hasError ? scheme.error : scheme.onPrimaryContainer,
           ) ??
           TextStyle(
             fontSize: 22,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             color: hasError ? scheme.error : scheme.onPrimaryContainer,
           ))
         : null;

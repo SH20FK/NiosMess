@@ -48,7 +48,7 @@ final _palettes = <_PaletteEntry>[
 const _customColorPresets = <Color>[
   Color(0xFF6750A4), // Amethyst Violet
   Color(0xFF3F51B5), // Indigo
-  Color(0xFF2563EB), // Royal Blue
+  Color(0xFF3B5FB0), // Royal Blue
   Color(0xFF0284C7), // Sky
   Color(0xFF00838F), // Cyan
   Color(0xFF006C5B), // Lagoon Teal
@@ -466,7 +466,7 @@ class NiosColorField extends StatelessWidget {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.20),
+          color: scheme.outlineVariant,
           width: 1,
         ),
       ),
@@ -697,7 +697,7 @@ class _ColorOrbItemState extends State<_ColorOrbItem> {
           child: GestureDetector(
             onTap: widget.onTap,
             child: AnimatedScale(
-              scale: _isPressed ? 0.90 : (widget.isSelected ? 1.15 : 1.0),
+              scale: 1.0,
               duration: const Duration(milliseconds: 220),
               curve: M3SpringCurves.bouncy,
               child: AnimatedContainer(
@@ -774,7 +774,7 @@ class _RainbowCustomOrbItemState extends State<_RainbowCustomOrbItem> {
           child: GestureDetector(
             onTap: widget.onTap,
             child: AnimatedScale(
-              scale: _isPressed ? 0.90 : (widget.isSelected ? 1.15 : 1.0),
+              scale: 1.0,
               duration: const Duration(milliseconds: 220),
               curve: M3SpringCurves.bouncy,
               child: AnimatedContainer(
@@ -1027,7 +1027,7 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
                 ),
               ),
               AnimatedScale(
-                scale: _isDragging ? 1.14 : 1.0,
+                scale: 1.0,
                 duration: const Duration(milliseconds: 220),
                 curve: M3SpringCurves.bouncy,
                 child: AnimatedContainer(
@@ -1398,7 +1398,7 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                   color: _selectedColor,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.5),
+                    color: scheme.outlineVariant,
                     width: 2,
                   ),
                 ),
@@ -1468,7 +1468,7 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                     });
                   },
                   child: AnimatedScale(
-                    scale: isPressed ? 0.90 : (isSelected ? 1.15 : 1.0),
+                    scale: 1.0,
                     duration: const Duration(milliseconds: 220),
                     curve: M3SpringCurves.bouncy,
                     child: AnimatedContainer(
@@ -1529,7 +1529,7 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
             onPointerUp: (_) => setState(() => _isApplyPressed = false),
             onPointerCancel: (_) => setState(() => _isApplyPressed = false),
             child: AnimatedScale(
-              scale: _isApplyPressed ? 0.96 : 1.0,
+              scale: 1.0,
               duration: const Duration(milliseconds: 180),
               curve: _isApplyPressed ? M3SpringCurves.snappy : M3SpringCurves.bouncy,
               child: FilledButton.icon(
@@ -1628,7 +1628,7 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
                       side: BorderSide(
                         color: isSelected
                             ? scheme.primary
-                            : scheme.outlineVariant.withValues(alpha: 0.4),
+                            : scheme.outlineVariant,
                       ),
                     ),
                     onSelected: (_) {

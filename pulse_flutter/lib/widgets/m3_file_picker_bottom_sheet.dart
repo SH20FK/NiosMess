@@ -633,7 +633,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                               Icon(
                                 Icons.photo_library_outlined,
                                 size: 36,
-                                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                color: scheme.onSurfaceVariant,
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -733,7 +733,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                       Icon(
                         Icons.photo_library_outlined,
                         size: 40,
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        color: scheme.onSurfaceVariant,
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -1048,7 +1048,7 @@ class _RecentAssetThumbnailTile extends StatelessWidget {
                       _formatDuration(asset.duration),
                       style: TextStyle(
                         color: scheme.onSurface,
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1285,7 +1285,7 @@ class _RecentPreviewScreenState extends State<_RecentPreviewScreen> {
                             hintText: 'Добавить подпись...',
                             hintStyle: TextStyle(
                               color:
-                                  scheme.onSurface.withValues(alpha: 0.6),
+                                  scheme.onSurface,
                             ),
                             border: InputBorder.none,
                             isDense: true,

@@ -177,7 +177,7 @@ class GroupProfileScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.16),
+                  color: scheme.outlineVariant,
                 ),
               ),
               padding: const EdgeInsets.all(20),
@@ -197,8 +197,7 @@ class GroupProfileScreen extends ConsumerWidget {
                   Text(
                     chat.name,
                     style: textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
+                      fontWeight: FontWeight.w600,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -270,7 +269,7 @@ class GroupProfileScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.10),
+            color: scheme.outlineVariant,
           ),
         ),
         child: Column(
@@ -309,7 +308,7 @@ class GroupProfileScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.10),
+            color: scheme.outlineVariant,
           ),
         ),
         child: Row(
@@ -370,7 +369,7 @@ class GroupProfileScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.10),
+            color: scheme.outlineVariant,
           ),
         ),
         child: Material(
@@ -440,7 +439,7 @@ class GroupProfileScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.10),
+            color: scheme.outlineVariant,
           ),
         ),
         child: Row(

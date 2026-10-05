@@ -64,8 +64,7 @@ class SettingsShell extends ConsumerWidget {
               title: Text(
                 title,
                 style: textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               centerTitle: false,
@@ -104,8 +103,7 @@ class SettingsShell extends ConsumerWidget {
                       child: Text(
                         title,
                         style: textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
+                          fontWeight: FontWeight.w600,
                           color: scheme.onSurface,
                         ),
                       ),

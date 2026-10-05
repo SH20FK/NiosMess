@@ -217,8 +217,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               context.l10n.appName,
               textAlign: TextAlign.center,
               style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
+                fontWeight: FontWeight.w600,
                 color: scheme.onSurface,
               ),
             ),
@@ -491,8 +490,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                                 ? 'v${currentRelease.version}'
                                 : BuildInfo.versionWithPrefix,
                             style: textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Container(
@@ -605,7 +603,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           Divider(
             height: 1,
             indent: 58,
-            color: scheme.outlineVariant.withValues(alpha: 0.3),
+            color: scheme.outlineVariant,
           ),
           _ActionRow(
             icon: Icons.gavel_rounded,
@@ -617,7 +615,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           Divider(
             height: 1,
             indent: 58,
-            color: scheme.outlineVariant.withValues(alpha: 0.3),
+            color: scheme.outlineVariant,
           ),
           _ActionRow(
             icon: Icons.assignment_turned_in_outlined,
@@ -629,7 +627,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           Divider(
             height: 1,
             indent: 58,
-            color: scheme.outlineVariant.withValues(alpha: 0.3),
+            color: scheme.outlineVariant,
           ),
           _ActionRow(
             icon: Icons.receipt_long_rounded,
@@ -728,7 +726,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                   child: Text(
                     context.l10n.aboutSecurityFooter,
                     style: textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+                      color: scheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
                     ),
                     textAlign: TextAlign.center,
@@ -740,7 +738,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             Text(
               '${context.l10n.aboutCopyrightFooter(_copyrightYear)} • ${BuildInfo.versionWithPrefix} (${BuildInfo.buildChannel})',
               style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -892,8 +890,7 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
                         Text(
                           titleText,
                           style: textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
+                            fontWeight: FontWeight.w600,
                             color: scheme.onSurface,
                           ),
                         ),
@@ -1342,8 +1339,7 @@ class _TeamMemberTile extends StatelessWidget {
                     Text(
                       member.name,
                       style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
+                        fontWeight: FontWeight.w600,
                         color: scheme.onSurface,
                       ),
                       maxLines: 1,

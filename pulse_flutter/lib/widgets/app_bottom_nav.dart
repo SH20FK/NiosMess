@@ -241,7 +241,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
               index: widget.currentIndex,
               count: items.length,
               color: scheme.secondaryContainer,
-              animate: animate,
+              animate: false,
               stretch: stretch,
               duration: duration,
             ),
@@ -273,7 +273,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
                         item.badge < 100 ? '${item.badge}' : '99+',
                         style: const TextStyle(
                           fontFamily: AppFonts.ui,
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -344,7 +344,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
             color: scheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.28),
+              color: scheme.outlineVariant,
               width: 1.0,
             ),
           ),
@@ -364,7 +364,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
           color: scheme.surfaceContainerLow,
           border: Border(
             top: BorderSide(
-              color: scheme.outlineVariant.withValues(alpha: 0.22),
+              color: scheme.outlineVariant,
               width: 0.8,
             ),
           ),

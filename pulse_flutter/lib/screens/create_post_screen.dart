@@ -528,7 +528,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                 ? scheme.error
                                 : scheme.onSurfaceVariant
                                     .withValues(alpha: 0.6),
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: _textController.text.length >
                                     (_maxPostLength - 200)
                                 ? FontWeight.w700

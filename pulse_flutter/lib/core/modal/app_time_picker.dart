@@ -29,12 +29,12 @@ class AppTimePicker {
               shape: RoundedRectangleBorder(
                 borderRadius: AppRadii.xlRadius,
                 side: BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: 0.20),
+                  color: scheme.outlineVariant,
                 ),
               ),
               elevation: 0,
               dayPeriodBorderSide: BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: 0.20),
+                color: scheme.outlineVariant,
               ),
               dialBackgroundColor: scheme.surfaceContainerLow,
             ),

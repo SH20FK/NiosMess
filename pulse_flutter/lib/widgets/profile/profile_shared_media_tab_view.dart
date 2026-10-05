@@ -594,7 +594,7 @@ class _ProfileSharedMediaTabViewState
                     border: Border.all(
                       color: isSelected
                           ? scheme.primary.withValues(alpha: 0.28)
-                          : scheme.outlineVariant.withValues(alpha: 0.12),
+                          : scheme.outlineVariant,
                       width: 1,
                     ),
                   ),
@@ -633,7 +633,7 @@ class _ProfileSharedMediaTabViewState
                             '${tab.count}',
                             style: textTheme.labelSmall?.copyWith(
                               fontWeight: FontWeight.w700,
-                              fontSize: 11,
+                              fontSize: 12,
                               color: isSelected
                                   ? scheme.onPrimaryContainer
                                   : scheme.onSurfaceVariant,
@@ -660,7 +660,7 @@ class _ProfileSharedMediaTabViewState
         color: scheme.surfaceContainerLow.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.16),
+          color: scheme.outlineVariant,
         ),
       ),
       child: Column(
@@ -669,7 +669,7 @@ class _ProfileSharedMediaTabViewState
           Icon(
             Icons.perm_media_outlined,
             size: 40,
-            color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+            color: scheme.onSurfaceVariant,
           ),
           const SizedBox(height: 12),
           Text(
@@ -810,7 +810,7 @@ class _ProfileSharedMediaTabViewState
                                           color: scheme.surfaceContainerHigh,
                                           child: Icon(
                                             Icons.broken_image_rounded,
-                                            color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                            color: scheme.onSurfaceVariant,
                                             size: 28,
                                           ),
                                         ),
@@ -872,7 +872,7 @@ class _ProfileSharedMediaTabViewState
                 color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.2),
+                  color: scheme.outlineVariant,
                 ),
               ),
               child: Row(
@@ -947,7 +947,7 @@ class _ProfileSharedMediaTabViewState
                 color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.2),
+                  color: scheme.outlineVariant,
                 ),
               ),
               child: Column(
@@ -1069,7 +1069,7 @@ class _ProfileSharedMediaTabViewState
                   color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.2),
+                    color: scheme.outlineVariant,
                   ),
                 ),
                 child: Row(
@@ -1115,8 +1115,8 @@ class _ProfileSharedMediaTabViewState
                           Text(
                             dateText,
                             style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-                              fontSize: 10,
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 12,
                             ),
                           ),
                         ],
@@ -1153,7 +1153,7 @@ class _ProfileSharedMediaTabViewState
             Icon(
               icon,
               size: 44,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+              color: scheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
             Text(
@@ -1276,7 +1276,7 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
         color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.2),
+          color: scheme.outlineVariant,
         ),
       ),
       child: Row(
@@ -1291,8 +1291,8 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
                 ext.length > 4 ? ext.substring(0, 4) : ext,
                 style: TextStyle(
                   color: scheme.onSecondaryContainer,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
                 ),
               ),
             ),
@@ -1450,7 +1450,7 @@ class _SharedMediaVideoTile extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.videocam_rounded,
-                    color: scheme.onSurface.withValues(alpha: 0.7),
+                    color: scheme.onSurface,
                     size: 12,
                   ),
                   const SizedBox(width: 3),
@@ -1458,7 +1458,7 @@ class _SharedMediaVideoTile extends StatelessWidget {
                     _formatBadge(item),
                     style: TextStyle(
                       color: scheme.onSurface,
-                      fontSize: 9,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1492,7 +1492,7 @@ class _SharedMediaVideoTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: scheme.onSurface,
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1502,7 +1502,7 @@ class _SharedMediaVideoTile extends StatelessWidget {
                       _formatDuration(item.duration!),
                       style: TextStyle(
                         color: scheme.onSurface,
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

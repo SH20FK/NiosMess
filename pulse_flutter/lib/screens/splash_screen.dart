@@ -104,8 +104,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               Text(
                 context.l10n.appName,
                 style: textTheme.displayLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
+                  fontWeight: FontWeight.w600,
                 ),
               ).animate().fade(
                     delay: const Duration(milliseconds: 80),

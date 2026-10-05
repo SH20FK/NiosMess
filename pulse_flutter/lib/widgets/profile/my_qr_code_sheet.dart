@@ -85,8 +85,7 @@ class MyQrCodeSheet extends ConsumerWidget {
           Text(
             isSelf ? 'Мой QR-код' : 'QR-код профиля',
             style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
+              fontWeight: FontWeight.w600,
               color: scheme.onSurface,
             ),
           ),
@@ -108,7 +107,7 @@ class MyQrCodeSheet extends ConsumerWidget {
                 color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.2),
+                  color: scheme.outlineVariant,
                 ),
               ),
               child: Stack(

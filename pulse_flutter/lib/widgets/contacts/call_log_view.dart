@@ -252,7 +252,7 @@ class _CallLogViewState extends ConsumerState<CallLogView> {
                             ? Icons.phone_missed_rounded
                             : Icons.phone_callback_rounded,
                         size: 40,
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 16),

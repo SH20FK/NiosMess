@@ -759,7 +759,7 @@ class _CallEventPill extends StatelessWidget {
           border: Border.all(
             color: isMissed
                 ? scheme.error.withValues(alpha: 0.25)
-                : scheme.outlineVariant.withValues(alpha: 0.25),
+                : scheme.outlineVariant,
             width: 0.8,
           ),
         ),
@@ -779,10 +779,10 @@ class _CallEventPill extends StatelessWidget {
             Text(
               formattedTime,
               style: textTheme.labelSmall?.copyWith(
-                fontSize: 11,
+                fontSize: 12,
                 color: isMissed
                     ? scheme.onErrorContainer.withValues(alpha: 0.70)
-                    : scheme.onSurfaceVariant.withValues(alpha: 0.75),
+                    : scheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -832,7 +832,7 @@ class _SystemEventPill extends StatelessWidget {
           border: Border.all(
             color: isScreenshot
                 ? scheme.error.withValues(alpha: 0.35)
-                : scheme.outlineVariant.withValues(alpha: 0.25),
+                : scheme.outlineVariant,
             width: 0.8,
           ),
         ),
@@ -854,8 +854,8 @@ class _SystemEventPill extends StatelessWidget {
             Text(
               formattedTime,
               style: textTheme.labelSmall?.copyWith(
-                fontSize: 11,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+                fontSize: 12,
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],

@@ -227,8 +227,7 @@ class AuthScaffold extends StatelessWidget {
             style: TextStyle(
               fontFamily: AppFonts.headline,
               fontSize: 26,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
+              fontWeight: FontWeight.w600,
               color: scheme.onSurface,
             ),
           ).animate().fadeIn(duration: const Duration(milliseconds: 300)),
@@ -260,7 +259,7 @@ class AuthScaffold extends StatelessWidget {
             color: scheme.surfaceContainerHigh,
             borderRadius: AppRadii.lgRadius,
             border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.4),
+              color: scheme.outlineVariant,
               width: 1,
             ),
           ),

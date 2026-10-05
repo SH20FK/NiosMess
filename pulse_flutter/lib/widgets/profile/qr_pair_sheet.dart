@@ -114,8 +114,7 @@ class _QrPairSheetState extends ConsumerState<QrPairSheet> {
           Text(
             'Подключение устройства',
             style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
+              fontWeight: FontWeight.w600,
               color: scheme.onSurface,
             ),
           ),

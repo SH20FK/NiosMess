@@ -385,9 +385,8 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                       'График работы',
                       textAlign: TextAlign.center,
                       style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17,
-                        letterSpacing: -0.2,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
                       ),
                     ),
                   ],
@@ -415,7 +414,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
         ),
         Divider(
           height: 1,
-          color: scheme.outlineVariant.withValues(alpha: 0.15),
+          color: scheme.outlineVariant,
         ),
 
         // Content
@@ -475,7 +474,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                                     d['name'] as String,
                                     style: TextStyle(
                                       fontWeight: isSelected
-                                          ? FontWeight.w800
+                                          ? FontWeight.w600
                                           : FontWeight.w600,
                                       fontSize: 13,
                                       color: isSelected
@@ -523,7 +522,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           side: BorderSide(
-                            color: scheme.outlineVariant.withValues(alpha: 0.3),
+                            color: scheme.outlineVariant,
                           ),
                         ),
                         icon: const Icon(Icons.copy_rounded, size: 15),
@@ -548,7 +547,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           side: BorderSide(
-                            color: scheme.outlineVariant.withValues(alpha: 0.3),
+                            color: scheme.outlineVariant,
                           ),
                         ),
                         icon: const Icon(Icons.all_inclusive_rounded, size: 15),
@@ -603,13 +602,13 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                       Icon(
                         Icons.public_rounded,
                         size: 14,
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        color: scheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         'Часовой пояс: $_timezone',
                         style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                          color: scheme.onSurfaceVariant,
                           fontSize: 12,
                         ),
                       ),
@@ -678,7 +677,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
               Text(
                 dayFull,
                 style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   fontSize: 16,
                 ),
               ),
@@ -701,7 +700,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                       decoration: BoxDecoration(
                         color: hasHours
                             ? scheme.primary
-                            : scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                            : scheme.onSurfaceVariant,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -834,7 +833,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                             child: Text(
                               durationStr,
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: scheme.primary,
                               ),
@@ -930,7 +929,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
               side: BorderSide(
                 color: isActive
                     ? scheme.primary
-                    : scheme.outlineVariant.withValues(alpha: 0.2),
+                    : scheme.outlineVariant,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),

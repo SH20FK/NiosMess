@@ -108,7 +108,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
                         color: callScheme.surfaceContainerHigh.withValues(alpha: 0.90),
                         borderRadius: BorderRadius.circular(radii.card),
                         border: Border.all(
-                          color: callScheme.outlineVariant.withValues(alpha: 0.25),
+                          color: callScheme.outlineVariant,
                         ),
                       ),
                       child: Column(
@@ -157,7 +157,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: callScheme.onSurface,
                                     side: BorderSide(
-                                      color: callScheme.outlineVariant.withValues(alpha: 0.4),
+                                      color: callScheme.outlineVariant,
                                     ),
                                     padding: const EdgeInsets.symmetric(vertical: 12),
                                     shape: RoundedRectangleBorder(

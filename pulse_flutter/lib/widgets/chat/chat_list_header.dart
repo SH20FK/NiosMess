@@ -21,8 +21,7 @@ class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
           Text(
             l10n.tabChats,
             style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.6,
+              fontWeight: FontWeight.w600,
               color: scheme.onSurface,
             ),
           ),
