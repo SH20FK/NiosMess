@@ -156,14 +156,7 @@ class GroupProfileScreen extends ConsumerWidget {
           height: 190,
           width: double.infinity,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                scheme.primary.withValues(alpha: 0.8),
-                scheme.tertiary.withValues(alpha: 0.6),
-              ],
-            ),
+            color: scheme.primaryContainer,
             borderRadius:
                 const BorderRadius.vertical(bottom: Radius.circular(28)),
           ),

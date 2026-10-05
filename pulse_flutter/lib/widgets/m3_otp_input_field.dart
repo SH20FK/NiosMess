@@ -257,28 +257,14 @@ class _OtpBoxCell extends StatelessWidget {
 
     Color backgroundColor;
     Border border;
-    List<BoxShadow> shadows = [];
+    const List<BoxShadow> shadows = <BoxShadow>[];
 
     if (hasError) {
       backgroundColor = scheme.errorContainer.withValues(alpha: 0.25);
       border = Border.all(color: scheme.error, width: 2.0);
-      shadows = [
-        BoxShadow(
-          color: scheme.error.withValues(alpha: 0.2),
-          blurRadius: 8,
-          spreadRadius: 1,
-        ),
-      ];
     } else if (isFocused) {
       backgroundColor = scheme.surfaceContainerHigh.withValues(alpha: 0.9);
       border = Border.all(color: scheme.primary, width: 2.0);
-      shadows = [
-        BoxShadow(
-          color: scheme.primary.withValues(alpha: 0.3),
-          blurRadius: 10,
-          spreadRadius: 1,
-        ),
-      ];
     } else if (isFilled) {
       backgroundColor = scheme.primaryContainer;
       border = Border.all(

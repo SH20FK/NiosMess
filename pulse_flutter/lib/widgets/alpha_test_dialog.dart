@@ -64,26 +64,8 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: <Color>[
-                      scheme.primaryContainer,
-                      scheme.surfaceContainerHigh,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: scheme.primary.withValues(alpha: 0.35),
-                    width: 1.5,
-                  ),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: scheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                  color: scheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 alignment: Alignment.center,
                 child: const AppLogoMark(size: 44),

@@ -149,13 +149,6 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                             color: scheme.primary.withValues(alpha: 0.3),
                             width: 2.0,
                           ),
-                          boxShadow: <BoxShadow>[
-                            BoxShadow(
-                              color: scheme.primary.withValues(alpha: 0.15),
-                              blurRadius: 32,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
                         ),
                         child: Center(
                           child: Icon(

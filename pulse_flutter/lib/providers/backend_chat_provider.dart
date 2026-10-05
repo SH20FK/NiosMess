@@ -416,9 +416,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
           }
         }
       }
+      final List<ApiChatSummary> merged = _keepSecretFlag(chats);
       // Save cache
-      _persistChats(chats);
-      return chats;
+      _persistChats(merged);
+      return merged;
     } catch (e) {
       final List<ApiChatSummary>? currentData = state.value;
       if (currentData != null && currentData.isNotEmpty) {
@@ -426,6 +427,24 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       }
       rethrow;
     }
+  }
+
+  /// A chat that was opened as secret never silently downgrades to a plain
+  /// one: a server reply lacking `is_secret` must not flip the chat to
+  /// plaintext sending.
+  List<ApiChatSummary> _keepSecretFlag(List<ApiChatSummary> fresh) {
+    final Set<int> secretIds = <int>{
+      for (final ApiChatSummary c in state.value ?? const <ApiChatSummary>[])
+        if (c.isSecret) c.id,
+    };
+    if (secretIds.isEmpty) return fresh;
+    return <ApiChatSummary>[
+      for (final ApiChatSummary c in fresh)
+        if (secretIds.contains(c.id) && !c.isSecret)
+          c.copyWith(isSecret: true)
+        else
+          c,
+    ];
   }
 
   Future<void> refresh() async {
@@ -462,6 +481,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       final bool badgesMissing =
           chat.partnerBadges.isEmpty && known.partnerBadges.isNotEmpty;
       updated[idx] = chat.copyWith(
+        isSecret: (known.isSecret && !chat.isSecret) ? true : null,
         partnerPublicKey: (keyMissing && knownKey != null && knownKey.isNotEmpty)
             ? knownKey
             : null,

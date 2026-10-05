@@ -253,12 +253,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
     _lastScreenshotAlertTime = now;
     HapticService.confirm();
-    AppToast.showInfo(context, 'В секретном чате зафиксирован снимок экрана');
+    AppToast.showInfo(context, 'В секретном чате сделан снимок экрана');
     final int? chatId = _chatId;
     if (chatId != null) {
       ref
           .read(chatMessagesProvider(chatId).notifier)
-          .send('📷 Снимок экрана был зафиксирован');
+          .send('Сделан снимок экрана');
     }
   }
 

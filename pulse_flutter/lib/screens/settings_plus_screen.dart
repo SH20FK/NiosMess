@@ -118,20 +118,8 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
           margin: const EdgeInsets.only(bottom: 20),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                scheme.primary.withValues(alpha: 0.18),
-                scheme.tertiary.withValues(alpha: 0.12),
-                scheme.surfaceContainerLow,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: scheme.primary.withValues(alpha: 0.28),
-              width: 1.2,
-            ),
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
             children: <Widget>[
@@ -139,19 +127,8 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
                 width: 68,
                 height: 68,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [scheme.primary, scheme.tertiary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: scheme.primary,
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: scheme.primary.withValues(alpha: 0.35),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
                 ),
                 child: Icon(
                   Icons.stars_rounded,
