@@ -116,15 +116,15 @@ void main() {
     test('setPrivacy sends payload with key, policy and exceptions', () async {
       fakeWs.nextResponse = <String, dynamic>{'success': true};
 
-      final PrivacyRule result = await repository.setPrivacy(
+      final PrivacyRuleResult result = await repository.setPrivacy(
         key: 'calls',
         policy: PrivacyPolicy.nobody,
         alwaysAllow: <int>[1],
         neverAllow: <int>[2],
       );
 
-      expect(result.key, 'calls');
-      expect(result.policy, PrivacyPolicy.nobody);
+      expect(result.rule.key, 'calls');
+      expect(result.rule.policy, PrivacyPolicy.nobody);
       expect(fakeWs.requests.last['action'], 'set_privacy');
       final Map<String, dynamic> payload = fakeWs.requests.last['payload'] as Map<String, dynamic>;
       expect(payload['key'], 'calls');
