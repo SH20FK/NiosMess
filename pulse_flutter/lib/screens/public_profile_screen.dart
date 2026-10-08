@@ -219,12 +219,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     );
 
     if (!mounted) return;
-    if (chatId != null && chatId > 0) {
-      setState(() {
-        _resolvedChatId = chatId;
-      });
-    } else {
-      AppToast.showError(context, 'Не удалось создать секретный чат');
+    if (chatId == null) {
+      AppToast.showError(context, context.l10n.secretCreateFailed);
     }
   }
 

@@ -121,7 +121,7 @@ class ChatMediaCache {
 
       // Filter only messages containing media
       final List<ApiMessage> newMedia =
-          messages.where(isMediaMessage).toList(growable: false);
+          messages.where((m) => !m.isE2ee && m.e2eeFileKey == null && isMediaMessage(m)).toList(growable: false);
       if (newMedia.isEmpty) return;
 
       // Load existing cached media

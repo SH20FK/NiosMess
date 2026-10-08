@@ -18,7 +18,7 @@ final Provider<WebSocketClient> webSocketClientProvider = Provider<WebSocketClie
     baseUrl: normalizedBase,
     readToken: () => ref.read(sessionAccessTokenProvider),
     onUnauthorized: () {
-      ref.read(authProvider.notifier).logout();
+      ref.read(authProvider.notifier).logout(eraseSecretData: false);
     },
   );
 

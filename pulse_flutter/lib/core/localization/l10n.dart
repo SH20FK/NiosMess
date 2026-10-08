@@ -1,3 +1,4 @@
+export 'secret_chat_l10n.dart';
 import 'package:flutter/widgets.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/l10n/app_localizations_ru.dart';

@@ -15,7 +15,23 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 /// as-is and decrypted per read with the per-file key carried in the
 /// Double-Ratchet message envelope — plaintext media never hits disk.
 class WsMediaFetcher {
+  static Future<Uint8List> Function(String)? secretLocalLoader;
+  static int _accountGeneration = 0;
+
+  static Future<void> clearPrivateCache() async {
+    _accountGeneration++;
+    clearMemoryCache();
+    _inFlightFetches.clear();
+    await _playbackCache.emptyCache();
+    await _cacheManager.emptyCache();
+  }
+
   static final DefaultCacheManager _cacheManager = DefaultCacheManager();
+  // Players require a path. These short-lived files are kept out of the shared
+  // media cache and are purged at account open/close, including crash recovery.
+  static final CacheManager _playbackCache = CacheManager(Config(
+    'secret_playback_v2', stalePeriod: const Duration(minutes: 10), maxNrOfCacheObjects: 20,
+  ));
   static final http.Client _httpClient = http.Client();
 
   /// In-memory LRU cache for decrypted media bytes, giving 0ms gallery thumbnail display.
@@ -142,6 +158,7 @@ class WsMediaFetcher {
       return await _inFlightFetches[memKey]!;
     }
 
+    final generation = _accountGeneration;
     final Future<Uint8List> future = _fetchAndDecryptInternal(
       cleanPath: cleanPath,
       wsClient: wsClient,
@@ -151,6 +168,7 @@ class WsMediaFetcher {
 
     try {
       final Uint8List bytes = await future;
+      if (generation != _accountGeneration) throw StateError('Account changed');
       _putMemory(memKey, bytes);
       return bytes;
     } finally {
@@ -163,6 +181,12 @@ class WsMediaFetcher {
     required WebSocketClient wsClient,
     Uint8List? e2eeFileKey,
   }) async {
+    if (cleanPath.startsWith('secret-local://')) {
+      final loader = secretLocalLoader;
+      if (loader == null || e2eeFileKey == null) throw StateError('Secret attachment unavailable');
+      final ciphertext = await loader(cleanPath.substring('secret-local://'.length));
+      return E2eeFileCrypto.decrypt(ciphertext, e2eeFileKey);
+    }
     final String cacheKey = 'ws_media_$cleanPath';
     final FileInfo? fileInfo = await _cacheManager.getFileFromCache(cacheKey);
 
@@ -174,7 +198,7 @@ class WsMediaFetcher {
       try {
         return await E2eeFileCrypto.decrypt(blob, e2eeFileKey);
       } catch (e) {
-        debugPrint('WsMediaFetcher: E2EE decrypt failed for $cleanPath: $e');
+        debugPrint('WsMediaFetcher: SECRET_MEDIA_AUTHENTICATION_FAILED');
         rethrow;
       }
     }
@@ -233,19 +257,25 @@ class WsMediaFetcher {
     final String cleanPath = _cleanFilePath(filePath);
 
     if (e2eeFileKey != null) {
+      final generation = _accountGeneration;
       final Uint8List bytes = await fetchAndDecryptMedia(
         filePath: cleanPath,
         wsClient: wsClient,
         e2eeFileKey: e2eeFileKey,
       );
-      final String cacheKey = 'ws_media_dec_$cleanPath';
-      final FileInfo? cached = await _cacheManager.getFileFromCache(cacheKey);
+      if (generation != _accountGeneration) throw StateError('Account changed');
+      final String cacheKey = '$_accountGeneration:${_buildMemKey(cleanPath, e2eeFileKey)}';
+      final FileInfo? cached = await _playbackCache.getFileFromCache(cacheKey);
       if (cached != null) return cached.file.path;
-      final File put = await _cacheManager.putFile(
+      final File put = await _playbackCache.putFile(
         cacheKey,
         bytes,
         fileExtension: _getFileExtension(cleanPath),
       );
+      if (generation != _accountGeneration) {
+        await _playbackCache.removeFile(cacheKey);
+        throw StateError('Account changed');
+      }
       return put.path;
     }
 

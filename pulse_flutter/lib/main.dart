@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:ui';
@@ -252,6 +253,7 @@ class _PulseAppState extends ConsumerState<PulseApp> {
         ref.watch(uiSettingsProvider.select((s) => s.visualTheme));
     final GoRouter router = ref.watch(appRouterProvider);
     ref.watch(callPushHandlerProvider);
+    ref.watch(secretChatCoordinatorProvider);
     final String systemLanguageCode =
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
     final String normalized = (localeCode ?? '').trim().toLowerCase();

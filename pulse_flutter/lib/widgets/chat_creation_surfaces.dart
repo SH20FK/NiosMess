@@ -31,8 +31,8 @@ Future<void> showStartSecretChatDialog(
 ) async {
   final ApiSearchUser? user = await showUserSearchPickerSheet(
     context,
-    title: 'Новый секретный чат',
-    subtitle: 'Выберите собеседника для защищённого E2EE-общения',
+    title: context.l10n.secretTitle,
+    subtitle: context.l10n.chatCreatePersonalPrompt,
     hintText: context.l10n.chatCreatePersonalUsernameHint,
     allowCustomUsername: true,
   );
@@ -45,8 +45,8 @@ Future<void> showStartSecretChatDialog(
       userId: user.id,
       isSecret: true,
     );
-    if ((chatId == null || chatId <= 0) && context.mounted) {
-      AppToast.showError(context, 'Не удалось создать секретный чат');
+    if (chatId == null && context.mounted) {
+      AppToast.showError(context, context.l10n.secretCreateFailed);
     }
   }
 }

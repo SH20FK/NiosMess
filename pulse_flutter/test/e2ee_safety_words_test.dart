@@ -4,27 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/services/double_ratchet_service.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
-
-class _FakeE2eeService extends E2eeService {
-  _FakeE2eeService() : super();
-
-  @override
-  Future<E2eeSessionInfo> getSessionInfo(int chatId) async {
-    final dr = DoubleRatchetService();
-    final secretKey = SecretKey(List<int>.generate(32, (i) => i + 1));
-    final words = await dr.getVisualWords(secretKey);
-
-    return E2eeSessionInfo(
-      status: E2eeSessionStatus.secured,
-      isVerified: false,
-      ourFingerprint: '1122 3344 5566 7788',
-      peerFingerprint: '99AA BBCC DDEE FF00',
-      visualWords: words,
-    );
-  }
-}
+import 'package:pulse_flutter/widgets/chat/e2ee_status_card.dart';
 
 void main() {
   group('Milestone 5: 12 Colored Safety Words (E2EE v1)', () {
@@ -87,35 +69,34 @@ void main() {
   });
 
   group('Milestone 5: E2eeVerificationSheet Widget', () {
-    testWidgets('displays E2EE v1 badge and all 12 words with numbers',
-        (WidgetTester tester) async {
-      final fakeE2ee = _FakeE2eeService();
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            e2eeServiceProvider.overrideWithValue(fakeE2ee),
-          ],
-          child: const MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: E2eeVerificationSheet(chatId: 42),
+    testWidgets(
+      'shows simple protection panel with optional advanced verification',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              secretChatEngineProvider.overrideWithValue(null),
+              secretProtectionStateProvider(42).overrideWithValue({}),
+              secretChatRevisionProvider.overrideWith(
+                (ref) => const Stream.empty(),
+              ),
+            ],
+            child: const MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(body: E2eeVerificationSheet(chatId: 42)),
             ),
           ),
-        ),
-      );
+        );
 
-      // Settle future builder
-      await tester.pumpAndSettle();
+        // Settle future builder
+        await tester.pumpAndSettle();
 
-      // Check Double Ratchet v2 badge
-      expect(find.text('Double Ratchet v2'), findsOneWidget);
-
-      // Check 12 word numbered prefixes (#1 through #12)
-      for (int i = 1; i <= 12; i++) {
-        expect(find.text('#$i'), findsOneWidget);
-      }
-    });
+        expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.qr_code_rounded), findsOneWidget);
+        expect(find.byType(SelectableText), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

@@ -147,7 +147,11 @@ class CacheService {
     try {
       final Box<List<dynamic>>? box = await _ensureBox(_chatsBoxName);
       if (box == null) return;
-      final List<Map<String, dynamic>> jsonList = chats.map((e) => e.toJson()).toList();
+      final List<Map<String, dynamic>> jsonList = chats.map((e) {
+        final data = e.toJson();
+        if (e.isSecret) data['last_message'] = null;
+        return data;
+      }).toList();
       await box.put('list', jsonList);
     } catch (e) {
       debugPrint('[CacheService] Error saving chats: $e');

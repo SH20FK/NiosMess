@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -24,6 +25,23 @@ Future<int?> navigateToDirectChat(
   bool isSecret = false,
 }) async {
   final String cleanUsername = username.trim().toLowerCase();
+  if (isSecret) {
+    try {
+      final secret = await ref.read(secretChatCoordinatorProvider.future);
+      if (secret == null || userId == null || userId <= 0) return null;
+      final id = await secret.engine.open(peerId: userId, peerName: username);
+      final summary = secret
+          .mergeChats(const <ApiChatSummary>[])
+          .firstWhere((chat) => chat.id == id);
+      ref.read(chatsProvider.notifier).upsertChat(summary);
+      if (context.mounted) context.push('/chat/$id');
+      secret.engine.wake();
+      return id;
+    } catch (_) {
+      debugPrint('[navigateToDirectChat] SECRET_OPEN_FAILED');
+      return null;
+    }
+  }
 
   String? myPublicKey;
   if (isSecret) {
@@ -34,23 +52,34 @@ Future<int?> navigateToDirectChat(
 
   // 1. Fast path: chat ID already known or found in local chats list
   final int? fastId = isSecret
-      ? ref.read(chatsProvider).value?.where((ApiChatSummary c) {
-          final String? partnerKey = c.partnerPublicKey;
-          final bool usableKey = partnerKey != null &&
-              partnerKey.isNotEmpty &&
-              partnerKey != myPublicKey;
-          return c.chatType == 'direct' &&
-              c.isSecret &&
-              usableKey &&
-              c.username?.trim().toLowerCase() == cleanUsername;
-        }).firstOrNull?.id
-      : ((knownChatId != null && knownChatId > 0)
-          ? knownChatId
-          : ref.read(chatsProvider).value?.where((ApiChatSummary c) {
+      ? ref
+            .read(chatsProvider)
+            .value
+            ?.where((ApiChatSummary c) {
+              final String? partnerKey = c.partnerPublicKey;
+              final bool usableKey =
+                  partnerKey != null &&
+                  partnerKey.isNotEmpty &&
+                  partnerKey != myPublicKey;
               return c.chatType == 'direct' &&
-                  !c.isSecret &&
+                  c.isSecret &&
+                  usableKey &&
                   c.username?.trim().toLowerCase() == cleanUsername;
-            }).firstOrNull?.id);
+            })
+            .firstOrNull
+            ?.id
+      : ((knownChatId != null && knownChatId > 0)
+            ? knownChatId
+            : ref
+                  .read(chatsProvider)
+                  .value
+                  ?.where((ApiChatSummary c) {
+                    return c.chatType == 'direct' &&
+                        !c.isSecret &&
+                        c.username?.trim().toLowerCase() == cleanUsername;
+                  })
+                  .firstOrNull
+                  ?.id);
 
   if (fastId != null && fastId > 0) {
     if (context.mounted) {
@@ -64,7 +93,8 @@ Future<int?> navigateToDirectChat(
     String? publicKey;
     String? targetPublicKey;
     if (isSecret) {
-      publicKey = myPublicKey ??
+      publicKey =
+          myPublicKey ??
           await ref.read(e2eeServiceProvider).getPublicKeyBase64();
       if (publicKey.isNotEmpty) {
         try {
@@ -76,13 +106,17 @@ Future<int?> navigateToDirectChat(
         debugPrint('[navigateToDirectChat] secret chat needs a target user id');
         return null;
       }
-      final ApiPublicKeyResult keys =
-          await ref.read(authRepositoryProvider).getPublicKey(userId);
-      final List<ApiKeyDevice> candidates = keys.devices
-          .where((ApiKeyDevice d) => d.publicKey.isNotEmpty)
-          .toList()
-        ..sort((ApiKeyDevice a, ApiKeyDevice b) =>
-            b.sessionId.compareTo(a.sessionId));
+      final ApiPublicKeyResult keys = await ref
+          .read(authRepositoryProvider)
+          .getPublicKey(userId);
+      final List<ApiKeyDevice> candidates =
+          keys.devices
+              .where((ApiKeyDevice d) => d.publicKey.isNotEmpty)
+              .toList()
+            ..sort(
+              (ApiKeyDevice a, ApiKeyDevice b) =>
+                  b.sessionId.compareTo(a.sessionId),
+            );
       // Only 32-byte X25519 keys drive the E2EE handshake. Legacy sessions
       // stored RSA/SPKI blobs (~294 bytes) that crash X25519 with
       // "expects a public key with 32 bytes".
@@ -98,7 +132,8 @@ Future<int?> navigateToDirectChat(
           .where((ApiKeyDevice d) => usableX25519(d.publicKey))
           .toList();
       final Set<String> knownKeys = <String>{
-        for (final ApiChatSummary c in ref.read(chatsProvider).value ?? const <ApiChatSummary>[])
+        for (final ApiChatSummary c
+            in ref.read(chatsProvider).value ?? const <ApiChatSummary>[])
           if (c.chatType == 'direct' &&
               c.isSecret &&
               c.username?.trim().toLowerCase() == cleanUsername &&
@@ -106,60 +141,72 @@ Future<int?> navigateToDirectChat(
               c.partnerPublicKey != publicKey)
             c.partnerPublicKey!,
       };
-      targetPublicKey = usable
+      targetPublicKey =
+          usable
               .where((ApiKeyDevice d) => knownKeys.contains(d.publicKey))
               .firstOrNull
               ?.publicKey ??
           usable.firstOrNull?.publicKey;
       if (targetPublicKey == null) {
-        debugPrint('[navigateToDirectChat] user $userId has no E2EE device key');
+        debugPrint(
+          '[navigateToDirectChat] user $userId has no E2EE device key',
+        );
         return null;
       }
     }
 
-    final DirectChatOpenResult? result = await ref.read(chatRepositoryProvider).openDirectChat(
-      username: username,
-      userId: userId,
-      isSecret: isSecret,
-      publicKey: publicKey,
-      targetPublicKey: targetPublicKey,
-    );
+    final DirectChatOpenResult? result = await ref
+        .read(chatRepositoryProvider)
+        .openDirectChat(
+          username: username,
+          userId: userId,
+          isSecret: isSecret,
+          publicKey: publicKey,
+          targetPublicKey: targetPublicKey,
+        );
 
     if (result == null || result.chatId <= 0) {
       return null;
     }
 
     final withUser = result.withUser;
-    final ApiChatSummary? existingChat = ref.read(chatByIdProvider(result.chatId));
-    final ApiChatSummary syntheticChat = (existingChat ??
-            ApiChatSummary(
-              id: result.chatId,
-              chatType: 'direct',
-              name: (withUser?.displayName.isNotEmpty == true
-                  ? withUser!.displayName
-                  : (withUser?.username ?? username)),
-              username: (withUser?.username.isNotEmpty == true
-                  ? withUser!.username
-                  : username),
-              unreadCount: 0,
-              membersCount: 2,
-              partnerUserId: withUser?.id ?? userId,
-              isSecret: result.isSecret || isSecret,
-              partnerPublicKey: withUser?.publicKey,
-            ))
-        .copyWith(
-      name: (withUser?.displayName.isNotEmpty == true
-              ? withUser!.displayName
-              : existingChat?.name) ??
-          username,
-      username: (withUser?.username.isNotEmpty == true
-              ? withUser!.username
-              : existingChat?.username) ??
-          username,
-      partnerUserId: withUser?.id ?? existingChat?.partnerUserId ?? userId,
-      isSecret: result.isSecret || isSecret,
-      partnerPublicKey: withUser?.publicKey ?? existingChat?.partnerPublicKey,
+    final ApiChatSummary? existingChat = ref.read(
+      chatByIdProvider(result.chatId),
     );
+    final ApiChatSummary syntheticChat =
+        (existingChat ??
+                ApiChatSummary(
+                  id: result.chatId,
+                  chatType: 'direct',
+                  name: (withUser?.displayName.isNotEmpty == true
+                      ? withUser!.displayName
+                      : (withUser?.username ?? username)),
+                  username: (withUser?.username.isNotEmpty == true
+                      ? withUser!.username
+                      : username),
+                  unreadCount: 0,
+                  membersCount: 2,
+                  partnerUserId: withUser?.id ?? userId,
+                  isSecret: result.isSecret || isSecret,
+                  partnerPublicKey: withUser?.publicKey,
+                ))
+            .copyWith(
+              name:
+                  (withUser?.displayName.isNotEmpty == true
+                      ? withUser!.displayName
+                      : existingChat?.name) ??
+                  username,
+              username:
+                  (withUser?.username.isNotEmpty == true
+                      ? withUser!.username
+                      : existingChat?.username) ??
+                  username,
+              partnerUserId:
+                  withUser?.id ?? existingChat?.partnerUserId ?? userId,
+              isSecret: result.isSecret || isSecret,
+              partnerPublicKey:
+                  withUser?.publicKey ?? existingChat?.partnerPublicKey,
+            );
 
     ref.read(chatsProvider.notifier).upsertChat(syntheticChat);
 
@@ -184,13 +231,11 @@ Future<int?> openDirectChat(
   int? userId,
   int? knownChatId,
   bool isSecret = false,
-}) =>
-    navigateToDirectChat(
-      context,
-      ref,
-      username: username,
-      userId: userId,
-      knownChatId: knownChatId,
-      isSecret: isSecret,
-    );
-
+}) => navigateToDirectChat(
+  context,
+  ref,
+  username: username,
+  userId: userId,
+  knownChatId: knownChatId,
+  isSecret: isSecret,
+);

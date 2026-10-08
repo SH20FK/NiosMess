@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -391,7 +392,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         final int? mediaDuration = message.mediaDuration;
         final bool isLocalSending = message.isSending && message.id < 0;
 
-        final String rawText = widget.displayTextBuilder(message);
+        final String rawText = message.isE2ee && !message.isDecrypted && message.content.isEmpty
+            ? context.l10n.secretUnavailable : widget.displayTextBuilder(message);
         final bool isCallMessage = message.isCallEvent ||
             rawText.startsWith('📹') ||
             rawText.startsWith('📞');

@@ -152,7 +152,7 @@ class EncryptedMessageCache {
     }
   }
 
-  static Future<List<ApiMessage>> loadMessages(int chatId, {int? userId}) async {
+  static Future<List<ApiMessage>> loadMessages(int chatId, {int? userId, bool strict = false}) async {
     if (!Hive.isBoxOpen(_boxName)) return [];
     try {
       final Box<String> hiveBox = Hive.box<String>(_boxName);
@@ -200,12 +200,14 @@ class EncryptedMessageCache {
       });
 
       if (messagesJson == null) {
+        if (strict) throw const FormatException('Legacy cache authentication failed');
         debugPrint('[EncryptedMessageCache] Corrupt data: too short');
         return [];
       }
 
       return messagesJson.map((e) => ApiMessage.fromJson(e)).toList();
     } catch (e) {
+      if (strict) rethrow;
       debugPrint('[EncryptedMessageCache] Load error: $e');
       return [];
     }
@@ -235,5 +237,47 @@ class EncryptedMessageCache {
     } catch (e) {
       debugPrint('[EncryptedMessageCache] ClearAll error: $e');
     }
+  }
+
+  static Future<void> clearAccount(int userId, List<int> secretChatIds) async {
+    if (Hive.isBoxOpen(_boxName)) {
+      final box = Hive.box<String>(_boxName);
+      await box.deleteAll(box.keys.where((key) => '$key'.startsWith('${userId}_') ||
+        secretChatIds.any((id) => '$key' == '$id')).toList());
+    }
+    bool owned(String key) => key.startsWith('${userId}_') ||
+        secretChatIds.any((id) => key.startsWith('0_${id}_'));
+    _memorySenderPlaintexts.removeWhere((key, _) => owned(key));
+    if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
+      final box = Hive.box<String>(_senderPlaintextBoxName);
+      await box.deleteAll(box.keys.where((key) => owned('$key')).toList());
+      await box.flush();
+    }
+  }
+
+  static Future<void> clearMigratedSecretChat(int chatId, {required int userId}) async {
+    await clearChat(chatId, userId: userId);
+    bool matches(String key) => key.startsWith('${userId}_${chatId}_') || key.startsWith('0_${chatId}_');
+    _memorySenderPlaintexts.removeWhere((key, _) => matches(key));
+    if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
+      final box = Hive.box<String>(_senderPlaintextBoxName);
+      await box.deleteAll(box.keys.where((key) => matches('$key')).toList());
+      await box.flush();
+      await box.compact();
+    }
+  }
+
+  static Map<int, String> senderPlaintextsForMigration(int chatId, int userId) {
+    final result = <int, String>{};
+    if (!Hive.isBoxOpen(_senderPlaintextBoxName)) return result;
+    final box = Hive.box<String>(_senderPlaintextBoxName);
+    for (final key in box.keys) {
+      final value = '$key';
+      if (!value.startsWith('${userId}_${chatId}_') && !value.startsWith('0_${chatId}_')) continue;
+      final id = int.tryParse(value.split('_').last);
+      final text = box.get(key);
+      if (id != null && text != null && text.isNotEmpty) result[id] = text;
+    }
+    return result;
   }
 }

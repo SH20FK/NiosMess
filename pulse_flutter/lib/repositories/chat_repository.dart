@@ -674,6 +674,18 @@ class ChatRepository {
     }
   }
 
+  /// Secret uploads always use the deployed opaque-file endpoint, never CAS
+  /// deduplication or a fallback that could receive the original plaintext.
+  Future<String> uploadSecretCiphertext({required Uint8List bytes,
+    required String mediaSubtype, required String localId}) async {
+    final token = _ref.read(webSocketClientProvider).readToken();
+    if (token == null) throw StateError('No session');
+    return _httpMultipartUpload(bytes: bytes, filename: 'encrypted.bin',
+      mediaSubtype: (mediaSubtype == 'voice' || mediaSubtype == 'circle') ? mediaSubtype : 'media',
+      fileSize: bytes.length, token: token, localId: localId,
+      onProgress: (sent, total) {});
+  }
+
   Future<String> _httpMultipartUpload({
     Uint8List? bytes,
     String? filePath,

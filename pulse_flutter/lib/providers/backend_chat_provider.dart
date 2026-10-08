@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -21,7 +22,6 @@ import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/websocket_dispatcher_provider.dart';
-import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/services/double_ratchet_service.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
@@ -117,11 +117,23 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       _pendingChats = null;
     });
 
+    final secret = await ref.read(secretChatCoordinatorProvider.future);
+    if (secret != null) {
+      final subscription = secret.engine.changes.listen((_) {
+        if (!ref.mounted) return;
+        state = AsyncData(secret.mergeChats(state.value ?? const <ApiChatSummary>[]));
+      });
+      ref.onDispose(() => unawaited(subscription.cancel()));
+      final local = secret.mergeChats(const <ApiChatSummary>[]);
+      if (local.isNotEmpty) state = AsyncData(local);
+    }
+
     // Load cache immediately
     try {
       final List<ApiChatSummary> chats = ref.read(cacheServiceProvider).getCachedChats();
       if (chats.isNotEmpty) {
-        state = AsyncData<List<ApiChatSummary>>(chats);
+        if (secret != null) await secret.importChats(chats);
+        state = AsyncData<List<ApiChatSummary>>(secret?.mergeChats(chats) ?? chats);
       }
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Cache load error: $e');
@@ -385,37 +397,11 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
   Future<List<ApiChatSummary>> _fetch() async {
     try {
-      String? publicKey;
-      try {
-        final e2ee = ref.read(e2eeServiceProvider);
-        publicKey = await e2ee.getPublicKeyBase64();
-        if (publicKey.isNotEmpty) {
-          try {
-            await ref.read(authRepositoryProvider).setPublicKey(publicKey);
-          } catch (e) {
-            debugPrint('[backend_chat_provider] Set public key error: $e');
-          }
-        }
-      } catch (e) {
-        debugPrint('[backend_chat_provider] Get public key error: $e');
-      }
-      final List<ApiChatSummary> chats = await ref.read(chatRepositoryProvider).listChats(publicKey: publicKey);
-      // Wave: rebind secret chats whose bound device key changed (peer
-      // re-logged in). The server marks them with keyMismatch and returns the
-      // fresh verified key via partnerPublicKey.
-      for (final ApiChatSummary c in chats) {
-        if (c.isSecret && c.keyMismatch) {
-          try {
-            await ref.read(e2eeServiceProvider).resetSession(c.id);
-            debugPrint(
-              '[backend_chat_provider] Rebinding secret chat ${c.id}: '
-              'peer key changed, ratchet session reset',
-            );
-          } catch (e) {
-            debugPrint('[backend_chat_provider] Rebind failed for ${c.id}: $e');
-          }
-        }
-      }
+      final secret = await ref.read(secretChatCoordinatorProvider.future);
+      if (secret != null) await secret.register();
+      final remote = await ref.read(chatRepositoryProvider).listChats(publicKey: secret?.engine.publicKey);
+      if (secret != null) await secret.importChats(remote);
+      final chats = secret?.mergeChats(remote) ?? remote;
       // Save cache
       _persistChats(chats);
       return chats;
@@ -562,6 +548,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   final int _chatId;
   int _sendCounter = 0;
+  SecretChatCoordinator? _secret;
+  bool _secretMarkingRead = false;
 
   Timer? _cacheFlushTimer;
   List<ApiMessage>? _pendingCacheSnapshot;
@@ -576,6 +564,31 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
     if (!authenticated) {
       return const <ApiMessage>[];
+    }
+
+    ApiChatSummary? summary = ref.read(chatByIdProvider(_chatId));
+    if (summary == null) {
+      try { await ref.read(chatsProvider.future); } catch (_) {}
+      summary = ref.read(chatByIdProvider(_chatId));
+    }
+    if (summary?.isSecret == true) {
+      _secret = await ref.read(secretChatCoordinatorProvider.future);
+      final secret = _secret;
+      if (secret == null) return const <ApiMessage>[];
+      if (secret.engine.findChat(_chatId) == null && summary?.partnerUserId != null && !summary!.keyMismatch) {
+        await secret.importChats([summary]);
+      }
+      final subscription = secret.engine.changes.listen((_) {
+        if (ref.mounted) state = AsyncData(_secretMessages());
+        if (ref.mounted && !_secretMarkingRead && PushNotificationService.currentChatId == _chatId &&
+            _secretMessages().any((m) => m.senderId != secret.userId && !m.isRead)) {
+          _secretMarkingRead = true;
+          unawaited(markRead().whenComplete(() => _secretMarkingRead = false));
+        }
+      });
+      ref.onDispose(() => unawaited(subscription.cancel()));
+      secret.engine.wake();
+      return _secretMessages();
     }
 
     ref.read(webSocketDispatcherProvider);
@@ -613,6 +626,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     _evictExpiredMessages();
     return messages;
   }
+
+  List<ApiMessage> _secretMessages() =>
+      _secret?.engine.messages(_chatId).map(ApiMessage.fromJson).toList() ?? <ApiMessage>[];
 
   void handlePush(ChatPushEvent event) {
     if (event.message.chatId != _chatId) return;
@@ -734,9 +750,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> _handleNewIncomingMessage(ApiMessage message) async {
-    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
-
-    if (current.any((ApiMessage m) => m.id == message.id)) {
+    if ((state.value ?? const <ApiMessage>[]).any((ApiMessage m) => m.id == message.id)) {
       return;
     }
 
@@ -747,7 +761,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
     final ApiMessage finalMessage = decrypted.first;
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final List<ApiMessage> next = List<ApiMessage>.from(current);
+    final List<ApiMessage> next = List<ApiMessage>.from(state.value ?? const <ApiMessage>[]);
+    if (next.any((m) => m.id == finalMessage.id)) return;
     if (finalMessage.senderId == myUserId) {
       next.removeWhere((m) => m.id < 0 && m.content == finalMessage.content);
     }
@@ -776,6 +791,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<List<ApiMessage>> _fetch() async {
+    if (_secret != null) { _secret!.engine.wake(); return _secretMessages(); }
     final List<ApiMessage> messages = await ref.read(chatRepositoryProvider).getHistory(_chatId, pageSize: 80);
     final List<ApiMessage> decrypted = await _decryptE2eeMessages(messages);
     try {
@@ -972,6 +988,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   /// exactly one side (the one with the lexicographically greater static
   /// public key) initiates, the other responds on HELO receipt.
   Future<void> ensureSecretHandshake() async {
+    if (_secret != null) { _secret!.engine.wake(); return; }
     final Future<void>? active = _handshakeFutures[_chatId];
     if (active != null) {
       await active;
@@ -1111,6 +1128,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<int> loadOlder({int pageSize = 50}) async {
+    if (_secret != null) { _secret!.engine.wake(); return 0; }
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
     if (current.isEmpty) {
       final List<ApiMessage> initial = await _fetch();
@@ -1149,7 +1167,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<void> markRead() async {
     try {
-      await ref.read(chatRepositoryProvider).markRead(_chatId);
+      final remoteId = _secret?.engine.chat(_chatId)['remote_id'] as int? ?? _chatId;
+      if (remoteId <= 0) return;
+      await ref.read(chatRepositoryProvider).markRead(remoteId);
+      await _secret?.engine.markReadLocally(_chatId);
       final int myUserId = ref.read(authProvider).session?.userId ?? -1;
       ref.read(chatsProvider.notifier)._handleReadPush(_chatId, myUserId);
     } catch (e) { debugPrint('[backend_chat_provider.dart] Error: $e'); }
@@ -1162,6 +1183,18 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       String? localId,
       String? e2eePlaintext,
       String? e2eeFileKey}) async {
+    if (ref.read(chatByIdProvider(_chatId)) == null && _secret == null) {
+      try { await ref.read(chatsProvider.future); } catch (_) {}
+      if (ref.read(chatByIdProvider(_chatId)) == null) throw StateError('Conversation metadata unavailable');
+    }
+    if (ref.read(chatByIdProvider(_chatId))?.isSecret == true || _secret != null) {
+      final secret = _secret ?? await ref.read(secretChatCoordinatorProvider.future);
+      if (secret == null) throw StateError('Secret storage unavailable');
+      _secret = secret;
+      await secret.engine.enqueue(_chatId, {'text': content, 'type': msgType}, replyToId: replyToId);
+      state = AsyncData(_secretMessages());
+      return;
+    }
     final String trimmed = content.trim();
     if (trimmed.isEmpty && (uploadId == null || uploadId.trim().isEmpty)) {
       return;
@@ -1355,6 +1388,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> sendSticker(int stickerId, {int? replyToId}) async {
+    if (ref.read(chatByIdProvider(_chatId)) == null && _secret == null) {
+      try { await ref.read(chatsProvider.future); } catch (_) {}
+      if (ref.read(chatByIdProvider(_chatId)) == null) throw StateError('Conversation metadata unavailable');
+    }
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final String myUsername = ref.read(authProvider).session?.username ?? '';
     final int tempId = -(DateTime.now().millisecondsSinceEpoch + _sendCounter++);
@@ -1370,6 +1407,15 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         }
       }
       if (foundSticker != null) break;
+    }
+
+    if (ref.read(chatByIdProvider(_chatId))?.isSecret == true || _secret != null) {
+      _secret ??= await ref.read(secretChatCoordinatorProvider.future);
+      if (_secret == null) throw StateError('Secret account unavailable');
+      if (foundSticker == null) throw StateError('Sticker unavailable');
+      await _secret!.engine.enqueue(_chatId, {'text': '', 'type': 'sticker',
+        'sticker': foundSticker.toJson()}, replyToId: replyToId);
+      return;
     }
 
     final ApiMessage optimisticMessage = ApiMessage(
@@ -1498,6 +1544,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> editMessage(int messageId, String content) async {
+    if (_secret != null) { await _secret!.engine.edit(_chatId, messageId, content); return; }
     final String trimmed = content.trim();
     if (trimmed.isEmpty) return;
 
@@ -1575,6 +1622,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> deleteMessage(int messageId) async {
+    if (_secret != null) { await _secret!.engine.delete(_chatId, messageId); return; }
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
     final ApiMessage? target = current.where((m) => m.id == messageId).firstOrNull;
     final List<ApiMessage> optimisticNext = List<ApiMessage>.from(current)

@@ -59,6 +59,7 @@ class ApiMessage {
     this.sticker,
     this.stickerSetId,
     this.isStickerExplicit,
+    this.clientMessageId,
     this.isSending = false,
     this.isFailed = false,
     this.isE2ee = false,
@@ -71,6 +72,7 @@ class ApiMessage {
     this.systemEvent,
   });
 
+  final String? clientMessageId;
   final int id;
   final int chatId;
   final int senderId;
@@ -162,6 +164,7 @@ class ApiMessage {
   DateTime get resolvedSentAt => AppTimeSettings.resolve(sentAt);
 
   ApiMessage copyWith({
+    String? clientMessageId,
     int? id,
     int? chatId,
     int? senderId,
@@ -200,6 +203,7 @@ class ApiMessage {
     Map<String, dynamic>? systemEvent,
   }) {
     return ApiMessage(
+      clientMessageId: clientMessageId ?? this.clientMessageId,
       id: id ?? this.id,
       chatId: chatId ?? this.chatId,
       senderId: senderId ?? this.senderId,
@@ -278,6 +282,9 @@ class ApiMessage {
         (isE2ee && !isDecrypted && rawContent.isEmpty) ? '' : rawContent;
 
     return ApiMessage(
+      clientMessageId: json['client_message_id'] as String?,
+      isSending: _parseBool(json['is_sending']),
+      isFailed: _parseBool(json['is_failed']),
       id: json['id'] as int? ?? 0,
       chatId: json['chat_id'] as int? ?? 0,
       senderId: json['sender_id'] as int? ?? 0,
@@ -347,6 +354,9 @@ class ApiMessage {
 
   Map<String, dynamic> toJson() {
     return {
+      'client_message_id': clientMessageId,
+      'is_sending': isSending,
+      'is_failed': isFailed,
       'id': id,
       'chat_id': chatId,
       'sender_id': senderId,

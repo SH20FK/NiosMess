@@ -212,7 +212,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
       title: context.l10n.profileLogoutConfirmTitle,
-      subtitle: context.l10n.profileLogoutConfirmBody,
+      subtitle: context.l10n.secretLogoutWarning,
       confirmLabel: context.l10n.profileLogout,
       cancelLabel: context.l10n.commonCancel,
       icon: Icons.logout_rounded,

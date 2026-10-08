@@ -1,17 +1,17 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
+import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class E2eeSettingsScreen extends ConsumerStatefulWidget {
-  const E2eeSettingsScreen({
-    this.isEmbedded = false,
-    super.key,
-  });
+  const E2eeSettingsScreen({this.isEmbedded = false, super.key});
 
   final bool isEmbedded;
 
@@ -32,72 +32,48 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
   }
 
   Future<void> _checkKey() async {
-    final e2ee = ref.read(e2eeServiceProvider);
-    final hasKey = await e2ee.hasKeyPair();
-    String? fp;
-    if (hasKey) {
-      try {
-        fp = await e2ee.getDeviceFingerprint();
-      } catch (_) {}
+    try {
+      final secret = await ref.read(secretChatCoordinatorProvider.future);
+      final hasKey = secret != null;
+      final fp = secret == null
+          ? null
+          : base64Decode(secret.engine.edPublicKey)
+                .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
+                .join();
+      if (!mounted) return;
+      setState(() {
+        _hasKey = hasKey;
+        _fingerprint = fp;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _error = context.l10n.secretCreateFailed);
     }
-    if (!mounted) return;
-    setState(() {
-      _hasKey = hasKey;
-      _fingerprint = fp;
-    });
   }
 
   Future<void> _generateKey() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     if (!mounted) return;
 
     try {
-      final e2ee = ref.read(e2eeServiceProvider);
-      final publicKeyB64 = await e2ee.getPublicKeyBase64();
-      await ref.read(authRepositoryProvider).setPublicKey(publicKeyB64);
-      final fp = await e2ee.getDeviceFingerprint();
+      final secret = await ref.read(secretChatCoordinatorProvider.future);
+      if (secret == null) throw StateError('Secret account unavailable');
+      await secret.register();
+      await _checkKey();
       if (!mounted) return;
       setState(() {
         _hasKey = true;
-        _fingerprint = fp;
         _loading = false;
       });
       AppToast.showSuccess(context, context.l10n.e2eeKeyGenerated);
     } catch (e) {
       if (!mounted) return;
-      setState(() { _loading = false; _error = '$e'; });
-    }
-  }
-
-  Future<void> _rotateKey() async {
-    final bool? confirmed = await showAppConfirmDialog(
-      context: context,
-      title: context.l10n.e2eeRotateConfirmTitle,
-      subtitle: context.l10n.e2eeRotateConfirmBody,
-      confirmLabel: context.l10n.e2eeRotateConfirm,
-      cancelLabel: context.l10n.commonCancel,
-      icon: Icons.refresh_rounded,
-    );
-    if (confirmed != true) return;
-
-    setState(() { _loading = true; _error = null; });
-    if (!mounted) return;
-
-    try {
-      final e2ee = ref.read(e2eeServiceProvider);
-      await e2ee.deleteKeyPair();
-      final publicKeyB64 = await e2ee.getPublicKeyBase64();
-      await ref.read(authRepositoryProvider).setPublicKey(publicKeyB64);
-      final fp = await e2ee.getDeviceFingerprint();
-      if (!mounted) return;
       setState(() {
-        _fingerprint = fp;
         _loading = false;
+        _error = context.l10n.secretCreateFailed;
       });
-      AppToast.showSuccess(context, context.l10n.e2eeKeyRotated);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() { _loading = false; _error = '$e'; });
     }
   }
 
@@ -113,20 +89,44 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
     );
     if (confirmed != true) return;
 
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     if (!mounted) return;
 
     try {
-      final e2ee = ref.read(e2eeServiceProvider);
-      final publicKeyB64 = await e2ee.getPublicKeyBase64();
-      final result = await ref.read(authRepositoryProvider).eraseSecret(publicKeyB64);
-      await e2ee.deleteKeyPair();
+      final secret = await ref.read(secretChatCoordinatorProvider.future);
+      if (secret == null) throw StateError('Secret account unavailable');
+      final result = await ref
+          .read(authRepositoryProvider)
+          .eraseSecret(secret.engine.publicKey);
+      await SecretChatCoordinator.eraseAccount(secret.userId);
+      final cache = ref.read(cacheServiceProvider);
+      await cache.saveChats(
+        cache.getCachedChats().where((chat) => !chat.isSecret).toList(),
+      );
+      ref.invalidate(secretChatCoordinatorProvider);
+      ref.invalidate(chatsProvider);
       if (!mounted) return;
-      setState(() { _hasKey = false; _fingerprint = null; _loading = false; });
-      AppToast.showSuccess(context, context.l10n.e2eeEraseDone(result.deletedChatsCount, result.deletedFilesCount));
+      setState(() {
+        _hasKey = false;
+        _fingerprint = null;
+        _loading = false;
+      });
+      AppToast.showSuccess(
+        context,
+        context.l10n.e2eeEraseDone(
+          result.deletedChatsCount,
+          result.deletedFilesCount,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      setState(() { _loading = false; _error = '$e'; });
+      setState(() {
+        _loading = false;
+        _error = context.l10n.secretCreateFailed;
+      });
     }
   }
 
@@ -162,19 +162,14 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
                 enabled: false,
                 onTap: () {},
               ),
-              SettingsTile(
-                icon: Icons.refresh_rounded,
-                title: context.l10n.e2eeRotateKey,
-                subtitle: context.l10n.e2eeRotateKeySubtitle,
-                iconColor: scheme.secondary,
-                enabled: !_loading,
-                onTap: _rotateKey,
-              ),
             ],
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Text(_error!, style: TextStyle(color: scheme.error, fontSize: 13)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: scheme.error, fontSize: 13),
+                ),
               ),
           ],
         ),
@@ -198,8 +193,11 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Text(
-                context.l10n.e2eeHowItWorksDesc,
-                style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.5),
+                context.l10n.secretDescription,
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
               ),
             ),
           ],

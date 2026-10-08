@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/navigation/direct_chat_navigator.dart';
@@ -59,11 +60,11 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
     if (!mounted) return;
     _navigating = false;
 
-    if (chatId == null || chatId <= 0) {
+    if (chatId == null || (!isSecret && chatId <= 0)) {
       AppToast.showError(
         context,
         isSecret
-            ? 'Не удалось открыть секретный чат'
+            ? context.l10n.secretCreateFailed
             : 'Не удалось открыть диалог',
       );
     }

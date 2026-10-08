@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'package:pulse_flutter/widgets/chat/chat_viewport.dart';
@@ -32,7 +33,6 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/smooth_text_streamer.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
-import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -66,7 +66,6 @@ import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
-import 'package:pulse_flutter/services/e2ee_service.dart';
 
 class ChatDetailScreen extends ConsumerStatefulWidget {
   const ChatDetailScreen({
@@ -92,6 +91,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   // Cache providers that may be needed in dispose()
   late DraftStorage _draftStorage;
+  SecretChatCoordinator? _secretCoordinator;
+  bool _savingSecretMessage = false;
 
   Timer? _draftSaveTimer;
   bool _showDraftRestoredBanner = false;
@@ -215,13 +216,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   bool _isSecret = false;
+  bool _canPersistOrdinaryDraft = false;
 
   void _applySecureFlag() {
     final int? chatId = _chatId;
     if (chatId == null) return;
     final ApiChatSummary? chat = ref.read(chatByIdProvider(chatId));
+    _canPersistOrdinaryDraft = chat?.isSecret == false;
     if (chat?.isSecret == true) {
       _isSecret = true;
+      _secretCoordinator = ref.read(secretChatCoordinatorProvider).value;
       ScreenSecurityService.setSecureFlag(enabled: true);
       _startSecretPollTimer();
     }
@@ -338,36 +342,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       showDragHandle: false,
       builder: (_) => E2eeVerificationSheet(
         chatId: chatId,
-        onInitiateHandshake: () => _initiateE2eeHandshake(chatId),
       ),
     );
-  }
-
-  Future<void> _initiateE2eeHandshake(int chatId) async {
-    try {
-      final e2ee = ref.read(e2eeServiceProvider);
-      final chat = ref.read(chatByIdProvider(chatId));
-      if (chat?.partnerPublicKey == null || chat!.partnerPublicKey!.isEmpty) {
-        AppToast.showError(context, context.l10n.e2eeHandshakeNoPeerKey);
-        return;
-      }
-      ref.read(appSoundProvider).playEvent(SoundEvent.securityConnecting);
-      await e2ee.initiateHandshake(
-        chatId: chatId,
-        theirPublicKeyBase64: chat.partnerPublicKey!,
-      );
-      final msg = await e2ee.createHandshakeMessage(chatId);
-      await ref.read(chatMessagesProvider(chatId).notifier).sendHandshakeMessage(
-        dhPubB64: msg.dhPubB64,
-        edPubB64: msg.edPubB64,
-        signature: msg.signature,
-      );
-      if (!mounted) return;
-      AppToast.showSuccess(context, context.l10n.e2eeHandshakeInitiated);
-    } catch (e) {
-      if (!mounted) return;
-      AppToast.showError(context, context.l10n.e2eeHandshakeFailed(e));
-    }
   }
 
   void _showScreenshotOverlay() {
@@ -390,6 +366,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   void _onInputChanged() {
     final bool isEmpty = _inputController.text.trim().isEmpty;
     _scheduleDraftSave();
+    if (_isSecret || ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret != false) return;
     ref.read(inlineQueryProvider.notifier).onInputChanged(
       chatId: _chatId,
       text: _inputController.text,
@@ -408,6 +385,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   Future<void> _processTextWithAi(AiAction action, {String? targetLanguage}) async {
+    if (_isSecret || ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret != false) { AppToast.showInfo(context, context.l10n.secretLocalOnly); return; }
     final String currentText = _inputController.text.trim();
     if (currentText.isEmpty) return;
 
@@ -650,6 +628,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       await ref.read(chatMessagesProvider(chatId).notifier).refresh();
       await ref.read(chatMessagesProvider(chatId).notifier).markRead();
       ref.read(chatsProvider.notifier).markChatAsRead(chatId);
+      if (_isSecret || chatId < 0) return;
       final ApiChatSummary? freshChat =
           await ref.read(chatRepositoryProvider).getChat(chatId);
       if (freshChat != null && mounted) {
@@ -663,7 +642,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   Future<void> _restoreDraft() async {
     final int? chatId = _chatId;
     if (chatId == null) return;
-    final String? draft = await ref.read(draftStorageProvider).get(chatId);
+    final metadata = ref.read(chatByIdProvider(chatId));
+    if (metadata == null) return;
+    final isSecret = metadata.isSecret;
+    _canPersistOrdinaryDraft = !isSecret;
+    if (isSecret) _secretCoordinator = await ref.read(secretChatCoordinatorProvider.future);
+    final String? draft = isSecret
+        ? _secretCoordinator?.engine.chat(chatId)['draft'] as String?
+        : await ref.read(draftStorageProvider).get(chatId);
     if (draft != null && draft.isNotEmpty && _inputController.text.isEmpty) {
       _inputController.text = draft;
       _showDraftRestoredBanner = true;
@@ -677,6 +663,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     if (chatId == null) return;
     final String text = _inputController.text.trim();
+    if (_isSecret || _secretCoordinator?.engine.findChat(chatId) != null) {
+      unawaited(_secretCoordinator?.engine.saveDraft(chatId, text).catchError((Object _) {}));
+      return;
+    }
+    if (!_canPersistOrdinaryDraft) return;
     _draftStorage.set(chatId, text); // use cached ref — safe in dispose()
   }
 
@@ -698,7 +689,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
-    final ApiChatSummary? currentChat = ref.read(chatByIdProvider(chatId));
+    ApiChatSummary? currentChat = ref.read(chatByIdProvider(chatId));
+    if (currentChat == null && !_isSecret) {
+      try { await ref.read(chatsProvider.future); } catch (_) {}
+      if (!mounted) return;
+      currentChat = ref.read(chatByIdProvider(chatId));
+      if (currentChat == null) {
+        AppToast.showError(context, context.l10n.secretSaveFailed);
+        return;
+      }
+    }
     if (currentChat != null && currentChat.chatType == 'direct') {
       final int? partnerId = currentChat.partnerUserId;
       final bool isBlockedByMe = (partnerId != null && ref.read(privacyProvider).isUserBlocked(partnerId)) || currentChat.isBlockedByMe;
@@ -725,6 +725,23 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? replyId = _replyToMessageId;
     final String originalText = _inputController.text;
     final String? originalReplyPreview = _replyPreviewText;
+
+    if (currentChat?.isSecret == true || _isSecret) {
+      if (_savingSecretMessage) return;
+      _savingSecretMessage = true;
+      try {
+        await ref.read(chatMessagesProvider(chatId).notifier).send(text, replyToId: replyId);
+        if (!mounted) return;
+        if (_inputController.text == originalText) _inputController.clear();
+        if (_replyToMessageId == replyId) _clearReply();
+        _scrollToBottom();
+      } catch (_) {
+        if (mounted) AppToast.showError(context, context.l10n.secretSaveFailed);
+      } finally {
+        _savingSecretMessage = false;
+      }
+      return;
+    }
 
     _inputController.clear();
     _clearReply();
@@ -771,30 +788,42 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     String text = '',
     bool showSentSnackBar = false,
   }) async {
+    if (ref.read(chatByIdProvider(chatId)) == null && !_isSecret) {
+      try { await ref.read(chatsProvider.future); } catch (_) {}
+      if (!mounted) return;
+      if (ref.read(chatByIdProvider(chatId)) == null) {
+        AppToast.showError(context, context.l10n.secretAttachmentSaveFailed);
+        throw StateError('Conversation metadata unavailable');
+      }
+    }
+    if (ref.read(chatByIdProvider(chatId))?.isSecret == true || _isSecret) {
+      try {
+      final secret = await ref.read(secretChatCoordinatorProvider.future);
+      if (secret == null) throw StateError('Secret storage unavailable');
+      final plain = bytes ?? (filePath == null ? Uint8List(0) : await File(filePath).readAsBytes());
+      if (plain.isEmpty) throw StateError('Empty attachment');
+      await secret.enqueueAttachment(chatId, plain, filename: filename,
+        type: mediaSubtype == 'voice' ? 'voice' : mediaSubtype == 'circle' ? 'circle' : 'media',
+        text: text, replyToId: _replyToMessageId);
+      if (mounted) {
+        if (_inputController.text == text) _inputController.clear();
+        _clearReply();
+        _scrollToBottom();
+      }
+      return;
+      } catch (_) {
+        if (mounted) AppToast.showError(context, context.l10n.secretAttachmentSaveFailed);
+        rethrow;
+      }
+    }
     final String defaultSenderYou = context.l10n.chatSenderYou;
     final String localId = (-(DateTime.now().millisecondsSinceEpoch + Random().nextInt(1000))).toString();
     final int tempIntId = int.parse(localId);
 
     final int? replyToId = _replyToMessageId;
 
-    // Secret chats: encrypt the payload locally; the per-file key travels in
-    // the Double-Ratchet message envelope and never reaches the server.
-    Uint8List? effectiveBytes = (bytes != null && bytes.isNotEmpty) ? bytes : null;
-    String effectiveFilePath = filePath ?? '';
-    Uint8List? e2eeFileKey;
-    if (ref.read(chatByIdProvider(chatId))?.isSecret == true) {
-      try {
-        final Uint8List plain = effectiveBytes ??
-            (filePath != null && filePath.isNotEmpty ? await File(filePath).readAsBytes() : Uint8List(0));
-        if (plain.isNotEmpty) {
-          e2eeFileKey = E2eeFileCrypto.generateFileKey();
-          effectiveBytes = await E2eeFileCrypto.encrypt(plain, e2eeFileKey);
-          effectiveFilePath = ''; // upload ciphertext bytes instead of the file
-        }
-      } catch (e) {
-        debugPrint('[chat_detail] E2EE file encrypt failed: $e');
-      }
-    }
+    final Uint8List? effectiveBytes = (bytes != null && bytes.isNotEmpty) ? bytes : null;
+    final String effectiveFilePath = filePath ?? '';
 
     final authState = ref.read(authProvider);
     final int myUserId = authState.session?.userId ?? -1;
@@ -843,7 +872,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       fileSize: fileSize,
       text: text,
       replyToId: replyToId,
-      e2eeFileKey: e2eeFileKey,
     );
   }
 
@@ -925,7 +953,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     final String initialText = _inputController.text;
-    if (mounted) _inputController.clear();
+    if (mounted && ref.read(chatByIdProvider(chatId))?.isSecret != true) _inputController.clear();
 
     for (int i = 0; i < results.length; i++) {
       final M3FilePickerResult result = results[i];
@@ -941,7 +969,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               ? result.caption!
               : (i == 0 ? initialText : '');
 
-      _uploadAndSend(
+      await _uploadAndSend(
         chatId: chatId,
         filePath: uploadFilePath,
         bytes: uploadBytes,
@@ -983,11 +1011,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       _cancelEdit();
       return;
     }
-    _cancelEdit();
     try {
       await ref
           .read(chatMessagesProvider(chatId).notifier)
           .editMessage(editId, edited);
+      if (mounted && _inputController.text == originalDraft) _cancelEdit();
     } catch (error) {
       if (!mounted) return;
       _composerNotifier.value = _composerNotifier.value.copyWith(
@@ -1038,7 +1066,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     if (chatId == null || filePaths.isEmpty) return;
     final String initialText = _inputController.text;
-    if (mounted) _inputController.clear();
+    if (mounted && ref.read(chatByIdProvider(chatId))?.isSecret != true) _inputController.clear();
 
     for (int i = 0; i < filePaths.length; i++) {
       final String filePath = filePaths[i];
@@ -1055,7 +1083,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   ? 'video'
                   : (typeInfo.isAudio ? 'audio' : 'document')));
 
-      _uploadAndSend(
+      await _uploadAndSend(
         chatId: chatId,
         filePath: filePath,
         bytes: null,
@@ -1737,6 +1765,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     if (chatId == null) return;
 
+    final secret = ref.read(secretChatCoordinatorProvider).value;
+    if (secret?.engine.findChat(chatId) != null) {
+      await secret!.engine.retry(chatId, message.id);
+      return;
+    }
     final String localId = message.id.toString();
     final Map<String, UploadTask> uploadTasks = ref.read(uploadQueueProvider);
     if (uploadTasks.containsKey(localId)) {
@@ -1822,9 +1855,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     // React only to secret chat flag changes for security overlay / polling
-    ref.listen<bool>(
-      chatByIdProvider(chatId).select((c) => c?.isSecret == true),
+    ref.listen<bool?>(
+      chatByIdProvider(chatId).select((c) => c?.isSecret),
       (previous, isSecret) {
+        if (isSecret == null) return;
+        _canPersistOrdinaryDraft = !isSecret;
+        if (previous == null) unawaited(_restoreDraft());
         if (isSecret != _isSecret) {
           _isSecret = isSecret;
           ScreenSecurityService.setSecureFlag(enabled: isSecret);
@@ -1976,7 +2012,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 onClearDraft: () {
                   final int? cid = _chatId;
                   if (cid != null) {
-                    _draftStorage.remove(cid);
+                    if (_isSecret) {
+                      unawaited(_secretCoordinator?.engine.saveDraft(cid, ''));
+                    } else {
+                      _draftStorage.remove(cid);
+                    }
                   }
                   _inputController.clear();
                   setState(() {

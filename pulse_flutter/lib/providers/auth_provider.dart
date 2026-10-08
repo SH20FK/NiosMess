@@ -1,3 +1,6 @@
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
+import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
+import 'package:pulse_flutter/services/e2ee_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -73,10 +76,7 @@ class AuthState {
 }
 
 class AuthActionResult {
-  const AuthActionResult({
-    required this.success,
-    this.message,
-  });
+  const AuthActionResult({required this.success, this.message});
 
   final bool success;
   final String? message;
@@ -112,7 +112,9 @@ class AuthNotifier extends Notifier<AuthState> {
         if (resp.statusCode == 200) {
           final dynamic data = jsonDecode(resp.body);
           if (data is Map && data['reset'] == true) {
-            debugPrint('[auth_provider] Mock reset flag detected! Clearing mock data...');
+            debugPrint(
+              '[auth_provider] Mock reset flag detected! Clearing mock data...',
+            );
             await _clearSessionStorage();
             await ref.read(cacheServiceProvider).clearAll();
             state = const AuthState.initial().copyWith(hydrated: true);
@@ -137,10 +139,14 @@ class AuthNotifier extends Notifier<AuthState> {
           try {
             await _storage.write(key: _sessionKey, value: raw);
           } catch (e) {
-            debugPrint('[auth_provider] Secure storage migration write failed: ');
+            debugPrint(
+              '[auth_provider] Secure storage migration write failed: ',
+            );
           }
           await prefs.remove(_sessionKey);
-          debugPrint('[auth_provider] Migrated session from SharedPreferences to secure storage');
+          debugPrint(
+            '[auth_provider] Migrated session from SharedPreferences to secure storage',
+          );
         }
       } catch (_) {}
     } else {
@@ -174,7 +180,9 @@ class AuthNotifier extends Notifier<AuthState> {
     }
 
     if (session != null && session.accessToken.isNotEmpty) {
-      ref.read(sessionAccessTokenProvider.notifier).setToken(session.accessToken);
+      ref
+          .read(sessionAccessTokenProvider.notifier)
+          .setToken(session.accessToken);
     }
 
     state = state.copyWith(hydrated: true, session: session);
@@ -219,7 +227,8 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final String deviceInfo = kIsWeb
           ? 'Web Browser'
-          : '${Platform.operatingSystem} ${Platform.operatingSystemVersion}'.trim();
+          : '${Platform.operatingSystem} ${Platform.operatingSystemVersion}'
+                .trim();
 
       final AuthLoginResult result = await ref
           .read(authRepositoryProvider)
@@ -350,43 +359,82 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  Future<void> logout() async {
+  bool _loggingOut = false;
+  Future<void> logout({bool eraseSecretData = true}) async {
+    if (_loggingOut) return;
+    _loggingOut = true;
     try {
-      if (state.isAuthenticated) {
+      final accountId = state.session?.userId;
+      if (accountId != null && eraseSecretData) {
+        SecretChatCoordinator? secret;
         try {
-          final String? fcmToken = await PushNotificationService.getToken();
-          if (fcmToken != null && fcmToken.isNotEmpty) {
-            await ref.read(authRepositoryProvider).unregisterFcmToken(fcmToken);
-          }
-        } catch (e) {
-          debugPrint('[auth_provider.dart] FCM unregister failed: $e');
-        }
-        await ref.read(authRepositoryProvider).logout();
-        try {
-          await ref.read(oauthServiceProvider).logoutCentralNiosId();
+          secret = await ref.read(secretChatCoordinatorProvider.future);
         } catch (_) {}
+        final chatIds = <int>[];
+        final secretEngine = secret?.engine;
+        if (secretEngine != null) {
+          for (final key in secretEngine.journal.conversations) {
+            final id = secretEngine.journal.state(key)['remote_id'];
+            if (id is int) chatIds.add(id);
+          }
+        }
+        await SecretChatCoordinator.eraseAccount(accountId);
+        await EncryptedMessageCache.clearAccount(accountId, chatIds);
+        await ref.read(e2eeServiceProvider).deleteKeyPair();
+        final prefs = await SharedPreferences.getInstance();
+        for (final id in chatIds) {
+          await prefs.remove('draft.$id');
+        }
+      } else if (accountId != null) {
+        try {
+          await ref.read(secretChatCoordinatorProvider.future);
+        } catch (_) {}
+        await SecretChatCoordinator.suspendAccount(accountId);
       }
-    } catch (e) { debugPrint('[auth_provider.dart] Error: $e'); }
 
-    BackgroundService.stop();
-    await _fcmTokenRefreshSubscription?.cancel();
-    _fcmTokenRefreshSubscription = null;
-    await _wsConnectedSubscription?.cancel();
-    _wsConnectedSubscription = null;
+      try {
+        if (state.isAuthenticated && eraseSecretData) {
+          try {
+            final String? fcmToken = await PushNotificationService.getToken();
+            if (fcmToken != null && fcmToken.isNotEmpty) {
+              await ref
+                  .read(authRepositoryProvider)
+                  .unregisterFcmToken(fcmToken);
+            }
+          } catch (e) {
+            debugPrint('[auth_provider.dart] FCM unregister failed: $e');
+          }
+          await ref.read(authRepositoryProvider).logout();
+          try {
+            await ref.read(oauthServiceProvider).logoutCentralNiosId();
+          } catch (_) {}
+        }
+      } catch (e) {
+        debugPrint('[auth_provider.dart] Error: $e');
+      }
 
-    ref.read(webSocketClientProvider).disconnect();
-    await _clearSessionStorage();
-    try {
-      await ref.read(cacheServiceProvider).clearAll();
-    } catch (e) {
-      debugPrint('[auth_provider.dart] Cache clear error: $e');
+      BackgroundService.stop();
+      await _fcmTokenRefreshSubscription?.cancel();
+      _fcmTokenRefreshSubscription = null;
+      await _wsConnectedSubscription?.cancel();
+      _wsConnectedSubscription = null;
+
+      ref.read(webSocketClientProvider).disconnect();
+      await _clearSessionStorage();
+      try {
+        await ref.read(cacheServiceProvider).clearAll();
+      } catch (e) {
+        debugPrint('[auth_provider.dart] Cache clear error: $e');
+      }
+      state = state.copyWith(
+        clearSession: true,
+        clearPendingIdentifier: true,
+        clearError: true,
+        clearProfile: true,
+      );
+    } finally {
+      _loggingOut = false;
     }
-    state = state.copyWith(
-      clearSession: true,
-      clearPendingIdentifier: true,
-      clearError: true,
-      clearProfile: true,
-    );
   }
 
   void clearError() {
@@ -407,12 +455,17 @@ class AuthNotifier extends Notifier<AuthState> {
     await _fcmTokenRefreshSubscription?.cancel();
     _fcmTokenRefreshSubscription = null;
 
-    _wsConnectedSubscription ??= ref.read(webSocketClientProvider).onConnected.listen((_) {
-      if (state.isAuthenticated) {
-        debugPrint('[AuthNotifier] Socket connected/reconnected: refreshing FCM registration');
-        _registerFcmToken();
-      }
-    });
+    _wsConnectedSubscription ??= ref
+        .read(webSocketClientProvider)
+        .onConnected
+        .listen((_) {
+          if (state.isAuthenticated) {
+            debugPrint(
+              '[AuthNotifier] Socket connected/reconnected: refreshing FCM registration',
+            );
+            _registerFcmToken();
+          }
+        });
 
     try {
       final String? fcmToken = await PushNotificationService.getToken();
@@ -424,9 +477,10 @@ class AuthNotifier extends Notifier<AuthState> {
         unawaited(_sendFcmTokenWithRetry(fcmToken, platform));
       }
 
-      _fcmTokenRefreshSubscription = PushNotificationService.onTokenRefresh.listen((newToken) {
-        unawaited(_sendFcmTokenWithRetry(newToken, platform));
-      });
+      _fcmTokenRefreshSubscription = PushNotificationService.onTokenRefresh
+          .listen((newToken) {
+            unawaited(_sendFcmTokenWithRetry(newToken, platform));
+          });
     } catch (e) {
       debugPrint('[AuthNotifier] Failed to register FCM token: $e');
     }
@@ -435,17 +489,20 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _sendFcmTokenWithRetry(String token, String platform) async {
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
-        await ref.read(webSocketClientProvider).request(
+        await ref
+            .read(webSocketClientProvider)
+            .request(
               'register_fcm_token',
-              payload: {
-                'fcm_token': token,
-                'platform': platform,
-              },
+              payload: {'fcm_token': token, 'platform': platform},
             );
-        debugPrint('[AuthNotifier] FCM token registered successfully (attempt $attempt)');
+        debugPrint(
+          '[AuthNotifier] FCM token registered successfully (attempt $attempt)',
+        );
         break;
       } catch (e) {
-        debugPrint('[AuthNotifier] FCM token register attempt $attempt failed: $e');
+        debugPrint(
+          '[AuthNotifier] FCM token register attempt $attempt failed: $e',
+        );
         if (attempt < 3) {
           await Future<void>.delayed(Duration(seconds: attempt * 2));
         }
