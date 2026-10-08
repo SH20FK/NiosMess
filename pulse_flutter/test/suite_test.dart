@@ -12,6 +12,7 @@ import 'services/secret_chat_delivery_test.dart' as secret_chat_delivery;
 import 'services/secret_chat_e2ee_test.dart' as secret_chat_e2ee;
 import 'widgets/secret_chat_ui_test.dart' as secret_chat_ui;
 import 'widgets/m3_route_tab_switcher_test.dart' as route_tab_switcher;
+import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
 import 'formatter_and_detector_test.dart' as formatter_and_detector;
 import 'global_search_deep_links_test.dart' as global_search_deep_links;
 import 'group_moderation_test.dart' as group_moderation;
@@ -114,6 +115,7 @@ void main() {
     secret_chat_e2ee.main();
     secret_chat_ui.main();
     route_tab_switcher.main();
+    ordinary_chat_realtime.main();
     formatter_and_detector.main();
     global_search_deep_links.main();
     group_moderation.main();

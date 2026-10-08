@@ -105,7 +105,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       if (_activatedTabs.length < _tabs.length) _scheduleTabWarmup();
       ref.read(webSocketClientProvider).resumeFromBackground();
     } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
       _tabWarmupTimer?.cancel();
       ref.read(webSocketClientProvider).pauseForBackground();

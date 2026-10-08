@@ -22,6 +22,7 @@ import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/websocket_dispatcher_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/services/double_ratchet_service.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
@@ -110,7 +111,13 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
     ref.read(webSocketDispatcherProvider);
     WebSocketPushDispatcher.registerGlobal(_handlePushEvent);
+    final connected = ref.read(webSocketClientProvider).onConnected.listen((_) {
+      if (ref.mounted) {
+        unawaited(refresh());
+      }
+    });
     ref.onDispose(() {
+      unawaited(connected.cancel());
       WebSocketPushDispatcher.unregisterGlobal();
       _persistTimer?.cancel();
       _persistTimer = null;
@@ -550,6 +557,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   int _sendCounter = 0;
   SecretChatCoordinator? _secret;
   bool _secretMarkingRead = false;
+  Future<void>? _refreshInFlight;
 
   Timer? _cacheFlushTimer;
   List<ApiMessage>? _pendingCacheSnapshot;
@@ -593,7 +601,14 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
     ref.read(webSocketDispatcherProvider);
     WebSocketPushDispatcher.registerChat(_chatId, handlePush);
+    final cacheUserId = ref.read(authProvider).session?.userId ?? -1;
+    final connected = ref.read(webSocketClientProvider).onConnected.listen((_) {
+      if (ref.mounted && PushNotificationService.currentChatId == _chatId) {
+        unawaited(refresh());
+      }
+    });
     ref.onDispose(() {
+      unawaited(connected.cancel());
       WebSocketPushDispatcher.unregisterChat(_chatId);
       _cacheFlushTimer?.cancel();
       _cacheFlushTimer = null;
@@ -602,7 +617,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       final List<ApiMessage>? pending = _pendingCacheSnapshot;
       _pendingCacheSnapshot = null;
       if (pending != null) {
-        unawaited(_writeCache(pending));
+        unawaited(_writeCache(pending, userId: cacheUserId, isSecretChat: false));
       }
     });
 
@@ -654,16 +669,18 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> _handleEditedIncomingMessage(ApiMessage message) async {
-    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
-    final int index = current.indexWhere((ApiMessage m) => m.id == message.id);
-
     ApiMessage next = message;
     // Secret chats: re-decrypt the edited payload.
     if (message.isE2ee && message.e2eeContent != null) {
-      final List<ApiMessage> decrypted =
-          await _decryptE2eeMessages(<ApiMessage>[message]);
+      final List<ApiMessage> decrypted = await _decryptE2eeMessages(
+        <ApiMessage>[message],
+      );
       if (decrypted.isNotEmpty) next = decrypted.first;
     }
+
+    if (!ref.mounted) return;
+    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
+    final int index = current.indexWhere((ApiMessage m) => m.id == message.id);
 
     final List<ApiMessage> updated;
     if (index != -1) {
@@ -760,6 +777,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return;
     }
     final ApiMessage finalMessage = decrypted.first;
+    if (!ref.mounted) return;
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final List<ApiMessage> next = List<ApiMessage>.from(state.value ?? const <ApiMessage>[]);
     if (next.any((m) => m.id == finalMessage.id)) return;
@@ -790,17 +808,66 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
-  Future<List<ApiMessage>> _fetch() async {
-    if (_secret != null) { _secret!.engine.wake(); return _secretMessages(); }
-    final List<ApiMessage> messages = await ref.read(chatRepositoryProvider).getHistory(_chatId, pageSize: 80);
+  Future<List<ApiMessage>> _fetch({bool catchUp = false}) async {
+    if (_secret != null) {
+      _secret!.engine.wake();
+      return _secretMessages();
+    }
+    final before = <int, ApiMessage>{
+      for (final message in state.value ?? const <ApiMessage>[])
+        message.id: message,
+    };
+    final newestKnown = before.keys.fold<int>(0, (a, b) => a > b ? a : b);
+    final repository = ref.read(chatRepositoryProvider);
+    final messages = <ApiMessage>[];
+    int page = 1;
+    while (true) {
+      final batch = await repository.getHistory(
+        _chatId,
+        pageSize: 80,
+        page: page,
+      );
+      if (!ref.mounted) return const <ApiMessage>[];
+      messages.addAll(batch);
+      if (!catchUp ||
+          newestKnown == 0 ||
+          batch.length < 80 ||
+          batch.any((message) => message.id <= newestKnown)) {
+        break;
+      }
+      page++;
+    }
     final List<ApiMessage> decrypted = await _decryptE2eeMessages(messages);
+    if (!ref.mounted) return const <ApiMessage>[];
+    final current = <int, ApiMessage>{
+      for (final message in state.value ?? const <ApiMessage>[])
+        message.id: message,
+    };
+    final merged = <int, ApiMessage>{
+      for (final message in decrypted) message.id: message,
+    };
+    final oldestFetched = merged.keys
+        .where((id) => id > 0)
+        .fold<int>(0, (a, b) => a == 0 || b < a ? b : a);
+    for (final message in current.values) {
+      // Preserve optimistic sends, older loaded pages and events received while
+      // history was in flight. The server remains authoritative for unchanged rows.
+      if (message.id < 0 ||
+          (oldestFetched > 0 && message.id < oldestFetched) ||
+          !identical(before[message.id], message)) {
+        merged[message.id] = message;
+      }
+    }
+    for (final id in before.keys) {
+      if (!current.containsKey(id)) merged.remove(id);
+    }
+    final result = merged.values.toList()..sort(_compareMessages);
     try {
-      await EncryptedMessageCache.saveMessages(_chatId, decrypted);
-      await ChatMediaCache.saveMediaMessages(_chatId, decrypted);
+      unawaited(_saveToCache(result));
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Save messages cache error: $e');
     }
-    return decrypted;
+    return result;
   }
 
   Future<String?> _getPartnerPublicKey() async {
@@ -1076,15 +1143,15 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
-  Future<void> _writeCache(List<ApiMessage> messages) async {
+  Future<void> _writeCache(List<ApiMessage> messages, {int? userId, bool? isSecretChat}) async {
     try {
-      final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-      final ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));
+      final int myUserId = userId ?? ref.read(authProvider).session?.userId ?? -1;
+      final bool secret = isSecretChat ?? ref.read(chatByIdProvider(_chatId))?.isSecret == true;
       await EncryptedMessageCache.saveMessages(
         _chatId,
         messages,
         userId: myUserId > 0 ? myUserId : null,
-        isSecretChat: chat?.isSecret == true,
+        isSecretChat: secret,
       );
       await ChatMediaCache.saveMediaMessages(_chatId, messages);
     } catch (e) {
@@ -1103,9 +1170,20 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     );
   }
 
-  Future<void> refresh() async {
+  Future<void> refresh() {
+    return _refreshInFlight ??= _refreshHistory().whenComplete(() {
+      _refreshInFlight = null;
+    });
+  }
+
+  Future<void> _refreshHistory() async {
     final List<ApiMessage>? previous = state.value;
-    final AsyncValue<List<ApiMessage>> next = await AsyncValue.guard(_fetch);
+    final AsyncValue<List<ApiMessage>> next = await AsyncValue.guard(
+      () => _fetch(catchUp: true),
+    );
+    if (!ref.mounted) return;
+    // A temporary connection error must not hide already displayed messages.
+    if (next.hasError && state.value != null) return;
     state = next;
     final List<ApiMessage>? messages = next.value;
     if (previous == null || messages == null || previous.isEmpty) return;
@@ -1123,7 +1201,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           message.msgType != 'call_log',
     );
     if (hasIncoming) {
-      await _playNotificationSound();
+      if (PushNotificationService.currentChatId == _chatId) {
+        unawaited(markRead());
+      } else {
+        await _playNotificationSound();
+      }
     }
   }
 

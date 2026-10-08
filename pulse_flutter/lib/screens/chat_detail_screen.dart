@@ -320,7 +320,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_isSecret) return;
+    if (!_isSecret) {
+      if (state == AppLifecycleState.resumed) unawaited(_refreshNow());
+      return;
+    }
     if (DesktopWindowService.isDesktop) {
       _removeScreenshotOverlay();
       return;

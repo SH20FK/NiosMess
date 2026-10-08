@@ -244,7 +244,7 @@ final Provider<WebSocketPushDispatcher> webSocketDispatcherProvider =
     return WebSocketPushDispatcher._();
   }
 
-  final WebSocketClient client = ref.read(webSocketClientProvider);
+  final WebSocketClient client = ref.watch(webSocketClientProvider);
   WebSocketPushDispatcher.init(client);
 
   ref.onDispose(() {
