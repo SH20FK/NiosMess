@@ -13,6 +13,7 @@ import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/settings/palette_mesh_preview.dart';
 
 class SettingsAppearanceScreen extends StatelessWidget {
   const SettingsAppearanceScreen({
@@ -200,6 +201,7 @@ class _AppearanceScreen extends ConsumerWidget {
       onToggleDynamic: (bool val) {
         ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(val);
       },
+      animateMesh: !optimizeForWeakDevices && !tier.isTierC,
       onSelectPaletteStyle: (PaletteStyle style) {
         ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
       },
@@ -426,6 +428,7 @@ class _AppearanceScreen extends ConsumerWidget {
         return _CustomColorPickerSheet(
           initialColor: initialColor,
           onApplyColor: (Color color) {
+            ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(false);
             ref.read(uiSettingsProvider.notifier).setSeedColor(color);
           },
         );
@@ -444,6 +447,7 @@ class NiosColorField extends StatelessWidget {
     required this.onCustomColorTap,
     required this.onToggleDynamic,
     required this.onSelectPaletteStyle,
+    this.animateMesh = false,
     super.key,
   });
 
@@ -451,6 +455,7 @@ class NiosColorField extends StatelessWidget {
   final Color seedColor;
   final bool useSystemDynamic;
   final PaletteStyle paletteStyle;
+  final bool animateMesh;
   final ValueChanged<Color> onColorSelected;
   final VoidCallback onCustomColorTap;
   final ValueChanged<bool> onToggleDynamic;
@@ -458,385 +463,294 @@ class NiosColorField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final TextTheme textTheme = theme.textTheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.20),
-          width: 1,
-        ),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // 1. Source selector tabs: Системная / Nios / Своя
-          SegmentedButton<int>(
-            segments: const <ButtonSegment<int>>[
-              ButtonSegment<int>(
-                value: 0,
-                label: Text('Системная'),
-                icon: Icon(Icons.auto_awesome_rounded, size: 18),
-              ),
-              ButtonSegment<int>(
-                value: 1,
-                label: Text('Nios'),
-                icon: Icon(Icons.palette_rounded, size: 18),
-              ),
-              ButtonSegment<int>(
-                value: 2,
-                label: Text('Своя'),
-                icon: Icon(Icons.colorize_rounded, size: 18),
-              ),
-            ],
-            selected: <int>{
-              if (useSystemDynamic)
-                0
-              else if (_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32()))
-                1
-              else
-                2
-            },
-            onSelectionChanged: (Set<int> selected) {
-              final int choice = selected.first;
-              if (choice == 0) {
-                onToggleDynamic(true);
-              } else if (choice == 1) {
-                onToggleDynamic(false);
-                if (!_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32())) {
-                  onColorSelected(_palettes.first.color);
-                }
-              } else {
-                onToggleDynamic(false);
-                onCustomColorTap();
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // 2. Active field surface (interactive color visualizer, 136dp)
-          if (useSystemDynamic) ...[
-            Container(
-              height: 136,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    scheme.primaryContainer,
-                    scheme.secondaryContainer,
-                    scheme.tertiaryContainer,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+    final textTheme = Theme.of(context).textTheme;
+    Color meshTone(Color container, Color accent) => Color.lerp(
+      container,
+      accent,
+      scheme.brightness == Brightness.dark ? 0.75 : 0.35,
+    )!;
+    final primaryTone = meshTone(scheme.primaryContainer, scheme.primary);
+    final secondaryTone = meshTone(scheme.secondaryContainer, scheme.secondary);
+    final tertiaryTone = meshTone(scheme.tertiaryContainer, scheme.tertiary);
+    final colors = <Color>[
+      primaryTone,
+      secondaryTone,
+      tertiaryTone,
+      Color.lerp(
+        scheme.secondaryContainer,
+        scheme.secondary,
+        scheme.brightness == Brightness.dark ? 0.85 : 0.15,
+      )!,
+    ];
+    final customSelected =
+        !useSystemDynamic &&
+        !_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32());
+    return Material(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(28),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            RepaintBoundary(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: SizedBox(
+                  height: 160,
+                  child: PaletteMeshPreview(
+                    colors: colors,
+                    animate: animateMesh,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: scheme.surface.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.check_circle_rounded, size: 14, color: scheme.primary),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Material You Active',
-                              style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    'Цвета генерируются динамически из системных обоев вашего устройства.',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
               ),
             ),
-          ] else ...[
-            Container(
-              height: 136,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    seedColor,
-                    Color.lerp(seedColor, scheme.surfaceContainerHigh, 0.45) ?? seedColor,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: seedColor.withValues(alpha: 0.25),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '#${seedColor.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      IconButton.filledTonal(
-                        onPressed: onCustomColorTap,
-                        icon: const Icon(Icons.colorize_rounded, size: 18),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: 0.25),
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Text(
-                    'Нажмите на палитру ниже или выберите собственный оттенок',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 20),
+            Text(
+              context.l10n.appearancePaletteTitle,
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 14),
-
-            // Curated color orbs dock
+            const SizedBox(height: 4),
+            Text(
+              context.l10n.appearancePaletteSubtitle,
+              style: textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.appearanceSystemColors),
+              subtitle: Text(context.l10n.appearanceSystemColorsSubtitle),
+              value: useSystemDynamic,
+              onChanged: onToggleDynamic,
+            ),
+            const SizedBox(height: 16),
             SingleChildScrollView(
+              key: const ValueKey('appearance-palette-strip'),
               scrollDirection: Axis.horizontal,
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final p in _palettes)
+                  for (final entry in _palettes)
                     Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: _ColorOrbItem(
-                        color: p.color,
-                        label: p.getName(context.l10n),
-                        isSelected: !useSystemDynamic && seedColor.toARGB32() == p.color.toARGB32(),
+                      padding: const EdgeInsets.only(right: 12),
+                      child: _PaletteChoice(
+                        scheme: scheme,
+                        seedColor: entry.color,
+                        paletteStyle: paletteStyle,
+                        label: entry.getName(context.l10n),
+                        selected:
+                            !useSystemDynamic &&
+                            seedColor.toARGB32() == entry.color.toARGB32(),
                         onTap: () {
+                          HapticService.tap();
                           onToggleDynamic(false);
-                          onColorSelected(p.color);
+                          onColorSelected(entry.color);
                         },
                       ),
                     ),
-                  _RainbowCustomOrbItem(
-                    isSelected: !useSystemDynamic && !_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32()),
-                    currentColor: seedColor,
-                    onTap: () {
-                      onToggleDynamic(false);
-                      onCustomColorTap();
-                    },
+                  _PaletteChoice(
+                    scheme: scheme,
+                    seedColor: seedColor,
+                    paletteStyle: paletteStyle,
+                    label: context.l10n.appearanceCustomColor,
+                    selected: customSelected,
+                    custom: true,
+                    onTap: onCustomColorTap,
                   ),
                 ],
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-class _ColorOrbItem extends StatefulWidget {
-  const _ColorOrbItem({
-    required this.color,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final Color color;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  State<_ColorOrbItem> createState() => _ColorOrbItemState();
-}
-
-class _ColorOrbItemState extends State<_ColorOrbItem> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final bool isLightOrb =
-        ThemeData.estimateBrightnessForColor(widget.color) == Brightness.light;
-    final Color checkColor = isLightOrb
-        ? (isDark ? scheme.surface : scheme.onSurface)
-        : (isDark ? scheme.onSurface : scheme.surface);
-    final Color ringColor = widget.isSelected
-        ? (isLightOrb
-            ? (isDark ? scheme.surface : scheme.outline)
-            : (isDark ? scheme.onSurface : scheme.surface))
-        : Colors.transparent;
-
-    return Center(
-      child: Tooltip(
-        message: widget.label,
-        child: Listener(
-          onPointerDown: (_) => setState(() => _isPressed = true),
-          onPointerUp: (_) => setState(() => _isPressed = false),
-          onPointerCancel: (_) => setState(() => _isPressed = false),
-          child: GestureDetector(
-            onTap: widget.onTap,
-            child: AnimatedScale(
-              scale: _isPressed ? 0.90 : (widget.isSelected ? 1.15 : 1.0),
-              duration: const Duration(milliseconds: 220),
-              curve: M3SpringCurves.bouncy,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: M3SpringCurves.spatial,
-                width: widget.isSelected ? 38 : 32,
-                height: widget.isSelected ? 38 : 32,
-                decoration: BoxDecoration(
-                  color: widget.color,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: ringColor,
-                    width: widget.isSelected ? 2.5 : 0,
-                  ),
-                ),
-                child: widget.isSelected
-                    ? Icon(
-                        Icons.check_rounded,
-                        size: 20,
-                        color: checkColor,
-                      )
-                    : null,
-              ),
-            ),
-          ),
         ),
       ),
     );
   }
 }
 
-class _RainbowCustomOrbItem extends StatefulWidget {
-  const _RainbowCustomOrbItem({
-    required this.isSelected,
-    required this.currentColor,
+class _PaletteChoice extends StatefulWidget {
+  const _PaletteChoice({
+    required this.scheme,
+    required this.seedColor,
+    required this.paletteStyle,
+    required this.label,
+    required this.selected,
     required this.onTap,
+    this.custom = false,
   });
-
-  final bool isSelected;
-  final Color currentColor;
+  final ColorScheme scheme;
+  final Color seedColor;
+  final PaletteStyle paletteStyle;
+  final String label;
+  final bool selected;
+  final bool custom;
   final VoidCallback onTap;
 
   @override
-  State<_RainbowCustomOrbItem> createState() => _RainbowCustomOrbItemState();
+  State<_PaletteChoice> createState() => _PaletteChoiceState();
 }
 
-class _RainbowCustomOrbItemState extends State<_RainbowCustomOrbItem> {
-  bool _isPressed = false;
+class _PaletteChoiceState extends State<_PaletteChoice> {
+  late ColorScheme preview;
+  ColorScheme get scheme => widget.scheme;
+  String get label => widget.label;
+  bool get selected => widget.selected;
+  bool get custom => widget.custom;
+  VoidCallback get onTap => widget.onTap;
+
+  void _updatePreview() {
+    preview = ColorScheme.fromSeed(
+      seedColor: widget.seedColor,
+      brightness: widget.scheme.brightness,
+      dynamicSchemeVariant: widget.paletteStyle.variant,
+    );
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final bool isLightColor =
-        ThemeData.estimateBrightnessForColor(widget.currentColor) == Brightness.light;
-    final Color iconColor = widget.isSelected
-        ? (isLightColor
-            ? (isDark ? scheme.surface : scheme.onSurface)
-            : (isDark ? scheme.onSurface : scheme.surface))
-        : (isDark ? scheme.onSurface : scheme.surface);
-    final Color ringColor = widget.isSelected
-        ? (isLightColor
-            ? (isDark ? scheme.surface : scheme.outline)
-            : (isDark ? scheme.onSurface : scheme.surface))
-        : Colors.transparent;
+  void initState() {
+    super.initState();
+    _updatePreview();
+  }
 
-    return Center(
-      child: Tooltip(
-        message: context.l10n.appearanceCustomColor,
-        child: Listener(
-          onPointerDown: (_) => setState(() => _isPressed = true),
-          onPointerUp: (_) => setState(() => _isPressed = false),
-          onPointerCancel: (_) => setState(() => _isPressed = false),
-          child: GestureDetector(
-            onTap: widget.onTap,
-            child: AnimatedScale(
-              scale: _isPressed ? 0.90 : (widget.isSelected ? 1.15 : 1.0),
-              duration: const Duration(milliseconds: 220),
-              curve: M3SpringCurves.bouncy,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: M3SpringCurves.spatial,
-                width: widget.isSelected ? 38 : 32,
-                height: widget.isSelected ? 38 : 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: widget.isSelected
-                      ? null
-                      : const SweepGradient(
-                          colors: [
-                            Color(0xFFE11D48),
-                            Color(0xFFEA580C),
-                            Color(0xFFEAB308),
-                            Color(0xFF16A34A),
-                            Color(0xFF0284C7),
-                            Color(0xFF7C3AED),
-                            Color(0xFFE11D48),
+  @override
+  void didUpdateWidget(covariant _PaletteChoice oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.seedColor != widget.seedColor ||
+        oldWidget.scheme.brightness != widget.scheme.brightness ||
+        oldWidget.paletteStyle != widget.paletteStyle) {
+      _updatePreview();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: selected,
+    label: label,
+    onTap: onTap,
+    excludeSemantics: true,
+    child: Tooltip(
+      message: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: 76,
+          child: Column(
+            children: [
+              Material(
+                color: selected
+                    ? scheme.secondaryContainer
+                    : scheme.surfaceContainerHigh,
+                shape: CircleBorder(
+                  side: BorderSide(
+                    color: selected ? scheme.primary : scheme.outlineVariant,
+                    width: selected ? 2 : 1,
+                  ),
+                ),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onTap,
+                  child: SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: Padding(
+                      padding: const EdgeInsets.all(7),
+                      child: ClipOval(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: preview.primary,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: preview.tertiaryContainer,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: preview.secondaryContainer,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: preview.primaryContainer,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (selected || custom)
+                              Center(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: preview.primary,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(5),
+                                    child: Icon(
+                                      selected
+                                          ? Icons.check_rounded
+                                          : Icons.add_rounded,
+                                      size: 20,
+                                      color: preview.onPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
-                  color: widget.isSelected ? widget.currentColor : null,
-                  border: Border.all(
-                    color: ringColor,
-                    width: widget.isSelected ? 2.5 : 0,
+                      ),
+                    ),
                   ),
                 ),
-                child: Icon(
-                  widget.isSelected ? Icons.palette_rounded : Icons.add_rounded,
-                  size: widget.isSelected ? 20 : 18,
-                  color: iconColor,
-                ),
               ),
-            ),
+              if (!custom) ...[
+                const SizedBox(height: 8),
+                ExcludeSemantics(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: selected
+                          ? scheme.onSecondaryContainer
+                          : scheme.onSurface,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 /// Material 3 Expressive Theme Selector Card supporting System, Light, and Dark modes
