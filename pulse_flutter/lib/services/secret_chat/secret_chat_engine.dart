@@ -124,6 +124,7 @@ class SecretChatEngine {
     required String peerName,
     int? remoteId,
     String? peerKey,
+    SecretJson? peerProfile,
   }) async {
     return _serial.run('conversations', () async {
       final existing = journal.conversations.where((key) {
@@ -137,11 +138,19 @@ class SecretChatEngine {
             : state['peer_id'] == peerId && state['status'] != 'otherDevice';
       }).firstOrNull;
       if (existing != null) {
-        if (remoteId != null && journal.state(existing)['remote_id'] == null) {
+        if (peerProfile != null ||
+            (remoteId != null &&
+                journal.state(existing)['remote_id'] == null)) {
           await _serial.run(existing, () async {
             final state = journal.state(existing);
-            state['remote_id'] = remoteId;
-            state['peer_key'] = peerKey;
+            if (remoteId != null && state['remote_id'] == null) {
+              state['remote_id'] = remoteId;
+              state['peer_key'] = peerKey;
+            }
+            if (peerProfile != null) {
+              state['peer_profile'] = peerProfile;
+              state['peer_name'] = peerName;
+            }
             await _commit(existing, state);
           });
         }
@@ -154,6 +163,7 @@ class SecretChatEngine {
         'remote_id': remoteId,
         'peer_id': peerId,
         'peer_name': peerName,
+        'peer_profile': ?peerProfile,
         'peer_key': peerKey,
         'cursor': 0,
         'status': 'waiting',
@@ -505,6 +515,14 @@ class SecretChatEngine {
       state = journal.state(key);
       state['remote_id'] = opened['chat_id'];
       state['peer_key'] = peerKey;
+      final profile = secretMap(opened['with_user']);
+      if (profile.isNotEmpty && profile['id'] == state['peer_id']) {
+        state['peer_profile'] = {
+          'display_name': profile['display_name'],
+          'username': profile['username'],
+          'avatar_url': profile['avatar_url'],
+        };
+      }
       await _commit(key, state);
     });
   }

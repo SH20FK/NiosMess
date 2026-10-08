@@ -217,6 +217,11 @@ class SecretChatCoordinator implements SecretTransport {
         peerName: chat.name,
         remoteId: chat.id,
         peerKey: chat.partnerPublicKey,
+        peerProfile: {
+          'display_name': chat.name,
+          'username': chat.username,
+          'avatar_url': chat.avatarUrl,
+        },
       );
       if (engine.chat(uiId)['legacy_keys_imported'] != true) {
         final raw = await _secure.read(key: 'e2ee.session.${chat.id}');
@@ -316,12 +321,18 @@ class SecretChatCoordinator implements SecretTransport {
       final uiId = data['ui_id'] as int;
       final server = remote.where((c) => c.id == data['remote_id']).firstOrNull;
       final messages = engine.messages(uiId);
+      final profile = secretMap(data['peer_profile']);
       result.add(
         (server ??
                 ApiChatSummary(
                   id: uiId,
                   chatType: 'direct',
-                  name: data['peer_name'] as String? ?? '',
+                  name:
+                      profile['display_name'] as String? ??
+                      data['peer_name'] as String? ??
+                      '',
+                  username: profile['username'] as String?,
+                  avatarUrl: profile['avatar_url'] as String?,
                   unreadCount: 0,
                   membersCount: 2,
                   isSecret: true,

@@ -44,6 +44,8 @@ Future<void> showStartSecretChatDialog(
       username: user.username,
       userId: user.id,
       isSecret: true,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
     );
     if (chatId == null && context.mounted) {
       AppToast.showError(context, context.l10n.secretCreateFailed);

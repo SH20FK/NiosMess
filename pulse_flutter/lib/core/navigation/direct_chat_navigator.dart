@@ -22,6 +22,8 @@ Future<int?> navigateToDirectChat(
   required String username,
   int? userId,
   int? knownChatId,
+  String? displayName,
+  String? avatarUrl,
   bool isSecret = false,
 }) async {
   final String cleanUsername = username.trim().toLowerCase();
@@ -29,7 +31,16 @@ Future<int?> navigateToDirectChat(
     try {
       final secret = await ref.read(secretChatCoordinatorProvider.future);
       if (secret == null || userId == null || userId <= 0) return null;
-      final id = await secret.engine.open(peerId: userId, peerName: username);
+      final peerName = displayName != null && displayName.trim().isNotEmpty ? displayName : username;
+      final id = await secret.engine.open(
+        peerId: userId,
+        peerName: peerName,
+        peerProfile: {
+          'username': username,
+          'display_name': peerName,
+          'avatar_url': avatarUrl,
+        },
+      );
       final summary = secret
           .mergeChats(const <ApiChatSummary>[])
           .firstWhere((chat) => chat.id == id);

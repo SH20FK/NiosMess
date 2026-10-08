@@ -216,6 +216,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       username: profile.username,
       userId: profile.id,
       isSecret: true,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
     );
 
     if (!mounted) return;

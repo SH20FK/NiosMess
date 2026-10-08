@@ -194,6 +194,47 @@ class Pair {
 
 void main() {
   test(
+    'pending chat keeps selected peer name and avatar through restart and profile refresh',
+    () async {
+      final pair = Pair();
+      await pair.start();
+      pair.hub.online = false;
+      final id = await pair.a.open(
+        peerId: 99,
+        peerName: 'Display name',
+        peerProfile: {
+          'display_name': 'Display name',
+          'username': 'peer99',
+          'avatar_url': 'avatars/peer99.jpg',
+        },
+      );
+      await pair.a.enqueue(id, {'text': 'pending data', 'type': 'text'});
+      await pair.a.stop();
+      pair.a = await pair.create(1, pair.aDisk, pair.aTransport);
+      final profile = secretMap(pair.a.chat(id)['peer_profile']);
+      expect(profile['display_name'], 'Display name');
+      expect(profile['username'], 'peer99');
+      expect(profile['avatar_url'], 'avatars/peer99.jpg');
+      final updated = await pair.a.open(
+        peerId: 99,
+        peerName: 'Updated',
+        peerProfile: {
+          'display_name': 'Updated',
+          'username': 'peer99',
+          'avatar_url': null,
+        },
+      );
+      expect(updated, id);
+      expect(
+        secretMap(pair.a.chat(id)['peer_profile'])['display_name'],
+        'Updated',
+      );
+      expect(secretMap(pair.a.chat(id)['peer_profile'])['avatar_url'], isNull);
+      expect(pair.a.messages(id).single['content'], 'pending data');
+      await pair.close();
+    },
+  );
+  test(
     'remote chat arriving during creation reuses the durable local conversation',
     () async {
       final pair = Pair();

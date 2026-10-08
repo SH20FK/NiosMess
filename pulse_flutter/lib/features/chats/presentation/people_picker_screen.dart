@@ -55,6 +55,8 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
       username: candidate.username,
       userId: candidate.userId,
       isSecret: isSecret,
+      displayName: candidate.displayName,
+      avatarUrl: candidate.avatarUrl,
     );
 
     if (!mounted) return;
