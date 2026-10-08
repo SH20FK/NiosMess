@@ -194,9 +194,14 @@ class Pair {
   Future<void> settle([int rounds = 15]) async {
     for (var i = 0; i < rounds; i++) {
       await Future.wait([
-        a.pump(a.findChat(42) ?? a.journal.conversations.firstWhere(
-          (key) => a.journal.state(key)['peer_id'] == 2,
-        )).catchError((_) {}),
+        a
+            .pump(
+              a.findChat(42) ??
+                  a.journal.conversations.firstWhere(
+                    (key) => a.journal.state(key)['peer_id'] == 2,
+                  ),
+            )
+            .catchError((_) {}),
         b.pump(b.findChat(42)!).catchError((_) {}),
       ]);
       await Future<void>.delayed(const Duration(milliseconds: 1));
@@ -210,6 +215,132 @@ class Pair {
 }
 
 void main() {
+  test(
+    'manual verification preserves ratchet, queued sends and delivery after restart',
+    () async {
+      final pair = Pair();
+      await pair.start();
+      await pair.settle();
+      await pair.a.enqueue(42, {'text': 'before confirmation', 'type': 'text'});
+      await pair.settle();
+      pair.hub.online = false;
+      await pair.a.enqueue(42, {
+        'text': 'queued during confirmation',
+        'type': 'text',
+      });
+      final before = pair.a.chat(42)..remove('verified');
+      await pair.a.verifyIdentity(42);
+      final after = pair.a.chat(42)..remove('verified');
+      expect(after, before);
+      expect(pair.a.chat(42)['verified'], true);
+      expect(pair.a.messages(42).map((m) => m['content']), [
+        'before confirmation',
+        'queued during confirmation',
+      ]);
+      await pair.a.stop();
+      pair.a = await pair.create(1, pair.aDisk, pair.aTransport);
+      expect(pair.a.chat(42)['verified'], true);
+      pair.hub.online = true;
+      await pair.b.enqueue(42, {
+        'text': 'reply after confirmation',
+        'type': 'text',
+      });
+      await pair.settle();
+      expect(pair.a.chat(42)['status'], 'secured');
+      expect(pair.b.chat(42)['status'], 'secured');
+      expect(
+        pair.b
+            .messages(42)
+            .any((m) => m['content'] == 'queued during confirmation'),
+        true,
+      );
+      expect(
+        pair.a
+            .messages(42)
+            .any((m) => m['content'] == 'reply after confirmation'),
+        true,
+      );
+      await pair.close();
+    },
+  );
+
+  test(
+    'verification at a real Hive checkpoint retains session and bidirectional delivery',
+    () async {
+      final pair = Pair();
+      await pair.start();
+      await pair.settle();
+      await pair.a.enqueue(42, {
+        'text': 'persisted before confirmation',
+        'type': 'text',
+      });
+      await pair.settle();
+      pair.hub.online = false;
+      await pair.a.stop();
+      final directory = await Directory.systemTemp.createTemp(
+        'secret_verify_checkpoint_',
+      );
+      Hive.init(directory.path);
+      var box = await Hive.openBox<String>('verified_a');
+      await box.addAll(pair.aDisk.data);
+      await box.flush();
+      Future<SecretChatEngine> restore() async {
+        final journal = SecretJournal(
+          HiveSecretJournalBackend(box),
+          SecretKey(List.filled(32, 1)),
+          accountId: 1,
+        );
+        await journal.restore();
+        final engine = SecretChatEngine(
+          userId: 1,
+          username: 'user1',
+          journal: journal,
+          transport: pair.aTransport,
+          staticSeed: List.filled(32, 4),
+          identitySeed: List.filled(32, 10),
+        );
+        await engine.initialize();
+        return engine;
+      }
+
+      pair.a = await restore();
+      final key = pair.a.findChat(42)!;
+      while (box.length < 127) {
+        await pair.a.journal.commit(
+          key,
+          pair.a.chat(42)..['fixture_revision'] = box.length,
+        );
+      }
+      final ratchet = pair.a.chat(42)['ratchet'];
+      await pair.a.verifyIdentity(42);
+      expect(box.length, 1);
+      expect(box.values.single.startsWith('snapshot:'), true);
+      expect(pair.a.chat(42)['ratchet'], ratchet);
+      await pair.a.stop();
+      box = await Hive.openBox<String>('verified_a');
+      pair.a = await restore();
+      expect(pair.a.chat(42)['verified'], true);
+      expect(
+        pair.a.messages(42).single['content'],
+        'persisted before confirmation',
+      );
+      pair.hub.online = true;
+      await pair.a.enqueue(42, {'text': 'after checkpoint A', 'type': 'text'});
+      await pair.b.enqueue(42, {'text': 'after checkpoint B', 'type': 'text'});
+      await pair.settle();
+      expect(
+        pair.b.messages(42).any((m) => m['content'] == 'after checkpoint A'),
+        true,
+      );
+      expect(
+        pair.a.messages(42).any((m) => m['content'] == 'after checkpoint B'),
+        true,
+      );
+      await pair.close();
+      await Hive.close();
+      await directory.delete(recursive: true);
+    },
+  );
   test(
     'delete pending local chat clears queue durably and permits opening again',
     () async {

@@ -28,4 +28,5 @@ extension SecretChatL10n on AppLocalizations {
   String get secretLogoutWarning => _secret.secretLogoutWarning;
   String get secretRetry => _secret.secretRetry;
   String get secretDeleteWarning => _secret.secretDeleteWarning;
+  String get secretVerificationFailed => _secret.secretVerificationFailed;
 }

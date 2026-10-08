@@ -238,6 +238,12 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'History, attachments and unsent messages on this device will be deleted. The other person\'s history will remain.'**
   String get secretDeleteWarning;
+
+  /// No description provided for @secretVerificationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the key verification. Your messages have not been deleted.'**
+  String get secretVerificationFailed;
 }
 
 class _SecretChatLocalizationsDelegate

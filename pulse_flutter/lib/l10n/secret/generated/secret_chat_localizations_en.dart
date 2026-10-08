@@ -88,4 +88,8 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   @override
   String get secretDeleteWarning =>
       'History, attachments and unsent messages on this device will be deleted. The other person\'s history will remain.';
+
+  @override
+  String get secretVerificationFailed =>
+      'Could not save the key verification. Your messages have not been deleted.';
 }

@@ -26,6 +26,25 @@ class E2eeVerificationSheet extends ConsumerStatefulWidget {
 class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
   bool _advanced = false;
   bool _busy = false;
+  Future<void> _verify() async {
+    final engine = ref.read(secretChatEngineProvider);
+    if (_busy ||
+        engine == null ||
+        engine.chat(widget.chatId)['status'] != 'secured') {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await engine.verifyIdentity(widget.chatId);
+    } catch (_) {
+      if (mounted) {
+        AppToast.showError(context, context.l10n.secretVerificationFailed);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _accept() async {
     final confirmed = await showAppConfirmDialog(
       context: context,
@@ -134,7 +153,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                     ? Duration.zero
                     : const Duration(milliseconds: 280),
                 curve: M3SpringCurves.spatial,
-                child: !_advanced || engine == null
+                child: !_advanced || engine == null || status != 'secured'
                     ? const SizedBox.shrink()
                     : FutureBuilder<String>(
                         future: engine.safetyNumber(widget.chatId),
@@ -176,18 +195,19 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                               ),
                               const SizedBox(height: 16),
                               FilledButton.tonal(
-                                onPressed: state['verified'] == true
+                                onPressed:
+                                    _busy ||
+                                        state['verified'] == true ||
+                                        status != 'secured'
                                     ? null
-                                    : () async {
-                                        await engine.verifyIdentity(
-                                          widget.chatId,
-                                        );
-                                      },
-                                child: Text(
-                                  state['verified'] == true
-                                      ? context.l10n.secretVerified
-                                      : context.l10n.secretCodesMatch,
-                                ),
+                                    : _verify,
+                                child: _busy
+                                    ? const AppLoadingIndicator(size: 24)
+                                    : Text(
+                                        state['verified'] == true
+                                            ? context.l10n.secretVerified
+                                            : context.l10n.secretCodesMatch,
+                                      ),
                               ),
                             ],
                           );

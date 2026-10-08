@@ -138,6 +138,57 @@ void main() {
       expect(a.messages(localId).last['content'], 'edited locally');
       expect(b.messages(remoteId).last['content'], 'edited locally');
       expect(await a.safetyNumber(localId), await b.safetyNumber(remoteId));
+      final beforeVerification = a.chat(localId)..remove('verified');
+      await a.verifyIdentity(localId);
+      expect(a.chat(localId)..remove('verified'), beforeVerification);
+      await b.verifyIdentity(remoteId);
+      await a.stop();
+      a = await create(1, aTransport);
+      expect(a.chat(localId)['verified'], true);
+      await a.enqueue(localId, {
+        'text': 'verified sender still delivers',
+        'type': 'text',
+      });
+      await b.enqueue(remoteId, {
+        'text': 'verified receiver still decrypts',
+        'type': 'text',
+      });
+      await settle();
+      // enqueue starts an account-owned pump without waiting for delivery.
+      // Wait for peer synchronization, rather than assuming a fixed number
+      // of polling rounds means the concurrent socket sends have completed.
+      final deliveryDeadline = DateTime.now().add(const Duration(seconds: 5));
+      while (DateTime.now().isBefore(deliveryDeadline) &&
+          (!b
+                  .messages(remoteId)
+                  .any(
+                    (m) => m['content'] == 'verified sender still delivers',
+                  ) ||
+              !a
+                  .messages(localId)
+                  .any(
+                    (m) => m['content'] == 'verified receiver still decrypts',
+                  ))) {
+        await Future.wait([
+          a.pump(a.findChat(localId)!),
+          b.pump(b.findChat(remoteId)!),
+        ]);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(
+        b
+            .messages(remoteId)
+            .any((m) => m['content'] == 'verified sender still delivers'),
+        true,
+      );
+      expect(
+        a
+            .messages(localId)
+            .any((m) => m['content'] == 'verified receiver still decrypts'),
+        true,
+      );
+      expect(a.chat(localId)['status'], 'secured');
+      expect(b.chat(remoteId)['status'], 'secured');
     },
     skip: url == null
         ? 'Run with loopback serve_isolated.py and SECRET_CHAT_INTEGRATION_URL'

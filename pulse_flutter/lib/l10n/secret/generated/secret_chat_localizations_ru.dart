@@ -88,4 +88,8 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   @override
   String get secretDeleteWarning =>
       'История, вложения и неотправленные сообщения на этом устройстве будут удалены. История собеседника сохранится.';
+
+  @override
+  String get secretVerificationFailed =>
+      'Не удалось сохранить проверку ключа. Сообщения не удалены.';
 }
