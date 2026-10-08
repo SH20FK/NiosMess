@@ -57,6 +57,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   double _desktopChatListWidth = 360.0;
   DateTime? _lastBackPressTime;
   Timer? _startupTimer;
+  Timer? _tabWarmupTimer;
+  bool _mainScrolling = false;
 
   @override
   void initState() {
@@ -66,6 +68,20 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _runStartupSequence();
+      _scheduleTabWarmup();
+    });
+  }
+
+  void _scheduleTabWarmup() {
+    _tabWarmupTimer?.cancel();
+    _tabWarmupTimer = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      if (_tabTransition.isTransitioning || _mainScrolling) { _scheduleTabWarmup(); return; }
+      final pending = List.generate(_tabs.length, (i) => i)
+          .where((i) => !_activatedTabs.contains(i)).firstOrNull;
+      if (pending == null) return;
+      setState(() => _activatedTabs.add(pending));
+      _scheduleTabWarmup();
     });
   }
 
@@ -86,10 +102,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      if (_activatedTabs.length < _tabs.length) _scheduleTabWarmup();
       ref.read(webSocketClientProvider).resumeFromBackground();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
+      _tabWarmupTimer?.cancel();
       ref.read(webSocketClientProvider).pauseForBackground();
     }
   }
@@ -225,6 +243,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   void didUpdateWidget(covariant MainShellScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tab != widget.tab) {
+      _mainScrolling = false;
       _lastBackPressTime = null;
       final int nextIndex = _tabIndex(widget.tab);
       if (!_activatedTabs.contains(nextIndex)) {
@@ -238,6 +257,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   @override
   void dispose() {
     _startupTimer?.cancel();
+    _tabWarmupTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -428,16 +448,21 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         final bool tabMotion =
             !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
 
-        final Widget body = M3RouteTabSwitcher(
+        final Widget body = NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollStartNotification) _mainScrolling = true;
+            if (notification is ScrollEndNotification) _mainScrolling = false;
+            return false;
+          },
+          child: M3RouteTabSwitcher(
           index: currentIndex,
           controller: _tabTransition,
           animate: tabMotion,
-          slideDistance: tier.isTierA ? (isWide ? 14.0 : 20.0) : 12.0,
           duration: tier.isTierA
               ? (isWide
-                  ? const Duration(milliseconds: 180)
-                  : const Duration(milliseconds: 220))
-              : const Duration(milliseconds: 180),
+                  ? const Duration(milliseconds: 220)
+                  : const Duration(milliseconds: 250))
+              : const Duration(milliseconds: 220),
           children: List<Widget>.generate(pages.length, (int index) {
             if (!_activatedTabs.contains(index)) {
               return const SizedBox.shrink();
@@ -448,7 +473,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               child: RepaintBoundary(child: pages[index]),
             );
           }),
-        );
+        ));
 
         if (isWide) {
           return Scaffold(
@@ -658,4 +683,3 @@ class _DraggableSidebarDividerState extends State<_DraggableSidebarDivider> {
     );
   }
 }
-

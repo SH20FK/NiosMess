@@ -1,26 +1,17 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
-
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
-/// Backward-compatibility hook for legacy callers expecting [TabTransitionController].
+/// Compatibility hook and warm-up gate. No raster snapshots are retained.
 class TabTransitionController {
-  /// No-op in modern M3RouteTabSwitcher (raster captures are eliminated).
+  bool isTransitioning = false;
   void captureOutgoing() {}
 }
 
-/// Material 3 Expressive & Metrolist-inspired tab route switcher.
-///
-/// Key design characteristics:
-/// 1. Strict logical pixel-to-fraction spatial slide calculated dynamically via
-///    [LayoutBuilder] (`slideDistance / constraints.maxWidth`).
-/// 2. Asymmetric transition: incoming tab fades and slides into position,
-///    while outgoing tab strictly fades out in place (zero slide, 0 dp).
-/// 3. Monotonic rapid-tap retargeting without phase jumps, reverse glitches,
-///    or intermediate frame snapping.
-/// 4. Synchronous transition notifications via [onTransitionStateChanged] to allow
-///    pausing background tickers and list rebuilds during flight.
-/// 5. Zero raster image snapshots ([toImageSync]), eliminating GPU offscreen allocations.
+enum _Phase { idle, outgoing, incoming }
+
+/// Persistent tab subtrees with a two-phase Material fade-through transition.
+/// Rapid selections change the destination, never restart opacity at a boundary.
 class M3RouteTabSwitcher extends StatefulWidget {
   const M3RouteTabSwitcher({
     required this.index,
@@ -31,213 +22,178 @@ class M3RouteTabSwitcher extends StatefulWidget {
     this.duration,
     this.onTransitionStateChanged,
     super.key,
-  });
-
+  }) : assert(index >= 0 && index < children.length);
   final int index;
   final List<Widget> children;
   final TabTransitionController? controller;
-
-  /// Whether transitions should animate. When false, switches instantly.
   final bool animate;
 
-  /// Spatial travel distance for the incoming page in logical pixels.
-  /// Defaults to 20.0 dp on mobile and 14.0 dp on desktop.
+  /// Retained for source compatibility; fade through has no lateral movement.
   final double? slideDistance;
-
-  /// Duration of the transition.
-  /// Defaults to 220 ms on mobile and 180 ms on desktop.
   final Duration? duration;
-
-  /// Called when a page transition starts (`true`) or completes (`false`).
   final ValueChanged<bool>? onTransitionStateChanged;
-
   @override
   State<M3RouteTabSwitcher> createState() => _M3RouteTabSwitcherState();
 }
 
 class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  int _currentIndex = 0;
-  int? _outgoingIndex;
-  int _direction = 1; // 1 = forward (moving right), -1 = backward (moving left)
-
-  bool get _isDesktop =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.windows ||
-          defaultTargetPlatform == TargetPlatform.macOS ||
-          defaultTargetPlatform == TargetPlatform.linux);
-
-  Duration get _effectiveDuration {
-    if (widget.duration != null) return widget.duration!;
-    return _isDesktop
-        ? const Duration(milliseconds: 180)
-        : const Duration(milliseconds: 200);
-  }
-
-  double get _effectiveSlideDistance {
-    if (widget.slideDistance != null) return widget.slideDistance!;
-    return _isDesktop ? 12.0 : 16.0;
-  }
+  late final AnimationController _opacity;
+  late int _visible;
+  late int _target;
+  _Phase _phase = _Phase.idle;
+  int _generation = 0;
+  bool _busy = false;
+  double _heldScale = 1;
+  double _scaleStart = 1;
+  bool get _reduced =>
+      !widget.animate || MediaQuery.maybeDisableAnimationsOf(context) == true;
+  Duration get _duration =>
+      widget.duration ?? const Duration(milliseconds: 250);
+  double get _scale => _phase == _Phase.incoming
+      ? _scaleStart +
+            (1 - _scaleStart) * M3SpringCurves.gentle.transform(_opacity.value)
+      : _heldScale;
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.index;
-    _controller = AnimationController(
-      vsync: this,
-      duration: _effectiveDuration,
-    )..addStatusListener(_onStatus);
-
-
+    _visible = _target = widget.index;
+    _opacity = AnimationController(vsync: this, value: 1);
   }
 
-  void _onStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed) {
-      if (mounted && _outgoingIndex != null) {
-        setState(() {
-          _outgoingIndex = null;
-        });
-        widget.onTransitionStateChanged?.call(false);
-      }
-    }
+  void _notify(bool busy) {
+    widget.controller?.isTransitioning = busy;
+    if (_busy == busy) return;
+    _busy = busy;
+    widget.onTransitionStateChanged?.call(busy);
+  }
+
+  void _jump() {
+    _generation++;
+    _opacity.stop();
+    _visible = _target = widget.index;
+    _phase = _Phase.idle;
+    _heldScale = _scaleStart = 1;
+    _opacity.value = 1;
+    _notify(false);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_reduced && _busy) _jump();
   }
 
   @override
   void didUpdateWidget(covariant M3RouteTabSwitcher oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _controller.duration = _effectiveDuration;
-
-    if (oldWidget.index != widget.index) {
-      if (widget.index == _currentIndex && _outgoingIndex == null) {
-        return;
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.isTransitioning = false;
+      widget.controller?.isTransitioning = _busy;
+    }
+    if (_reduced || _duration == Duration.zero) {
+      _jump();
+      return;
+    }
+    if (oldWidget.index == widget.index) return;
+    _target = widget.index;
+    if (_phase == _Phase.outgoing && _target != _visible) return;
+    if (_target == _visible) {
+      if (_phase == _Phase.outgoing) {
+        // Return to the page still on screen, retaining its current scale.
+        final progress = M3SpringCurves.gentle.transform(_opacity.value);
+        _scaleStart = progress == 1
+            ? 1
+            : (_heldScale - progress) / (1 - progress);
+        _phase = _Phase.incoming;
+        unawaited(_drive(false));
       }
+      return;
+    }
+    _heldScale = _scale;
+    _phase = _Phase.outgoing;
+    _notify(true);
+    unawaited(_drive(true));
+  }
 
-      final bool reducedMotion =
-          !widget.animate || MediaQuery.maybeDisableAnimationsOf(context) == true;
-
-      if (reducedMotion) {
-        if (_controller.isAnimating) _controller.stop();
-        setState(() {
-          _currentIndex = widget.index;
-          _outgoingIndex = null;
-        });
-        _controller.value = 1.0;
-        widget.onTransitionStateChanged?.call(false);
-        return;
-      }
-
-      // Metrolist Rapid-Tap Handling:
-      // Retarget smoothly without mid-flight forward(from: 0.0) phase reset.
-      if (_controller.isAnimating) {
-        if (widget.index == _outgoingIndex) {
-          final int temp = _currentIndex;
-          _currentIndex = _outgoingIndex!;
-          _outgoingIndex = temp;
-          _direction = -_direction;
-          _controller.reverse();
-          return;
-        }
-        if (_controller.value < 0.40) {
-          setState(() {
-            _direction = widget.index > (_outgoingIndex ?? 0) ? 1 : -1;
-            _currentIndex = widget.index;
-          });
-          return;
-        } else {
-          _controller.stop();
-          _outgoingIndex = _currentIndex;
-          _currentIndex = widget.index;
-          _direction = widget.index > _outgoingIndex! ? 1 : -1;
-          _controller.forward(from: 0.0);
-        }
-      } else {
-        setState(() {
-          _direction = widget.index > oldWidget.index ? 1 : -1;
-          _outgoingIndex = _currentIndex;
-          _currentIndex = widget.index;
-        });
-        widget.onTransitionStateChanged?.call(true);
-        _controller.forward(from: 0.0);
-      }
+  Future<void> _drive(bool outgoing) async {
+    final generation = ++_generation;
+    _opacity.stop();
+    final remaining = outgoing ? _opacity.value : 1 - _opacity.value;
+    final micros =
+        (_duration.inMicroseconds * (outgoing ? .35 : .65) * remaining).round();
+    try {
+      await _opacity
+          .animateTo(
+            outgoing ? 0 : 1,
+            duration: Duration(microseconds: micros),
+            curve: outgoing
+                ? M3SpringCurves.expressiveAccel
+                : M3SpringCurves.expressiveDecel,
+          )
+          .orCancel;
+    } on TickerCanceled {
+      return;
+    }
+    if (!mounted || generation != _generation) return;
+    if (outgoing) {
+      setState(() {
+        _visible = _target;
+        _phase = _Phase.incoming;
+        _scaleStart = .985;
+      });
+      unawaited(_drive(false));
+    } else {
+      setState(() {
+        _phase = _Phase.idle;
+        _heldScale = 1;
+      });
+      _notify(false);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _generation++;
+    widget.controller?.isTransitioning = false;
+    _opacity.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final bool reducedMotion =
-        !widget.animate || MediaQuery.maybeDisableAnimationsOf(context) == true;
-
-    // Steady state: single IndexedStack, zero animation, layer, or ticker overhead.
-    if (_outgoingIndex == null || reducedMotion) {
-      return IndexedStack(
-        index: _currentIndex,
-        children: widget.children,
-      );
-    }
-
-    // Animating state: M3 Expressive "fade through". The outgoing page fades
-    // out fast; the incoming page fades and scales in only after the old page
-    // is mostly gone. The two pages are never half-transparent at the same
-    // time - that overlap was what made the switch look like a mushy crossfade.
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final double width = constraints.maxWidth;
-        final double effectiveDistance = _effectiveSlideDistance;
-        final double dxFraction = width > 0 ? (effectiveDistance / width) : 0.0;
-
-        final Animation<double> outgoingFade = Tween<double>(begin: 1.0, end: 0.0)
-            .animate(CurvedAnimation(
-          parent: _controller,
-          curve: const Interval(0.0, 0.40, curve: Curves.easeInCubic),
-        ));
-
-        final Animation<double> incomingFade = Tween<double>(begin: 0.0, end: 1.0)
-            .animate(CurvedAnimation(
-          parent: _controller,
-          curve: const Interval(0.40, 1.0, curve: M3SpringCurves.expressiveDecel),
-        ));
-
-        final Animation<Offset> incomingSlide = Tween<Offset>(
-          begin: Offset(_direction * dxFraction, 0.0),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(
-          parent: _controller,
-          curve: const Interval(0.40, 1.0, curve: M3SpringCurves.expressiveDecel),
-        ));
-
-        return Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            // Outgoing page: fades out in place, touches ignored.
-            if (_outgoingIndex != null &&
-                _outgoingIndex! >= 0 &&
-                _outgoingIndex! < widget.children.length)
-              IgnorePointer(
-                child: FadeTransition(
-                  opacity: outgoingFade,
-                  child: widget.children[_outgoingIndex!],
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _opacity,
+    builder: (context, _) => Stack(
+      fit: StackFit.expand,
+      children: [
+        for (var i = 0; i < widget.children.length; i++)
+          Offstage(
+            key: ValueKey(i),
+            offstage: i != _visible,
+            child: TickerMode(
+              enabled: i == widget.index && _phase == _Phase.idle,
+              child: ExcludeFocus(
+                excluding: i != widget.index || _phase != _Phase.idle,
+                child: ExcludeSemantics(
+                  excluding: i != widget.index || _phase != _Phase.idle,
+                  child: IgnorePointer(
+                    ignoring: i != widget.index || _phase != _Phase.idle,
+                    child: RepaintBoundary(
+                      child: Opacity(
+                        opacity: i == _visible ? _opacity.value : 1,
+                        child: Transform.scale(
+                          scale: i == _visible ? _scale : 1,
+                          child: widget.children[i],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-
-            // Incoming page: delayed fade + directional slide (strictly no full-page scale).
-            FadeTransition(
-              opacity: incomingFade,
-              child: SlideTransition(
-                position: incomingSlide,
-                child: widget.children[_currentIndex],
-              ),
             ),
-          ],
-        );
-      },
-    );
-  }
+          ),
+      ],
+    ),
+  );
 }

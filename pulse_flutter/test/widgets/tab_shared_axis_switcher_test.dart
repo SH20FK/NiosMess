@@ -76,7 +76,8 @@ void main() {
       );
 
       // Mid-flight: pump partial duration
-      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 110));
+      await tester.pump();
       expect(find.text('Tab 1 Content'), findsOneWidget);
 
       // Settle completely
