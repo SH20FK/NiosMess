@@ -130,7 +130,8 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.3,
                                 ),
                               ),
                             ),
@@ -250,7 +251,7 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
                                 color: isOnline
                                     ? AppColors.statusOnline
                                     : scheme.onSurfaceVariant,
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                             ),
                         ],

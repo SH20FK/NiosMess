@@ -873,7 +873,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                             ),
                             style: TextStyle(
                               color: scheme.onInverseSurface,
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -993,7 +993,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                     const BorderRadius.vertical(top: Radius.circular(16)),
                 border: Border(
                   top: BorderSide(
-                    color: scheme.outlineVariant,
+                    color: scheme.outlineVariant.withValues(alpha: 0.25),
                   ),
                 ),
               ),
@@ -1092,7 +1092,7 @@ class _AlbumLeadingThumbnail extends StatelessWidget {
         }
         return Icon(
           Icons.photo_library_outlined,
-          color: scheme.onSurfaceVariant,
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
         );
       },
     );

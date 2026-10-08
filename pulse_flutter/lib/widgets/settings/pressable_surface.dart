@@ -95,7 +95,7 @@ class _PressableSurfaceState extends ConsumerState<PressableSurface> {
       onLongPress: widget.enabled ? widget.onLongPress : null,
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
-        scale: 1.0,
+        scale: _isPressed ? 0.98 : 1.0,
         duration: Duration(
           milliseconds: _isPressed
               ? AppMotion.durationPress.inMilliseconds

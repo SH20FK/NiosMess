@@ -111,7 +111,14 @@ class _RadialBackdrop extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: primary.withValues(alpha: 0.10),
+        gradient: RadialGradient(
+          colors: <Color>[
+            primary.withValues(alpha: 0.16),
+            accent.withValues(alpha: 0.06),
+            Colors.transparent,
+          ],
+          stops: const <double>[0.0, 0.6, 1.0],
+        ),
       ),
     );
   }
@@ -201,7 +208,7 @@ class MediaErrorIllustration extends StatelessWidget {
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
         borderRadius: radius,
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
       child: Column(

@@ -40,7 +40,7 @@ class UploadProgressOverlay extends StatelessWidget {
     if (stage == UploadStage.failed) {
       progressLabel = 'Не удалось отправить';
     } else if (stage == UploadStage.queued) {
-      progressLabel = 'В очереди, позиция ${queuePosition ?? 1}';
+      progressLabel = 'В очереди · позиция ${queuePosition ?? 1}';
     } else if (stage == UploadStage.processing) {
       progressLabel = 'Обработка...';
     } else if (stage == UploadStage.sendingMessage) {
@@ -53,7 +53,7 @@ class UploadProgressOverlay extends StatelessWidget {
       final List<String> parts = <String>['$percent%'];
       if (speedStr.isNotEmpty) parts.add(speedStr);
       if (etaStr.isNotEmpty) parts.add(etaStr);
-      progressLabel = parts.join(', ');
+      progressLabel = parts.join(' · ');
     } else {
       progressLabel = '$percent%';
     }
@@ -98,7 +98,7 @@ class UploadProgressOverlay extends StatelessWidget {
                         progressLabel,
                         style: TextStyle(
                           color: scheme.error,
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -123,7 +123,7 @@ class UploadProgressOverlay extends StatelessWidget {
                                 'Повторить',
                                 style: TextStyle(
                                   color: scheme.onPrimary,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -148,7 +148,7 @@ class UploadProgressOverlay extends StatelessWidget {
                                 'Отменить',
                                 style: TextStyle(
                                   color: scheme.onSurface,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -231,7 +231,7 @@ class UploadProgressOverlay extends StatelessWidget {
                               '$percent%',
                               style: TextStyle(
                                 color: scheme.onSurface,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -254,7 +254,7 @@ class UploadProgressOverlay extends StatelessWidget {
                         progressLabel,
                         style: TextStyle(
                           color: scheme.onSurface,
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

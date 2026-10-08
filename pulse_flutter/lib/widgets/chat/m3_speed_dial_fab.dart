@@ -272,13 +272,14 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                   color: scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: scheme.outlineVariant,
+                    color: scheme.outlineVariant.withValues(alpha: 0.20),
                   ),
                 ),
                 child: Text(
                   label,
                   style: textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
                     color: scheme.onSurface,
                   ),
                 ),
@@ -293,7 +294,7 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                   color: containerColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: scheme.outlineVariant,
+                    color: scheme.outlineVariant.withValues(alpha: 0.15),
                   ),
                 ),
                 alignment: Alignment.center,
@@ -327,7 +328,7 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.20),
                 width: 1.0,
               ),
             ),

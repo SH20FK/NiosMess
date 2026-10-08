@@ -75,7 +75,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.20),
           ),
         ),
         child: Column(
@@ -120,7 +120,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               label: const Text('Повторить опрос'),
               style: FilledButton.styleFrom(
                 elevation: 0,
-                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                shape: const StadiumBorder(),
               ),
             ),
           ],
@@ -221,7 +221,8 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
                     Text(
                       info.marketingName,
                       style: textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
                         fontSize: 20,
                         color: scheme.onSurface,
                       ),
@@ -299,7 +300,8 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           Text(
             'Память и накопитель',
             style: textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
               color: scheme.onSurface,
             ),
           ),
@@ -327,7 +329,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           Divider(
             height: 1,
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
 
@@ -381,7 +383,8 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               Text(
                 'Характеристики',
                 style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
                   color: scheme.onSurface,
                 ),
               ),
@@ -395,7 +398,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
                   'Нажмите для копирования',
                   style: textTheme.labelSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    fontSize: 12,
+                    fontSize: 10,
                   ),
                 ),
               ),
@@ -415,7 +418,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
             textTheme: textTheme,
           ),
           const SizedBox(height: 12),
-          Divider(height: 1, color: scheme.outlineVariant),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
           const SizedBox(height: 12),
 
           // 2. Display
@@ -430,7 +433,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
             textTheme: textTheme,
           ),
           const SizedBox(height: 12),
-          Divider(height: 1, color: scheme.outlineVariant),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
           const SizedBox(height: 12),
 
           // 3. Cameras
@@ -445,7 +448,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
             textTheme: textTheme,
           ),
           const SizedBox(height: 12),
-          Divider(height: 1, color: scheme.outlineVariant),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.15)),
           const SizedBox(height: 12),
 
           // 4. Operating System & Security
@@ -487,7 +490,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
         text,
         style: textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.w700,
-          fontSize: 12,
+          fontSize: 11,
           color: isAccent ? scheme.primary : scheme.onSurfaceVariant,
         ),
       ),
@@ -513,7 +516,7 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                fontSize: 12,
+                fontSize: 11,
                 color: scheme.onSurface,
               ),
             ),
@@ -605,16 +608,20 @@ class _InteractiveBrandBadge extends StatefulWidget {
 }
 
 class _InteractiveBrandBadgeState extends State<_InteractiveBrandBadge> {
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
       onTap: () {
         HapticService.tap();
       },
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
-        scale: 1.0,
+        scale: _isPressed ? 0.90 : 1.0,
         duration: const Duration(milliseconds: 200),
         curve: M3SpringCurves.bouncy,
         child: M3Container(
@@ -756,8 +763,8 @@ class _AnimatedResourceMeterState extends State<_AnimatedResourceMeter>
             Text(
               widget.subtitle,
               style: widget.textTheme.labelSmall?.copyWith(
-                color: widget.scheme.onSurfaceVariant,
-                fontSize: 12,
+                color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                fontSize: 11,
               ),
             ),
           ],
@@ -794,6 +801,7 @@ class _InteractiveSpecTile extends StatefulWidget {
 }
 
 class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
+  bool _isPressed = false;
 
   void _onTap() {
     HapticService.tap();
@@ -804,10 +812,13 @@ class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
       onTap: _onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
-        scale: 1.0,
+        scale: _isPressed ? 0.98 : 1.0,
         duration: const Duration(milliseconds: 140),
         curve: M3SpringCurves.bouncy,
         child: Padding(
@@ -837,15 +848,16 @@ class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
                       style: widget.textTheme.labelSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: widget.scheme.onSurfaceVariant,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       widget.value,
                       style: widget.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: widget.scheme.onSurface,
+                        fontWeight: FontWeight.w800,
+                        color: widget.scheme.onSurface,
+                        letterSpacing: -0.2,
                         fontSize: 14,
                       ),
                     ),
@@ -853,8 +865,8 @@ class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
                     Text(
                       widget.subtitle,
                       style: widget.textTheme.labelSmall?.copyWith(
-                        color: widget.scheme.onSurfaceVariant,
-                        fontSize: 12,
+                        color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                        fontSize: 11,
                       ),
                     ),
                   ],

@@ -259,7 +259,7 @@ class BadgeChip extends StatelessWidget {
         style: TextStyle(
           color: color,
           fontSize: size * 0.85,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w800,
           height: 1,
         ),
         textAlign: TextAlign.center,
@@ -281,6 +281,13 @@ class BadgeChip extends StatelessWidget {
         child = Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: scheme.primary.withValues(alpha: 0.35),
+                blurRadius: 10,
+                spreadRadius: -2,
+              ),
+            ],
           ),
           child: _buildIcon(resolved, scheme.primary, 18),
         );

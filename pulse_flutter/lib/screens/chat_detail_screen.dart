@@ -168,7 +168,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             color: scheme.surfaceContainerHighest.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: scheme.outlineVariant,
+              color: scheme.outlineVariant.withValues(alpha: 0.25),
               width: 0.8,
             ),
           ),
@@ -253,12 +253,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
     _lastScreenshotAlertTime = now;
     HapticService.confirm();
-    AppToast.showInfo(context, 'В секретном чате сделан снимок экрана');
+    AppToast.showInfo(context, 'В секретном чате зафиксирован снимок экрана');
     final int? chatId = _chatId;
     if (chatId != null) {
       ref
           .read(chatMessagesProvider(chatId).notifier)
-          .send('Сделан снимок экрана');
+          .send('📷 Снимок экрана был зафиксирован');
     }
   }
 
@@ -541,7 +541,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                             color: scheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: scheme.outlineVariant,
+                              color: scheme.outlineVariant.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Row(
@@ -1666,15 +1666,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (mediaUrl != null && mediaUrl.trim().isNotEmpty) {
       final String caption = message.content.trim();
       if (_isImageMedia(message, mediaUrl)) {
-        return caption.isNotEmpty ? caption : context.l10n.chatPreviewPhoto;
+        return caption.isNotEmpty ? '📷 $caption' : context.l10n.chatPreviewPhoto;
       }
       if (_isVideoMedia(message, mediaUrl)) {
-        return caption.isNotEmpty ? caption : context.l10n.chatPreviewVideo;
+        return caption.isNotEmpty ? '🎥 $caption' : context.l10n.chatPreviewVideo;
       }
       final String name = (message.mediaName ?? '').trim();
       final String label =
           name.isNotEmpty ? name : _mediaLabel(message, mediaUrl);
-      return caption.isNotEmpty ? '$label: $caption' : label;
+      return caption.isNotEmpty ? '📎 $label • $caption' : '📎 $label';
     }
 
     if (message.isCallEvent) {

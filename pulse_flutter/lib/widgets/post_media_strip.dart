@@ -64,7 +64,7 @@ class PostMediaStrip extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: scheme.outlineVariant,
+                      color: scheme.outlineVariant.withValues(alpha: 0.35),
                     ),
                   ),
                   child: Column(
@@ -81,7 +81,7 @@ class PostMediaStrip extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: scheme.primary,
                         ),
@@ -123,7 +123,7 @@ class PostMediaStrip extends StatelessWidget {
                             Text(
                               'Видео',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 color: scheme.primary,
                               ),

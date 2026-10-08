@@ -284,7 +284,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                 child: Icon(
                   Icons.add_rounded,
                   size: 24,
-                  color: scheme.onSurfaceVariant,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
                 ),
               ),
             ),
@@ -340,7 +340,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           child: Icon(
             Icons.add_rounded,
             size: 24,
-            color: scheme.onSurfaceVariant,
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
           ),
         ),
       ),
@@ -914,7 +914,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
               border: effectivePanelHeight > 0
                   ? Border(
                       top: BorderSide(
-                        color: scheme.outlineVariant,
+                        color: scheme.outlineVariant.withValues(alpha: 0.2),
                         width: 1,
                       ),
                     )
@@ -1137,7 +1137,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
         backgroundColor: Colors.transparent,
         tabBarHeight: 38,
         indicatorColor: scheme.primary,
-        iconColor: scheme.onSurfaceVariant,
+        iconColor: scheme.onSurfaceVariant.withValues(alpha: 0.5),
         iconColorSelected: scheme.primary,
         backspaceColor: scheme.onSurfaceVariant,
         dividerColor: Colors.transparent,

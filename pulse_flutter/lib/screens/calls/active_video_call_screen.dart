@@ -281,7 +281,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                                   'E2EE ЗАЩИЩЕНО',
                                   style: textTheme.labelSmall?.copyWith(
                                     color: scheme.onSurfaceVariant,
-                                    fontSize: 12,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 0.6,
                                   ),
@@ -301,7 +301,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                                       context.l10n.callListenerModeNotice,
                                       style: TextStyle(
                                         color: scheme.primary,
-                                        fontSize: 12,
+                                        fontSize: 9,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -373,7 +373,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                       borderRadius:
                           BorderRadius.circular(CallTokens.pipBorderRadius),
                       border: Border.all(
-                        color: scheme.outlineVariant,
+                        color: scheme.outlineVariant.withValues(alpha: 0.35),
                         width: 1.5,
                       ),
                     ),
@@ -500,7 +500,7 @@ class _NoVideoPlaceholder extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.3),
                   width: 2,
                 ),
               ),
@@ -529,7 +529,7 @@ class _NoVideoPlaceholder extends StatelessWidget {
                 color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.2),
                 ),
               ),
               child: Row(

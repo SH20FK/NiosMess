@@ -64,8 +64,26 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    colors: <Color>[
+                      scheme.primaryContainer,
+                      scheme.surfaceContainerHigh,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: scheme.primary.withValues(alpha: 0.35),
+                    width: 1.5,
+                  ),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: scheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
                 alignment: Alignment.center,
                 child: const AppLogoMark(size: 44),
@@ -101,7 +119,7 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
               color: scheme.primary.withValues(alpha: isDark ? 0.18 : 0.10),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(100),
               border: Border.all(
                 color: scheme.primary.withValues(alpha: isDark ? 0.35 : 0.25),
               ),
@@ -122,8 +140,8 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
                   'ALPHA PRE-RELEASE',
                   style: TextStyle(
                     color: scheme.primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
                     letterSpacing: 1.1,
                   ),
                 ),
@@ -136,7 +154,8 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
           Text(
             context.l10n.alphaDialogTitle,
             style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
               color: scheme.onSurface,
             ),
             textAlign: TextAlign.center,
@@ -185,7 +204,7 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
                     Text(
                       context.l10n.alphaDialogReportTo,
                       style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
                         color: scheme.onSurface,
                         fontSize: 13,
                       ),
@@ -234,8 +253,9 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
               child: Text(
                 context.l10n.alphaDialogUnderstood,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w800,
                   fontSize: 15,
+                  letterSpacing: -0.2,
                 ),
               ),
             ),

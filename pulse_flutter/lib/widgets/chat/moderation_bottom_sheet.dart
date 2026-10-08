@@ -179,7 +179,7 @@ class _ModerationBottomSheetState extends ConsumerState<ModerationBottomSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: scheme.outlineVariant,
+                    color: scheme.outlineVariant.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),

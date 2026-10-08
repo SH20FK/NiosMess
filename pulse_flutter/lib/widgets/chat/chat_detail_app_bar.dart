@@ -165,7 +165,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                           child: Text(
                             title,
                             style: textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w800,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -212,7 +212,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   Text(
                                     autoDeleteDuration!,
                                     style: textTheme.labelSmall?.copyWith(
-                                      fontSize: 12,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                       color: isSecret
                                           ? scheme.onSecondaryContainer

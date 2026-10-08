@@ -1,7 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
+import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
@@ -25,7 +27,8 @@ class MessageActionResult {
   final String? emoji;
 }
 
-/// Message context actions: quick reactions and a flat action list.
+/// Unified Material 3 Expressive message context actions modal.
+/// Single surface, flat action list, real media/sticker thumbnails, and zero flower-clip noise.
 class MessageContextMenuSheet extends StatelessWidget {
   const MessageContextMenuSheet({
     required this.message,
@@ -73,12 +76,18 @@ class MessageContextMenuSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
+    // SingleChildScrollView allows smooth scrolling on text scale 2.0 / landscape.
+    // Bottom padding is managed by AppModal, eliminating duplicate SafeArea insets.
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          // 1. Compact Message Preview with real thumbnail
+          _MessagePreviewCard(message: message, isMine: isMine),
+          const SizedBox(height: 10),
+
           // 2. Horizontal Quick Reactions (48dp touch targets, semantics, clean circles)
           _ReactionsRow(
             scheme: scheme,
@@ -86,7 +95,8 @@ class MessageContextMenuSheet extends StatelessWidget {
             onShowAllReactions: onShowAllReactions,
           ),
           const SizedBox(height: 10),
-          const Divider(height: 1),
+          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.2)),
+          const SizedBox(height: 4),
 
           // 3. Flat Action List
           ..._buildStandardActions(context, scheme),
@@ -184,7 +194,15 @@ class MessageContextMenuSheet extends StatelessWidget {
     final List<Widget> list = <Widget>[];
 
     if (isMine || amAdminOrOwner) {
-      list.add(_ActionListTile(
+      list.add(Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Container(
+          decoration: BoxDecoration(
+            color: scheme.errorContainer.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.error.withValues(alpha: 0.2)),
+          ),
+          child: _ActionListTile(
             icon: Icons.delete_outline_rounded,
             title: context.l10n.chatDelete,
             color: scheme.error,
@@ -192,9 +210,19 @@ class MessageContextMenuSheet extends StatelessWidget {
               Navigator.of(context).pop(const MessageActionResult(MessageActionType.delete));
               onDelete?.call();
             },
-          ));
+          ),
+        ),
+      ));
     } else {
-      list.add(_ActionListTile(
+      list.add(Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Container(
+          decoration: BoxDecoration(
+            color: scheme.errorContainer.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.error.withValues(alpha: 0.15)),
+          ),
+          child: _ActionListTile(
             icon: Icons.flag_outlined,
             title: context.l10n.reportMessage,
             color: scheme.error,
@@ -202,7 +230,9 @@ class MessageContextMenuSheet extends StatelessWidget {
               Navigator.of(context).pop(const MessageActionResult(MessageActionType.report));
               onReport?.call();
             },
-          ));
+          ),
+        ),
+      ));
     }
 
     return list;
@@ -212,6 +242,136 @@ class MessageContextMenuSheet extends StatelessWidget {
 class _QuickReaction {
   const _QuickReaction({required this.emoji});
   final String emoji;
+}
+
+class _MessagePreviewCard extends StatelessWidget {
+  const _MessagePreviewCard({required this.message, required this.isMine});
+
+  final ApiMessage message;
+  final bool isMine;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    String previewText = message.content.trim();
+    if (previewText.isEmpty) {
+      if (message.isSticker) {
+        final String emoji = message.sticker?.emoji.trim() ?? '';
+        previewText = emoji.isNotEmpty
+            ? '${context.l10n.chatPreviewSticker} $emoji'
+            : context.l10n.chatPreviewSticker;
+      } else if (message.msgType == 'voice' ||
+          (message.mediaType ?? '').toLowerCase().startsWith('audio/')) {
+        previewText = context.l10n.chatPreviewVoice;
+      } else if (message.msgType == 'circle' ||
+          message.msgType == 'circle_video' ||
+          message.msgType == 'video_note') {
+        previewText = context.l10n.chatPreviewVideoNote;
+      } else if (message.hasMedia) {
+        final String name = (message.mediaName ?? '').trim();
+        previewText = name.isNotEmpty ? name : context.l10n.chatPreviewFile;
+      }
+    }
+
+    // Resolve real thumbnail for sticker or image
+    Widget? thumbnail;
+    if (message.isSticker && message.sticker?.resolvedUrl != null) {
+      thumbnail = ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: CachedNetworkImage(
+          imageUrl: message.sticker!.resolvedUrl,
+          width: 38,
+          height: 38,
+          fit: BoxFit.contain,
+          errorWidget: (_, _, _) => Icon(Icons.sticky_note_2_rounded, size: 20, color: scheme.primary),
+        ),
+      );
+    } else if (message.hasMedia &&
+        message.mediaUrl != null &&
+        (message.msgType == 'image' || (message.mediaType ?? '').startsWith('image/'))) {
+      thumbnail = ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: CachedNetworkImage(
+          imageUrl: message.mediaUrl!,
+          width: 38,
+          height: 38,
+          fit: BoxFit.cover,
+          errorWidget: (_, _, _) => Icon(Icons.image_rounded, size: 20, color: scheme.primary),
+        ),
+      );
+    } else if (message.hasMedia) {
+      final IconData iconData = message.msgType == 'voice' ||
+              (message.mediaType ?? '').startsWith('audio/')
+          ? Icons.mic_rounded
+          : message.msgType == 'video' || (message.mediaType ?? '').startsWith('video/')
+              ? Icons.videocam_rounded
+              : Icons.insert_drive_file_rounded;
+      thumbnail = Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.center,
+        child: Icon(iconData, size: 20, color: scheme.primary),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 3,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isMine ? scheme.primary : scheme.secondary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (previewText.isNotEmpty)
+                  Text(
+                    previewText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      height: 1.2,
+                    ),
+                  ),
+                const SizedBox(height: 2),
+                Text(
+                  formatMessageTime(message.resolvedSentAt),
+                  style: textTheme.labelSmall?.copyWith(
+                    fontSize: 10,
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (thumbnail != null) ...<Widget>[
+            const SizedBox(width: 8),
+            thumbnail,
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _ReactionsRow extends ConsumerWidget {
@@ -227,7 +387,13 @@ class _ReactionsRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Row(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: <Widget>[
           for (final reaction in MessageContextMenuSheet._quickReactions)
@@ -266,6 +432,7 @@ class _ReactionsRow extends ConsumerWidget {
             ),
           ),
         ],
+      ),
     );
   }
 }
@@ -308,8 +475,8 @@ class _ActionListTile extends StatelessWidget {
           ? Text(
               subtitle!,
               style: TextStyle(
-                color: scheme.onSurfaceVariant,
-                fontSize: 12,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                fontSize: 11,
               ),
             )
           : null,

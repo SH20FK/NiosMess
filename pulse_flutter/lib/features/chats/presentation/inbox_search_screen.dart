@@ -196,7 +196,7 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadii.xl),
               side: BorderSide(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
               ),
             ),
             child: ClipRRect(

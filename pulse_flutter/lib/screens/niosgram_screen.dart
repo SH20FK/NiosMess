@@ -71,7 +71,8 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
         title: Text(
           context.l10n.niosgramTitle,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
                 color: scheme.onSurface,
               ),
         ),
@@ -196,7 +197,7 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
           heroTag: 'niosgram_scroll_top',
           backgroundColor: scheme.surfaceContainerHigh,
           foregroundColor: scheme.onSurfaceVariant,
-          elevation: 0,
+          elevation: 2,
           onPressed: () {
             if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
             _scrollController.animateTo(
@@ -237,6 +238,14 @@ class _NiosgramQuickCreateFab extends StatelessWidget {
           width: 58,
           height: 58,
           decoration: BoxDecoration(
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: scheme.primary.withValues(alpha: 0.30),
+                blurRadius: 14,
+                spreadRadius: 1,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
           child: ClipPath(
             clipper: M3Clipper(Shapes.c9_sided_cookie),
@@ -324,6 +333,13 @@ class _NotificationsBell extends ConsumerWidget {
                   color: scheme.error,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: scheme.surface, width: 1.5),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: scheme.error.withValues(alpha: 0.35),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
                 constraints:
                     const BoxConstraints(minWidth: 18, minHeight: 16),
@@ -331,8 +347,8 @@ class _NotificationsBell extends ConsumerWidget {
                   count > 99 ? '99+' : '$count',
                   style: TextStyle(
                     color: scheme.onError,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -384,7 +400,8 @@ class _NotificationsBell extends ConsumerWidget {
                       Text(
                         isRu ? 'Уведомления' : 'Notifications',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
                             ),
                       ),
                       const Spacer(),
@@ -405,7 +422,7 @@ class _NotificationsBell extends ConsumerWidget {
                 ),
                 Divider(
                   height: 1,
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.2),
                 ),
                 Expanded(
                   child: list.isEmpty
@@ -465,7 +482,7 @@ class _NotificationsBell extends ConsumerWidget {
                           separatorBuilder: (context, index) => Divider(
                             height: 1,
                             indent: 68,
-                            color: scheme.outlineVariant,
+                            color: scheme.outlineVariant.withValues(alpha: 0.15),
                           ),
                           itemBuilder: (BuildContext context, int index) {
                             final n = list[index];
@@ -710,6 +727,15 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
           ),
           width: 1,
         ),
+        boxShadow: isDark
+            ? null
+            : <BoxShadow>[
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
       ),
       padding: EdgeInsets.all(_isExpanded ? 16 : 10),
       child: ClipRRect(
@@ -978,7 +1004,7 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                                           ? scheme.error
                                           : scheme.onSurfaceVariant
                                               .withValues(alpha: 0.6),
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       fontWeight: isNearLimit
                                           ? FontWeight.w700
                                           : FontWeight.w500,

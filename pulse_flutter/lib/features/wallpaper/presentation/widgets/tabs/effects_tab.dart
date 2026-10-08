@@ -118,7 +118,7 @@ class EffectsTab extends StatelessWidget {
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHigh.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: scheme.outlineVariant),
+              border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: <Widget>[

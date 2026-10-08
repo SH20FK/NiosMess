@@ -91,7 +91,7 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
                     color: colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: colorScheme.outlineVariant,
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.18),
                     ),
                   ),
                   child: Row(

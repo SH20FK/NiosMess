@@ -85,7 +85,8 @@ class MyQrCodeSheet extends ConsumerWidget {
           Text(
             isSelf ? 'Мой QR-код' : 'QR-код профиля',
             style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
               color: scheme.onSurface,
             ),
           ),
@@ -107,7 +108,7 @@ class MyQrCodeSheet extends ConsumerWidget {
                 color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.2),
                 ),
               ),
               child: Stack(
@@ -283,8 +284,8 @@ class MyQrCodeSheet extends ConsumerWidget {
               AppToast.showSuccess(
                 context,
                 isSelf
-                    ? 'Ваш персональный узор установлен как обои'
-                    : 'Фирменный узор установлен как ваши обои',
+                    ? 'Ваш персональный узор установлен как обои!'
+                    : 'Фирменный узор установлен как ваши обои!',
               );
             },
             icon: const Icon(Icons.wallpaper_rounded, size: 20),

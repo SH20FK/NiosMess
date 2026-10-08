@@ -67,8 +67,19 @@ class AppUpdateDialog extends ConsumerWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: <Color>[
+                      scheme.primaryContainer,
+                      scheme.primary.withValues(alpha: 0.18),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: scheme.primary.withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
                 ),
                 child: Center(
                   child: Icon(
@@ -86,7 +97,8 @@ class AppUpdateDialog extends ConsumerWidget {
                     Text(
                       context.l10n.updateAvailable,
                       style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
                         color: scheme.onSurface,
                       ),
                     ),
@@ -144,7 +156,7 @@ class AppUpdateDialog extends ConsumerWidget {
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.35),
                 ),
               ),
               child: SingleChildScrollView(

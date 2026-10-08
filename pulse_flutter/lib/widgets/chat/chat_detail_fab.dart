@@ -49,7 +49,7 @@ class ChatDetailScrollToBottomFAB extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(
-                    color: scheme.outlineVariant,
+                    color: scheme.outlineVariant.withValues(alpha: 0.35),
                     width: 1.0,
                   ),
                 ),

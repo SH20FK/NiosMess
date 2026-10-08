@@ -163,7 +163,7 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
       await ref.read(stickerSetsProvider.notifier).refresh();
 
       if (mounted) {
-        AppToast.showSuccess(context, 'Стикерпак успешно создан');
+        AppToast.showSuccess(context, 'Стикерпак успешно создан!');
         Navigator.pop(context, newSet);
       }
     } catch (e) {
@@ -194,7 +194,7 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -275,7 +275,7 @@ class _CreateStickerSetDialogState extends ConsumerState<CreateStickerSetDialog>
                 border: Border.all(
                   color: _pickedBytes != null
                       ? scheme.primary
-                      : scheme.outlineVariant,
+                      : scheme.outlineVariant.withValues(alpha: 0.5),
                   width: _pickedBytes != null ? 1.5 : 1.0,
                 ),
               ),

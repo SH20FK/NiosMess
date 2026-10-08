@@ -245,7 +245,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                 decoration: InputDecoration(
                   hintText: 'Поиск по документу...',
                   hintStyle: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
                   ),
                   border: InputBorder.none,
                 ),
@@ -253,7 +253,8 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
             : Text(
                 _screenTitle,
                 style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
                   color: scheme.onSurface,
                 ),
               ),
@@ -375,7 +376,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
         color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
           width: 1.2,
         ),
       ),
@@ -404,7 +405,8 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                     Text(
                       _screenTitle,
                       style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
                         color: scheme.onSurface,
                       ),
                     ),
@@ -480,7 +482,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
         border: Border.all(
           color: isAccent
               ? scheme.primary.withValues(alpha: 0.3)
-              : scheme.outlineVariant,
+              : scheme.outlineVariant.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -523,8 +525,8 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                 section.number,
                 style: textTheme.labelSmall?.copyWith(
                   color: isSpecial ? scheme.onPrimary : scheme.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 10,
                 ),
               ),
             ),
@@ -533,7 +535,8 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.1,
               ),
             ),
             backgroundColor: scheme.surfaceContainerLow,
@@ -542,7 +545,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
               side: BorderSide(
                 color: isSpecial
                     ? scheme.primary.withValues(alpha: 0.4)
-                    : scheme.outlineVariant,
+                    : scheme.outlineVariant.withValues(alpha: 0.35),
               ),
             ),
             onPressed: () => _scrollToSection(index),
@@ -560,7 +563,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -606,7 +609,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
         ? scheme.primary.withValues(alpha: 0.35)
         : isSanction
             ? scheme.tertiary.withValues(alpha: 0.28)
-            : scheme.outlineVariant;
+            : scheme.outlineVariant.withValues(alpha: 0.35);
 
     return Container(
       decoration: BoxDecoration(
@@ -641,7 +644,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                     color: isSpecial || isSanction
                         ? scheme.onPrimary
                         : scheme.primary,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -650,7 +653,8 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                 child: Text(
                   section.title,
                   style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
                     color: scheme.onSurface,
                   ),
                 ),
@@ -662,7 +666,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                     ? scheme.primary
                     : isSanction
                         ? scheme.tertiary
-                        : scheme.onSurfaceVariant,
+                        : scheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ],
           ),
@@ -737,8 +741,8 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                   subNum,
                   style: textTheme.labelSmall?.copyWith(
                     color: scheme.onSecondaryContainer,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
                   ),
                 ),
               ),
@@ -944,7 +948,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                 number,
                 style: textTheme.labelSmall?.copyWith(
                   color: scheme.onSecondaryContainer,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: 0.2,
                 ),
               ),
@@ -956,7 +960,8 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
               child: Text(
                 title,
                 style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.1,
                   color: scheme.onSurface,
                 ),
               ),
@@ -979,7 +984,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.25),
         ),
       ),
       child: Column(
@@ -993,8 +998,9 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                 child: Text(
                   term,
                   style: textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: scheme.primary,
+                    fontWeight: FontWeight.w800,
+                    color: scheme.primary,
+                    letterSpacing: -0.1,
                   ),
                 ),
               ),
@@ -1046,7 +1052,8 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
                   topic,
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: scheme.onSurface,
+                    color: scheme.onSurface,
+                    letterSpacing: -0.1,
                   ),
                 ),
               ),
@@ -1173,7 +1180,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
         color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.4),
         ),
       ),
       child: Row(
@@ -1215,7 +1222,7 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
         color: scheme.surface,
         border: Border(
           top: BorderSide(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.25),
           ),
         ),
       ),

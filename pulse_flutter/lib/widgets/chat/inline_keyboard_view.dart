@@ -64,7 +64,7 @@ class InlineButtonColors {
         return InlineButtonColors(
           background: scheme.surfaceContainerHigh.withValues(alpha: isDark ? 0.70 : 0.85),
           foreground: scheme.onSurface,
-          border: scheme.outlineVariant,
+          border: scheme.outlineVariant.withValues(alpha: 0.40),
           ripple: scheme.onSurface.withValues(alpha: 0.12),
         );
     }

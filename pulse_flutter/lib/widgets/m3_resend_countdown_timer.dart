@@ -110,7 +110,7 @@ class _M3ResendCountdownTimerState extends State<M3ResendCountdownTimer> {
           color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.2),
             width: 1,
           ),
         ),

@@ -178,7 +178,7 @@ class PostCardSkeleton extends StatelessWidget {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.20),
         ),
       ),
       child: Column(

@@ -43,7 +43,7 @@ class _WorkingHoursWidgetState extends State<WorkingHoursWidget> {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -136,7 +136,7 @@ class _WorkingHoursWidgetState extends State<WorkingHoursWidget> {
           if (_isExpanded) ...<Widget>[
             Divider(
               height: 1,
-              color: scheme.outlineVariant,
+              color: scheme.outlineVariant.withValues(alpha: 0.3),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
@@ -166,7 +166,7 @@ class _WorkingHoursWidgetState extends State<WorkingHoursWidget> {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Material(
@@ -213,7 +213,7 @@ class _WorkingHoursWidgetState extends State<WorkingHoursWidget> {
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
                   color: intervals.isEmpty
-                      ? scheme.onSurfaceVariant
+                      ? scheme.onSurfaceVariant.withValues(alpha: 0.7)
                       : (isToday ? scheme.primary : scheme.onSurfaceVariant),
                 ),
           ),

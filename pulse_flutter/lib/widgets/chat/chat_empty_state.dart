@@ -221,7 +221,7 @@ class ChatEmptyState extends StatelessWidget {
               color: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.22),
               ),
             ),
             child: Column(
@@ -246,7 +246,8 @@ class ChatEmptyState extends StatelessWidget {
                   title.isNotEmpty ? title : 'Секретный чат',
                   textAlign: TextAlign.center,
                   style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -263,7 +264,7 @@ class ChatEmptyState extends StatelessWidget {
                 const SizedBox(height: 16),
                 Divider(
                   height: 1,
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.18),
                 ),
                 const SizedBox(height: 14),
                 _buildSecurityRow(
@@ -364,8 +365,8 @@ class ChatEmptyState extends StatelessWidget {
               Text(
                 subtitle,
                 style: textTheme.bodySmall?.copyWith(
-                  fontSize: 12,
-                  color: scheme.onSurfaceVariant,
+                  fontSize: 11,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
                   height: 1.25,
                 ),
               ),

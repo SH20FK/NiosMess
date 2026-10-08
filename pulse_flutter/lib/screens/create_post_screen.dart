@@ -321,6 +321,15 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                             ),
                           )
                         : null,
+                    boxShadow: isWide && !isDark
+                        ? <BoxShadow>[
+                            BoxShadow(
+                              color: scheme.shadow.withValues(alpha: 0.04),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
                   ),
                   padding: EdgeInsets.all(isWide ? 20 : 0),
                   child: Column(
@@ -528,7 +537,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                 ? scheme.error
                                 : scheme.onSurfaceVariant
                                     .withValues(alpha: 0.6),
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: _textController.text.length >
                                     (_maxPostLength - 200)
                                 ? FontWeight.w700

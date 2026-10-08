@@ -170,7 +170,7 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
                 color: scheme.surfaceContainerLow.withValues(alpha: 0.84),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.16),
                 ),
               ),
               child: Column(
@@ -235,7 +235,7 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: scheme.surfaceContainerHighest.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -254,7 +254,7 @@ class _JoinChatScreenState extends ConsumerState<JoinChatScreen> {
         color: scheme.surfaceContainerLow.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.16),
         ),
       ),
       child: Column(

@@ -48,7 +48,7 @@ final _palettes = <_PaletteEntry>[
 const _customColorPresets = <Color>[
   Color(0xFF6750A4), // Amethyst Violet
   Color(0xFF3F51B5), // Indigo
-  Color(0xFF3B5FB0), // Royal Blue
+  Color(0xFF2563EB), // Royal Blue
   Color(0xFF0284C7), // Sky
   Color(0xFF00838F), // Cyan
   Color(0xFF006C5B), // Lagoon Teal
@@ -466,7 +466,7 @@ class NiosColorField extends StatelessWidget {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.20),
           width: 1,
         ),
       ),
@@ -524,8 +524,16 @@ class NiosColorField extends StatelessWidget {
               height: 136,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  colors: [
+                    scheme.primaryContainer,
+                    scheme.secondaryContainer,
+                    scheme.tertiaryContainer,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -568,8 +576,22 @@ class NiosColorField extends StatelessWidget {
               height: 136,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: seedColor,
-                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  colors: [
+                    seedColor,
+                    Color.lerp(seedColor, scheme.surfaceContainerHigh, 0.45) ?? seedColor,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: seedColor.withValues(alpha: 0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -670,6 +692,7 @@ class _ColorOrbItem extends StatefulWidget {
 }
 
 class _ColorOrbItemState extends State<_ColorOrbItem> {
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -690,10 +713,13 @@ class _ColorOrbItemState extends State<_ColorOrbItem> {
       child: Tooltip(
         message: widget.label,
         child: Listener(
+          onPointerDown: (_) => setState(() => _isPressed = true),
+          onPointerUp: (_) => setState(() => _isPressed = false),
+          onPointerCancel: (_) => setState(() => _isPressed = false),
           child: GestureDetector(
             onTap: widget.onTap,
             child: AnimatedScale(
-              scale: 1.0,
+              scale: _isPressed ? 0.90 : (widget.isSelected ? 1.15 : 1.0),
               duration: const Duration(milliseconds: 220),
               curve: M3SpringCurves.bouncy,
               child: AnimatedContainer(
@@ -741,6 +767,7 @@ class _RainbowCustomOrbItem extends StatefulWidget {
 }
 
 class _RainbowCustomOrbItemState extends State<_RainbowCustomOrbItem> {
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -763,10 +790,13 @@ class _RainbowCustomOrbItemState extends State<_RainbowCustomOrbItem> {
       child: Tooltip(
         message: context.l10n.appearanceCustomColor,
         child: Listener(
+          onPointerDown: (_) => setState(() => _isPressed = true),
+          onPointerUp: (_) => setState(() => _isPressed = false),
+          onPointerCancel: (_) => setState(() => _isPressed = false),
           child: GestureDetector(
             onTap: widget.onTap,
             child: AnimatedScale(
-              scale: 1.0,
+              scale: _isPressed ? 0.90 : (widget.isSelected ? 1.15 : 1.0),
               duration: const Duration(milliseconds: 220),
               curve: M3SpringCurves.bouncy,
               child: AnimatedContainer(
@@ -1019,7 +1049,7 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
                 ),
               ),
               AnimatedScale(
-                scale: 1.0,
+                scale: _isDragging ? 1.14 : 1.0,
                 duration: const Duration(milliseconds: 220),
                 curve: M3SpringCurves.bouncy,
                 child: AnimatedContainer(
@@ -1313,6 +1343,7 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
   late Color _selectedColor;
   late TextEditingController _hexController;
   String? _hexError;
+  Color? _pressedColor;
   bool _isApplyPressed = false;
 
   @override
@@ -1389,7 +1420,7 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                   color: _selectedColor,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: scheme.outlineVariant,
+                    color: scheme.outlineVariant.withValues(alpha: 0.5),
                     width: 2,
                   ),
                 ),
@@ -1443,8 +1474,12 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                       ? (isDark ? scheme.surface : scheme.outline)
                       : (isDark ? scheme.onSurface : scheme.surface))
                   : Colors.transparent;
+              final bool isPressed = _pressedColor == c;
 
               return Listener(
+                onPointerDown: (_) => setState(() => _pressedColor = c),
+                onPointerUp: (_) => setState(() => _pressedColor = null),
+                onPointerCancel: (_) => setState(() => _pressedColor = null),
                 child: GestureDetector(
                   onTap: () {
                     HapticService.tap();
@@ -1455,7 +1490,7 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
                     });
                   },
                   child: AnimatedScale(
-                    scale: 1.0,
+                    scale: isPressed ? 0.90 : (isSelected ? 1.15 : 1.0),
                     duration: const Duration(milliseconds: 220),
                     curve: M3SpringCurves.bouncy,
                     child: AnimatedContainer(
@@ -1516,7 +1551,7 @@ class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
             onPointerUp: (_) => setState(() => _isApplyPressed = false),
             onPointerCancel: (_) => setState(() => _isApplyPressed = false),
             child: AnimatedScale(
-              scale: 1.0,
+              scale: _isApplyPressed ? 0.96 : 1.0,
               duration: const Duration(milliseconds: 180),
               curve: _isApplyPressed ? M3SpringCurves.snappy : M3SpringCurves.bouncy,
               child: FilledButton.icon(
@@ -1615,7 +1650,7 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
                       side: BorderSide(
                         color: isSelected
                             ? scheme.primary
-                            : scheme.outlineVariant,
+                            : scheme.outlineVariant.withValues(alpha: 0.4),
                       ),
                     ),
                     onSelected: (_) {

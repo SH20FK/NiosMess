@@ -5,7 +5,7 @@ class AppColors {
   const AppColors._();
 
   /// Unified semantic online presence green across all screens.
-  static const Color statusOnline = Color(0xFF3A9D5D);
+  static const Color statusOnline = Color(0xFF22C55E);
 
   /// Unified semantic call decline and destructive red across all screens.
   static const Color statusDanger = Color(0xFFE53935);

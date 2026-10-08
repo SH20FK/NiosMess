@@ -82,6 +82,13 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
         decoration: BoxDecoration(
           color: scheme.error,
           shape: BoxShape.circle,
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: scheme.error.withValues(alpha: 0.3),
+              blurRadius: 12,
+              spreadRadius: 1,
+            ),
+          ],
         ),
         child: Icon(
           Icons.mic_rounded,
@@ -217,7 +224,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
               color: scheme.primary,
               shape: const CircleBorder(),
               clipBehavior: Clip.antiAlias,
-              elevation: 0,
+              elevation: 2,
               child: InkWell(
                 onTap: () {
                   HapticService.confirm();
@@ -316,7 +323,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
             color: scheme.primary,
             shape: const CircleBorder(),
             clipBehavior: Clip.antiAlias,
-            elevation: 0,
+            elevation: 2,
             child: InkWell(
               onTap: () {
                 HapticService.confirm();

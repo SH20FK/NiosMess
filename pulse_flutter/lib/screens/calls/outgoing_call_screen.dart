@@ -59,7 +59,7 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen>
     _rippleController = AnimationController(
       vsync: this,
       duration: CallTokens.rippleAnimationDuration,
-    );
+    )..repeat();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _startCallFlow();
@@ -223,7 +223,7 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen>
                       radius: 64,
                       fallbackColor: scheme.primaryContainer,
                       textColor: scheme.onPrimaryContainer,
-                      borderColor: scheme.outlineVariant,
+                      borderColor: scheme.outlineVariant.withValues(alpha: 0.3),
                       borderWidth: 2,
                     ),
                     const SizedBox(height: 24),
@@ -256,7 +256,7 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen>
                         color: scheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(CallTokens.pillBorderRadius),
                         border: Border.all(
-                          color: scheme.outlineVariant,
+                          color: scheme.outlineVariant.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Row(

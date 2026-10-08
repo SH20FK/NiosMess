@@ -133,7 +133,7 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
                   child: DecoratedBox(
                     decoration: ShapeDecoration(
                       color: widget.color,
-                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+                      shape: const StadiumBorder(),
                     ),
                     child: const SizedBox.expand(),
                   ),
@@ -241,7 +241,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
               index: widget.currentIndex,
               count: items.length,
               color: scheme.secondaryContainer,
-              animate: false,
+              animate: animate,
               stretch: stretch,
               duration: duration,
             ),
@@ -273,7 +273,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
                         item.badge < 100 ? '${item.badge}' : '99+',
                         style: const TextStyle(
                           fontFamily: AppFonts.ui,
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -344,7 +344,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
             color: scheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: scheme.outlineVariant,
+              color: scheme.outlineVariant.withValues(alpha: 0.28),
               width: 1.0,
             ),
           ),
@@ -364,7 +364,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
           color: scheme.surfaceContainerLow,
           border: Border(
             top: BorderSide(
-              color: scheme.outlineVariant,
+              color: scheme.outlineVariant.withValues(alpha: 0.22),
               width: 0.8,
             ),
           ),

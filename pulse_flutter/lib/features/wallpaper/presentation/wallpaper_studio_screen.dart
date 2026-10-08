@@ -183,7 +183,7 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: scheme.surface,
-            border: Border(top: BorderSide(color: scheme.outlineVariant)),
+            border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.15))),
           ),
           child: Row(
             children: <Widget>[
@@ -254,7 +254,7 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
                   flex: 45,
                   child: Container(
                     decoration: BoxDecoration(
-                      border: Border(left: BorderSide(color: scheme.outlineVariant)),
+                      border: Border(left: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.2))),
                     ),
                     child: Column(
                       children: <Widget>[

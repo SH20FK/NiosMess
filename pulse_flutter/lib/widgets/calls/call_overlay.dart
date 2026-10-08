@@ -209,7 +209,7 @@ class _VoiceOverlayPill extends StatelessWidget {
           color: scheme.surfaceContainerHigh.withValues(alpha: 0.96),
           borderRadius: BorderRadius.circular(27),
           border: Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.35),
             width: 1.0,
           ),
         ),
@@ -265,7 +265,7 @@ class _VoiceOverlayPill extends StatelessWidget {
                               fontFamily: 'monospace',
                               fontWeight: FontWeight.w600,
                               color: scheme.primary,
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                         ],
@@ -351,7 +351,7 @@ class _VideoOverlayTile extends StatelessWidget {
             color: CallTokens.darkSurface,
             borderRadius: BorderRadius.circular(CallTokens.pipBorderRadius),
             border: Border.all(
-              color: scheme.outlineVariant,
+              color: scheme.outlineVariant.withValues(alpha: 0.35),
               width: 1.5,
             ),
           ),
@@ -382,7 +382,7 @@ class _VideoOverlayTile extends StatelessWidget {
                       timerLabel,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 10,
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.w600,
                       ),

@@ -283,7 +283,8 @@ class _PostCardState extends ConsumerState<PostCard>
                                       style: textTheme.titleSmall?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 15,
-                                        color: scheme.onSurface,
+                                        color: scheme.onSurface,
+                                        letterSpacing: -0.2,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -339,7 +340,7 @@ class _PostCardState extends ConsumerState<PostCard>
                                       text: '  •  ',
                                       style: TextStyle(
                                         color: scheme.outlineVariant,
-                                        fontSize: 12,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -347,7 +348,7 @@ class _PostCardState extends ConsumerState<PostCard>
                                       text: formatRelativeTime(post.createdAt),
                                       style: textTheme.labelSmall?.copyWith(
                                         color: scheme.onSurfaceVariant,
-                                        fontSize: 12,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -684,7 +685,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
               color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
               borderRadius: AppRadii.mdRadius,
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.15),
               ),
             ),
             child: AspectRatio(
@@ -778,7 +779,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                                   ?.copyWith(
                                     color: scheme.onSurface,
                                     fontWeight: FontWeight.w700,
-                                    fontSize: 12,
+                                    fontSize: 10,
                                     letterSpacing: 0.5,
                                   ),
                             ),
@@ -809,7 +810,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                               ?.copyWith(
                                 color: scheme.onSurface,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                         ),
                       ),

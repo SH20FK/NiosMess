@@ -238,7 +238,7 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
               color: scheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.20),
               ),
             ),
             child: Center(

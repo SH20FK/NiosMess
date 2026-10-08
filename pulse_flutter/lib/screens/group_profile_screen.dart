@@ -156,7 +156,14 @@ class GroupProfileScreen extends ConsumerWidget {
           height: 190,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: scheme.primaryContainer,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: <Color>[
+                scheme.primary.withValues(alpha: 0.8),
+                scheme.tertiary.withValues(alpha: 0.6),
+              ],
+            ),
             borderRadius:
                 const BorderRadius.vertical(bottom: Radius.circular(28)),
           ),
@@ -177,8 +184,15 @@ class GroupProfileScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.16),
                 ),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: scheme.shadow.withValues(alpha: 0.06),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -197,7 +211,8 @@ class GroupProfileScreen extends ConsumerWidget {
                   Text(
                     chat.name,
                     style: textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -269,7 +284,7 @@ class GroupProfileScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.10),
           ),
         ),
         child: Column(
@@ -308,7 +323,7 @@ class GroupProfileScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.10),
           ),
         ),
         child: Row(
@@ -369,7 +384,7 @@ class GroupProfileScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.10),
           ),
         ),
         child: Material(
@@ -439,7 +454,7 @@ class GroupProfileScreen extends ConsumerWidget {
           color: scheme.surfaceContainerLow.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.10),
           ),
         ),
         child: Row(

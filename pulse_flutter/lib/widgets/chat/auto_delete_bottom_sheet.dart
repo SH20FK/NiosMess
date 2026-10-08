@@ -162,7 +162,7 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -232,7 +232,7 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                   border: Border.all(
                     color: isSelected
                         ? (widget.isSecret ? scheme.secondary : scheme.primary)
-                        : scheme.outlineVariant,
+                        : scheme.outlineVariant.withValues(alpha: 0.2),
                     width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
@@ -276,7 +276,7 @@ class _AutoDeleteBottomSheetState extends ConsumerState<AutoDeleteBottomSheet> {
                 border: Border.all(
                   color: _isCustom
                       ? scheme.primary
-                      : scheme.outlineVariant,
+                      : scheme.outlineVariant.withValues(alpha: 0.2),
                   width: _isCustom ? 1.5 : 1.0,
                 ),
               ),

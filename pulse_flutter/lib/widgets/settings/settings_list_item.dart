@@ -12,7 +12,9 @@ enum SettingsListItemType {
   danger,
 }
 
-/// Row for settings lists: neutral icon, title, optional subtitle and trailing control.
+/// Unified Material 3 Expressive row for settings lists and grouped cards.
+/// Replaces fragmented SettingsTile, SettingsSwitchTile, and SettingsInfoTile
+/// with a consistent 40x40 icon slot, 66dp text alignment, and spring touch physics.
 class SettingsListItem extends ConsumerWidget {
   const SettingsListItem({
     required this.icon,
@@ -145,7 +147,13 @@ class SettingsListItem extends ConsumerWidget {
         ? scheme.error
         : isSelected
             ? scheme.onSecondaryContainer
-            : scheme.onSurfaceVariant;
+            : (iconColor ?? scheme.primary);
+
+    final Color effectiveIconBgColor = isDanger
+        ? scheme.error.withValues(alpha: 0.12)
+        : isSelected
+            ? scheme.primary.withValues(alpha: 0.18)
+            : effectiveIconColor.withValues(alpha: 0.12);
 
     final Color effectiveTextColor = isDanger
         ? scheme.error
@@ -153,10 +161,15 @@ class SettingsListItem extends ConsumerWidget {
             ? scheme.onSecondaryContainer
             : (enabled ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.38));
 
-    final Widget leadingIcon = SizedBox(
+    final Widget leadingIcon = Container(
       width: 40,
       height: 40,
-      child: Icon(icon, color: effectiveIconColor, size: 22),
+      decoration: BoxDecoration(
+        color: effectiveIconBgColor,
+        borderRadius: AppRadii.smRadius,
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, color: effectiveIconColor, size: 20),
     );
 
     final Widget textColumn = Expanded(
@@ -168,8 +181,8 @@ class SettingsListItem extends ConsumerWidget {
             title,
             style: textTheme.bodyMedium?.copyWith(
               color: effectiveTextColor,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              fontSize: 15,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              fontSize: 14,
               height: 1.2,
             ),
           ),
@@ -222,6 +235,12 @@ class SettingsListItem extends ConsumerWidget {
         final bool isChecked = boolValue ?? false;
         trailingWidget = Switch(
           value: isChecked,
+          thumbIcon: WidgetStateProperty.resolveWith<Icon?>((Set<WidgetState> states) {
+            if (states.contains(WidgetState.selected)) {
+              return Icon(Icons.check_rounded, size: 14, color: scheme.primary);
+            }
+            return null;
+          }),
           onChanged: enabled && onChanged != null
               ? (bool v) {
                   ref.read(appSoundProvider).playEvent(

@@ -60,9 +60,16 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
               color: scheme.surfaceContainerHigh.withValues(alpha: 0.88),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.35),
                 width: 1.0,
               ),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: 0.08),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: child,
           ),
@@ -108,7 +115,8 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                         Text(
                           'NiosMess',
                           style: textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.8,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -141,6 +149,13 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                             color: scheme.primary.withValues(alpha: 0.3),
                             width: 2.0,
                           ),
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color: scheme.primary.withValues(alpha: 0.15),
+                              blurRadius: 32,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
                         ),
                         child: Center(
                           child: Icon(
@@ -156,7 +171,8 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                     Text(
                       title,
                       style: textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.6,
                         height: 1.15,
                       ),
                     ),
@@ -187,9 +203,16 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                       color: scheme.surfaceContainerHigh.withValues(alpha: 0.92),
                       borderRadius: BorderRadius.circular(36),
                       border: Border.all(
-                        color: scheme.outlineVariant,
+                        color: scheme.outlineVariant.withValues(alpha: 0.40),
                         width: 1.5,
                       ),
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: scheme.shadow.withValues(alpha: 0.12),
+                          blurRadius: 36,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
                     ),
                     child: SingleChildScrollView(
                       child: child,

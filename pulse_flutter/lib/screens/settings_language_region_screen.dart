@@ -221,7 +221,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                             ),
                           ),
                           subtitle: Text(
-                            '${option.id}, ${option.currentOffsetLabel()}',
+                            '${option.id} · ${option.currentOffsetLabel()}',
                             style: textTheme.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant,
                             ),

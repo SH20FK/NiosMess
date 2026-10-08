@@ -8,18 +8,18 @@ class BackgroundService {
   BackgroundService._();
 
   static final List<String> _titles = <String>[
-    'NiosMess рядом с вами',
-    'Жду ваших сообщений',
-    'Соединение активно',
-    'Твои чаты под защитой',
-    'Уведомления доставляются быстро',
+    'NiosMess рядом с вами ✨',
+    'Мяу~ Жду твоих сообщений 🐱',
+    'Соединение активно 💕',
+    'Твои чаты под защитой 🌸',
+    'Пуши летают быстро~ 🕊️',
   ];
 
   static final List<String> _texts = <String>[
     'Все сообщения доставляются в реальном времени',
-    'Секретные чаты защищены end-to-end',
+    'Секретные чаты защищены end-to-end 🔒',
     'Пуши работают исправно~',
-    'Никто не пропадёт из виду',
+    'Никто не пропадёт из виду 💌',
   ];
 
   static String _randomTitle() => _titles[Random().nextInt(_titles.length)];
@@ -59,7 +59,7 @@ class BackgroundService {
         notificationTitle: title,
         notificationText: text,
         notificationButtons: <NotificationButton>[
-          const NotificationButton(id: 'stop', text: 'Остановить'),
+          const NotificationButton(id: 'stop', text: '💤 Спать'),
         ],
       );
     } catch (e) {

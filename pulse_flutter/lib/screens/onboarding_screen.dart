@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
@@ -168,8 +170,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       style: TextStyle(
                         fontFamily: AppFonts.headline,
                         fontSize: 22,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
                         color: scheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    M3Container(
+                      Shapes.c9_sided_cookie,
+                      width: 22,
+                      height: 22,
+                      color: scheme.primaryContainer,
+                      child: Center(
+                        child: Icon(
+                          Icons.bolt_rounded,
+                          size: 14,
+                          color: scheme.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -240,7 +257,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           decoration: BoxDecoration(
                             color: active
                                 ? scheme.primary
-                                : scheme.outlineVariant,
+                                : scheme.outlineVariant.withValues(alpha: 0.5),
                             borderRadius: AppRadii.fullRadius,
                           ),
                         ),
@@ -314,6 +331,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             style: textTheme.titleMedium?.copyWith(
                               color: scheme.onPrimary,
                               fontWeight: FontWeight.w700,
+                              letterSpacing: -0.2,
                             ),
                           ),
                           style: FilledButton.styleFrom(
@@ -366,20 +384,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _buildLottieSlide(int index, ColorScheme scheme, TextTheme textTheme) {
     late final String title;
     late final String description;
+    late final String lottiePath;
 
     switch (index) {
       case 0:
         title = context.l10n.onboardingSlide1Title;
         description = context.l10n.onboardingSlide1Desc;
+        lottiePath = 'assets/lottie/onboarding_calls.json';
         break;
       case 1:
         title = context.l10n.onboardingSlide2Title;
         description = context.l10n.onboardingSlide2Desc;
+        lottiePath = 'assets/lottie/onboarding_chat.json';
         break;
       case 2:
       default:
         title = context.l10n.onboardingSlide3Title;
         description = context.l10n.onboardingSlide3Desc;
+        lottiePath = 'assets/lottie/onboarding_speed.json';
         break;
     }
 
@@ -390,11 +412,38 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
+            Lottie.asset(
+              lottiePath,
+              width: 140,
+              height: 140,
+              fit: BoxFit.contain,
+              repeat: true,
+              frameRate: FrameRate.max,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: AppRadii.lgRadius,
+                ),
+                child: Icon(
+                  index == 0
+                      ? Icons.call_rounded
+                      : index == 1
+                          ? Icons.chat_bubble_rounded
+                          : Icons.bolt_rounded,
+                  size: 48,
+                  color: scheme.primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
               title,
               textAlign: TextAlign.center,
               style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
               ),
             ),
             const SizedBox(height: 8),
@@ -437,7 +486,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 context.l10n.setupLanguageTitle,
                 textAlign: TextAlign.center,
                 style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
                 ),
               ),
               const SizedBox(height: 4),
@@ -550,7 +600,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                       ? scheme.onPrimaryContainer
                                           .withValues(alpha: 0.75)
                                       : scheme.onSurfaceVariant,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
@@ -618,7 +668,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                       ? scheme.onPrimaryContainer
                                           .withValues(alpha: 0.75)
                                       : scheme.onSurfaceVariant,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

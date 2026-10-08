@@ -257,13 +257,28 @@ class _OtpBoxCell extends StatelessWidget {
 
     Color backgroundColor;
     Border border;
+    List<BoxShadow> shadows = [];
 
     if (hasError) {
       backgroundColor = scheme.errorContainer.withValues(alpha: 0.25);
       border = Border.all(color: scheme.error, width: 2.0);
+      shadows = [
+        BoxShadow(
+          color: scheme.error.withValues(alpha: 0.2),
+          blurRadius: 8,
+          spreadRadius: 1,
+        ),
+      ];
     } else if (isFocused) {
       backgroundColor = scheme.surfaceContainerHigh.withValues(alpha: 0.9);
       border = Border.all(color: scheme.primary, width: 2.0);
+      shadows = [
+        BoxShadow(
+          color: scheme.primary.withValues(alpha: 0.3),
+          blurRadius: 10,
+          spreadRadius: 1,
+        ),
+      ];
     } else if (isFilled) {
       backgroundColor = scheme.primaryContainer;
       border = Border.all(
@@ -273,19 +288,19 @@ class _OtpBoxCell extends StatelessWidget {
     } else {
       backgroundColor = scheme.surfaceContainerHigh.withValues(alpha: 0.45);
       border = Border.all(
-        color: scheme.outlineVariant,
+        color: scheme.outlineVariant.withValues(alpha: 0.3),
         width: 1.0,
       );
     }
 
     final TextStyle? digitStyle = isFilled
         ? (textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w800,
             color: hasError ? scheme.error : scheme.onPrimaryContainer,
           ) ??
           TextStyle(
             fontSize: 22,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w800,
             color: hasError ? scheme.error : scheme.onPrimaryContainer,
           ))
         : null;
@@ -303,6 +318,7 @@ class _OtpBoxCell extends StatelessWidget {
           color: backgroundColor,
           borderRadius: BorderRadius.circular(18),
           border: border,
+          boxShadow: shadows,
         ),
         alignment: Alignment.center,
         child: isFilled

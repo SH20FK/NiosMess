@@ -211,7 +211,7 @@ class MessageBubble extends ConsumerWidget {
             : scheme.onSurface);
     final Border? bubbleBorder = (!isMine && !isDark)
         ? Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.25),
             width: 0.8,
           )
         : null;
@@ -409,7 +409,7 @@ class MessageBubble extends ConsumerWidget {
                                     context.l10n.chatForwardedCard,
                                     style: textTheme.labelSmall?.copyWith(
                                       color: scheme.primary,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ],
@@ -542,7 +542,7 @@ class MessageBubble extends ConsumerWidget {
                                 color: scheme.surfaceContainerHigh,
                                 borderRadius: AppRadii.fullRadius,
                                 border: Border.all(
-                                  color: scheme.outlineVariant,
+                                  color: scheme.outlineVariant.withValues(alpha: 0.25),
                                   width: 0.75,
                                 ),
                               ),
@@ -713,7 +713,7 @@ class MessageBubble extends ConsumerWidget {
                         formattedTime,
                         style: TextStyle(
                           color: scheme.onPrimary,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1017,7 +1017,7 @@ class MessageBubble extends ConsumerWidget {
     if (isFailed || uploadTask?.stage == UploadStage.failed) {
       progressSubtitle = 'Не удалось отправить';
     } else if (uploadTask?.stage == UploadStage.queued) {
-      progressSubtitle = 'В очереди, позиция ${uploadQueuePosition ?? 1}';
+      progressSubtitle = 'В очереди · позиция ${uploadQueuePosition ?? 1}';
     } else if (uploadTask?.stage == UploadStage.processing) {
       progressSubtitle = 'Обработка файла...';
     } else if (uploadTask?.stage == UploadStage.sendingMessage) {
@@ -1038,7 +1038,7 @@ class MessageBubble extends ConsumerWidget {
       }
       if (speedStr.isNotEmpty) parts.add(speedStr);
       if (etaStr.isNotEmpty) parts.add(etaStr);
-      progressSubtitle = parts.join(', ');
+      progressSubtitle = parts.join(' · ');
     } else {
       progressSubtitle = '$percent% • Загрузка...';
     }

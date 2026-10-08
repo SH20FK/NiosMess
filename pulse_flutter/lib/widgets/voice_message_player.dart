@@ -356,7 +356,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                                       child: Text(
                                         context.l10n.chatEdited,
                                         style: TextStyle(
-                                          fontSize: 12,
+                                          fontSize: 9,
                                           fontWeight: FontWeight.w600,
                                           color: fg.withValues(alpha: 0.6),
                                         ),
@@ -365,7 +365,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                                   Text(
                                     widget.formattedTime!,
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 9,
                                       fontWeight: FontWeight.w600,
                                       color: fg.withValues(alpha: 0.6),
                                     ),
@@ -387,7 +387,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                           Text(
                             _formatDuration(remaining),
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                               color: fg.withValues(alpha: 0.7),
                               fontFeatures: const [FontFeature.tabularFigures()],

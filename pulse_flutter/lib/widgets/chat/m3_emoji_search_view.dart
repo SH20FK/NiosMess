@@ -275,7 +275,7 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
                     color: scheme.surfaceContainerHigh.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(
-                      color: scheme.outlineVariant,
+                      color: scheme.outlineVariant.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Row(
@@ -294,7 +294,7 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
                       Icon(
                         Icons.search_rounded,
                         size: 18,
-                        color: scheme.onSurfaceVariant,
+                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -312,7 +312,7 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
                             focusedBorder: InputBorder.none,
                             hintText: 'Поиск эмодзи (огонь, кот, сердце...)',
                             hintStyle: textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
+                              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
                               fontSize: 13,
                             ),
                             contentPadding: EdgeInsets.zero,
@@ -351,7 +351,7 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
                               ? 'Введите текст для поиска'
                               : 'Эмодзи не найдены',
                           style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
+                            color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                           ),
                         ),
                       )

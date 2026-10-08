@@ -200,7 +200,7 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
               color: scheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(AppRadii.lg),
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
               ),
             ),
             child: Column(
@@ -307,7 +307,7 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadii.xl),
               side: BorderSide(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
               ),
             ),
             child: ClipRRect(

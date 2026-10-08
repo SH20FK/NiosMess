@@ -168,7 +168,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
               color: scheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.14),
               ),
             ),
             padding: const EdgeInsets.all(18),
@@ -184,7 +184,8 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                           Text(
                             _format(totalBytes),
                             style: textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.6,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -591,7 +592,7 @@ class _StorageCategoryCard extends StatelessWidget {
           color: scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.14),
           ),
         ),
         child: Column(

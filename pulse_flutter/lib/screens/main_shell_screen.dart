@@ -127,7 +127,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radii.card),
           side: BorderSide(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.2),
           ),
         ),
         margin: const EdgeInsets.all(16),
@@ -558,7 +558,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                 color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(radii.card),
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.25),
                   width: 1.2,
                 ),
               ),
@@ -575,7 +575,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                 color: scheme.surfaceContainerLow.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(radii.button),
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.2),
                 ),
               ),
               child: Text(
@@ -592,7 +592,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               context.l10n.shellE2eeNotice,
               style: TextStyle(
                 fontSize: 12,
-                color: scheme.onSurfaceVariant,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -651,7 +651,7 @@ class _DraggableSidebarDividerState extends State<_DraggableSidebarDivider> {
             width: isHighlighted ? 2.5 : 1.0,
             color: isHighlighted
                 ? scheme.primary
-                : scheme.outlineVariant,
+                : scheme.outlineVariant.withValues(alpha: 0.25),
           ),
         ),
       ),

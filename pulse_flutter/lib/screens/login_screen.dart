@@ -401,7 +401,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           style: TextStyle(
             fontFamily: AppFonts.headline,
             fontSize: 34,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
             color: scheme.onSurface,
           ),
           textAlign: TextAlign.center,
@@ -496,7 +497,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         color: scheme.surfaceContainerLow,
         borderRadius: AppRadii.lgRadius,
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
           width: 1,
         ),
       ),
@@ -660,7 +661,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         color: scheme.surfaceContainerLow,
         borderRadius: AppRadii.lgRadius,
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
           width: 1,
         ),
       ),
@@ -794,7 +795,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     color: Colors.white,
                     borderRadius: AppRadii.mdRadius,
                     border: Border.all(
-                      color: scheme.outlineVariant,
+                      color: scheme.outlineVariant.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -882,8 +883,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         context.l10n.loginTapToCopy,
                         style: TextStyle(
                           fontFamily: AppFonts.body,
-                          fontSize: 12,
-                          color: scheme.onSurfaceVariant,
+                          fontSize: 11,
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -925,7 +926,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       ),
-    ).animate().fade(duration: const Duration(milliseconds: 250));
+    ).animate().scale(
+          begin: const Offset(0.96, 0.96),
+          end: const Offset(1, 1),
+          duration: const Duration(milliseconds: 300),
+          curve: M3SpringCurves.spatial,
+        ).fade(duration: const Duration(milliseconds: 250));
   }
 
   Widget _buildLegalFooter(ColorScheme scheme, TextTheme textTheme) {
@@ -938,7 +944,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           style: TextStyle(
             fontFamily: AppFonts.body,
             fontSize: 12,
-            color: scheme.onSurfaceVariant,
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
           ),
           textAlign: TextAlign.center,
         ),

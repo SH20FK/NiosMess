@@ -229,7 +229,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
         AppToast.showSuccess(
           context,
           successCount == 1
-              ? 'Стикер успешно добавлен'
+              ? 'Стикер успешно добавлен!'
               : 'Добавлено стикеров: $successCount',
         );
         Navigator.pop(context, true);
@@ -274,7 +274,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                 width: 38,
                 height: 4.5,
                 decoration: BoxDecoration(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -309,7 +309,8 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                             ? 'Добавить в «${widget.setTitle}»'
                             : 'Добавить стикеры',
                         style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -336,7 +337,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                 color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.2),
                 ),
               ),
               child: Column(

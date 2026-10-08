@@ -163,7 +163,7 @@ class _ChatTileState extends State<ChatTile>
                     ? scheme.primary.withValues(alpha: 0.65)
                     : (isHovered
                         ? scheme.primary.withValues(alpha: 0.24)
-                        : scheme.outlineVariant);
+                        : scheme.outlineVariant.withValues(alpha: 0.18));
 
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
@@ -407,7 +407,7 @@ class _AnimatedBadge extends StatelessWidget {
           style: textTheme.labelSmall?.copyWith(
             color: scheme.onPrimary,
             fontWeight: FontWeight.w700,
-            fontSize: 12,
+            fontSize: 11,
           ),
         ),
       ),

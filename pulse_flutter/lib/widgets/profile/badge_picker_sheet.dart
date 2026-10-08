@@ -177,7 +177,7 @@ class _BadgePickerSheetState extends ConsumerState<BadgePickerSheet> {
               color: scheme.surfaceContainerLow,
               borderRadius: AppRadii.mdRadius,
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.20),
               ),
             ),
             child: Row(
@@ -231,13 +231,13 @@ class _BadgePickerSheetState extends ConsumerState<BadgePickerSheet> {
                         color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         borderRadius: AppRadii.fullRadius,
                         border: Border.all(
-                          color: scheme.outlineVariant,
+                          color: scheme.outlineVariant.withValues(alpha: 0.30),
                         ),
                       ),
                       child: Text(
                         'Слот ${slot + 1}',
                         style: textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                         ),
                       ),
                     ),
@@ -290,7 +290,7 @@ class _BadgePickerSheetState extends ConsumerState<BadgePickerSheet> {
                               border: Border.all(
                                 color: isSelected
                                     ? scheme.primary.withValues(alpha: 0.60)
-                                    : scheme.outlineVariant,
+                                    : scheme.outlineVariant.withValues(alpha: 0.20),
                                 width: isSelected ? 1.5 : 1.0,
                               ),
                             ),

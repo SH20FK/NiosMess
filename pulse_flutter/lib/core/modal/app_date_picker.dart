@@ -33,7 +33,7 @@ class AppDatePicker {
               shape: RoundedRectangleBorder(
                 borderRadius: AppRadii.xlRadius,
                 side: BorderSide(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.20),
                 ),
               ),
               elevation: 0,

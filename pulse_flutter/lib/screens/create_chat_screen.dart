@@ -31,6 +31,21 @@ class CreateChatScreen extends ConsumerWidget {
         backgroundColor: scheme.surfaceContainerLowest,
         body: Stack(
           children: <Widget>[
+            // Soft ambient depth gradient
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(0, -0.4),
+                    radius: 1.2,
+                    colors: <Color>[
+                      scheme.primary.withValues(alpha: 0.07),
+                      scheme.surfaceContainerLowest,
+                    ],
+                  ),
+                ),
+              ),
+            ),
             Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
@@ -41,8 +56,15 @@ class CreateChatScreen extends ConsumerWidget {
                       color: scheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(
-                        color: scheme.outlineVariant,
+                        color: scheme.outlineVariant.withValues(alpha: 0.20),
                       ),
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: scheme.shadow.withValues(alpha: 0.22),
+                          blurRadius: 36,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(28),

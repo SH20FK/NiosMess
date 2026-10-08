@@ -83,7 +83,7 @@ class AiUsageIndicatorCard extends StatelessWidget {
           color: scheme.surfaceContainerLow,
           borderRadius: AppRadii.lgRadius,
           border: Border.all(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.16),
           ),
         ),
         child: Row(
@@ -142,7 +142,7 @@ class AiUsageIndicatorCard extends StatelessWidget {
 
     final String resetFormatted = _formatResetDate(context, usage.resetsAt);
     final String resetPart =
-        resetFormatted.isNotEmpty ? ', сброс $resetFormatted' : '';
+        resetFormatted.isNotEmpty ? ' · сброс $resetFormatted' : '';
     final String subtitleText =
         '$remainingCharsStr из $limitCharsStr символов$resetPart';
 
@@ -157,7 +157,7 @@ class AiUsageIndicatorCard extends StatelessWidget {
         color: scheme.surfaceContainerLow,
         borderRadius: AppRadii.lgRadius,
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.16),
         ),
       ),
       child: Column(

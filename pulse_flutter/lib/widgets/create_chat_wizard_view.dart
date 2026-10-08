@@ -376,7 +376,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
         color: scheme.surfaceContainerHigh,
         border: Border(
           bottom: BorderSide(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.14),
           ),
         ),
       ),
@@ -423,7 +423,8 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                           ? context.l10n.groupNewChannel
                           : context.l10n.groupNewGroup,
                       style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     Text(
@@ -509,7 +510,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               color: scheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.16),
               ),
             ),
             child: Row(
@@ -526,13 +527,23 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                         height: 76,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(22),
-                          color: _avatarBytes == null
-                              ? (isChannel
-                                  ? scheme.tertiaryContainer
-                                  : scheme.primaryContainer)
+                          gradient: _avatarBytes == null
+                              ? LinearGradient(
+                                  colors: isChannel
+                                      ? <Color>[
+                                          scheme.tertiaryContainer,
+                                          scheme.primaryContainer,
+                                        ]
+                                      : <Color>[
+                                          scheme.primaryContainer,
+                                          scheme.secondaryContainer,
+                                        ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
                               : null,
                           border: Border.all(
-                            color: scheme.outlineVariant,
+                            color: scheme.outlineVariant.withValues(alpha: 0.25),
                             width: 1.5,
                           ),
                         ),
@@ -553,7 +564,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                                             color: isChannel
                                                 ? scheme.onTertiaryContainer
                                                 : scheme.onPrimaryContainer,
-                                            fontWeight: FontWeight.w600,
+                                            fontWeight: FontWeight.w800,
                                             fontSize: 24,
                                           ),
                                         )
@@ -621,14 +632,14 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                             borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide(
                               color:
-                                  scheme.outlineVariant,
+                                  scheme.outlineVariant.withValues(alpha: 0.18),
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide(
                               color:
-                                  scheme.outlineVariant,
+                                  scheme.outlineVariant.withValues(alpha: 0.18),
                             ),
                           ),
                           counterText: '',
@@ -647,8 +658,8 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                       Text(
                         context.l10n.wizardTapAvatarHint,
                         style: TextStyle(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 12,
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          fontSize: 11,
                         ),
                       ),
                     ],
@@ -679,13 +690,13 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: BorderSide(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.18),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: BorderSide(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.18),
                 ),
               ),
             ),
@@ -833,13 +844,13 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: BorderSide(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.18),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: BorderSide(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.18),
                 ),
               ),
               isDense: true,
@@ -897,7 +908,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.12),
         ),
       ),
       child: ListView.separated(
@@ -906,7 +917,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
         separatorBuilder: (BuildContext context, int index) => Divider(
           height: 1,
           indent: 56,
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.12),
         ),
         itemBuilder: (BuildContext ctx, int index) {
           final ApiChatSummary c = contacts[index];
@@ -936,7 +947,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                     '@$username',
                     style: textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
-                      fontSize: 12,
+                      fontSize: 11,
                     ),
                   )
                 : null,
@@ -1015,7 +1026,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
             color: scheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: scheme.outlineVariant,
+              color: scheme.outlineVariant.withValues(alpha: 0.12),
             ),
           ),
           child: ListView.separated(
@@ -1024,7 +1035,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
             separatorBuilder: (BuildContext context, int index) => Divider(
               height: 1,
               indent: 56,
-              color: scheme.outlineVariant,
+              color: scheme.outlineVariant.withValues(alpha: 0.12),
             ),
             itemBuilder: (BuildContext ctx, int index) {
               final ApiSearchUser u = result.users[index];
@@ -1049,7 +1060,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
                   '@${u.username}',
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
                 trailing: Checkbox(
@@ -1134,7 +1145,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               color: scheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.14),
               ),
             ),
             child: Row(
@@ -1249,13 +1260,13 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: BorderSide(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.18),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: BorderSide(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.18),
                 ),
               ),
               isDense: true,
@@ -1291,7 +1302,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           border: Border.all(
             color: selected
                 ? (_chatType == 'channel' ? scheme.tertiary : scheme.primary)
-                : scheme.outlineVariant,
+                : scheme.outlineVariant.withValues(alpha: 0.14),
             width: selected ? 1.6 : 1.0,
           ),
         ),
@@ -1366,7 +1377,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
         color: scheme.surfaceContainerHigh,
         border: Border(
           top: BorderSide(
-            color: scheme.outlineVariant,
+            color: scheme.outlineVariant.withValues(alpha: 0.14),
           ),
         ),
       ),

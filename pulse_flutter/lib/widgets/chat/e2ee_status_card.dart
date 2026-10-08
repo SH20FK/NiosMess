@@ -42,7 +42,7 @@ class E2eeStatusCard extends ConsumerWidget {
         final Color fg = isCompromised ? scheme.error : scheme.primary;
         final Color border = isCompromised
             ? scheme.error.withValues(alpha: 0.4)
-            : scheme.outlineVariant;
+            : scheme.outlineVariant.withValues(alpha: 0.25);
         final IconData icon = isCompromised
             ? Icons.warning_amber_rounded
             : Icons.sync_lock_rounded;
@@ -92,7 +92,7 @@ class E2eeStatusCard extends ConsumerWidget {
                           subtitle,
                           style: textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                       ],

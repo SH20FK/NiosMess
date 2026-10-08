@@ -449,7 +449,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       borderRadius: BorderRadius.circular(isCompact ? 16 : 20),
       color: scheme.surfaceContainerLow,
       border: Border.all(
-        color: scheme.outlineVariant,
+        color: scheme.outlineVariant.withValues(alpha: 0.18),
         width: 1,
       ),
       padding: EdgeInsets.all(isCompact ? 12 : 14),
@@ -471,7 +471,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   displayName,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                       ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -493,7 +494,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     bio,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
-                          fontSize: 12,
+                          fontSize: 11,
                         ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -521,7 +522,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   'Изменить',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: scheme.primary,
                   ),
@@ -560,6 +561,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ? scheme.surfaceContainerLow
               : scheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.22),
+            width: 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -622,8 +627,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Text(
                         displayName,
                         style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
                           fontSize: 19,
+                          letterSpacing: -0.3,
                           color: scheme.onSurface,
                         ),
                         maxLines: 1,
@@ -715,11 +721,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       decoration: BoxDecoration(
                         color: scheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: scheme.outlineVariant.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(Icons.badge_outlined, size: 13, color: scheme.onSurfaceVariant),
+                          Icon(Icons.badge_outlined, size: 13, color: scheme.primary),
                           const SizedBox(width: 5),
                           Text(
                             'ID: $niosId',
@@ -733,7 +742,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           Icon(
                             Icons.copy_rounded,
                             size: 11,
-                            color: scheme.onSurfaceVariant,
+                            color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                           ),
                         ],
                       ),
@@ -755,11 +764,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       decoration: BoxDecoration(
                         color: scheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: scheme.outlineVariant.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(Icons.phone_outlined, size: 13, color: scheme.onSurfaceVariant),
+                          Icon(Icons.phone_outlined, size: 13, color: scheme.primary),
                           const SizedBox(width: 5),
                           Text(
                             auth.profile!.phoneNumber!,
@@ -778,11 +790,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: scheme.outlineVariant.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Icon(Icons.cake_outlined, size: 13, color: scheme.onSurfaceVariant),
+                        Icon(Icons.cake_outlined, size: 13, color: scheme.primary),
                         const SizedBox(width: 5),
                         Text(
                           auth.profile!.birthday!,
@@ -911,7 +926,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         title: Text(
           context.l10n.tabSettings,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
                 color: scheme.onSurface,
               ),
         ),
@@ -1114,7 +1130,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 : scheme.surface.withValues(alpha: 0.65),
             border: Border(
               right: BorderSide(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -1178,7 +1194,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 12),
               Divider(
                 height: 1,
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.15),
               ),
               const SizedBox(height: 12),
 
@@ -1529,7 +1545,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                   size: 18,
                   color: hasError
                       ? scheme.error
-                      : scheme.onSurfaceVariant,
+                      : scheme.onSurfaceVariant.withValues(alpha: 0.8),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -1600,7 +1616,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                   size: 16,
                   color: hasError
                       ? scheme.error
-                      : scheme.onSurfaceVariant,
+                      : scheme.onSurfaceVariant.withValues(alpha: 0.8),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -1756,8 +1772,9 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                       context.l10n.profileEdit,
                       textAlign: TextAlign.center,
                       style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w800,
                         fontSize: 17,
+                        letterSpacing: -0.2,
                       ),
                     ),
                   ),
@@ -1780,7 +1797,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
             ),
             Divider(
               height: 1,
-              color: scheme.outlineVariant,
+              color: scheme.outlineVariant.withValues(alpha: 0.15),
             ),
 
             // Scrollable Form
@@ -1814,7 +1831,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                                   child: Material(
                                     color: scheme.primary,
                                     shape: const CircleBorder(),
-                                    elevation: 0,
+                                    elevation: 2,
                                     child: InkWell(
                                       onTap: widget.onUploadAvatar,
                                       customBorder: const CircleBorder(),
@@ -1871,7 +1888,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                         Divider(
                           height: 1,
                           indent: 50,
-                          color: scheme.outlineVariant,
+                          color: scheme.outlineVariant.withValues(alpha: 0.12),
                         ),
                         _buildInputField(
                           scheme: scheme,
@@ -1904,7 +1921,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                         Divider(
                           height: 1,
                           indent: 50,
-                          color: scheme.outlineVariant,
+                          color: scheme.outlineVariant.withValues(alpha: 0.12),
                         ),
                         _buildInputField(
                           scheme: scheme,
@@ -1922,7 +1939,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                         Divider(
                           height: 1,
                           indent: 50,
-                          color: scheme.outlineVariant,
+                          color: scheme.outlineVariant.withValues(alpha: 0.12),
                         ),
                         InkWell(
                           onTap: _selectBirthday,
@@ -1933,7 +1950,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                                 Icon(
                                   Icons.cake_outlined,
                                   size: 20,
-                                  color: scheme.onSurfaceVariant,
+                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -1960,7 +1977,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                                           fontWeight: FontWeight.w500,
                                           color: birthdayController.text.isNotEmpty
                                               ? scheme.onSurface
-                                              : scheme.onSurfaceVariant,
+                                              : scheme.onSurfaceVariant.withValues(alpha: 0.5),
                                         ),
                                       ),
                                     ],
@@ -1969,7 +1986,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                                 Icon(
                                   Icons.calendar_today_rounded,
                                   size: 18,
-                                  color: scheme.onSurfaceVariant,
+                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                                 ),
                               ],
                             ),

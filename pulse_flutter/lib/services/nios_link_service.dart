@@ -304,7 +304,7 @@ class NiosLinkService {
         if (context.mounted) {
           if (success) {
             HapticService.confirm();
-            AppToast.showSuccess(context, 'Устройство успешно подключено');
+            AppToast.showSuccess(context, 'Устройство успешно подключено!');
           } else {
             AppToast.showError(context, 'Не удалось авторизовать устройство');
           }

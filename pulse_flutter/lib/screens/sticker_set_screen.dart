@@ -209,7 +209,7 @@ class _StickerSetScreenState extends ConsumerState<StickerSetScreen> {
                     color: scheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: scheme.outlineVariant,
+                      color: scheme.outlineVariant.withValues(alpha: 0.14),
                     ),
                   ),
                   child: Row(
@@ -248,7 +248,7 @@ class _StickerSetScreenState extends ConsumerState<StickerSetScreen> {
                             Text(
                               set.title.isNotEmpty ? set.title : set.name,
                               style: textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w800,
                                 fontSize: 17,
                               ),
                               maxLines: 1,

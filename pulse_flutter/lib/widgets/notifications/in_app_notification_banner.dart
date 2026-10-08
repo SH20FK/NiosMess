@@ -153,7 +153,7 @@ class _InAppNotificationBannerOverlayState
                           color: colorScheme.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(22),
                           border: Border.all(
-                            color: colorScheme.outlineVariant,
+                            color: colorScheme.outlineVariant.withValues(alpha: 0.35),
                             width: 1.0,
                           ),
                         ),
@@ -209,7 +209,7 @@ class _InAppNotificationBannerOverlayState
                                             style: theme.textTheme.labelSmall
                                                 ?.copyWith(
                                               color: colorScheme.outline,
-                                              fontSize: 12,
+                                              fontSize: 11,
                                             ),
                                           ),
                                         ],

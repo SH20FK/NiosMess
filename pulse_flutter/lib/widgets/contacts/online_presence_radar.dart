@@ -176,7 +176,8 @@ class OnlinePresenceRadar extends ConsumerWidget {
                 'Недавние диалоги',
                 style: textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: scheme.onSurfaceVariant,
+                  color: scheme.onSurfaceVariant,
+                  letterSpacing: -0.2,
                 ),
               ),
               const SizedBox(width: 6),
@@ -191,7 +192,7 @@ class OnlinePresenceRadar extends ConsumerWidget {
                   style: textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: scheme.onSurfaceVariant,
-                    fontSize: 12,
+                    fontSize: 10,
                   ),
                 ),
               ),
@@ -269,7 +270,7 @@ class OnlinePresenceRadar extends ConsumerWidget {
                                       : '${chat.unreadCount}',
                                   style: TextStyle(
                                     color: scheme.onPrimary,
-                                    fontSize: 12,
+                                    fontSize: 9,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),

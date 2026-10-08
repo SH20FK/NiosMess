@@ -142,7 +142,7 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
       ),
       viewBackgroundColor: scheme.surfaceContainerHigh,
       viewElevation: 4.0,
-      dividerColor: scheme.outlineVariant,
+      dividerColor: scheme.outlineVariant.withValues(alpha: 0.25),
       searchController: _searchController,
       barHintText: widget.hintText ?? context.l10n.chatListSearchMessagesHint,
       viewHintText: widget.hintText ?? context.l10n.chatListSearchMessagesHint,
@@ -361,7 +361,7 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                         color: scheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: scheme.outlineVariant,
+                          color: scheme.outlineVariant.withValues(alpha: 0.20),
                         ),
                       ),
                       child: ListTile(
@@ -394,7 +394,7 @@ class _ChatSearchBarState extends ConsumerState<ChatSearchBar> {
                         ),
                         trailing: Icon(
                           Icons.chevron_right_rounded,
-                          color: scheme.onSurfaceVariant,
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                           size: 20,
                         ),
                         onTap: () {

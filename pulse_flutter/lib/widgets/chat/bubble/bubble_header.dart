@@ -63,7 +63,7 @@ class MessageBubbleHeader extends StatelessWidget {
             Text(
               senderDisplayName!,
               style: textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
                 color: AppColors.avatarColorFor(
                   senderDisplayName!,
                   scheme,

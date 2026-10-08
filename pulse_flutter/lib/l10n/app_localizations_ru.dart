@@ -853,7 +853,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsSpamBlockSubtitle =>
-      'Вы не можете начинать новые ЛС, вступать в группы или получать приглашения. Если это ошибка, обратитесь в поддержку.';
+      'Вы не можете начинать новые ЛС, вступать в группы или получать приглашения. Если это ошибка — обратитесь в поддержку.';
 
   @override
   String get settingsServerLimitsTitle => 'Серверные ограничения';
@@ -2682,7 +2682,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get fluidPreviewM3Subtitle =>
-      'Новые индикаторы и плавные переходы уже доступны';
+      'Новые индикаторы и плавные переходы уже доступны!';
 
   @override
   String get profileAvatarUpdated => 'Аватар обновлён';
@@ -2723,7 +2723,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get niosgramEmptyFeed => 'Постов пока нет';
 
   @override
-  String get niosgramEmptyFeedDesc => 'Будь первым, кто поделится чем-то';
+  String get niosgramEmptyFeedDesc => 'Будь первым, кто поделится чем-то!';
 
   @override
   String get niosgramLoadMore => 'Загрузить ещё';
@@ -2934,7 +2934,7 @@ class AppLocalizationsRu extends AppLocalizations {
       'Не удалось найти этого пользователя.';
 
   @override
-  String callRedirectStarting(Object username) => 'Звоним $username';
+  String callRedirectStarting(Object username) => 'Звоним $username…';
 
   @override
   String get e2eeHandshakeInitiated => 'Безопасное соединение устанавливается';
@@ -3259,7 +3259,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get e2eeMitmWarning =>
-      'ВНИМАНИЕ: Несовпадение ключа безопасности. Возможна MITM-атака';
+      'ВНИМАНИЕ: Несовпадение ключа безопасности! Возможна MITM-атака!';
 
   @override
   String get e2eeEraseConfirmBody =>
@@ -3348,7 +3348,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get biometricTitle => 'Биометрия';
 
   @override
-  String get biometricEnabled => 'Включена, вход по отпечатку/лицу';
+  String get biometricEnabled => 'Включена — вход по отпечатку/лицу';
 
   @override
   String get biometricDisabled => 'Отключена';
@@ -3702,10 +3702,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutInstallMissingFile => 'Файл обновления не найден. Загрузка перезапущена.';
 
   @override
-  String get aboutEasterEggTitle => 'Секретный режим активирован';
+  String get aboutEasterEggTitle => 'Секретный режим активирован!';
 
   @override
-  String get aboutEasterEggMessage => 'Спасибо за участие в тестировании NiosMess';
+  String get aboutEasterEggMessage => 'Спасибо за участие в тестировании NiosMess!';
 
   @override
   String get aboutReportSubject => 'Тема обращения';
@@ -3826,7 +3826,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutFaqA3 =>
-      'Секретные чаты привязаны к конкретному устройству, ключи хранятся только на нём. Потеря устройства означает потерю доступа к истории секретных чатов. Обычные чаты восстанавливаются при входе с нового устройства.';
+      'Секретные чаты привязаны к конкретному устройству — ключи хранятся только на нём. Потеря устройства означает потерю доступа к истории секретных чатов. Обычные чаты восстанавливаются при входе с нового устройства.';
 
   @override
   String get aboutFaqQ4 =>
@@ -3834,7 +3834,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutFaqA4 =>
-      'Да, обычные чаты синхронизируются между устройствами. Секретные чаты, нет, они привязаны к одному устройству. Чтобы общаться с секретного чата на новом устройстве, нужно создать новый секретный чат с тем же пользователем.';
+      'Да, обычные чаты синхронизируются между устройствами. Секретные чаты — нет, они привязаны к одному устройству. Чтобы общаться с секретного чата на новом устройстве, нужно создать новый секретный чат с тем же пользователем.';
 
   @override
   String get aboutFaqQ5 => 'Как присоединиться к группе или каналу?';
@@ -3848,7 +3848,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutFaqA6 =>
-      'Изображения, видео, документы (PDF, DOC, XLS и др.), аудио и голосовые сообщения. Максимальный размер файла, 100 МБ. Изображения автоматически сжимаются для экономии трафика.';
+      'Изображения, видео, документы (PDF, DOC, XLS и др.), аудио и голосовые сообщения. Максимальный размер файла — 100 МБ. Изображения автоматически сжимаются для экономии трафика.';
 
   @override
   String get aboutFaqQ7 =>
@@ -3856,7 +3856,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutFaqA7 =>
-      'NiosGram: это лента постов в стиле соцсети. Вы можете писать посты с Markdown-разметкой, прикреплять медиа, ставить лайки/дизлайки, комментировать и подписываться на авторов. В отличие от чатов, контент публичный и доступен всем пользователям.';
+      'NiosGram — это лента постов в стиле соцсети. Вы можете писать посты с Markdown-разметкой, прикреплять медиа, ставить лайки/дизлайки, комментировать и подписываться на авторов. В отличие от чатов, контент публичный и доступен всем пользователям.';
 
   @override
   String get aboutFaqQ8 => 'Как работает ИИ-помощник в чатах?';
@@ -3870,14 +3870,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutFaqA9 =>
-      'Обычные сообщения хранятся на сервере в зашифрованном виде. Секретные чаты, только на ваших устройствах. Локальный кеш сообщений шифруется AES-256-GCM с ключом, хранящимся в безопасном хранилище устройства (Keystore/Keychain).';
+      'Обычные сообщения хранятся на сервере в зашифрованном виде. Секретные чаты — только на ваших устройствах. Локальный кеш сообщений шифруется AES-256-GCM с ключом, хранящимся в безопасном хранилище устройства (Keystore/Keychain).';
 
   @override
   String get aboutFaqQ10 => 'Как сообщить о баге или предложить улучшение?';
 
   @override
   String get aboutFaqA10 =>
-      'Настройки → О NiosMess → нажмите на вкладку «Changelog» → «Сообщить о проблеме». Опишите проблему, письмо уйдёт на support@ni-os.ru. Или напишите напрямую.';
+      'Настройки → О NiosMess → нажмите на вкладку «Changelog» → «Сообщить о проблеме». Опишите проблему — письмо уйдёт на support@ni-os.ru. Или напишите напрямую.';
 
   @override
   String get aboutChangelogDateJune2026 => 'Июнь 2026';
@@ -3914,7 +3914,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutChangelogV210C2 =>
-      'Работа в фоне: экономный и надёжный режимы';
+      'Работа в фоне — экономный и надёжный режимы';
 
   @override
   String get aboutChangelogV210C3 => 'Новые темы оформления и цветовые схемы';
@@ -3947,7 +3947,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutChangelogV200C3 =>
-      'NiosGram: лента постов с реакциями и комментариями';
+      'NiosGram — лента постов с реакциями и комментариями';
 
   @override
   String get aboutChangelogV200C4 =>
@@ -4160,7 +4160,7 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String nativeFileFailed(Object error) => 'Ошибка загрузки файла: $error';
   @override
-  String get routerNotFound => '404: Страница не найдена';
+  String get routerNotFound => '404 — Страница не найдена';
 
   @override
   String get unblockAction => 'Разблокировать';
@@ -4225,19 +4225,19 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get chatCallsRestrictedByUser => 'Пользователь ограничил возможность звонков';
   @override
-  String chatPreviewStickerWithEmoji(Object emoji) => 'Стикер $emoji';
+  String chatPreviewStickerWithEmoji(Object emoji) => '🖼️ Стикер $emoji';
   @override
-  String get chatPreviewSticker => 'Стикер';
+  String get chatPreviewSticker => '🖼️ Стикер';
   @override
-  String chatPreviewVoiceWithDuration(Object duration) => 'Голосовое сообщение ($duration)';
+  String chatPreviewVoiceWithDuration(Object duration) => '🎤 Голосовое сообщение ($duration)';
   @override
-  String get chatPreviewVoice => 'Голосовое сообщение';
+  String get chatPreviewVoice => '🎤 Голосовое сообщение';
   @override
-  String get chatPreviewVideoNote => 'Видеосообщение';
+  String get chatPreviewVideoNote => '📹 Видеосообщение';
   @override
-  String get chatPreviewCall => 'Звонок';
+  String get chatPreviewCall => '📞 Звонок';
   @override
-  String get chatPreviewAttachment => 'Вложение';
+  String get chatPreviewAttachment => '📎 Вложение';
   @override
   String get chatPreviewMessage => 'Сообщение';
   @override
@@ -4831,7 +4831,7 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get callsConnecting => 'Соединение...';
   @override
-  String get callListenerModeNotice => 'Микрофон недоступен, подключение в режиме слушателя';
+  String get callListenerModeNotice => 'Микрофон недоступен — подключение в режиме слушателя';
   @override
   String get profileMuteNotifications => 'Отключить уведомления';
   @override

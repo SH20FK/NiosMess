@@ -71,7 +71,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: scheme.outlineVariant,
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

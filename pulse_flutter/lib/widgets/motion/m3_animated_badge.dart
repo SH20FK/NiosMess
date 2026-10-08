@@ -129,7 +129,7 @@ class _M3AnimatedBadgeState extends State<M3AnimatedBadge>
       padding: widget.padding,
       decoration: ShapeDecoration(
         color: bg,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+        shape: const StadiumBorder(),
       ),
       alignment: Alignment.center,
       child: Text(
@@ -137,7 +137,7 @@ class _M3AnimatedBadgeState extends State<M3AnimatedBadge>
         style: widget.textStyle ??
             TextStyle(
               color: fg,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               height: 1.0,
             ),

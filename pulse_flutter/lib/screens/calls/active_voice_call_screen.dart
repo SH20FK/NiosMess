@@ -38,7 +38,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     _rippleController = AnimationController(
       vsync: this,
       duration: CallTokens.rippleAnimationDuration,
-    );
+    )..repeat();
     WidgetsBinding.instance.addPostFrameCallback((_) => _listenToState());
   }
 
@@ -131,7 +131,16 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
         height: double.infinity,
         decoration: BoxDecoration(
           color: const Color(0xFF0D0F14),
-          
+          gradient: RadialGradient(
+            center: const Alignment(0.0, -0.28),
+            radius: 1.15,
+            colors: [
+              callScheme.primary.withValues(alpha: 0.18),
+              callScheme.tertiary.withValues(alpha: 0.07),
+              const Color(0xFF0B0C10),
+            ],
+            stops: const [0.0, 0.50, 1.0],
+          ),
         ),
         child: SafeArea(
           child: Column(
@@ -163,7 +172,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                         color: callScheme.surfaceContainerHigh.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: callScheme.outlineVariant,
+                          color: callScheme.outlineVariant.withValues(alpha: 0.20),
                         ),
                       ),
                       child: Row(
@@ -179,7 +188,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                             'ЗАЩИЩЕНО ПРИ ПЕРЕДАЧЕ',
                             style: TextStyle(
                               color: callScheme.onSurface,
-                              fontSize: 12,
+                              fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.6,
                             ),
@@ -204,7 +213,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                         CallAudioRipple(
                           animation: _rippleController,
                           scheme: callScheme,
-                          isActive: false,
+                          isActive: data.state == CallSessionState.inCall ||
+                              data.state == CallSessionState.connecting ||
+                              data.state == CallSessionState.connected,
                           size: 140,
                           child: Container(
                             width: 140,
@@ -235,6 +246,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                           style: textTheme.headlineMedium?.copyWith(
                             color: callScheme.onSurface,
                             fontWeight: FontWeight.w700,
+                            letterSpacing: -0.4,
                           ),
                           textAlign: TextAlign.center,
                           maxLines: 1,
@@ -445,7 +457,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                   context.l10n.callListenerModeNotice,
                                   style: TextStyle(
                                     color: callScheme.primary,
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),

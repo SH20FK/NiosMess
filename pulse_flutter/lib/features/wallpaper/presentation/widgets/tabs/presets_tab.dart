@@ -83,7 +83,7 @@ class PresetsTab extends StatelessWidget {
                         : scheme.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isSelected ? scheme.primary : scheme.outlineVariant,
+                      color: isSelected ? scheme.primary : scheme.outlineVariant.withValues(alpha: 0.2),
                       width: isSelected ? 2 : 1,
                     ),
                   ),
@@ -123,7 +123,7 @@ class PresetsTab extends StatelessWidget {
                           Text(
                             preset.description,
                             style: textTheme.bodySmall?.copyWith(
-                              fontSize: 12,
+                              fontSize: 10,
                               color: isSelected ? scheme.onPrimaryContainer.withValues(alpha: 0.8) : scheme.onSurfaceVariant,
                             ),
                             maxLines: 1,

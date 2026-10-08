@@ -191,7 +191,7 @@ void main() {
       expect(find.byType(EmptyFeedIllustration), findsNothing);
     });
 
-    testWidgets('SettingsNavBanner shows title and subtitle without a decorative illustration', (
+    testWidgets('SettingsNavBanner displays SettingsHeaderIllustration when illustrationCategory is provided', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
@@ -206,7 +206,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(SettingsNavBanner), findsOneWidget);
-      expect(find.byType(SettingsHeaderIllustration), findsNothing);
+      expect(find.byType(SettingsHeaderIllustration), findsOneWidget);
       expect(find.text('Аккаунт'), findsOneWidget);
       expect(find.text('Управление Nios ID'), findsOneWidget);
     });

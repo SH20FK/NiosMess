@@ -72,7 +72,7 @@ class ChatFilterBar extends ConsumerWidget {
               : scheme.onSurfaceVariant;
           final Color borderColor = selected
               ? scheme.secondary.withValues(alpha: 0.35)
-              : scheme.outlineVariant;
+              : scheme.outlineVariant.withValues(alpha: 0.22);
 
           return Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -100,7 +100,7 @@ class ChatFilterBar extends ConsumerWidget {
                           color: selected
                               ? scheme.secondaryContainer
                               : scheme.onPrimary,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

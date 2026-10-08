@@ -454,7 +454,7 @@ class _MarkdownViewerState extends State<_MarkdownViewer> {
                 color: scheme.onSurface,
               ),
               h1: textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
                 color: scheme.primary,
               ),
               h2: textTheme.titleLarge?.copyWith(
@@ -475,7 +475,7 @@ class _MarkdownViewerState extends State<_MarkdownViewer> {
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.3),
                 ),
               ),
               blockquoteDecoration: BoxDecoration(
@@ -486,11 +486,11 @@ class _MarkdownViewerState extends State<_MarkdownViewer> {
                 ),
               ),
               tableBorder: TableBorder.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(8),
               ),
               tableHead: textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
                 color: scheme.primary,
               ),
             ),
@@ -591,7 +591,7 @@ class _DocxViewerState extends State<_DocxViewer> {
           child: Text(
             block.plainText,
             style: textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w800,
               color: scheme.primary,
             ),
           ),
@@ -602,7 +602,7 @@ class _DocxViewerState extends State<_DocxViewer> {
           child: Text(
             block.plainText,
             style: textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w800,
               color: scheme.primary,
             ),
           ),
@@ -656,7 +656,7 @@ class _DocxViewerState extends State<_DocxViewer> {
           child: Container(
             decoration: BoxDecoration(
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
               ),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -664,7 +664,7 @@ class _DocxViewerState extends State<_DocxViewer> {
             child: Table(
               border: TableBorder.symmetric(
                 inside: BorderSide(
-                  color: scheme.outlineVariant,
+                  color: scheme.outlineVariant.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -800,7 +800,7 @@ class _TextViewerState extends State<_TextViewer> {
             color: scheme.surfaceContainerLow,
             border: Border(
               bottom: BorderSide(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.2),
               ),
             ),
           ),
@@ -1334,6 +1334,13 @@ class _MusicPlayerState extends State<_MusicPlayer> {
                   ],
                 ),
                 borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: scheme.shadow.withValues(alpha: 0.15),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
               child: Icon(
                 Icons.music_note_rounded,
@@ -1412,6 +1419,13 @@ class _MusicPlayerState extends State<_MusicPlayer> {
                   decoration: BoxDecoration(
                     color: scheme.primary,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: scheme.primary.withValues(alpha: 0.3),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
                   child: _loading
                       ? AppLoadingIndicator(

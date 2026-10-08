@@ -93,7 +93,7 @@ class _M3AuthTextFieldState extends State<M3AuthTextField> {
             ? scheme.error
             : (_isFocused
                 ? scheme.primary
-                : scheme.outlineVariant);
+                : scheme.outlineVariant.withValues(alpha: 0.25));
 
         final double borderWidth = _isFocused || hasError ? 1.6 : 1.0;
 
@@ -145,11 +145,11 @@ class _M3AuthTextFieldState extends State<M3AuthTextField> {
                         ? scheme.error
                         : (_isFocused
                             ? scheme.primary
-                            : scheme.onSurfaceVariant),
+                            : scheme.onSurfaceVariant.withValues(alpha: 0.8)),
                     fontSize: 14,
                   ),
                   hintStyle: TextStyle(
-                    color: scheme.onSurfaceVariant,
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
                     fontSize: 14,
                   ),
                   prefixIcon: Icon(

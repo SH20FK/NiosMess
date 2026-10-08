@@ -32,8 +32,11 @@ class CodePreview extends StatelessWidget {
                     ? scheme.primary.withValues(alpha: 0.4)
                     : (isCurrent
                         ? scheme.primary
-                        : scheme.outlineVariant),
+                        : scheme.outlineVariant.withValues(alpha: 0.3)),
               ),
+              boxShadow: isCurrent ? [
+                BoxShadow(color: scheme.primary.withValues(alpha: 0.1), blurRadius: 8, spreadRadius: 1)
+              ] : null,
             ),
             alignment: Alignment.center,
             child: Text(
@@ -42,7 +45,7 @@ class CodePreview extends StatelessWidget {
                 color: filled
                     ? scheme.onPrimaryContainer
                     : scheme.onSurfaceVariant.withValues(alpha: 0.4),
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),

@@ -255,7 +255,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verifyEmailDone => 'Done';
 
   @override
-  String get setupWelcomeTitle => 'Nice to meet you';
+  String get setupWelcomeTitle => 'Nice to meet you!';
 
   @override
   String get setupWelcomeBody =>
@@ -2649,7 +2649,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get botPollSubtitle => 'Poll for new bot messages and callbacks';
 
   @override
-  String get botCreated => 'Bot created';
+  String get botCreated => 'Bot created!';
 
   @override
   String get botCopied => 'Copied';
@@ -2659,7 +2659,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fluidPreviewM3Subtitle =>
-      'New indicators and smooth transitions are already available';
+      'New indicators and smooth transitions are already available!';
 
   @override
   String get profileAvatarUpdated => 'Avatar updated';
@@ -2700,7 +2700,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get niosgramEmptyFeed => 'No posts yet';
 
   @override
-  String get niosgramEmptyFeedDesc => 'Be the first to share something';
+  String get niosgramEmptyFeedDesc => 'Be the first to share something!';
 
   @override
   String get niosgramLoadMore => 'Load more';
@@ -2910,7 +2910,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'We could not resolve this user right now.';
 
   @override
-  String callRedirectStarting(Object username) => 'Calling $username';
+  String callRedirectStarting(Object username) => 'Calling $username…';
 
   @override
   String get e2eeHandshakeInitiated => 'Secure handshake initiated';
@@ -3247,7 +3247,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get e2eeMitmWarning =>
-      'WARNING: Security key mismatch. Possible MITM attack';
+      'WARNING: Security key mismatch! Possible MITM attack!';
 
   @override
   String get chatMembersBanConfirmTitle => 'Ban member?';
@@ -3324,7 +3324,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get biometricTitle => 'Biometrics';
 
   @override
-  String get biometricEnabled => 'Enabled, sign in with fingerprint/face';
+  String get biometricEnabled => 'Enabled — sign in with fingerprint/face';
 
   @override
   String get biometricDisabled => 'Disabled';
@@ -3679,10 +3679,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutInstallMissingFile => 'Update file not found. Download restarted.';
 
   @override
-  String get aboutEasterEggTitle => 'Secret Mode Activated';
+  String get aboutEasterEggTitle => 'Secret Mode Activated!';
 
   @override
-  String get aboutEasterEggMessage => 'Thank you for testing NiosMess';
+  String get aboutEasterEggMessage => 'Thank you for testing NiosMess!';
 
   @override
   String get aboutReportSubject => 'Issue subject';
@@ -3691,7 +3691,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutReportDescription => 'Describe the bug or issue';
 
   @override
-  String get aboutReportSuccess => 'Bug report sent to developers. Thank you';
+  String get aboutReportSuccess => 'Bug report sent to developers. Thank you!';
 
   @override
   String get aboutReportError => 'Failed to send bug report. Please try again later.';
@@ -3803,14 +3803,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutFaqA3 =>
-      'Secret chats are tied to a specific device, keys are stored only on it. Losing a device means losing access to secret chat history. Regular chats are restored when you sign in from a new device.';
+      'Secret chats are tied to a specific device — keys are stored only on it. Losing a device means losing access to secret chat history. Regular chats are restored when you sign in from a new device.';
 
   @override
   String get aboutFaqQ4 => 'Can I use NiosMess on multiple devices?';
 
   @override
   String get aboutFaqA4 =>
-      'Yes, regular chats sync between devices. Secret chats do not, they are tied to one device. To communicate from a secret chat on a new device, you need to create a new secret chat with the same user.';
+      'Yes, regular chats sync between devices. Secret chats do not — they are tied to one device. To communicate from a secret chat on a new device, you need to create a new secret chat with the same user.';
 
   @override
   String get aboutFaqQ5 => 'How to join a group or channel?';
@@ -3853,7 +3853,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutFaqA10 =>
-      'Settings → About NiosMess → tap the Changelog tab → Report a Problem. Describe the issue, the email will be sent to support@ni-os.ru. Or write directly.';
+      'Settings → About NiosMess → tap the Changelog tab → Report a Problem. Describe the issue — the email will be sent to support@ni-os.ru. Or write directly.';
 
   @override
   String get aboutChangelogDateJune2026 => 'June 2026';
@@ -3889,7 +3889,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutChangelogV210C1 => 'Predictive back gesture (Android 13+)';
 
   @override
-  String get aboutChangelogV210C2 => 'Background modes, economy and reliable';
+  String get aboutChangelogV210C2 => 'Background modes — economy and reliable';
 
   @override
   String get aboutChangelogV210C3 => 'New themes and color schemes';
@@ -3921,7 +3921,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutChangelogV200C3 =>
-      'NiosGram: post feed with reactions and comments';
+      'NiosGram — post feed with reactions and comments';
 
   @override
   String get aboutChangelogV200C4 =>
@@ -4136,7 +4136,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String nativeFileFailed(Object error) => 'Failed to load file: $error';
   @override
-  String get routerNotFound => '404: Page not found';
+  String get routerNotFound => '404 — Page not found';
 
   @override
   String get unblockAction => 'Unblock';
@@ -4201,19 +4201,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatCallsRestrictedByUser => 'User restricted incoming calls';
   @override
-  String chatPreviewStickerWithEmoji(Object emoji) => 'Sticker $emoji';
+  String chatPreviewStickerWithEmoji(Object emoji) => '🖼️ Sticker $emoji';
   @override
-  String get chatPreviewSticker => 'Sticker';
+  String get chatPreviewSticker => '🖼️ Sticker';
   @override
-  String chatPreviewVoiceWithDuration(Object duration) => 'Voice message ($duration)';
+  String chatPreviewVoiceWithDuration(Object duration) => '🎤 Voice message ($duration)';
   @override
-  String get chatPreviewVoice => 'Voice message';
+  String get chatPreviewVoice => '🎤 Voice message';
   @override
-  String get chatPreviewVideoNote => 'Video message';
+  String get chatPreviewVideoNote => '📹 Video message';
   @override
-  String get chatPreviewCall => 'Call';
+  String get chatPreviewCall => '📞 Call';
   @override
-  String get chatPreviewAttachment => 'Attachment';
+  String get chatPreviewAttachment => '📎 Attachment';
   @override
   String get chatPreviewMessage => 'Message';
   @override
@@ -4807,7 +4807,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get callsConnecting => 'Connecting...';
   @override
-  String get callListenerModeNotice => 'Microphone unavailable, connected in listener mode';
+  String get callListenerModeNotice => 'Microphone unavailable — connected in listener mode';
   @override
   String get profileMuteNotifications => 'Mute notifications';
   @override
@@ -4909,7 +4909,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shellPushNotificationsEnable => 'Enable';
   @override
   String get shellPushNotificationsSuccess =>
-      'Notifications enabled successfully';
+      'Notifications enabled successfully!';
   @override
   String get shellPressAgainToExit => 'Press back again to exit';
   @override

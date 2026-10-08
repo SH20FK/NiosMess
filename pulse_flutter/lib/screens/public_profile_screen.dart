@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -623,7 +624,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(radii.xl),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
         ),
       ),
       child: Column(
@@ -766,10 +767,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }) {
     final Widget content = Row(
       children: <Widget>[
-        SizedBox(
+        M3Container(
+          Shapes.c9_sided_cookie,
           width: 36,
           height: 36,
-          child: Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+          color: scheme.surfaceContainerHighest,
+          child: Center(
+            child: Icon(icon, size: 18, color: scheme.primary),
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1112,7 +1117,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 Text(
                   context.l10n.profileCommonGroups,
                   style: dialogTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1162,7 +1167,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 Text(
                   context.l10n.unblockAction,
                   style: dialogTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1238,7 +1243,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 Text(
                   context.l10n.profileBlock,
                   style: dialogTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1326,7 +1331,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 child: Text(
                   context.l10n.reportSelectReason,
                   style: sheetTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),

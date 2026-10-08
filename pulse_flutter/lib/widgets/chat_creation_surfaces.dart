@@ -138,7 +138,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
             color: scheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: scheme.outlineVariant,
+              color: scheme.outlineVariant.withValues(alpha: 0.14),
             ),
           ),
           child: Row(
@@ -161,7 +161,8 @@ Future<String?> showCreateChatMenu(BuildContext context) {
                     Text(
                       title,
                       style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.1,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -177,7 +178,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: scheme.onSurfaceVariant,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.50),
                 size: 22,
               ),
             ],
@@ -230,7 +231,8 @@ Future<String?> showCreateChatMenu(BuildContext context) {
                       Text(
                         context.l10n.groupCreateOrJoin,
                         style: textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
                         ),
                       ),
                       Text(
@@ -316,13 +318,17 @@ class _PressableScale extends StatefulWidget {
 }
 
 class _PressableScaleState extends State<_PressableScale> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
       onTap: widget.onTap,
       child: AnimatedScale(
-        scale: 1.0,
+        scale: _pressed ? 0.98 : 1.0,
         duration: const Duration(milliseconds: 140),
         curve: M3SpringCurves.spatial,
         child: widget.child,

@@ -196,7 +196,7 @@ class _SettingsControlWidget extends StatelessWidget {
             Icon(
               Icons.chevron_right_rounded,
               size: 20,
-              color: scheme.onSurfaceVariant,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
           ],
         ),

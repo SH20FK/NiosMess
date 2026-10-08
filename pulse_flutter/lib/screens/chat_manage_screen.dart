@@ -554,7 +554,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
         ),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: scheme.outlineVariant,
+          color: scheme.outlineVariant.withValues(alpha: 0.14),
         ),
       ),
       child: child,
@@ -572,7 +572,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

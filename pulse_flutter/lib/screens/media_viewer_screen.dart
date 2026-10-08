@@ -319,7 +319,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                     color: scheme.surfaceContainerHigh.withValues(alpha: 0.90),
                     borderRadius: BorderRadius.circular(32),
                     border: Border.all(
-                      color: scheme.outlineVariant,
+                      color: scheme.outlineVariant.withValues(alpha: 0.25),
                     ),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -426,7 +426,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Icon(Icons.open_in_new_rounded,
-              size: 48, color: scheme.onSurfaceVariant),
+              size: 48, color: scheme.onSurfaceVariant.withValues(alpha: 0.7)),
           const SizedBox(height: 16),
           Text(
             context.l10n.mediaViewerCannotPreview,
@@ -676,14 +676,14 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
               Icon(
                 Icons.broken_image_rounded,
                 size: 48,
-                color: widget.scheme.onSurfaceVariant,
+                color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.54),
               ),
               const SizedBox(height: 16),
               Text(
                 AppErrorFormatter.format(_error).toString(),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: widget.scheme.onSurfaceVariant,
+                  color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -706,7 +706,7 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
         errorBuilder: (context, error, stackTrace) => Center(
           child: Icon(
             Icons.broken_image_rounded,
-            color: widget.scheme.onSurfaceVariant,
+            color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ),

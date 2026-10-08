@@ -133,7 +133,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                     color: scheme.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: scheme.outlineVariant,
+                      color: scheme.outlineVariant.withValues(alpha: 0.3),
                     ),
                   ),
                   child: QrImageView(
@@ -250,7 +250,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                           color: info.isVerified
                               ? scheme.tertiary.withValues(alpha: 0.15)
                               : scheme.primaryContainer.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           info.isVerified
@@ -406,7 +406,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Внимание: угроза безопасности',
+                  'Внимание: угроза безопасности!',
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: scheme.error,
@@ -457,7 +457,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
               color: scheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: scheme.outlineVariant,
+                color: scheme.outlineVariant.withValues(alpha: 0.3),
               ),
             ),
             child: Column(
@@ -497,7 +497,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                                             '#${i + 1}',
                                             style:
                                                 textTheme.labelSmall?.copyWith(
-                                              fontSize: 12,
+                                              fontSize: 9,
                                               fontWeight: FontWeight.w600,
                                               color: accent
                                                   .withValues(alpha: 0.75),
@@ -511,7 +511,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                                             item.word.toUpperCase(),
                                             style:
                                                 textTheme.labelLarge?.copyWith(
-                                              fontWeight: FontWeight.w600,
+                                              fontWeight: FontWeight.w800,
                                               color: accent,
                                               letterSpacing: 0.5,
                                             ),
@@ -645,7 +645,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
             fingerprint,
             style: textTheme.bodySmall?.copyWith(
               fontFamily: 'monospace',
-              fontSize: 12,
+              fontSize: 11,
               letterSpacing: 1.5,
               color: scheme.onSurfaceVariant,
               fontFeatures: const [FontFeature.tabularFigures()],
