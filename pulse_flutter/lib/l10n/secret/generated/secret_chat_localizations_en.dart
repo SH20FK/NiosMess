@@ -84,4 +84,8 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get secretRetry => 'Retry sending';
+
+  @override
+  String get secretDeleteWarning =>
+      'History, attachments and unsent messages on this device will be deleted. The other person\'s history will remain.';
 }

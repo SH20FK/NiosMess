@@ -212,6 +212,11 @@ class SecretChatCoordinator implements SecretTransport {
       (c) =>
           c.id > 0 && c.isSecret && !c.keyMismatch && c.partnerUserId != null,
     )) {
+      final existing = engine.findChat(chat.id);
+      if (existing != null &&
+          engine.journal.state(existing)['status'] == 'deleted') {
+        continue;
+      }
       final uiId = await engine.open(
         peerId: chat.partnerUserId!,
         peerName: chat.name,
@@ -318,6 +323,7 @@ class SecretChatCoordinator implements SecretTransport {
     final result = remote.where((c) => !c.isSecret).toList();
     for (final key in engine.journal.conversations) {
       final data = engine.journal.state(key);
+      if (data['status'] == 'deleted') continue;
       final uiId = data['ui_id'] as int;
       final server = remote.where((c) => c.id == data['remote_id']).firstOrNull;
       final messages = engine.messages(uiId);
@@ -352,6 +358,11 @@ class SecretChatCoordinator implements SecretTransport {
     result.addAll(remote.where((c) => c.isSecret && c.keyMismatch));
     result.sort((a, b) => b.lastActivity.compareTo(a.lastActivity));
     return result;
+  }
+
+  Future<void> deleteConversation(int uiId) async {
+    await engine.deleteConversation(uiId);
+    await _collectAttachments();
   }
 
   Future<void> enqueueAttachment(

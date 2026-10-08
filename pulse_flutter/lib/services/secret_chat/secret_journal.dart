@@ -158,6 +158,7 @@ class SecretJournal {
         _apply(tx);
         _sequence++;
         if (_sequence >= 128 ||
+            state['status'] == 'deleted' ||
             remove.isNotEmpty ||
             messages.values.any(
               (row) => secretMap(row['message'])['is_deleted'] == true,

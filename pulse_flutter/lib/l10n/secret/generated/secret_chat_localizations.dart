@@ -232,6 +232,12 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Retry sending'**
   String get secretRetry;
+
+  /// No description provided for @secretDeleteWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'History, attachments and unsent messages on this device will be deleted. The other person\'s history will remain.'**
+  String get secretDeleteWarning;
 }
 
 class _SecretChatLocalizationsDelegate

@@ -84,4 +84,8 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get secretRetry => 'Повторить отправку';
+
+  @override
+  String get secretDeleteWarning =>
+      'История, вложения и неотправленные сообщения на этом устройстве будут удалены. История собеседника сохранится.';
 }

@@ -42,6 +42,8 @@ class SecretChatEngine {
   final _uuid = const Uuid();
   final _changes = StreamController<String>.broadcast();
   final Set<String> _pumping = {};
+  final Map<String, Completer<void>> _pumpIdle = {};
+  final Set<String> _deleting = {};
   bool _stopped = false;
   late String publicKey;
   late String edPublicKey;
@@ -69,6 +71,7 @@ class SecretChatEngine {
     if (key == null || _stopped) return;
     await _serial.run(key, () async {
       final state = journal.state(key);
+      if (state['status'] == 'deleted' || _deleting.contains(key)) return;
       if (state['draft'] == text) return;
       state['draft'] = text;
       await _commit(key, state);
@@ -138,6 +141,21 @@ class SecretChatEngine {
             : state['peer_id'] == peerId && state['status'] != 'otherDevice';
       }).firstOrNull;
       if (existing != null) {
+        if (_deleting.contains(existing)) {
+          throw StateError('Conversation is being deleted');
+        }
+        if (journal.state(existing)['status'] == 'deleted' &&
+            remoteId == null) {
+          await _serial.run(existing, () async {
+            final state = journal.state(existing);
+            state['closed_remote_id'] = state['remote_id'];
+            state['remote_id'] = null;
+            state['status'] = state.remove('closed_status') ?? 'waiting';
+            state['peer_name'] = peerName;
+            if (peerProfile != null) state['peer_profile'] = peerProfile;
+            await _commit(existing, state);
+          });
+        }
         if (peerProfile != null ||
             (remoteId != null &&
                 journal.state(existing)['remote_id'] == null)) {
@@ -256,6 +274,9 @@ class SecretChatEngine {
     final id = _uuid.v4();
     await _serial.run(key, () async {
       final state = journal.state(key);
+      if (state['status'] == 'deleted' || _deleting.contains(key)) {
+        throw StateError('Conversation is deleted');
+      }
       state['draft'] = '';
       final now = DateTime.now().toUtc();
       final message = <String, dynamic>{
@@ -411,12 +432,22 @@ class SecretChatEngine {
   void wake() {
     if (_stopped) return;
     for (final key in journal.conversations) {
+      if (journal.state(key)['status'] == 'deleted' || _deleting.contains(key)) {
+        continue;
+      }
       unawaited(pump(key).catchError((Object _) {}));
     }
   }
 
   Future<void> pump(String key) async {
-    if (_stopped || !_pumping.add(key)) return;
+    if (_stopped ||
+        _deleting.contains(key) ||
+        journal.state(key)['status'] == 'deleted' ||
+        !_pumping.add(key)) {
+      return;
+    }
+    final idle = Completer<void>();
+    _pumpIdle[key] = idle;
     try {
       await _expire(key);
       await _resolve(key);
@@ -455,6 +486,45 @@ class SecretChatEngine {
       rethrow;
     } finally {
       _pumping.remove(key);
+      _pumpIdle.remove(key);
+      idle.complete();
+    }
+  }
+
+  /// Stop delivery before leaving the remote chat. Keep the identity pin and
+  /// ratchet checkpoint so reopening the same device pair can still decrypt
+  /// the peer's next message; erase all local plaintext, attachments and sends.
+  Future<void> deleteConversation(int uiId) async {
+    final key = findChat(uiId);
+    if (key == null || _stopped) return;
+    if (!_deleting.add(key)) throw StateError('Conversation is being deleted');
+    try {
+      await _pumpIdle[key]?.future;
+      await _serial.run(key, () async {
+        final state = journal.state(key);
+        if (state['status'] == 'deleted') return;
+        final remoteId = state['remote_id'];
+        if (remoteId != null) {
+          try {
+            await transport.request('leave_chat', {'chat_id': remoteId});
+          } on SecretTransportException catch (error) {
+            // An earlier leave may have committed before its reply was lost.
+            if (!error.code.contains('Not in this chat')) rethrow;
+          }
+        }
+        state['closed_status'] = state['status'];
+        state['status'] = 'deleted';
+        state.remove('draft');
+        await _commit(
+          key,
+          state,
+          remove: [
+            for (final row in journal.messages(key)) row['local_id'] as String,
+          ],
+        );
+      });
+    } finally {
+      _deleting.remove(key);
     }
   }
 
@@ -513,8 +583,24 @@ class SecretChatEngine {
     });
     await _serial.run(key, () async {
       state = journal.state(key);
+      if (state['closed_remote_id'] != null &&
+          state['closed_remote_id'] != opened['chat_id']) {
+        _archiveSession(state);
+        state['ratchet'] = null;
+        state['controls'] = <String, dynamic>{};
+        state['cursor'] = 0;
+        state['initialized'] = false;
+        state['reset_requested'] = false;
+        state['status'] = 'waiting';
+      }
+      state.remove('closed_remote_id');
       state['remote_id'] = opened['chat_id'];
-      state['peer_key'] = peerKey;
+      if (state['peer_key'] != null && state['peer_key'] != peerKey) {
+        state['candidate_key'] = peerKey;
+        state['status'] = 'keyChanged';
+      } else {
+        state['peer_key'] = peerKey;
+      }
       final profile = secretMap(opened['with_user']);
       if (profile.isNotEmpty && profile['id'] == state['peer_id']) {
         state['peer_profile'] = {
@@ -1073,6 +1159,7 @@ class SecretChatEngine {
   }
 
   Future<bool> _sendNext(String key) async {
+    if (_deleting.contains(key)) return false;
     var state = journal.state(key);
     if (state['status'] != 'secured' ||
         state['peer_protocol'] != 2 ||

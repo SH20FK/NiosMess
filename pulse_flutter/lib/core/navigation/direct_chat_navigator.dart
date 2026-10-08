@@ -30,7 +30,14 @@ Future<int?> navigateToDirectChat(
   if (isSecret) {
     try {
       final secret = await ref.read(secretChatCoordinatorProvider.future);
-      if (secret == null || userId == null || userId <= 0) return null;
+      if (secret == null) return null;
+      if (userId == null || userId <= 0) {
+        final profile = await ref.read(authRepositoryProvider).getPublicProfile(cleanUsername.replaceFirst(RegExp(r'^@'), ''));
+        userId = profile.id;
+        displayName = profile.displayName;
+        avatarUrl = profile.avatarUrl;
+      }
+      if (userId <= 0 || userId == secret.userId) return null;
       final peerName = displayName != null && displayName.trim().isNotEmpty ? displayName : username;
       final id = await secret.engine.open(
         peerId: userId,

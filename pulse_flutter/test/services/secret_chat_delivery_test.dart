@@ -39,6 +39,8 @@ class Hub {
   final Map<String, SecretJson> operations = {};
   final List<SecretJson> attempts = [];
   int messages = 0;
+  final List<int> leftChats = [];
+  bool failLeave = false;
 
   Future<SecretJson> request(
     int user,
@@ -47,6 +49,19 @@ class Hub {
     SecretJson payload,
   ) async {
     if (!online) throw StateError('offline');
+    if (action == 'leave_chat') {
+      leftChats.add(payload['chat_id'] as int);
+      if (failLeave) throw StateError('offline');
+      return {};
+    }
+    if (action == 'get_public_key') {
+      return {
+        'devices': [
+          {'session_id': 1, 'public_key': peerKey},
+        ],
+      };
+    }
+    if (action == 'open_direct') return {'chat_id': 42};
     if (action == 'secret_sync') {
       final after = payload['after_event_id'] as int;
       return {
@@ -179,7 +194,9 @@ class Pair {
   Future<void> settle([int rounds = 15]) async {
     for (var i = 0; i < rounds; i++) {
       await Future.wait([
-        a.pump(a.findChat(42)!).catchError((_) {}),
+        a.pump(a.findChat(42) ?? a.journal.conversations.firstWhere(
+          (key) => a.journal.state(key)['peer_id'] == 2,
+        )).catchError((_) {}),
         b.pump(b.findChat(42)!).catchError((_) {}),
       ]);
       await Future<void>.delayed(const Duration(milliseconds: 1));
@@ -193,6 +210,84 @@ class Pair {
 }
 
 void main() {
+  test(
+    'delete pending local chat clears queue durably and permits opening again',
+    () async {
+      final pair = Pair();
+      await pair.start();
+      pair.hub.online = false;
+      final id = await pair.a.open(peerId: 99, peerName: 'Pending');
+      await pair.a.enqueue(id, {'text': 'cancelled send', 'type': 'text'});
+      await pair.a.saveDraft(id, 'cancelled draft');
+      await pair.a.deleteConversation(id);
+      expect(pair.a.messages(id), isEmpty);
+      expect(pair.a.chat(id)['status'], 'deleted');
+      expect(pair.a.chat(id)['draft'], isNull);
+      expect(pair.hub.leftChats, isEmpty);
+      await pair.a.stop();
+      pair.a = await pair.create(1, pair.aDisk, pair.aTransport);
+      expect(pair.a.chat(id)['status'], 'deleted');
+      expect(pair.a.messages(id), isEmpty);
+      await expectLater(
+        pair.a.enqueue(id, {'text': 'too late'}),
+        throwsStateError,
+      );
+      final reopened = await pair.a.open(peerId: 99, peerName: 'Pending');
+      expect(reopened, id);
+      await pair.a.enqueue(reopened, {'text': 'new send', 'type': 'text'});
+      expect(pair.a.messages(reopened).single['content'], 'new send');
+      await pair.close();
+    },
+  );
+
+  test(
+    'delete remote conversation leaves server id and reopening preserves peer decryption',
+    () async {
+      final pair = Pair();
+      await pair.start();
+      await pair.settle();
+      final key = pair.a.findChat(42)!;
+      final state = pair.a.chat(42)..['ui_id'] = -99;
+      await pair.a.journal.commit(key, state);
+      await pair.a.enqueue(42, {'text': 'old local history', 'type': 'text'});
+      await pair.settle();
+      final pin = pair.a.chat(42)['pinned_ed'];
+      await pair.a.deleteConversation(-99);
+      expect(pair.hub.leftChats, [42]);
+      expect(pair.a.messages(42), isEmpty);
+      expect(pair.b.messages(42).single['content'], 'old local history');
+      expect(pair.a.chat(42)['pinned_ed'], pin);
+      final attempts = pair.hub.attempts.length;
+      await pair.a.pump(pair.a.findChat(42)!);
+      expect(pair.hub.attempts, hasLength(attempts));
+      await pair.a.open(peerId: 2, peerName: 'B');
+      await pair.a.enqueue(-99, {'text': 'new conversation', 'type': 'text'});
+      await pair.a.pump(key);
+      await pair.settle();
+      expect(pair.a.messages(42).single['content'], 'new conversation');
+      expect(pair.b.messages(42).last['content'], 'new conversation');
+      await pair.close();
+    },
+  );
+
+  test(
+    'failed server leave keeps history and queue until deletion succeeds',
+    () async {
+      final pair = Pair();
+      await pair.start();
+      pair.hub.online = false;
+      await pair.a.enqueue(42, {'text': 'keep on failure', 'type': 'text'});
+      pair.hub.online = true;
+      pair.hub.failLeave = true;
+      await expectLater(pair.a.deleteConversation(42), throwsStateError);
+      expect(pair.a.messages(42).single['content'], 'keep on failure');
+      expect(pair.a.chat(42)['status'], isNot('deleted'));
+      pair.hub.failLeave = false;
+      await pair.a.deleteConversation(42);
+      expect(pair.a.messages(42), isEmpty);
+      await pair.close();
+    },
+  );
   test(
     'pending chat keeps selected peer name and avatar through restart and profile refresh',
     () async {

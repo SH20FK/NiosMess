@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -533,7 +534,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       title: isDirect
           ? context.l10n.chatDelete
           : context.l10n.groupManageLeaveTitle,
-      subtitle: isDirect
+      subtitle: chat.isSecret
+          ? context.l10n.secretDeleteWarning
+          : isDirect
           ? context.l10n.chatDeleteMessageBody
           : context.l10n.groupManageLeaveBody,
       confirmLabel:
@@ -545,7 +548,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     if (confirmed != true) return;
 
     try {
-      await ref.read(chatRepositoryProvider).leaveChat(chat.id);
+      if (chat.isSecret && !chat.keyMismatch) {
+        final secret = await ref.read(secretChatCoordinatorProvider.future);
+        if (secret == null) throw StateError('Secret account unavailable');
+        await secret.deleteConversation(chat.id);
+      } else {
+        await ref.read(chatRepositoryProvider).leaveChat(chat.id);
+      }
       await ref.read(chatsProvider.notifier).refresh();
       if (!context.mounted) return;
       AppToast.showSuccess(
