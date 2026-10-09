@@ -102,14 +102,32 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(PaletteMeshPreview), findsOneWidget);
       expect(find.byType(RawImage), findsNothing);
+      final pager = find.byKey(const ValueKey('appearance-palette-strip'));
+      final pageBounds = tester.getRect(pager);
+      for (final label in ['Аметист', 'Лагуна', 'Луг']) {
+        final bounds = tester.getRect(find.byTooltip(label));
+        expect(bounds.left, greaterThanOrEqualTo(pageBounds.left));
+        expect(bounds.right, lessThanOrEqualTo(pageBounds.right));
+      }
       await tester.tap(find.text('Лагуна'));
       expect(dynamic, isFalse);
       expect(selected, const Color(0xFF006C5B));
+      await tester.drag(pager, const Offset(-280, 0));
+      await tester.pumpAndSettle();
+      expect(tester.widget<PageView>(pager).controller!.page, closeTo(1, 0.001));
+      await tester.drag(pager, const Offset(-280, 0));
+      await tester.pumpAndSettle();
+      expect(tester.widget<PageView>(pager).controller!.page, closeTo(2, 0.001));
+      expect(find.text('Небо').hitTestable(), findsOneWidget);
+      expect(find.text('Лагуна').hitTestable(), findsNothing);
       await tester.ensureVisible(find.byTooltip('Пользовательский цвет'));
       await tester.tap(find.byTooltip('Пользовательский цвет'));
       await tester.pumpAndSettle();
       expect(customOpened, 1);
       expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const ValueKey('appearance-palette-page-0')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<PageView>(pager).controller!.page, closeTo(0, 0.001));
       final directory = Platform.environment['NIOS_PALETTE_CAPTURE_DIR'];
       if (directory != null) {
         fontScale = 1.0;
@@ -117,12 +135,7 @@ void main() {
         await tester.pumpWidget(app());
         await tester.pumpAndSettle();
         final strip = find.byKey(const ValueKey('appearance-palette-strip'));
-        tester
-            .state<ScrollableState>(
-              find.descendant(of: strip, matching: find.byType(Scrollable)),
-            )
-            .position
-            .jumpTo(0);
+        tester.widget<PageView>(strip).controller!.jumpToPage(0);
         await tester.pumpAndSettle();
         await tester.runAsync(() async {
           final boundary =

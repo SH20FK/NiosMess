@@ -471,7 +471,12 @@ class NiosColorField extends StatelessWidget {
     ).hue;
     final dark = scheme.brightness == Brightness.dark;
     Color fogTone(double shift, double saturation, double lightness) =>
-        HSLColor.fromAHSL(1, (hue + shift) % 360, saturation, lightness).toColor();
+        HSLColor.fromAHSL(
+          1,
+          (hue + shift) % 360,
+          saturation,
+          lightness,
+        ).toColor();
     final colors = <Color>[
       fogTone(-25, 0.12, dark ? 0.56 : 0.78),
       fogTone(-5, 0.13, dark ? 0.68 : 0.85),
@@ -524,47 +529,176 @@ class NiosColorField extends StatelessWidget {
               onChanged: onToggleDynamic,
             ),
             const SizedBox(height: 16),
-            SingleChildScrollView(
-              key: const ValueKey('appearance-palette-strip'),
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in _palettes)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: _PaletteChoice(
-                        scheme: scheme,
-                        seedColor: entry.color,
-                        paletteStyle: paletteStyle,
-                        label: entry.getName(context.l10n),
-                        selected:
-                            !useSystemDynamic &&
-                            seedColor.toARGB32() == entry.color.toARGB32(),
-                        onTap: () {
-                          HapticService.tap();
-                          onToggleDynamic(false);
-                          onColorSelected(entry.color);
-                        },
-                      ),
-                    ),
+            _PalettePager(
+              scheme: scheme,
+              children: [
+                for (final entry in _palettes)
                   _PaletteChoice(
                     scheme: scheme,
-                    seedColor: seedColor,
+                    seedColor: entry.color,
                     paletteStyle: paletteStyle,
-                    label: context.l10n.appearanceCustomColor,
-                    selected: customSelected,
-                    custom: true,
-                    onTap: onCustomColorTap,
+                    label: entry.getName(context.l10n),
+                    selected:
+                        !useSystemDynamic &&
+                        seedColor.toARGB32() == entry.color.toARGB32(),
+                    onTap: () {
+                      HapticService.tap();
+                      onToggleDynamic(false);
+                      onColorSelected(entry.color);
+                    },
                   ),
-                ],
-              ),
+                _PaletteChoice(
+                  scheme: scheme,
+                  seedColor: seedColor,
+                  paletteStyle: paletteStyle,
+                  label: context.l10n.appearanceCustomColor,
+                  selected: customSelected,
+                  custom: true,
+                  onTap: onCustomColorTap,
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
   }
+}
+
+/// Full-width pages keep all three swatches inside the card at rest.
+class _PalettePager extends StatefulWidget {
+  const _PalettePager({required this.scheme, required this.children});
+  final ColorScheme scheme;
+  final List<_PaletteChoice> children;
+
+  @override
+  State<_PalettePager> createState() => _PalettePagerState();
+}
+
+class _PalettePagerState extends State<_PalettePager> {
+  late final PageController _controller;
+  late int _page;
+  int get _pageCount => (widget.children.length / 3).ceil();
+
+  @override
+  void initState() {
+    super.initState();
+    final selected = widget.children.indexWhere((choice) => choice.selected);
+    _page = selected < 0 ? 0 : selected ~/ 3;
+    _controller = PageController(initialPage: _page);
+  }
+
+  void _goTo(int page) {
+    HapticService.selection();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.jumpToPage(page);
+    } else {
+      _controller.animateToPage(
+        page,
+        duration: M3Durations.long1,
+        curve: M3SpringCurves.bouncy,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final labelStyle = Theme.of(context).textTheme.labelMedium!;
+      final labelHeight =
+          MediaQuery.textScalerOf(context).scale(labelStyle.fontSize!) *
+          1.4 *
+          2;
+      final diameter = ((constraints.maxWidth - 8) / 3 - 12).clamp(48.0, 72.0);
+      return Column(
+        children: [
+          SizedBox(
+            height: diameter + 8 + labelHeight + 12,
+            child: PageView.builder(
+              key: const ValueKey('appearance-palette-strip'),
+              controller: _controller,
+              itemCount: _pageCount,
+              physics: MediaQuery.disableAnimationsOf(context)
+                  ? const PageScrollPhysics()
+                  : const _PalettePagePhysics(),
+              onPageChanged: (page) => setState(() => _page = page),
+              itemBuilder: (context, page) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (int slot = 0; slot < 3; slot++)
+                      Expanded(
+                        child: page * 3 + slot < widget.children.length
+                            ? widget.children[page * 3 + slot].withDiameter(
+                                diameter,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (int page = 0; page < _pageCount; page++)
+                Semantics(
+                  button: true,
+                  selected: _page == page,
+                  label: MaterialLocalizations.of(
+                    context,
+                  ).tabLabel(tabIndex: page + 1, tabCount: _pageCount),
+                  child: InkWell(
+                    key: ValueKey('appearance-palette-page-$page'),
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () => _goTo(page),
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: AnimatedContainer(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : M3Durations.medium2,
+                          curve: M3SpringCurves.snappy,
+                          width: _page == page ? 20 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _page == page
+                                ? widget.scheme.primary
+                                : widget.scheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _PalettePagePhysics extends PageScrollPhysics {
+  const _PalettePagePhysics({super.parent});
+
+  @override
+  SpringDescription get spring => M3Spring.bouncy;
+
+  @override
+  _PalettePagePhysics applyTo(ScrollPhysics? ancestor) =>
+      _PalettePagePhysics(parent: buildParent(ancestor));
 }
 
 class _PaletteChoice extends StatefulWidget {
@@ -576,6 +710,7 @@ class _PaletteChoice extends StatefulWidget {
     required this.selected,
     required this.onTap,
     this.custom = false,
+    this.diameter = 72,
   });
   final ColorScheme scheme;
   final Color seedColor;
@@ -583,6 +718,18 @@ class _PaletteChoice extends StatefulWidget {
   final String label;
   final bool selected;
   final bool custom;
+  final double diameter;
+
+  _PaletteChoice withDiameter(double diameter) => _PaletteChoice(
+    scheme: scheme,
+    seedColor: seedColor,
+    paletteStyle: paletteStyle,
+    label: label,
+    selected: selected,
+    custom: custom,
+    onTap: onTap,
+    diameter: diameter,
+  );
   final VoidCallback onTap;
 
   @override
@@ -634,7 +781,7 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: SizedBox(
-          width: 76,
+          width: double.infinity,
           child: Column(
             children: [
               Material(
@@ -651,8 +798,8 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
                   customBorder: const CircleBorder(),
                   onTap: onTap,
                   child: SizedBox(
-                    width: 72,
-                    height: 72,
+                    width: widget.diameter,
+                    height: widget.diameter,
                     child: Padding(
                       padding: const EdgeInsets.all(7),
                       child: ClipOval(
@@ -726,13 +873,16 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
                   ),
                 ),
               ),
-              if (!custom) ...[
+              ...[
                 const SizedBox(height: 8),
                 ExcludeSemantics(
                   child: Text(
                     label,
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      height: 1.4,
                       color: selected
                           ? scheme.onSecondaryContainer
                           : scheme.onSurface,
