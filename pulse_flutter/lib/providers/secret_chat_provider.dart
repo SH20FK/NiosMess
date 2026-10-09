@@ -328,6 +328,12 @@ class SecretChatCoordinator implements SecretTransport {
       final server = remote.where((c) => c.id == data['remote_id']).firstOrNull;
       final messages = engine.messages(uiId);
       final profile = secretMap(data['peer_profile']);
+      final peerName = [
+        profile['display_name'] as String?,
+        data['peer_name'] as String?,
+        profile['username'] as String?,
+        server?.name,
+      ].map((name) => name?.trim() ?? '').where((name) => name.isNotEmpty).firstOrNull;
       result.add(
         (server ??
                 ApiChatSummary(
@@ -347,6 +353,10 @@ class SecretChatCoordinator implements SecretTransport {
                 ))
             .copyWith(
               id: uiId,
+              // Server conversation labels must not replace the known peer.
+              name: peerName,
+              username: profile['username'] as String?,
+              avatarUrl: profile['avatar_url'] as String?,
               lastMessage: messages.isEmpty
                   ? null
                   : ApiMessage.fromJson(messages.last),

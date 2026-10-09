@@ -8,9 +8,11 @@ class SecurityStatusChip extends ConsumerWidget {
   const SecurityStatusChip({
     required this.chatId,
     required this.onTap,
+    this.compact = false,
     super.key,
   });
   final int chatId;
+  final bool compact;
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,6 +21,17 @@ class SecurityStatusChip extends ConsumerWidget {
     final warning =
         data['status'] == 'keyChanged' || data['status'] == 'invalidSignature';
     final colors = Theme.of(context).colorScheme;
+    if (compact) {
+      return IconButton(
+        onPressed: onTap,
+        tooltip: context.l10n.secretTitle,
+        icon: Icon(
+          warning ? Icons.shield_outlined : Icons.lock_rounded,
+          color: warning ? colors.error : colors.primary,
+          size: 20,
+        ),
+      );
+    }
     return TextButton.icon(
       onPressed: onTap,
       style: TextButton.styleFrom(

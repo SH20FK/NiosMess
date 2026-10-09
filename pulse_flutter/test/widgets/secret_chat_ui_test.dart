@@ -6,15 +6,99 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
-import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/security_status_chip.dart';
+import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
+import 'package:pulse_flutter/widgets/chat/e2ee_status_card.dart';
 import '../services/secret_chat_delivery_test.dart' show Pair;
 
 void main() {
+  for (final brightness in Brightness.values) {
+    for (final locale in ['ru', 'en']) {
+      testWidgets(
+        'secret header keeps back and peer visible $locale $brightness',
+        (tester) async {
+          tester.view.physicalSize = const Size(320, 640);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          int back = 0;
+          int security = 0;
+          int timer = 0;
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                secretProtectionStateProvider(
+                  42,
+                ).overrideWithValue({'status': 'secured'}),
+                secretChatRevisionProvider.overrideWith(
+                  (ref) => Stream.value(0),
+                ),
+              ],
+              child: MaterialApp(
+                theme: ThemeData(useMaterial3: true, brightness: brightness),
+                locale: Locale(locale),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: TextScaler.linear(2)),
+                  child: child!,
+                ),
+                home: Scaffold(
+                  appBar: ChatDetailAppBar(
+                    chatId: 42,
+                    isDesktopSplit: false,
+                    title: 'Александр Петров',
+                    headerIcon: Icons.lock_rounded,
+                    typingSubtitle: const Text('online'),
+                    isSecret: true,
+                    autoDeleteDuration: '24 hours',
+                    onBack: () => back++,
+                    onSecurityTap: () => security++,
+                    onAutoDeleteTap: () => timer++,
+                    onVoiceCall: () {},
+                    onVideoCall: () {},
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.text('Александр Петров'), findsOneWidget);
+          expect(find.byIcon(Icons.phone_rounded), findsNothing);
+          expect(find.byIcon(Icons.timer_rounded), findsNothing);
+          final backRect = tester.getRect(
+            find.byIcon(Icons.arrow_back_rounded),
+          );
+          final titleRect = tester.getRect(find.text('Александр Петров'));
+          expect(backRect.overlaps(titleRect), isFalse);
+          expect(titleRect.width, greaterThan(50));
+          await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+          expect(back, 1);
+          await tester.tap(find.byType(SecurityStatusChip));
+          expect(security, 1);
+          final l10n = AppLocalizations.of(
+            tester.element(find.byType(ChatDetailAppBar)),
+          )!;
+          expect(find.text(l10n.secretTitle), findsOneWidget);
+          await tester.tap(find.byIcon(Icons.more_vert_rounded));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text(l10n.autoDeleteTitle));
+          await tester.pumpAndSettle();
+          expect(timer, 1);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
   Widget verificationApp(Pair pair) => ProviderScope(
     overrides: [
       appSoundProvider.overrideWithValue(SoundService()..setEnabled(false)),

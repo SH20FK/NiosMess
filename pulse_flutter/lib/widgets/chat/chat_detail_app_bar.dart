@@ -56,11 +56,14 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onAutoDeleteTap;
 
   bool get _showCallButtons =>
-      !isChannel && !isBot && (onVoiceCall != null || onVideoCall != null);
+      !isSecret &&
+      !isChannel &&
+      !isBot &&
+      (onVoiceCall != null || onVideoCall != null);
   bool get _showOverflowMenu => true;
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(isSecret ? 80 : kToolbarHeight);
 
   @override
   Widget build(BuildContext context) {
@@ -73,15 +76,18 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       scrolledUnderElevation: 0,
 
+      automaticallyImplyLeading: false,
+      centerTitle: false,
+      leadingWidth: 48,
+      toolbarHeight: isSecret ? 80 : kToolbarHeight,
       leading: isDesktopSplit
           ? null
           : IconButton(
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
               onPressed: onBack,
               icon: const Icon(Icons.arrow_back_rounded),
             ),
-      titleSpacing: isDesktopSplit
-          ? NavigationToolbar.kMiddleSpacing
-          : 0,
+      titleSpacing: isDesktopSplit ? NavigationToolbar.kMiddleSpacing : 0,
       title: InkWell(
         onTap: () {
           if (directUsername != null) {
@@ -120,10 +126,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                         decoration: BoxDecoration(
                           color: AppColors.statusOnline,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: scheme.surface,
-                            width: 2,
-                          ),
+                          border: Border.all(color: scheme.surface, width: 2),
                         ),
                       ),
                     )
@@ -137,10 +140,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                         decoration: BoxDecoration(
                           color: scheme.surface,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: scheme.surface,
-                            width: 1.5,
-                          ),
+                          border: Border.all(color: scheme.surface, width: 1.5),
                         ),
                         alignment: Alignment.center,
                         child: Icon(
@@ -166,6 +166,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                             title,
                             style: textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w800,
+                              height: isSecret ? 1.2 : null,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -182,7 +183,8 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                             color: scheme.primary,
                           ),
                         ],
-                        if (autoDeleteDuration != null) ...<Widget>[
+                        if (!isSecret &&
+                            autoDeleteDuration != null) ...<Widget>[
                           const SizedBox(width: 6),
                           InkWell(
                             onTap: onAutoDeleteTap,
@@ -194,8 +196,12 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: isSecret
-                                    ? scheme.secondaryContainer.withValues(alpha: 0.7)
-                                    : scheme.primaryContainer.withValues(alpha: 0.7),
+                                    ? scheme.secondaryContainer.withValues(
+                                        alpha: 0.7,
+                                      )
+                                    : scheme.primaryContainer.withValues(
+                                        alpha: 0.7,
+                                      ),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(
@@ -226,7 +232,18 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ],
                       ],
                     ),
-                    typingSubtitle,
+                    if (isSecret)
+                      Text(
+                        context.l10n.secretTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.labelMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.2,
+                        ),
+                      )
+                    else
+                      typingSubtitle,
                   ],
                 ),
               ),
@@ -235,30 +252,12 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: <Widget>[
-        if (isSecret) ...<Widget>[
-          IconButton(
-            onPressed: onAutoDeleteTap,
-            icon: Icon(
-              autoDeleteDuration != null
-                  ? Icons.timer_rounded
-                  : Icons.timer_outlined,
-              size: 20,
-              color: autoDeleteDuration != null
-                  ? scheme.secondary
-                  : scheme.onSurfaceVariant,
-            ),
-            tooltip: 'Таймер самоуничтожения',
+        if (isSecret)
+          SecurityStatusChip(
+            chatId: chatId,
+            compact: true,
+            onTap: onSecurityTap ?? () {},
           ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: SecurityStatusChip(
-                chatId: chatId,
-                onTap: onSecurityTap ?? () {},
-              ),
-            ),
-          ),
-        ],
         if (_showCallButtons) ...[
           IconButton(
             onPressed: onVoiceCall,
@@ -273,43 +272,75 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
         if (_showOverflowMenu)
           MenuAnchor(
-            builder: (BuildContext context, MenuController controller, Widget? child) {
-              return IconButton(
-                icon: const Icon(Icons.more_vert_rounded),
-                onPressed: () {
-                  if (controller.isOpen) {
-                    controller.close();
-                  } else {
-                    controller.open();
-                  }
+            crossAxisUnconstrained: false,
+            style: MenuStyle(
+              maximumSize: WidgetStatePropertyAll<Size>(
+                Size(MediaQuery.sizeOf(context).width - 24, double.infinity),
+              ),
+            ),
+            builder:
+                (
+                  BuildContext context,
+                  MenuController controller,
+                  Widget? child,
+                ) {
+                  return IconButton(
+                    icon: const Icon(Icons.more_vert_rounded),
+                    onPressed: () {
+                      if (controller.isOpen) {
+                        controller.close();
+                      } else {
+                        controller.open();
+                      }
+                    },
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).moreButtonTooltip,
+                  );
                 },
-                tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
-              );
-            },
-            menuChildren: AppActionMenuItem.buildItems(
-              context,
-              <AppActionMenuItem>[
-                if (isGroup || isChannel) ...<AppActionMenuItem>[
-                  AppActionMenuItem(
-                    label: context.l10n.chatMembers,
-                    icon: Icons.people_rounded,
-                    onPressed: () => context.push('/chat/$chatId/members'),
-                  ),
-                  AppActionMenuItem(
-                    label: context.l10n.chatManage,
-                    icon: Icons.settings_rounded,
-                    onPressed: () => context.push('/chat/$chatId/manage'),
-                  ),
-                ],
+            menuChildren: AppActionMenuItem.buildItems(context, <
+              AppActionMenuItem
+            >[
+              if (isSecret && !isBot && onVoiceCall != null)
                 AppActionMenuItem(
-                  label: context.l10n.chatWallpaperMenu,
-                  icon: Icons.texture_rounded,
-                  onPressed: () => context.push(
-                    '/settings/wallpaper?chatId=$chatId&chatTitle=${Uri.encodeComponent(title)}',
-                  ),
+                  label: context.l10n.chatVoiceCall,
+                  icon: Icons.phone_rounded,
+                  onPressed: onVoiceCall,
+                ),
+              if (isSecret && !isBot && onVideoCall != null)
+                AppActionMenuItem(
+                  label: context.l10n.chatVideoCall,
+                  icon: Icons.videocam_rounded,
+                  onPressed: onVideoCall,
+                ),
+              if (isSecret)
+                AppActionMenuItem(
+                  label: context.l10n.autoDeleteTitle,
+                  icon: autoDeleteDuration == null
+                      ? Icons.timer_outlined
+                      : Icons.timer_rounded,
+                  onPressed: onAutoDeleteTap,
+                ),
+              if (isGroup || isChannel) ...<AppActionMenuItem>[
+                AppActionMenuItem(
+                  label: context.l10n.chatMembers,
+                  icon: Icons.people_rounded,
+                  onPressed: () => context.push('/chat/$chatId/members'),
+                ),
+                AppActionMenuItem(
+                  label: context.l10n.chatManage,
+                  icon: Icons.settings_rounded,
+                  onPressed: () => context.push('/chat/$chatId/manage'),
                 ),
               ],
-            ),
+              AppActionMenuItem(
+                label: context.l10n.chatWallpaperMenu,
+                icon: Icons.texture_rounded,
+                onPressed: () => context.push(
+                  '/settings/wallpaper?chatId=$chatId&chatTitle=${Uri.encodeComponent(title)}',
+                ),
+              ),
+            ]),
           ),
       ],
     );
