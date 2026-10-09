@@ -464,23 +464,19 @@ class NiosColorField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    Color meshTone(Color container, Color accent) => Color.lerp(
-      container,
-      accent,
-      scheme.brightness == Brightness.dark ? 0.75 : 0.35,
-    )!;
-    final primaryTone = meshTone(scheme.primaryContainer, scheme.primary);
-    final secondaryTone = meshTone(scheme.secondaryContainer, scheme.secondary);
-    final tertiaryTone = meshTone(scheme.tertiaryContainer, scheme.tertiary);
+    // The expressive scheme can rotate primary into a complementary hue.
+    // Keep decorative fog in the chosen palette's family instead.
+    final hue = HSLColor.fromColor(
+      useSystemDynamic ? scheme.secondary : seedColor,
+    ).hue;
+    final dark = scheme.brightness == Brightness.dark;
+    Color fogTone(double shift, double saturation, double lightness) =>
+        HSLColor.fromAHSL(1, (hue + shift) % 360, saturation, lightness).toColor();
     final colors = <Color>[
-      primaryTone,
-      secondaryTone,
-      tertiaryTone,
-      Color.lerp(
-        scheme.secondaryContainer,
-        scheme.secondary,
-        scheme.brightness == Brightness.dark ? 0.85 : 0.15,
-      )!,
+      fogTone(-25, 0.12, dark ? 0.56 : 0.78),
+      fogTone(-5, 0.13, dark ? 0.68 : 0.85),
+      fogTone(-55, 0.19, dark ? 0.46 : 0.65),
+      fogTone(35, 0.24, dark ? 0.80 : 0.91),
     ];
     final customSelected =
         !useSystemDynamic &&

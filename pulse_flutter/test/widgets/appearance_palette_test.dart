@@ -24,7 +24,7 @@ Future<void> _waitForMeshShader(WidgetTester tester) async {
   expect(
     paint,
     findsOneWidget,
-    reason: 'The actual mesh_gradient shader must load',
+    reason: 'The actual OMesh cloud images must finish baking',
   );
 }
 
@@ -113,6 +113,7 @@ void main() {
       final directory = Platform.environment['NIOS_PALETTE_CAPTURE_DIR'];
       if (directory != null) {
         fontScale = 1.0;
+        selected = const Color(0xFF6750A4);
         await tester.pumpWidget(app());
         await tester.pumpAndSettle();
         final strip = find.byKey(const ValueKey('appearance-palette-strip'));
@@ -175,6 +176,12 @@ void main() {
     await _waitForMeshShader(tester);
     await tester.pumpWidget(card(const Color(0xFF006C5B), false));
     expect(find.byType(PaletteMeshPreview), findsOneWidget);
+    // Interrupt an active image blend: the visible palette is captured before
+    // its GPU images are replaced, including when several taps arrive quickly.
+    await tester.pump(const Duration(milliseconds: 90));
+    await tester.pumpWidget(card(const Color(0xFF475569), false));
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.pumpWidget(card(const Color(0xFF6750A4), false));
     await tester.pumpAndSettle();
     expect(find.byType(PaletteMeshPreview), findsOneWidget);
     await tester.pumpWidget(card(const Color(0xFF984061), true));
