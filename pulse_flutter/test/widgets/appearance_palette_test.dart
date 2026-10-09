@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/widgets/settings/palette_mesh_preview.dart';
+import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
 import 'package:universal_io/io.dart';
 
 Future<void> _waitForMeshShader(WidgetTester tester) async {
@@ -29,6 +32,161 @@ Future<void> _waitForMeshShader(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+    'appearance uses intermediate theme colors and one atomic accent update',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'ui.optimizeWeak': true,
+        'ui.useSystemDynamic': true,
+      });
+      final previousPrefs = UiSettingsNotifier.cachedPrefs;
+      UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+      addTearDown(() => UiSettingsNotifier.cachedPrefs = previousPrefs);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const SettingsAppearanceScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final scope = ProviderScope.containerOf(
+        tester.element(find.byType(SettingsAppearanceScreen)),
+      );
+      final updates = <UiSettingsState>[];
+      final subscription = scope.listen(
+        uiSettingsProvider,
+        (_, state) => updates.add(state),
+      );
+      addTearDown(subscription.close);
+      final before = tester
+          .widget<NiosColorField>(find.byType(NiosColorField))
+          .scheme
+          .primary;
+      scope
+          .read(uiSettingsProvider.notifier)
+          .setSeedColor(const Color(0xff006c5b));
+      expect(updates.length, 1);
+      expect(updates.single.useSystemDynamic, isFalse);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      final middle = tester
+          .widget<NiosColorField>(find.byType(NiosColorField))
+          .scheme
+          .primary;
+      await tester.pumpAndSettle();
+      final after = tester
+          .widget<NiosColorField>(find.byType(NiosColorField))
+          .scheme
+          .primary;
+      expect(middle, isNot(before));
+      expect(middle, isNot(after));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'custom color draft validates HEX and applies once $brightness',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        Color? applied;
+        double fontScale = 1.8;
+        final capture = GlobalKey();
+        Widget app() => MaterialApp(
+          theme: AppTheme.themed(
+            const VisualThemeSettings(
+              seedColor: Color(0xff6750a4),
+              themeMode: ThemeMode.system,
+              useSystemDynamic: false,
+              predictiveBackEnabled: true,
+            ),
+            brightness,
+          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('ru'),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(fontScale)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: RepaintBoundary(
+              key: capture,
+              child: CustomColorPickerSheet(
+                initialColor: const Color(0xff6750a4),
+                onApplyColor: (color) => applied = color,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpWidget(app());
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final plane = find.byKey(const ValueKey('custom-color-plane'));
+        await tester.ensureVisible(plane);
+        await tester.drag(plane, const Offset(25, 15));
+        await tester.pumpAndSettle();
+        expect(applied, isNull);
+        final input = find.byKey(const ValueKey('custom-color-hex'));
+        final apply = find.byKey(const ValueKey('custom-color-apply'));
+        await tester.ensureVisible(input);
+        await tester.enterText(input, '12');
+        await tester.pumpAndSettle();
+        expect(tester.widget<FilledButton>(apply).onPressed, isNull);
+        expect(applied, isNull);
+        await tester.enterText(input, '#006C5B');
+        await tester.pumpAndSettle();
+        expect(applied, isNull);
+        expect(tester.widget<FilledButton>(apply).onPressed, isNotNull);
+        final output = Platform.environment['NIOS_PALETTE_CAPTURE_DIR'];
+        if (output != null) {
+          fontScale = 1;
+          await tester.pumpWidget(app());
+          await tester.pumpAndSettle();
+          tester
+              .state<ScrollableState>(
+                find
+                    .descendant(
+                      of: find.byType(CustomColorPickerSheet),
+                      matching: find.byType(Scrollable),
+                    )
+                    .first,
+              )
+              .position
+              .jumpTo(0);
+          await tester.pumpAndSettle();
+          await tester.runAsync(() async {
+            final boundary =
+                capture.currentContext!.findRenderObject()!
+                    as RenderRepaintBoundary;
+            final image = await boundary.toImage(pixelRatio: 1.5);
+            final bytes = await image.toByteData(
+              format: ui.ImageByteFormat.png,
+            );
+            await Directory(output).create(recursive: true);
+            await File(
+              '$output/custom_${brightness.name}.png',
+            ).writeAsBytes(bytes!.buffer.asUint8List());
+            image.dispose();
+          });
+        }
+        await tester.ensureVisible(apply);
+        await tester.tap(apply);
+        await tester.pumpAndSettle();
+        expect(applied, const Color(0xff006c5b));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   if (Platform.environment['NIOS_PALETTE_CAPTURE_DIR'] != null) {
     setUpAll(() async {
       for (final entry in {
@@ -114,10 +272,16 @@ void main() {
       expect(selected, const Color(0xFF006C5B));
       await tester.drag(pager, const Offset(-280, 0));
       await tester.pumpAndSettle();
-      expect(tester.widget<PageView>(pager).controller!.page, closeTo(1, 0.001));
+      expect(
+        tester.widget<PageView>(pager).controller!.page,
+        closeTo(1, 0.001),
+      );
       await tester.drag(pager, const Offset(-280, 0));
       await tester.pumpAndSettle();
-      expect(tester.widget<PageView>(pager).controller!.page, closeTo(2, 0.001));
+      expect(
+        tester.widget<PageView>(pager).controller!.page,
+        closeTo(2, 0.001),
+      );
       expect(find.text('Небо').hitTestable(), findsOneWidget);
       expect(find.text('Лагуна').hitTestable(), findsNothing);
       await tester.ensureVisible(find.byTooltip('Пользовательский цвет'));
@@ -127,7 +291,10 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.byKey(const ValueKey('appearance-palette-page-0')));
       await tester.pumpAndSettle();
-      expect(tester.widget<PageView>(pager).controller!.page, closeTo(0, 0.001));
+      expect(
+        tester.widget<PageView>(pager).controller!.page,
+        closeTo(0, 0.001),
+      );
       final directory = Platform.environment['NIOS_PALETTE_CAPTURE_DIR'];
       if (directory != null) {
         fontScale = 1.0;

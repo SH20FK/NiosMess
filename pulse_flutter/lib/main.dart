@@ -11,6 +11,7 @@ import 'package:pulse_flutter/core/diagnostics/app_logger.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 import 'package:go_router/go_router.dart';
@@ -275,6 +276,11 @@ class _PulseAppState extends ConsumerState<PulseApp> {
         final double contrastLevel = isHighContrast ? 1.0 : 0.0;
         return MaterialApp.router(
           title: 'NiosMess',
+          themeAnimationDuration: WidgetsBinding.instance.platformDispatcher
+                  .accessibilityFeatures.disableAnimations
+              ? Duration.zero
+              : const Duration(milliseconds: 500),
+          themeAnimationCurve: M3SpringCurves.expressiveStandard,
           debugShowCheckedModeBanner: false,
           showPerformanceOverlay: showPerformanceOverlay,
           scrollBehavior: const AppScrollBehavior(),

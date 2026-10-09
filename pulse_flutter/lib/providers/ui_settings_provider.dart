@@ -628,8 +628,10 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   }
 
   void setSeedColor(Color value) {
-    state = state.copyWith(seedColor: value);
+    final wasDynamic = state.useSystemDynamic;
+    state = state.copyWith(seedColor: value, useSystemDynamic: false);
     _persistKey(_seedColorKey, value.toARGB32());
+    if (wasDynamic) _persistKey(_useSystemDynamicKey, false);
   }
 
   void setNotifications(bool value) {
@@ -730,6 +732,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   }
 
   void setUseSystemDynamic(bool value) {
+    if (state.useSystemDynamic == value) return;
     state = state.copyWith(useSystemDynamic: value);
     _persistKey(_useSystemDynamicKey, value);
   }

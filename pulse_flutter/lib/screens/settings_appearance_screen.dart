@@ -1,6 +1,5 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -14,6 +13,7 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/settings/palette_mesh_preview.dart';
+import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
 
 class SettingsAppearanceScreen extends StatelessWidget {
   const SettingsAppearanceScreen({
@@ -46,32 +46,14 @@ final _palettes = <_PaletteEntry>[
   _PaletteEntry(const Color(0xFF984061), (l) => l.appearanceLabelRose),
 ];
 
-const _customColorPresets = <Color>[
-  Color(0xFF6750A4), // Amethyst Violet
-  Color(0xFF3F51B5), // Indigo
-  Color(0xFF2563EB), // Royal Blue
-  Color(0xFF0284C7), // Sky
-  Color(0xFF00838F), // Cyan
-  Color(0xFF006C5B), // Lagoon Teal
-  Color(0xFF16A34A), // Emerald
-  Color(0xFF65A30D), // Lime
-  Color(0xFFD97706), // Amber
-  Color(0xFFEA580C), // Orange
-  Color(0xFFE11D48), // Crimson
-  Color(0xFFDB2777), // Pink
-  Color(0xFFA21CAF), // Fuchsia
-  Color(0xFF7C3AED), // Vivid Purple
-  Color(0xFF475569), // Slate
-  Color(0xFF78350F), // Bronze
-];
 
-final _appearanceThemeProvider =
-    Provider.autoDispose.family<ThemeData, Brightness>((ref, brightness) {
-  final VisualThemeSettings visual = ref.watch(
-    uiSettingsProvider.select((UiSettingsState s) => s.visualTheme),
-  );
-  return AppTheme.themed(visual, brightness);
-});
+final _appearanceThemeProvider = Provider.autoDispose
+    .family<ThemeData, Brightness>((ref, brightness) {
+      final VisualThemeSettings visual = ref.watch(
+        uiSettingsProvider.select((UiSettingsState s) => s.visualTheme),
+      );
+      return AppTheme.themed(visual, brightness);
+    });
 
 class _AppearanceScreen extends ConsumerWidget {
   const _AppearanceScreen({this.isEmbedded = false});
@@ -142,26 +124,33 @@ class _AppearanceScreen extends ConsumerWidget {
 
         return AnimatedTheme(
           data: targetTheme,
-          duration: const Duration(milliseconds: 350),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 500),
           curve: M3SpringCurves.expressiveStandard,
-          child: _buildContent(
-            context,
-            ref,
-            targetTheme.colorScheme,
-            tier,
-            themeMode: themeMode,
-            seedColor: seedColor,
-            messageBubbleRadius: messageBubbleRadius,
-            uiCornerRadius: uiCornerRadius,
-            fontScale: fontScale,
-            paletteStyle: paletteStyle,
-            pureBlackOled: pureBlackOled,
-            useSystemDynamic: useSystemDynamic,
-            navBarFloating: navBarFloating,
-            predictiveBackEnabled: predictiveBackEnabled,
-            predictiveBackStrength: predictiveBackStrength,
-            optimizeForWeakDevices: optimizeForWeakDevices,
-            hideBubbleTails: hideBubbleTails,
+          child: Builder(
+            builder: (animatedContext) => _buildContent(
+              animatedContext,
+              ref,
+              Theme.of(animatedContext).colorScheme,
+              tier,
+              meshAnchor: useSystemDynamic
+                  ? targetTheme.colorScheme.secondary
+                  : seedColor,
+              themeMode: themeMode,
+              seedColor: seedColor,
+              messageBubbleRadius: messageBubbleRadius,
+              uiCornerRadius: uiCornerRadius,
+              fontScale: fontScale,
+              paletteStyle: paletteStyle,
+              pureBlackOled: pureBlackOled,
+              useSystemDynamic: useSystemDynamic,
+              navBarFloating: navBarFloating,
+              predictiveBackEnabled: predictiveBackEnabled,
+              predictiveBackStrength: predictiveBackStrength,
+              optimizeForWeakDevices: optimizeForWeakDevices,
+              hideBubbleTails: hideBubbleTails,
+            ),
           ),
         );
       },
@@ -173,6 +162,7 @@ class _AppearanceScreen extends ConsumerWidget {
     WidgetRef ref,
     ColorScheme scheme,
     PerformanceTier tier, {
+    required Color meshAnchor,
     required ThemeMode themeMode,
     required Color seedColor,
     required double messageBubbleRadius,
@@ -189,6 +179,7 @@ class _AppearanceScreen extends ConsumerWidget {
   }) {
     final Widget colorField = NiosColorField(
       scheme: scheme,
+      meshAnchor: meshAnchor,
       seedColor: seedColor,
       useSystemDynamic: useSystemDynamic,
       paletteStyle: paletteStyle,
@@ -425,10 +416,9 @@ class _AppearanceScreen extends ConsumerWidget {
     AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext sheetContext) {
-        return _CustomColorPickerSheet(
+        return CustomColorPickerSheet(
           initialColor: initialColor,
           onApplyColor: (Color color) {
-            ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(false);
             ref.read(uiSettingsProvider.notifier).setSeedColor(color);
           },
         );
@@ -448,10 +438,12 @@ class NiosColorField extends StatelessWidget {
     required this.onToggleDynamic,
     required this.onSelectPaletteStyle,
     this.animateMesh = false,
+    this.meshAnchor,
     super.key,
   });
 
   final ColorScheme scheme;
+  final Color? meshAnchor;
   final Color seedColor;
   final bool useSystemDynamic;
   final PaletteStyle paletteStyle;
@@ -467,7 +459,7 @@ class NiosColorField extends StatelessWidget {
     // The expressive scheme can rotate primary into a complementary hue.
     // Keep decorative fog in the chosen palette's family instead.
     final hue = HSLColor.fromColor(
-      useSystemDynamic ? scheme.secondary : seedColor,
+      meshAnchor ?? (useSystemDynamic ? scheme.secondary : seedColor),
     ).hue;
     final dark = scheme.brightness == Brightness.dark;
     Color fogTone(double shift, double saturation, double lightness) =>
@@ -543,8 +535,8 @@ class NiosColorField extends StatelessWidget {
                         seedColor.toARGB32() == entry.color.toARGB32(),
                     onTap: () {
                       HapticService.tap();
-                      onToggleDynamic(false);
                       onColorSelected(entry.color);
+                      onToggleDynamic(false);
                     },
                   ),
                 _PaletteChoice(
@@ -1379,263 +1371,6 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
             },
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Custom Color Picker Bottom Sheet with 16 curated M3 accents + direct HEX code entry
-class _CustomColorPickerSheet extends StatefulWidget {
-  const _CustomColorPickerSheet({
-    required this.initialColor,
-    required this.onApplyColor,
-  });
-
-  final Color initialColor;
-  final ValueChanged<Color> onApplyColor;
-
-  @override
-  State<_CustomColorPickerSheet> createState() =>
-      _CustomColorPickerSheetState();
-}
-
-class _CustomColorPickerSheetState extends State<_CustomColorPickerSheet> {
-  late Color _selectedColor;
-  late TextEditingController _hexController;
-  String? _hexError;
-  Color? _pressedColor;
-  bool _isApplyPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedColor = widget.initialColor;
-    _hexController = TextEditingController(text: _colorToHex(_selectedColor));
-  }
-
-  @override
-  void dispose() {
-    _hexController.dispose();
-    super.dispose();
-  }
-
-  String _colorToHex(Color color) {
-    return '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
-  }
-
-  void _onHexChanged(String value) {
-    String clean = value.trim();
-    if (clean.startsWith('#')) clean = clean.substring(1);
-
-    if (clean.isEmpty) {
-      setState(() => _hexError = null);
-      return;
-    }
-
-    if (clean.length == 6 || clean.length == 8) {
-      final int? intVal = int.tryParse(clean.length == 6 ? 'FF$clean' : clean, radix: 16);
-      if (intVal != null) {
-        setState(() {
-          _selectedColor = Color(intVal);
-          _hexError = null;
-        });
-        return;
-      } else {
-        setState(() {
-          _hexError = mounted ? context.l10n.appearanceInvalidHex : 'Invalid HEX';
-        });
-      }
-    } else {
-      // Incomplete while typing, do not prematurely display error
-      setState(() => _hexError = null);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        8,
-        20,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-
-          // Title & Live Preview swatch
-          Row(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: _selectedColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.5),
-                    width: 2,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.l10n.appearanceCustomColor,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      context.l10n.appearanceSelectHexPrompt,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // 16 Curated M3 Accent Swatches
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            alignment: WrapAlignment.center,
-            children: _customColorPresets.map((Color c) {
-              final bool isDark =
-                  Theme.of(context).brightness == Brightness.dark;
-              final bool isSelected =
-                  c.toARGB32() == _selectedColor.toARGB32();
-              final bool isLightColor =
-                  ThemeData.estimateBrightnessForColor(c) == Brightness.light;
-              final Color iconColor = isLightColor
-                  ? (isDark ? scheme.surface : scheme.onSurface)
-                  : (isDark ? scheme.onSurface : scheme.surface);
-              final Color ringColor = isSelected
-                  ? (isLightColor
-                      ? (isDark ? scheme.surface : scheme.outline)
-                      : (isDark ? scheme.onSurface : scheme.surface))
-                  : Colors.transparent;
-              final bool isPressed = _pressedColor == c;
-
-              return Listener(
-                onPointerDown: (_) => setState(() => _pressedColor = c),
-                onPointerUp: (_) => setState(() => _pressedColor = null),
-                onPointerCancel: (_) => setState(() => _pressedColor = null),
-                child: GestureDetector(
-                  onTap: () {
-                    HapticService.tap();
-                    setState(() {
-                      _selectedColor = c;
-                      _hexController.text = _colorToHex(c);
-                      _hexError = null;
-                    });
-                  },
-                  child: AnimatedScale(
-                    scale: isPressed ? 0.90 : (isSelected ? 1.15 : 1.0),
-                    duration: const Duration(milliseconds: 220),
-                    curve: M3SpringCurves.bouncy,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: ringColor,
-                          width: isSelected ? 2.5 : 0,
-                        ),
-                      ),
-                      child: isSelected
-                          ? Icon(
-                              Icons.check_rounded,
-                              size: 20,
-                              color: iconColor,
-                            )
-                          : null,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Direct HEX Input Field
-          TextField(
-            controller: _hexController,
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(7),
-              FilteringTextInputFormatter.allow(RegExp(r'[#a-fA-F0-9]')),
-            ],
-            textCapitalization: TextCapitalization.characters,
-            decoration: InputDecoration(
-              labelText: context.l10n.appearanceHexLabel,
-              hintText: '#6750A4',
-              errorText: _hexError,
-              prefixIcon: const Icon(Icons.colorize_rounded),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              filled: true,
-              fillColor: scheme.surface,
-            ),
-            onChanged: _onHexChanged,
-          ),
-
-          const SizedBox(height: 20),
-
-          // Apply Button with tactile spring scale
-          Listener(
-            onPointerDown: (_) => setState(() => _isApplyPressed = true),
-            onPointerUp: (_) => setState(() => _isApplyPressed = false),
-            onPointerCancel: (_) => setState(() => _isApplyPressed = false),
-            child: AnimatedScale(
-              scale: _isApplyPressed ? 0.96 : 1.0,
-              duration: const Duration(milliseconds: 180),
-              curve: _isApplyPressed ? M3SpringCurves.snappy : M3SpringCurves.bouncy,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(26),
-                  ),
-                ),
-                icon: const Icon(Icons.check_rounded),
-                label: Text(
-                  context.l10n.appearanceApply,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                onPressed: () {
-                  HapticService.confirm();
-                  widget.onApplyColor(_selectedColor);
-                  Navigator.of(context).pop();
-                },
-              ),
-            ),
-          ),
-        ],
-        ),
       ),
     );
   }
