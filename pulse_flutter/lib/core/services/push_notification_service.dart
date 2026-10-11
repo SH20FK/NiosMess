@@ -28,6 +28,11 @@ class PushNotificationService {
   static StreamSubscription<RemoteMessage>? _openedAppSubscription;
   static int _notificationIdCounter = 0;
   static int? _currentChatId;
+  static final _incomingCalls =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  /// FCM and notification taps enter the same call flow as WebSocket pushes.
+  static Stream<Map<String, dynamic>> get incomingCalls => _incomingCalls.stream;
 
   static FlutterLocalNotificationsPlugin get localNotifications => _local;
   static int? get currentChatId => _currentChatId;
@@ -260,7 +265,7 @@ class PushNotificationService {
     if (pendingNotificationData != null) {
       final Map<String, dynamic> data = pendingNotificationData!;
       pendingNotificationData = null;
-      _handleNavigation(data);
+      handleNotificationData(data);
     }
   }
 
@@ -295,6 +300,13 @@ class PushNotificationService {
         ?? '';
     final bool isCall = data['type'] == 'incoming_call';
     if (_shouldIgnorePush(title, body, isCall: isCall)) return;
+
+    if (isCall) {
+      _incomingCalls.add(Map<String, dynamic>.from(data));
+      // The account call handler deduplicates WebSocket and FCM delivery,
+      // then displays the actionable notification with its stable ID.
+      return;
+    }
 
     final Object? chatIdRaw = data['chat_id'];
     final int? chatId = chatIdRaw is int
@@ -381,15 +393,19 @@ class PushNotificationService {
         return;
       }
 
-      _handleNavigation(data);
+      handleNotificationData(data);
     } catch (_) {}
   }
 
   static void _onNotificationTap2(RemoteMessage message) {
-    _handleNavigation(message.data);
+    handleNotificationData(message.data);
   }
 
-  static void _handleNavigation(Map<String, dynamic> data) {
+  static void handleNotificationData(Map<String, dynamic> data) {
+    if (data['type'] == 'incoming_call') {
+      _incomingCalls.add(Map<String, dynamic>.from(data));
+      return;
+    }
     final String? action = data['action']?.toString();
     if (action == 'install_update') {
       final String? apkPath = data['apk_path']?.toString();

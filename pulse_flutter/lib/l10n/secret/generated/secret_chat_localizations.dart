@@ -101,6 +101,36 @@ abstract class SecretChatLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @callConnectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect the call. Please try again.'**
+  String get callConnectionFailed;
+
+  /// No description provided for @callConnectionLost.
+  ///
+  /// In en, this message translates to:
+  /// **'The call disconnected. Please call again.'**
+  String get callConnectionLost;
+
+  /// No description provided for @callSignalingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not establish a secure call connection. Please try again.'**
+  String get callSignalingFailed;
+
+  /// No description provided for @callSoloTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Call ended: no one else joined.'**
+  String get callSoloTimeout;
+
+  /// No description provided for @callDurationLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'The call duration limit has been reached.'**
+  String get callDurationLimit;
+
   /// No description provided for @secretTitle.
   ///
   /// In en, this message translates to:

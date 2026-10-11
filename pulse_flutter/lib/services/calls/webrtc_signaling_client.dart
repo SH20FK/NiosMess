@@ -54,6 +54,7 @@ class WebRtcSignalingClient {
   Timer? _heartbeatTimer;
   bool _connected = false;
   bool _disposed = false;
+  Completer<bool>? _ready;
 
   int? _localUserId;
   int? get localUserId => _localUserId;
@@ -74,33 +75,43 @@ class WebRtcSignalingClient {
     if (_connected || _disposed) return _connected;
 
     try {
-      final Uri uri = Uri.parse(signalUrl);
+      // The gateway authenticates the HTTP upgrade, before it accepts any
+      // signaling frames. Sending an `auth` frame after connecting is too late.
+      final Uri baseUri = Uri.parse(signalUrl);
+      if (token.isEmpty) return false;
+      final Uri uri = baseUri.replace(queryParameters: {
+        ...baseUri.queryParameters,
+        'token': token,
+      });
       final String safeLogUrl = uri.replace(queryParameters: const {}).toString();
 
       debugPrint('[WebRtcSignaling] Connecting to $safeLogUrl...');
+      _ready = Completer<bool>();
       _channel = WebSocketChannel.connect(uri);
-      await _channel!.ready.timeout(const Duration(seconds: 10));
-
-      _connected = true;
-      if (token.isNotEmpty) {
-        send(<String, dynamic>{
-          'type': WebRtcSignalType.auth,
-          'token': token,
-        });
-      }
-      _startHeartbeat();
-
       _sub = _channel!.stream.listen(
         _onDataReceived,
         onDone: _onChannelDone,
         onError: _onChannelError,
       );
+      await _channel!.ready.timeout(const Duration(seconds: 10));
+      if (_disposed) return false;
+      if (!await _ready!.future.timeout(const Duration(seconds: 10))) {
+        throw StateError('Gateway did not accept the call');
+      }
+      _startHeartbeat();
 
       debugPrint('[WebRtcSignaling] Connected successfully');
       return true;
-    } catch (e) {
-      debugPrint('[WebRtcSignaling] Connection failed: $e');
+    } catch (_) {
+      // WebSocket exceptions may include the URL with its access token.
+      debugPrint('[WebRtcSignaling] Connection failed');
       _connected = false;
+      await _sub?.cancel();
+      _sub = null;
+      try {
+        await _channel?.sink.close();
+      } catch (_) {}
+      _channel = null;
       return false;
     }
   }
@@ -131,7 +142,9 @@ class WebRtcSignalingClient {
         final dynamic rawId = decoded['user_id'];
         if (rawId is num) {
           _localUserId = rawId.toInt();
+          _connected = !_disposed;
         }
+        if (_ready != null && !_ready!.isCompleted) _ready!.complete(true);
       }
 
       if (!_messagesController.isClosed) {
@@ -148,13 +161,14 @@ class WebRtcSignalingClient {
   }
 
   void _onChannelError(dynamic error) {
-    debugPrint('[WebRtcSignaling] Socket error: $error');
+    debugPrint('[WebRtcSignaling] Socket error');
     _handleDisconnect();
   }
 
   void _handleDisconnect() {
     if (!_connected && _disposed) return;
     _connected = false;
+    if (_ready != null && !_ready!.isCompleted) _ready!.complete(false);
     _heartbeatTimer?.cancel();
     if (!_disconnectedController.isClosed) {
       _disconnectedController.add(null);
@@ -195,9 +209,10 @@ class WebRtcSignalingClient {
     });
   }
 
-  void sendMediaState({required bool audio, required bool video}) {
+  void sendMediaState({required int targetId, required bool audio, required bool video}) {
     send({
       'type': WebRtcSignalType.mediaState,
+      'target_id': targetId,
       'audio': audio,
       'video': video,
     });
@@ -208,14 +223,12 @@ class WebRtcSignalingClient {
   }
 
   Future<void> disconnect() async {
+    sendLeave();
     _disposed = true;
+    if (_ready != null && !_ready!.isCompleted) _ready!.complete(false);
     _connected = false;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
-
-    try {
-      sendLeave();
-    } catch (_) {}
 
     await _sub?.cancel();
     _sub = null;

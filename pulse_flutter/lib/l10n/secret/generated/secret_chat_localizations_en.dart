@@ -9,6 +9,23 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   SecretChatLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get callConnectionFailed =>
+      'Could not connect the call. Please try again.';
+
+  @override
+  String get callConnectionLost => 'The call disconnected. Please call again.';
+
+  @override
+  String get callSignalingFailed =>
+      'Could not establish a secure call connection. Please try again.';
+
+  @override
+  String get callSoloTimeout => 'Call ended: no one else joined.';
+
+  @override
+  String get callDurationLimit => 'The call duration limit has been reached.';
+
+  @override
   String get secretTitle => 'Secret chat';
 
   @override

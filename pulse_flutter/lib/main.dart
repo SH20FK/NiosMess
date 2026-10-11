@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/diagnostics/app_logger.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
-import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -27,6 +26,9 @@ import 'package:pulse_flutter/core/services/desktop_window_service.dart';
 import 'package:pulse_flutter/firebase_options.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/providers/call_push_handler.dart';
+import 'package:pulse_flutter/providers/call_session_provider.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
 import 'package:pulse_flutter/services/calls/call_starter.dart';
 import 'package:pulse_flutter/widgets/calls/call_overlay.dart';
@@ -120,6 +122,7 @@ class _PulseAppState extends ConsumerState<PulseApp> {
   String? _lastConfiguredLocale;
   AppTimeZoneMode? _lastTimeZoneMode;
   String? _lastTimeZoneId;
+  bool _acceptingNotificationCall = false;
 
   @override
   void initState() {
@@ -164,7 +167,11 @@ class _PulseAppState extends ConsumerState<PulseApp> {
       },
     );
 
-    PushNotificationService.onCallAccepted = (Map<String, dynamic> data) {
+    PushNotificationService.onCallAccepted = (Map<String, dynamic> data) async {
+      if (_acceptingNotificationCall ||
+          (ref.read(callSessionProvider)?.isActive ?? false)) {
+        return;
+      }
       final int? chatId = int.tryParse(data['chat_id']?.toString() ?? '');
       final int? callId = int.tryParse(
           data['call_id']?.toString() ?? data['message_id']?.toString() ?? '');
@@ -176,16 +183,28 @@ class _PulseAppState extends ConsumerState<PulseApp> {
       final String? callerName = data['caller_nickname']?.toString();
 
       if (chatId != null && callId != null && roomId != null) {
+        _acceptingNotificationCall = true;
         ref.read(incomingCallProvider.notifier).set(null);
-        unawaited(startIncomingCall(
-          ref: ref,
-          chatId: chatId,
-          callId: callId,
-          roomId: roomId,
-          isVideo: isVideo,
-          peerName: callerName,
-        ));
-        AppRouter.navigatorKey.currentContext?.push('/call/$callId');
+        try {
+          await startIncomingCall(
+            ref: ref,
+            chatId: chatId,
+            callId: callId,
+            roomId: roomId,
+            isVideo: isVideo,
+            peerName: callerName,
+          );
+          if (mounted && (ref.read(callSessionProvider)?.isActive ?? false)) {
+            AppRouter.navigatorKey.currentContext?.push('/call/$callId');
+          }
+        } catch (_) {
+          final context = AppRouter.navigatorKey.currentContext;
+          if (mounted && context != null && context.mounted) {
+            AppToast.showError(context, context.l10n.callFailureMessage('connection_failed'));
+          }
+        } finally {
+          _acceptingNotificationCall = false;
+        }
       }
     };
 

@@ -5,6 +5,14 @@ import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.da
 extension SecretChatL10n on AppLocalizations {
   SecretChatLocalizations get _secret =>
       lookupSecretChatLocalizations(Locale(localeName.split('_').first));
+  String callFailureMessage(String code) => switch (code) {
+    'connection_failed' => _secret.callConnectionFailed,
+    'connection_lost' => _secret.callConnectionLost,
+    'signaling_failed' => _secret.callSignalingFailed,
+    'solo_timeout' => _secret.callSoloTimeout,
+    'duration_limit' => _secret.callDurationLimit,
+    _ => callsFailedToStart(code),
+  };
   String get modalDeleteChatBody => _secret.modalDeleteChatBody;
   String get modalSessionTitle => _secret.modalSessionTitle;
   String modalSessionBody(String device) => _secret.modalSessionBody(device);

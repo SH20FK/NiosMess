@@ -23,6 +23,7 @@ class WebRtcCallSession {
     required this.localRenderer,
     required this.remoteRenderer,
     this.onStateChanged,
+    this.peerConnectionFactory,
   });
 
   final int chatId;
@@ -40,6 +41,8 @@ class WebRtcCallSession {
   final RTCVideoRenderer localRenderer;
   final RTCVideoRenderer remoteRenderer;
   final void Function(CallSessionData data)? onStateChanged;
+  final Future<RTCPeerConnection> Function(Map<String, dynamic>)?
+      peerConnectionFactory;
 
   WebRtcSignalingClient? _signaling;
   StreamSubscription<Map<String, dynamic>>? _signalingSub;
@@ -53,6 +56,10 @@ class WebRtcCallSession {
   int _elapsedSeconds = 0;
   Timer? _durationTimer;
   bool _ended = false;
+  Future<void> _signalChain = Future<void>.value();
+  Future<void>? _disposeFuture;
+  final Map<int, List<RTCIceCandidate>> _pendingIce = {};
+  final Set<int> _remoteDescriptionReady = {};
 
   late bool _isMuted = isListener;
   bool _isSpeakerOn = false;
@@ -95,7 +102,9 @@ class WebRtcCallSession {
 
     try {
       await _configureAudioSession();
+      if (_ended) return;
       await _initLocalMedia();
+      if (_ended) return;
 
       final String signalUrl = gatewayInfo.signalUrl.isNotEmpty
           ? gatewayInfo.signalUrl
@@ -106,25 +115,28 @@ class WebRtcCallSession {
         token: gatewayInfo.callAccessToken,
       );
 
-      _signalingSub = _signaling!.onMessage.listen(_onSignalingMessage);
+      _signalingSub = _signaling!.onMessage.listen(handleSignalingMessage);
       _disconnectSub = _signaling!.onDisconnected.listen((_) {
         if (!_ended) {
-          _setState(CallSessionState.reconnecting);
+          _fatalError = 'connection_lost';
+          _handleEnd();
         }
       });
 
       final bool connected = await _signaling!.connect();
       if (!connected) {
-        _fatalError = 'Не удалось подключиться к серверу звонков';
-        _setState(CallSessionState.ended);
+        _fatalError = 'connection_failed';
+        _handleEnd();
         return;
       }
 
-      _setState(CallSessionState.connected);
+      if (!_ended && _state == CallSessionState.connecting) {
+        _setState(CallSessionState.connected);
+      }
     } catch (e) {
-      debugPrint('[WebRtcCallSession] Start failed: $e');
-      _fatalError = 'Ошибка запуска звонка: $e';
-      _setState(CallSessionState.ended);
+      debugPrint('[WebRtcCallSession] Start failed');
+      _fatalError = 'connection_failed';
+      _handleEnd();
     }
   }
 
@@ -185,7 +197,15 @@ class WebRtcCallSession {
             : false,
       };
 
-      _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      final stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      if (_ended) {
+        for (final track in stream.getTracks()) {
+          await track.stop();
+        }
+        await stream.dispose();
+        return;
+      }
+      _localStream = stream;
 
       if (isVideo && _localStream != null) {
         localRenderer.srcObject = _localStream;
@@ -238,7 +258,14 @@ class WebRtcCallSession {
       return _peerConnections[peerId]!;
     }
 
-    final pc = await createPeerConnection(_buildRtcConfiguration());
+    final pc = await (peerConnectionFactory ?? createPeerConnection)(
+      _buildRtcConfiguration(),
+    );
+    if (_ended) {
+      await pc.close();
+      await pc.dispose();
+      throw StateError('Call ended during peer creation');
+    }
     _peerConnections[peerId] = pc;
 
     if (_localStream != null) {
@@ -262,7 +289,6 @@ class WebRtcCallSession {
       if (event.streams.isNotEmpty) {
         _remoteStream = event.streams[0];
         remoteRenderer.srcObject = _remoteStream;
-        _onRemotePeerJoined(peerId, peerDisplayName);
       }
     };
 
@@ -271,7 +297,10 @@ class WebRtcCallSession {
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         _onRemotePeerJoined(peerId, peerDisplayName);
       } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
-        debugPrint('[WebRtcCallSession] PC failed with $peerId');
+        if (!_ended) {
+          _fatalError = 'connection_failed';
+          _handleEnd();
+        }
       }
     };
 
@@ -279,6 +308,7 @@ class WebRtcCallSession {
   }
 
   void _onRemotePeerJoined(int peerId, String? name) {
+    if (_ended) return;
     if (!_peerSeen) {
       _peerSeen = true;
       _startDurationTimer();
@@ -376,14 +406,25 @@ class WebRtcCallSession {
       case WebRtcSignalType.callEnded:
         final String reason = msg['reason']?.toString() ?? 'ended';
         debugPrint('[WebRtcCallSession] Call ended by server: $reason');
-        _fatalError = reason == 'solo_timeout'
-            ? 'Звонок завершён: на линии никого нет'
-            : reason == 'duration_limit'
-                ? 'Достигнут лимит длительности звонка'
-                : 'Звонок завершён';
+        _fatalError = reason == 'solo_timeout' || reason == 'duration_limit'
+            ? reason
+            : null;
         _handleEnd();
         break;
     }
+  }
+
+  /// Queues signaling frames; callers may await processing, unlike Stream.listen.
+  Future<void> handleSignalingMessage(Map<String, dynamic> message) {
+    _signalChain = _signalChain.then((_) async {
+      if (!_ended) await _onSignalingMessage(message);
+    }).catchError((Object _) {
+      if (!_ended) {
+        _fatalError = 'signaling_failed';
+        _handleEnd();
+      }
+    });
+    return _signalChain;
   }
 
   Future<void> _negotiatePeer(int remoteId, {required bool makeOffer, required String peerName}) async {
@@ -410,6 +451,7 @@ class WebRtcCallSession {
     final String type = sdpData['type']?.toString() ?? 'offer';
 
     await pc.setRemoteDescription(RTCSessionDescription(sdp, type));
+    await _flushIce(fromId, pc);
     final RTCSessionDescription answer = await pc.createAnswer({
       'offerToReceiveAudio': 1,
       'offerToReceiveVideo': isVideo ? 1 : 0,
@@ -430,24 +472,38 @@ class WebRtcCallSession {
     final String sdp = sdpData['sdp']?.toString() ?? '';
     final String type = sdpData['type']?.toString() ?? 'answer';
     await pc.setRemoteDescription(RTCSessionDescription(sdp, type));
+    await _flushIce(fromId, pc);
     debugPrint('[WebRtcCallSession] Applied answer from peer $fromId');
   }
 
   Future<void> _handleIce(int fromId, Map candidateData) async {
     final pc = _peerConnections[fromId];
-    if (pc == null) return;
-
     final String? candidate = candidateData['candidate']?.toString();
     final String? sdpMid = candidateData['sdpMid']?.toString();
     final int? sdpMLineIndex = (candidateData['sdpMLineIndex'] as num?)?.toInt();
 
     if (candidate != null) {
-      await pc.addCandidate(RTCIceCandidate(candidate, sdpMid, sdpMLineIndex));
+      final ice = RTCIceCandidate(candidate, sdpMid, sdpMLineIndex);
+      if (pc == null || !_remoteDescriptionReady.contains(fromId)) {
+        final pending = _pendingIce.putIfAbsent(fromId, () => []);
+        if (pending.length < 256) pending.add(ice);
+      } else {
+        await pc.addCandidate(ice);
+      }
+    }
+  }
+
+  Future<void> _flushIce(int peerId, RTCPeerConnection pc) async {
+    _remoteDescriptionReady.add(peerId);
+    for (final candidate in _pendingIce.remove(peerId) ?? <RTCIceCandidate>[]) {
+      await pc.addCandidate(candidate);
     }
   }
 
   void _handlePeerLeft(int peerId) {
     final pc = _peerConnections.remove(peerId);
+    _pendingIce.remove(peerId);
+    _remoteDescriptionReady.remove(peerId);
     pc?.close();
     pc?.dispose();
     _remoteParticipants.removeWhere((p) => p.clientId == peerId);
@@ -465,6 +521,7 @@ class WebRtcCallSession {
     _ended = true;
     _durationTimer?.cancel();
     _setState(CallSessionState.ended);
+    unawaited(dispose());
   }
 
   Future<void> setMuted(bool muted) async {
@@ -474,7 +531,7 @@ class WebRtcCallSession {
         track.enabled = !muted;
       }
     }
-    _signaling?.sendMediaState(audio: !muted, video: _isSelfVideoEnabled);
+    _sendMediaState();
     _triggerStateUpdate();
   }
 
@@ -485,7 +542,7 @@ class WebRtcCallSession {
         track.enabled = enabled;
       }
     }
-    _signaling?.sendMediaState(audio: !_isMuted, video: enabled);
+    _sendMediaState();
     _triggerStateUpdate();
   }
 
@@ -494,6 +551,16 @@ class WebRtcCallSession {
     final videoTracks = _localStream!.getVideoTracks();
     if (videoTracks.isNotEmpty) {
       await Helper.switchCamera(videoTracks.first);
+    }
+  }
+
+  void _sendMediaState() {
+    for (final peerId in _peerConnections.keys) {
+      _signaling?.sendMediaState(
+        targetId: peerId,
+        audio: !_isMuted,
+        video: _isSelfVideoEnabled,
+      );
     }
   }
 
@@ -518,7 +585,6 @@ class WebRtcCallSession {
   }
 
   Future<void> end() async {
-    if (_ended) return;
     _ended = true;
     _durationTimer?.cancel();
 
@@ -526,7 +592,9 @@ class WebRtcCallSession {
     await dispose();
   }
 
-  Future<void> dispose() async {
+  Future<void> dispose() => _disposeFuture ??= _dispose();
+
+  Future<void> _dispose() async {
     _ended = true;
     _durationTimer?.cancel();
     _durationTimer = null;
@@ -535,6 +603,7 @@ class WebRtcCallSession {
     _signalingSub = null;
     await _disconnectSub?.cancel();
     _disconnectSub = null;
+    await _signalChain;
 
     if (_signaling != null) {
       await _signaling!.disconnect();
@@ -548,6 +617,8 @@ class WebRtcCallSession {
       } catch (_) {}
     }
     _peerConnections.clear();
+    _pendingIce.clear();
+    _remoteDescriptionReady.clear();
 
     if (_localStream != null) {
       for (final track in _localStream!.getTracks()) {

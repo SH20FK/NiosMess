@@ -4,17 +4,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
 
 class CallPushHandler extends Notifier<void> {
   StreamSubscription<dynamic>? _sub;
+  StreamSubscription<Map<String, dynamic>>? _pushSub;
 
   @override
   void build() {
     _sub = ref.read(webSocketClientProvider).pushStream.listen(_handlePush);
-    ref.onDispose(() => _sub?.cancel());
+    _pushSub = PushNotificationService.incomingCalls.listen((data) {
+      _handlePush({'action': 'incoming_call_push', 'payload': data});
+    });
+    ref.onDispose(() {
+      unawaited(_sub?.cancel());
+      unawaited(_pushSub?.cancel());
+    });
   }
 
   void _handlePush(dynamic event) {
@@ -62,6 +70,10 @@ class CallPushHandler extends Notifier<void> {
         'Собеседник';
 
     if (chatId == null || roomId == null || roomId.trim().isEmpty) return;
+    if (initiatorId != 0 &&
+        initiatorId == ref.read(authProvider).session?.userId) {
+      return;
+    }
 
     // Deduplication (Rule 8): if already connected to this call, ignore duplicate push
     final CallSessionManager? currentSession = ref.read(callSessionProvider);
@@ -99,13 +111,17 @@ class CallPushHandler extends Notifier<void> {
     ref.read(incomingCallProvider.notifier).set(incomingData);
 
     // Show actionable system notification
-    PushNotificationService.showIncomingCallNotification(
+    unawaited(PushNotificationService.showIncomingCallNotification(
       chatId: chatId,
       callId: messageId,
       roomId: roomId,
       callerName: initiatorName,
       isVideo: isVideo,
-    );
+    ).catchError((Object _) {
+      // Notification plugins may be unavailable on desktop/web. The incoming
+      // overlay must still work and the stream listener must not throw.
+      debugPrint('[CallPushHandler] System notification unavailable');
+    }));
   }
 
   void _handleCallJoined(Map<String, dynamic> msg) {
@@ -126,8 +142,8 @@ class CallPushHandler extends Notifier<void> {
   void _handleEndCall(Map<String, dynamic> msg) {
     final Map<String, dynamic> payload = msg['payload'] is Map
         ? asStringMap(msg['payload'] as Map)
-        : const <String, dynamic>{};
-    final String? roomId = payload['room_id'] as String?;
+        : msg;
+    final String? roomId = payload['room_id']?.toString();
 
     final IncomingCallData? incoming = ref.read(incomingCallProvider);
     if (incoming != null && (roomId == null || incoming.roomId == roomId)) {
@@ -135,7 +151,9 @@ class CallPushHandler extends Notifier<void> {
     }
 
     // Cancel system call notification
-    PushNotificationService.cancelCallNotification();
+    if (incoming != null && (roomId == null || incoming.roomId == roomId)) {
+      unawaited(PushNotificationService.cancelCallNotification());
+    }
 
     final CallSessionManager? manager = ref.read(callSessionProvider);
     if (manager != null && roomId != null && manager.roomId == roomId) {

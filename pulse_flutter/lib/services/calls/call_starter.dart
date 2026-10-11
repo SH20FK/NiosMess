@@ -37,7 +37,8 @@ Future<int> startOutgoingCall({
   String? peerUsername,
   void Function(bool isListener)? onPermissionResult,
 }) async {
-  final chat = ref.read(chatByIdProvider(chatId));
+  final Ref accountRef = ref.read(callRefProvider);
+  final chat = accountRef.read(chatByIdProvider(chatId));
   final bool isBot = BotDetector.isBot(
     peerName ?? chat?.username,
     isBotChat: chat?.isBotChat ?? false,
@@ -59,9 +60,9 @@ Future<int> startOutgoingCall({
   final String roomId =
       List.generate(32, (_) => random.nextInt(16).toRadixString(16)).join();
   final String nickname =
-      ref.read(authProvider).session?.displayName ?? 'User';
+      accountRef.read(authProvider).session?.displayName ?? 'User';
 
-  final Map<String, dynamic> result = await ref
+  final Map<String, dynamic> result = await accountRef
       .read(callRepositoryProvider)
       .initiate(
         chatId: chatId,
@@ -71,7 +72,7 @@ Future<int> startOutgoingCall({
       );
 
   final bool isCallsTester =
-      ref.read(authProvider).profile?.isCallsTester ?? false;
+      accountRef.read(authProvider).profile?.isCallsTester ?? false;
   final ApiCallInitiateResult initResult =
       ApiCallInitiateResult.fromJson(result, isCallsTester: isCallsTester);
   final ApiCallGatewayInfo gatewayInfo = initResult.gatewayInfo ??
@@ -93,7 +94,7 @@ Future<int> startOutgoingCall({
   }
 
   final CallSessionManager manager = CallSessionManager(
-    ref: ref.read(callRefProvider),
+    ref: accountRef,
     chatId: chatId,
     callId: callId,
     roomId: roomId,
@@ -106,7 +107,7 @@ Future<int> startOutgoingCall({
     isListener: isListener,
     gatewayInfo: gatewayInfo,
   );
-  ref.read(callSessionProvider.notifier).setSession(manager);
+  accountRef.read(callSessionProvider.notifier).setSession(manager);
   final Map<String, dynamic> startResponse =
       payload is Map ? Map<String, dynamic>.from(payload) : result;
   unawaited(manager.start(
@@ -128,6 +129,9 @@ Future<void> startIncomingCall({
   String? peerUsername,
   void Function(bool isListener)? onPermissionResult,
 }) async {
+  // The incoming overlay is removed as soon as the user accepts. Capture a
+  // long-lived Ref before permission prompts yield and dispose its WidgetRef.
+  final Ref accountRef = ref.read(callRefProvider);
   bool isListener = false;
   final bool perm =
       await PermissionService().requestCallPermissions(video: isVideo);
@@ -137,16 +141,16 @@ Future<void> startIncomingCall({
   onPermissionResult?.call(isListener);
 
   final bool isCallsTester =
-      ref.read(authProvider).profile?.isCallsTester ?? false;
+      accountRef.read(authProvider).profile?.isCallsTester ?? false;
   final ApiCallGatewayInfo gatewayInfo =
       ApiCallGatewayInfo.defaultFor(isCallsTester: isCallsTester);
 
   final String nickname =
-      ref.read(authProvider).session?.displayName ?? 'User';
-  final chat = ref.read(chatByIdProvider(chatId));
+      accountRef.read(authProvider).session?.displayName ?? 'User';
+  final chat = accountRef.read(chatByIdProvider(chatId));
 
   final CallSessionManager manager = CallSessionManager(
-    ref: ref.read(callRefProvider),
+    ref: accountRef,
     chatId: chatId,
     callId: callId,
     roomId: roomId,
@@ -159,6 +163,6 @@ Future<void> startIncomingCall({
     isListener: isListener,
     gatewayInfo: gatewayInfo,
   );
-  ref.read(callSessionProvider.notifier).setSession(manager);
+  accountRef.read(callSessionProvider.notifier).setSession(manager);
   await manager.accept();
 }

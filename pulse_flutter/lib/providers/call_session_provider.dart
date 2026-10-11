@@ -25,7 +25,11 @@ class CallSessionNotifier extends Notifier<CallSessionManager?> {
   @override
   CallSessionManager? build() => null;
 
-  void setSession(CallSessionManager? manager) => state = manager;
+  void setSession(CallSessionManager? manager) {
+    final previous = state;
+    state = manager;
+    if (previous != null && !identical(previous, manager)) previous.dispose();
+  }
 
   /// Trigger rebuild of widgets watching this provider
   void notify() {
@@ -81,6 +85,8 @@ class CallSessionManager {
   /// "connected" cue fire exactly once per call.
   bool _answerHandled = false;
   bool _renderersReady = false;
+  Future<void>? _rendererInit;
+  bool _disposed = false;
 
   Stream<CallSessionData> get stateStream => _stateController.stream;
 
@@ -132,6 +138,7 @@ class CallSessionManager {
     if (existing != null) return existing;
 
     await initRenderers();
+    if (_disposed || _ended) throw StateError('Call has ended');
 
     final WebRtcCallSession session = WebRtcCallSession(
       chatId: chatId,
@@ -186,9 +193,7 @@ class CallSessionManager {
     }
 
     if (data.state == CallSessionState.ended && !_ended) {
-      _ended = true;
-      _cleanup();
-      ref.read(callSessionProvider.notifier).setSession(null);
+      unawaited(end());
     }
   }
 
@@ -258,6 +263,11 @@ class CallSessionManager {
     if (_ended) return;
     _ended = true;
     final CallSessionData data = currentData;
+    _cleanup();
+    await _session?.end();
+    if (identical(ref.read(callSessionProvider), this)) {
+      ref.read(callSessionProvider.notifier).setSession(null);
+    }
     try {
       await _sendWsAction('end_call', <String, dynamic>{
         'chat_id': chatId,
@@ -271,9 +281,6 @@ class CallSessionManager {
     } catch (e) {
       debugPrint('[CallSessionManager] end_call failed: $e');
     }
-    _cleanup();
-    await _session?.end();
-    ref.read(callSessionProvider.notifier).setSession(null);
   }
 
   Future<void> remoteEnd({Map<String, dynamic>? payload}) async {
@@ -281,7 +288,9 @@ class CallSessionManager {
     _ended = true;
     _cleanup();
     await _session?.end();
-    ref.read(callSessionProvider.notifier).setSession(null);
+    if (identical(ref.read(callSessionProvider), this)) {
+      ref.read(callSessionProvider.notifier).setSession(null);
+    }
   }
 
   RTCVideoRenderer get localRenderer => _localRenderer;
@@ -292,11 +301,12 @@ class CallSessionManager {
       ? <int, MediaStream>{0: _session!.remoteStream!}
       : const <int, MediaStream>{};
 
-  Future<void> initRenderers() async {
-    if (_renderersReady) return;
-    _renderersReady = true;
+  Future<void> initRenderers() => _rendererInit ??= _initRenderers();
+
+  Future<void> _initRenderers() async {
     await _localRenderer.initialize();
     await _remoteRenderer.initialize();
+    _renderersReady = true;
   }
 
   void toggleMute({bool? muted}) => setMuted(muted ?? !isMuted);
@@ -331,15 +341,26 @@ class CallSessionManager {
   }
 
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _cleanup();
     unawaited(_sessionSub?.cancel());
     _sessionSub = null;
-    _session?.dispose();
-    if (_renderersReady) {
-      _localRenderer.dispose();
-      _remoteRenderer.dispose();
+    unawaited(_disposeResources());
+  }
+
+  Future<void> _disposeResources() async {
+    await _session?.dispose();
+    if (_rendererInit != null) {
+      try {
+        await _rendererInit;
+      } catch (_) {}
     }
-    _stateController.close();
+    if (_renderersReady) {
+      await _localRenderer.dispose();
+      await _remoteRenderer.dispose();
+    }
+    await _stateController.close();
   }
 
   CallSessionManager get session => this;

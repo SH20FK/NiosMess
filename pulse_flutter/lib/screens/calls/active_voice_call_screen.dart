@@ -66,7 +66,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
       if (data.state == CallSessionState.ended) {
         ref.read(appSoundProvider).playEvent(SoundEvent.callEnded);
         if (data.fatalError != null) {
-          AppToast.showError(context, data.fatalError!);
+          AppToast.showError(context, context.l10n.callFailureMessage(data.fatalError!));
         }
         _popOrGoHome();
       }

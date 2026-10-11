@@ -9,6 +9,9 @@ import 'double_ratchet_test.dart' as double_ratchet;
 import 'e2ee_file_crypto_test.dart' as e2ee_file_crypto;
 import 'e2ee_safety_words_test.dart' as e2ee_safety_words;
 import 'services/secret_chat_delivery_test.dart' as secret_chat_delivery;
+import 'services/call_signaling_connection_test.dart' as call_signaling_connection;
+import 'services/call_negotiation_test.dart' as call_negotiation;
+import 'providers/incoming_call_delivery_test.dart' as incoming_call_delivery;
 import 'services/secret_chat_e2ee_test.dart' as secret_chat_e2ee;
 import 'widgets/secret_chat_ui_test.dart' as secret_chat_ui;
 import 'widgets/m3_route_tab_switcher_test.dart' as route_tab_switcher;
@@ -107,6 +110,8 @@ void main() {
     unit_m3_motion_kit.main();
 
     // Protocol & Logic Suites
+    group('Call connection regression', call_signaling_connection.main);
+    group('Call negotiation regression', call_negotiation.main);
     binary_packet.main();
     bots_inline_query.main();
     calls_gateway_limits.main();
@@ -131,6 +136,7 @@ void main() {
     stickers.main();
 
     // Screen & UI Widget Tests
+    group('Incoming call regression', incoming_call_delivery.main);
     chat_list_m1.main();
     legal_viewer_screen.main();
     onboarding_screens.main();

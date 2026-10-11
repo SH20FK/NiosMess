@@ -9,6 +9,23 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   SecretChatLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get callConnectionFailed =>
+      'Не удалось соединить звонок. Попробуйте ещё раз.';
+
+  @override
+  String get callConnectionLost => 'Соединение прервалось. Позвоните ещё раз.';
+
+  @override
+  String get callSignalingFailed =>
+      'Не удалось установить защищённое соединение звонка. Попробуйте ещё раз.';
+
+  @override
+  String get callSoloTimeout => 'Звонок завершён: никто не присоединился.';
+
+  @override
+  String get callDurationLimit => 'Достигнут лимит длительности звонка.';
+
+  @override
   String get secretTitle => 'Секретный чат';
 
   @override
