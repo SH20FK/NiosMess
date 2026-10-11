@@ -264,10 +264,12 @@ class AppTheme {
         backgroundColor: scheme.surfaceContainerHigh,
         surfaceTintColor: Colors.transparent,
         shape: RoundedSuperellipseBorder(
-          borderRadius: BorderRadius.circular(settings.uiCornerRadius),
+          borderRadius: BorderRadius.circular(28),
         ),
         iconColor: scheme.primary,
-        titleTextStyle: textTheme.headlineSmall?.copyWith(
+        titleTextStyle: textTheme.titleLarge?.copyWith(
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
           color: scheme.onSurface,
         ),
         contentTextStyle: textTheme.bodyMedium?.copyWith(
@@ -282,7 +284,7 @@ class AppTheme {
         dragHandleColor: scheme.onSurfaceVariant.withValues(alpha: 0.38),
         shape: RoundedSuperellipseBorder(
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(settings.uiCornerRadius),
+            top: Radius.circular(28),
           ),
         ),
       ),

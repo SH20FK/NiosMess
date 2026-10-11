@@ -231,7 +231,7 @@ class AppToast {
     BuildContext context,
     AppFormattedError formatted,
   ) {
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
         final ColorScheme scheme = Theme.of(dialogContext).colorScheme;

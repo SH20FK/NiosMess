@@ -1,39 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
-import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
-
-class AppDialogAction {
-  const AppDialogAction({
-    required this.label,
-    this.icon,
-    this.onPressed,
-    this.destructive = false,
-    this.isPrimary = false,
-    this.isLoading = false,
-  });
-
-  final String label;
-  final IconData? icon;
-  final VoidCallback? onPressed;
-  final bool destructive;
-  final bool isPrimary;
-  final bool isLoading;
-}
+import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/core/modal/app_modal_content.dart';
+import 'package:pulse_flutter/core/modal/m3_modal_surface.dart';
+export 'package:pulse_flutter/core/modal/app_modal_content.dart'
+    show AppDialogAction;
 
 class AppDialog extends StatelessWidget {
   const AppDialog({
     required this.title,
     this.subtitle,
     this.icon,
-    this.actions = const <AppDialogAction>[],
+    this.actions = const [],
     this.maxWidth = 460,
     this.compactActions = false,
     this.child,
     super.key,
   });
-
   final String title;
   final String? subtitle;
   final IconData? icon;
@@ -41,150 +25,33 @@ class AppDialog extends StatelessWidget {
   final List<AppDialogAction> actions;
   final double maxWidth;
   final bool compactActions;
-
   @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: ClipRRect(
-          borderRadius: AppRadii.lgRadius,
-          child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh.withValues(alpha: 0.90),
-                borderRadius: AppRadii.lgRadius,
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: scheme.shadow.withValues(alpha: 0.16),
-                    blurRadius: 32,
-                    offset: const Offset(0, 18),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        if (icon != null) ...<Widget>[
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: scheme.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(icon, color: scheme.primary, size: 24),
-                          ),
-                          const SizedBox(width: 14),
-                        ],
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                title,
-                                style: textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.4,
-                                  color: scheme.onSurface,
-                                ),
-                              ),
-                              if (subtitle != null && subtitle!.trim().isNotEmpty) ...<Widget>[
-                                const SizedBox(height: 8),
-                                Text(
-                                  subtitle!,
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (child != null) ...<Widget>[
-                      const SizedBox(height: 18),
-                      child!,
-                    ],
-                    if (actions.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 22),
-                      compactActions
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: _buildActions(context, dense: false),
-                            )
-                          : Wrap(
-                              alignment: WrapAlignment.end,
-                              runAlignment: WrapAlignment.end,
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: _buildActions(context, dense: true),
-                            ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-        ),
+  Widget build(BuildContext context) => Dialog(
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+    child: M3ModalSurface(
+      variant: ModalVariant.dialog,
+      tone: ModalTone.high,
+      maxWidth: maxWidth,
+      maxHeight:
+          (MediaQuery.sizeOf(context).height -
+                  MediaQuery.viewInsetsOf(context).bottom -
+                  MediaQuery.paddingOf(context).vertical -
+                  48)
+              .clamp(0, double.infinity),
+      isScrollable: true,
+      child: AppModalContent(
+        title: title,
+        subtitle: subtitle,
+        icon: icon,
+        actions: actions,
+        stackedActions: compactActions,
+        destructive: actions.any((action) => action.destructive),
+        child: child,
       ),
-    );
-  }
-
-  List<Widget> _buildActions(BuildContext context, {required bool dense}) {
-    final List<Widget> buttons = <Widget>[];
-    for (final AppDialogAction action in actions) {
-      final Widget label = action.isLoading
-          ? const AppLoadingIndicator(size: 18)
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (action.icon != null) ...<Widget>[
-                  Icon(action.icon, size: 18),
-                  const SizedBox(width: 8),
-                ],
-                Flexible(child: Text(action.label)),
-              ],
-            );
-
-      final ColorScheme scheme = Theme.of(context).colorScheme;
-
-      final Widget button = action.destructive
-          ? TextButton(
-              style: TextButton.styleFrom(foregroundColor: scheme.error),
-              onPressed: action.isLoading ? null : action.onPressed,
-              child: label,
-            )
-          : action.isPrimary
-              ? FilledButton(
-                  onPressed: action.isLoading ? null : action.onPressed,
-                  child: label,
-                )
-              : TextButton(
-                  onPressed: action.isLoading ? null : action.onPressed,
-                  child: label,
-                );
-
-      if (dense) {
-        buttons.add(button);
-      } else {
-        buttons.add(SizedBox(width: double.infinity, child: button));
-      }
-    }
-    return buttons;
-  }
+    ),
+  );
 }
 
 class AppDialogField {
@@ -239,9 +106,10 @@ Future<T?> showAppDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
 }) {
-  return showDialog<T>(
+  return AppModal.showDialog<T>(
     context: context,
     builder: builder,
+    wrapSurface: false,
   );
 }
 
@@ -289,41 +157,19 @@ Future<bool?> showAppConfirmDialog({
   required String cancelLabel,
   IconData? icon,
   bool destructive = false,
-}) {
-  return showDialog<bool>(
-    context: context,
-    builder: (BuildContext dialogContext) {
-      return AppDialog(
-        title: title,
-        subtitle: subtitle,
-        icon: icon,
-        actions: <AppDialogAction>[
-          AppDialogAction(
-            label: cancelLabel,
-            onPressed: () {
-              try {
-                ProviderScope.containerOf(dialogContext, listen: false)
-                    .read(appSoundProvider)
-                    .playEvent(SoundEvent.cancel);
-              } catch (_) {}
-              Navigator.of(dialogContext).pop(false);
-            },
-          ),
-          AppDialogAction(
-            label: confirmLabel,
-            isPrimary: !destructive,
-            destructive: destructive,
-            onPressed: () {
-              try {
-                ProviderScope.containerOf(dialogContext, listen: false)
-                    .read(appSoundProvider)
-                    .playEvent(SoundEvent.confirm);
-              } catch (_) {}
-              Navigator.of(dialogContext).pop(true);
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
+}) => AppModal.showConfirmation(
+  context: context,
+  title: title,
+  message: subtitle,
+  confirmLabel: confirmLabel,
+  cancelLabel: cancelLabel,
+  icon: icon,
+  destructive: destructive,
+  onActionFeedback: (confirmed) {
+    try {
+      ProviderScope.containerOf(context, listen: false)
+          .read(appSoundProvider)
+          .playEvent(confirmed ? SoundEvent.confirm : SoundEvent.cancel);
+    } catch (_) {}
+  },
+);

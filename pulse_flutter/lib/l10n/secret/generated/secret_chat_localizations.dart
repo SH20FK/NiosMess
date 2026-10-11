@@ -244,6 +244,48 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Could not save the key verification. Your messages have not been deleted.'**
   String get secretVerificationFailed;
+
+  /// No description provided for @modalDeleteChatBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this conversation from your chat list?'**
+  String get modalDeleteChatBody;
+
+  /// No description provided for @modalSessionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'End this session?'**
+  String get modalSessionTitle;
+
+  /// No description provided for @modalSessionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The device “{device}” will be disconnected from your account.'**
+  String modalSessionBody(String device);
+
+  /// No description provided for @modalSessionConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'End session'**
+  String get modalSessionConfirm;
+
+  /// No description provided for @modalSessionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'End all other sessions?'**
+  String get modalSessionsTitle;
+
+  /// No description provided for @modalSessionsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every device except this one will be disconnected from your account.'**
+  String get modalSessionsBody;
+
+  /// No description provided for @modalSessionsConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'End all other sessions'**
+  String get modalSessionsConfirm;
 }
 
 class _SecretChatLocalizationsDelegate

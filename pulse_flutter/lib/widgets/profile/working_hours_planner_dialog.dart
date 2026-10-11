@@ -623,27 +623,10 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
       ],
     );
 
-    if (widget.isDialog) {
-      return Dialog(
-        backgroundColor: isDark ? scheme.surfaceContainerLow : scheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 660),
-          child: bodyContent,
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: bodyContent,
-      ),
-    );
+    // AppModal owns the surface and safe area; this editor supplies content.
+    return widget.isDialog
+        ? ConstrainedBox(constraints: const BoxConstraints(maxHeight: 660), child: bodyContent)
+        : bodyContent;
   }
 
   Widget _buildActiveDayCard(

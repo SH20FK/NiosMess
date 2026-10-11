@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/modal/app_side_sheet.dart';
+import 'package:pulse_flutter/core/modal/app_modal_content.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/m3_modal_surface.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 /// Centralized Material 3 Expressive modal layer for NiosMess.
@@ -22,6 +25,7 @@ class AppModal {
     bool isDismissible = true,
     bool enableDrag = true,
     bool showDragHandle = true,
+    bool isScrollable = true,
     double? maxWidth,
     double? maxHeight,
     ModalTone tone = ModalTone.low,
@@ -33,12 +37,15 @@ class AppModal {
       useRootNavigator: useRootNavigator,
       isDismissible: isDismissible,
       enableDrag: enableDrag,
-      sheetAnimationStyle: const AnimationStyle(
-        curve: M3SpringCurves.expressiveDecel,
-        reverseCurve: M3SpringCurves.expressiveAccel,
-        duration: Duration(milliseconds: 300),
-        reverseDuration: Duration(milliseconds: 250),
-      ),
+      useSafeArea: true,
+      sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
+          ? AnimationStyle.noAnimation
+          : const AnimationStyle(
+              curve: M3SpringCurves.expressiveDecel,
+              reverseCurve: M3SpringCurves.expressiveAccel,
+              duration: Duration(milliseconds: 300),
+              reverseDuration: Duration(milliseconds: 250),
+            ),
       backgroundColor: Colors.transparent,
       elevation: 0,
       builder: (BuildContext ctx) {
@@ -53,21 +60,40 @@ class AppModal {
                 child: Text(
                   title,
                   style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    fontFamily: AppFonts.ui,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              content,
+              Flexible(fit: FlexFit.loose, child: content),
             ],
           );
         }
-        return M3ModalSurface(
-          variant: ModalVariant.bottomSheet,
-          tone: tone,
-          showDragHandle: showDragHandle,
-          maxWidth: maxWidth,
-          maxHeight: maxHeight,
-          child: content,
+        final media = MediaQuery.of(ctx);
+        final available =
+            (media.size.height -
+                    media.viewInsets.bottom -
+                    media.padding.top -
+                    24)
+                .clamp(0.0, double.infinity);
+        return Padding(
+          padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+          child: MediaQuery.removeViewInsets(
+            context: ctx,
+            removeBottom: true,
+            child: M3ModalSurface(
+              variant: ModalVariant.bottomSheet,
+              tone: tone,
+              showDragHandle: showDragHandle,
+              maxWidth: maxWidth,
+              maxHeight: maxHeight == null
+                  ? available
+                  : maxHeight.clamp(0, available),
+              isScrollable: isScrollable,
+              child: content,
+            ),
+          ),
         );
       },
     );
@@ -90,6 +116,8 @@ class AppModal {
     double? maxHeight,
     ModalTone tone = ModalTone.high,
     bool destructive = false,
+    bool isScrollable = true,
+    bool wrapSurface = true,
   }) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
@@ -98,67 +126,87 @@ class AppModal {
       barrierDismissible: isDismissible,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: scheme.scrim.withValues(alpha: 0.45),
-      transitionDuration: const Duration(milliseconds: 220),
-      pageBuilder: (
-        BuildContext ctx,
-        Animation<double> anim1,
-        Animation<double> anim2,
-      ) {
-        Widget content = builder(ctx);
-        if (title != null && title.isNotEmpty) {
-          content = Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-                child: Text(
-                  title,
-                  style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
+      transitionDuration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 280),
+      pageBuilder:
+          (BuildContext ctx, Animation<double> anim1, Animation<double> anim2) {
+            Widget content = builder(ctx);
+            if (title != null && title.isNotEmpty) {
+              content = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+                    child: Text(
+                      title,
+                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
                       ),
+                    ),
+                  ),
+                  Flexible(fit: FlexFit.loose, child: content),
+                ],
+              );
+            }
+            if (!wrapSurface) return content;
+            final media = MediaQuery.of(ctx);
+            final available =
+                (media.size.height -
+                        media.viewInsets.bottom -
+                        media.padding.vertical -
+                        48)
+                    .clamp(0.0, double.infinity);
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  24,
+                  20,
+                  24 + media.viewInsets.bottom,
+                ),
+                child: Center(
+                  child: MediaQuery.removeViewInsets(
+                    context: ctx,
+                    removeBottom: true,
+                    child: M3ModalSurface(
+                      variant: ModalVariant.dialog,
+                      tone: tone,
+                      destructive: destructive,
+                      maxWidth: maxWidth,
+                      maxHeight: maxHeight == null
+                          ? available
+                          : maxHeight.clamp(0, available),
+                      isScrollable: isScrollable,
+                      child: content,
+                    ),
+                  ),
                 ),
               ),
-              content,
-            ],
-          );
-        }
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: M3ModalSurface(
-              variant: ModalVariant.dialog,
-              tone: tone,
-              destructive: destructive,
-              maxWidth: maxWidth,
-              maxHeight: maxHeight ?? MediaQuery.sizeOf(ctx).height * 0.88,
-              child: content,
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (
-        BuildContext ctx,
-        Animation<double> anim1,
-        Animation<double> anim2,
-        Widget child,
-      ) {
-        return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: anim1,
-            curve: Curves.easeOutCubic,
-          ),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.94, end: 1.0).animate(
-              CurvedAnimation(
+            );
+          },
+      transitionBuilder:
+          (
+            BuildContext ctx,
+            Animation<double> anim1,
+            Animation<double> anim2,
+            Widget child,
+          ) {
+            return FadeTransition(
+              opacity: CurvedAnimation(
                 parent: anim1,
-                curve: Curves.easeOutCubic,
+                curve: M3SpringCurves.expressiveDecel,
               ),
-            ),
-            child: child,
-          ),
-        );
-      },
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.96, end: 1.0).animate(
+                  CurvedAnimation(parent: anim1, curve: M3SpringCurves.gentle),
+                ),
+                child: child,
+              ),
+            );
+          },
     );
   }
 
@@ -166,7 +214,7 @@ class AppModal {
   static Future<T?> showSideSheet<T>({
     required BuildContext context,
     required Widget child,
-    String barrierLabel = 'Side Sheet',
+    String? barrierLabel,
     double width = 440,
     bool isDismissible = true,
   }) {
@@ -197,10 +245,7 @@ class AppModal {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            if (header != null) ...<Widget>[
-              header,
-              const SizedBox(height: 12),
-            ],
+            if (header != null) ...<Widget>[header, const SizedBox(height: 12)],
             ...actions,
             if (destructiveAction != null) ...<Widget>[
               const SizedBox(height: 8),
@@ -228,131 +273,85 @@ class AppModal {
     }
   }
 
-  /// Displays an adaptive confirmation dialog / sheet.
+  /// One presenter for both public confirmation facades. Dismissal stays null.
+  static Future<bool?> showConfirmation({
+    required BuildContext context,
+    required String title,
+    String? message,
+    String? confirmLabel,
+    String? cancelLabel,
+    bool destructive = false,
+    IconData? icon,
+    ValueChanged<bool>? onActionFeedback,
+  }) {
+    final wide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
+    bool responded = false;
+    Widget content(BuildContext ctx) {
+      void respond(bool confirmed) {
+        if (responded) return;
+        responded = true;
+        if (confirmed && destructive) {
+          HapticService.destructive();
+        } else {
+          HapticService.tap();
+        }
+        onActionFeedback?.call(confirmed);
+        Navigator.of(ctx).pop(confirmed);
+      }
+
+      return AppModalContent(
+        title: title,
+        subtitle: message,
+        icon: icon,
+        destructive: destructive,
+        stackedActions: !wide,
+        actions: [
+          AppDialogAction(
+            label: cancelLabel ?? ctx.l10n.commonCancel,
+            onPressed: () => respond(false),
+          ),
+          AppDialogAction(
+            label: confirmLabel ?? ctx.l10n.commonContinue,
+            isPrimary: true,
+            destructive: destructive,
+            onPressed: () => respond(true),
+          ),
+        ],
+      );
+    }
+
+    return wide
+        ? showDialog<bool>(
+            context: context,
+            builder: content,
+            maxWidth: 460,
+            isScrollable: true,
+          )
+        : showSheet<bool>(
+            context: context,
+            builder: content,
+            maxWidth: 640,
+            isScrollable: true,
+          );
+  }
+
   static Future<bool> confirm({
     required BuildContext context,
     required String title,
     String? message,
-    String confirmLabel = 'Подтвердить',
-    String cancelLabel = 'Отмена',
+    String? confirmLabel,
+    String? cancelLabel,
     bool destructive = false,
     IconData? icon,
-  }) async {
-    final bool isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
-
-    Widget buildContent(BuildContext ctx) {
-      final ColorScheme scheme = Theme.of(ctx).colorScheme;
-      final TextTheme textTheme = Theme.of(ctx).textTheme;
-
-      return Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            if (icon != null) ...<Widget>[
-              Center(
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: destructive
-                        ? scheme.error.withValues(alpha: 0.12)
-                        : scheme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: destructive ? scheme.error : scheme.primary,
-                    size: 24,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            Text(
-              title,
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: scheme.onSurface,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (message != null && message.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 10),
-              Text(
-                message,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-            const SizedBox(height: 24),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      HapticService.tap();
-                      Navigator.of(ctx).pop(false);
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: AppRadii.fullRadius,
-                      ),
-                    ),
-                    child: Text(cancelLabel),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      if (destructive) {
-                        HapticService.destructive();
-                      } else {
-                        HapticService.tap();
-                      }
-                      Navigator.of(ctx).pop(true);
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor:
-                          destructive ? scheme.error : scheme.primary,
-                      foregroundColor:
-                          destructive ? scheme.onError : scheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: AppRadii.fullRadius,
-                      ),
-                    ),
-                    child: Text(confirmLabel),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (isWide) {
-      final bool? res = await showDialog<bool>(
+  }) async =>
+      await showConfirmation(
         context: context,
-        builder: buildContent,
+        title: title,
+        message: message,
+        confirmLabel: confirmLabel,
+        cancelLabel: cancelLabel,
         destructive: destructive,
-      );
-      return res ?? false;
-    } else {
-      final bool? res = await showSheet<bool>(
-        context: context,
-        builder: buildContent,
-        showDragHandle: true,
-      );
-      return res ?? false;
-    }
-  }
+        icon: icon,
+      ) ??
+      false;
 }

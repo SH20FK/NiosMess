@@ -5,6 +5,13 @@ import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.da
 extension SecretChatL10n on AppLocalizations {
   SecretChatLocalizations get _secret =>
       lookupSecretChatLocalizations(Locale(localeName.split('_').first));
+  String get modalDeleteChatBody => _secret.modalDeleteChatBody;
+  String get modalSessionTitle => _secret.modalSessionTitle;
+  String modalSessionBody(String device) => _secret.modalSessionBody(device);
+  String get modalSessionConfirm => _secret.modalSessionConfirm;
+  String get modalSessionsTitle => _secret.modalSessionsTitle;
+  String get modalSessionsBody => _secret.modalSessionsBody;
+  String get modalSessionsConfirm => _secret.modalSessionsConfirm;
   String get secretTitle => _secret.secretTitle;
   String get secretProtected => _secret.secretProtected;
   String get secretDescription => _secret.secretDescription;

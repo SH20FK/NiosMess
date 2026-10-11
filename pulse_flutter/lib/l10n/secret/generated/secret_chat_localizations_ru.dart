@@ -92,4 +92,29 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   @override
   String get secretVerificationFailed =>
       'Не удалось сохранить проверку ключа. Сообщения не удалены.';
+
+  @override
+  String get modalDeleteChatBody =>
+      'Удалить эту переписку из вашего списка чатов?';
+
+  @override
+  String get modalSessionTitle => 'Завершить сессию?';
+
+  @override
+  String modalSessionBody(String device) {
+    return 'Устройство «$device» будет отключено от вашего аккаунта.';
+  }
+
+  @override
+  String get modalSessionConfirm => 'Завершить';
+
+  @override
+  String get modalSessionsTitle => 'Завершить все остальные сессии?';
+
+  @override
+  String get modalSessionsBody =>
+      'Все устройства, кроме этого, будут отключены от вашего аккаунта.';
+
+  @override
+  String get modalSessionsConfirm => 'Завершить все';
 }

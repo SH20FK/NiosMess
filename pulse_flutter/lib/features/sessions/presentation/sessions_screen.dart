@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
@@ -21,10 +22,10 @@ class SessionsScreen extends ConsumerWidget {
   Future<void> _terminateOthers(BuildContext context, WidgetRef ref) async {
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
-      title: 'Завершить все остальные сессии?',
-      subtitle: 'Все устройства, кроме этого, будут отключены от вашего аккаунта.',
-      confirmLabel: 'Завершить все',
-      cancelLabel: 'Отмена',
+      title: context.l10n.modalSessionsTitle,
+      subtitle: context.l10n.modalSessionsBody,
+      confirmLabel: context.l10n.modalSessionsConfirm,
+      cancelLabel: context.l10n.commonCancel,
       icon: Icons.devices_other_rounded,
       destructive: true,
     );

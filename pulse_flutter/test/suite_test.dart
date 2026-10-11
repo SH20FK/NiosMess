@@ -14,6 +14,7 @@ import 'widgets/secret_chat_ui_test.dart' as secret_chat_ui;
 import 'widgets/m3_route_tab_switcher_test.dart' as route_tab_switcher;
 import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
 import 'widgets/appearance_palette_test.dart' as appearance_palette;
+import 'widgets/app_modals_test.dart' as app_modals;
 import 'formatter_and_detector_test.dart' as formatter_and_detector;
 import 'global_search_deep_links_test.dart' as global_search_deep_links;
 import 'group_moderation_test.dart' as group_moderation;
@@ -118,6 +119,7 @@ void main() {
     route_tab_switcher.main();
     ordinary_chat_realtime.main();
     appearance_palette.main();
+    app_modals.main();
     formatter_and_detector.main();
     global_search_deep_links.main();
     group_moderation.main();

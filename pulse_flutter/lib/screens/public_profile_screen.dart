@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1150,167 +1151,43 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     );
   }
 
-  void _showUnblockDialog(ApiProfile profile) {
-    AppBottomSheets.show<void>(
-      context: context,
-      builder: (BuildContext ctx) {
-        final TextTheme dialogTheme = Theme.of(ctx).textTheme;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
-                  context.l10n.unblockAction,
-                  style: dialogTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  context.l10n.unblockUserConfirmDesc(profile.username),
-                  style: dialogTheme.bodyMedium,
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: <Widget>[
-                    // Cancel on left per platform convention
-                    Expanded(
-                      child: FilledButton.tonal(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: Text(context.l10n.commonCancel),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Action on right
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () async {
-                          Navigator.of(ctx).pop();
-                          HapticService.confirm();
-                          final bool success = await ref
-                              .read(privacyProvider.notifier)
-                              .unblockUser(profile.id);
-                          if (!mounted) return;
-                          if (success) {
-                            AppToast.showSuccess(
-                              context,
-                              context.l10n.userUnblockedToast(profile.username),
-                            );
-                            setState(() {
-                              _profile = _profile?.copyWith(
-                                isBlockedByMe: false,
-                                isBlocked: profile.isBlockedByUser,
-                              );
-                            });
-                          } else {
-                            AppToast.showError(
-                              context,
-                              context.l10n.userUnblockFailed,
-                            );
-                          }
-                        },
-                        child: Text(context.l10n.unblockAction),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+  Future<void> _showUnblockDialog(ApiProfile profile) async {
+    final confirmed = await showAppConfirmDialog(
+      context: context, title: context.l10n.unblockAction,
+      subtitle: context.l10n.unblockUserConfirmDesc(profile.username),
+      confirmLabel: context.l10n.unblockAction, cancelLabel: context.l10n.commonCancel,
+      icon: Icons.lock_open_rounded,
     );
+    if (confirmed != true || !mounted) return;
+    final success = await ref.read(privacyProvider.notifier).unblockUser(profile.id);
+    if (!mounted) return;
+    if (success) {
+      AppToast.showSuccess(context, context.l10n.userUnblockedToast(profile.username));
+      setState(() => _profile = _profile?.copyWith(
+        isBlockedByMe: false, isBlocked: profile.isBlockedByUser));
+    } else {
+      AppToast.showError(context, context.l10n.userUnblockFailed);
+    }
   }
 
-  void _showBlockDialog(ApiProfile profile) {
-    AppBottomSheets.show<void>(
-      context: context,
-      builder: (BuildContext ctx) {
-        final TextTheme dialogTheme = Theme.of(ctx).textTheme;
-        final ColorScheme dialogScheme = Theme.of(ctx).colorScheme;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
-                  context.l10n.profileBlock,
-                  style: dialogTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  context.l10n.blockUserConfirmDesc(profile.username),
-                  style: dialogTheme.bodyMedium,
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: <Widget>[
-                    // Cancel on left per platform convention
-                    Expanded(
-                      child: FilledButton.tonal(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: Text(context.l10n.commonCancel),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Action on right with high-contrast onError foreground
-                    Expanded(
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: dialogScheme.error,
-                          foregroundColor: dialogScheme.onError,
-                        ),
-                        onPressed: () async {
-                          Navigator.of(ctx).pop();
-                          HapticService.confirm();
-                          final bool success = await ref
-                              .read(privacyProvider.notifier)
-                              .blockUser(
-                                profile.id,
-                                user: BlockedUser(
-                                  id: profile.id,
-                                  username: profile.username,
-                                  displayName: profile.displayName,
-                                  avatarUrl: profile.avatarUrl,
-                                ),
-                              );
-                          if (!mounted) return;
-                          if (success) {
-                            AppToast.showSuccess(
-                              context,
-                              context.l10n.userBlockedToast(profile.username),
-                            );
-                            setState(() {
-                              _profile = _profile?.copyWith(
-                                isBlockedByMe: true,
-                                isBlocked: true,
-                              );
-                            });
-                          } else {
-                            AppToast.showError(
-                              context,
-                              context.l10n.userBlockFailed,
-                            );
-                          }
-                        },
-                        child: Text(context.l10n.profileBlock),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+  Future<void> _showBlockDialog(ApiProfile profile) async {
+    final confirmed = await showAppConfirmDialog(
+      context: context, title: context.l10n.profileBlock,
+      subtitle: context.l10n.blockUserConfirmDesc(profile.username),
+      confirmLabel: context.l10n.profileBlock, cancelLabel: context.l10n.commonCancel,
+      destructive: true, icon: Icons.block_rounded,
     );
+    if (confirmed != true || !mounted) return;
+    final success = await ref.read(privacyProvider.notifier).blockUser(profile.id,
+      user: BlockedUser(id: profile.id, username: profile.username,
+        displayName: profile.displayName, avatarUrl: profile.avatarUrl));
+    if (!mounted) return;
+    if (success) {
+      AppToast.showSuccess(context, context.l10n.userBlockedToast(profile.username));
+      setState(() => _profile = _profile?.copyWith(isBlockedByMe: true, isBlocked: true));
+    } else {
+      AppToast.showError(context, context.l10n.userBlockFailed);
+    }
   }
 
   void _showReportUserDialog(ApiProfile profile) {

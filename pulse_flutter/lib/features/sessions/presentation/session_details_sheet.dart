@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -29,10 +30,10 @@ class SessionDetailsSheet extends ConsumerWidget {
   Future<void> _revoke(BuildContext context, WidgetRef ref) async {
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
-      title: 'Завершить сессию?',
-      subtitle: 'Устройство «${session.deviceName}» будет отключено от вашего аккаунта.',
-      confirmLabel: 'Завершить',
-      cancelLabel: 'Отмена',
+      title: context.l10n.modalSessionTitle,
+      subtitle: context.l10n.modalSessionBody(session.deviceName),
+      confirmLabel: context.l10n.modalSessionConfirm,
+      cancelLabel: context.l10n.commonCancel,
       destructive: true,
       icon: Icons.logout_rounded,
     );

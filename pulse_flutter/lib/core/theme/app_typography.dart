@@ -38,6 +38,7 @@ class AppTypography {
       // Display: Bricolage Grotesque (Expressive hero headlines)
       displayLarge: TextStyle(
         fontFamily: AppFonts.headline,
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
         fontSize: 57,
         height: 64 / 57,
         fontWeight: FontWeight.w800,
@@ -50,6 +51,7 @@ class AppTypography {
       ),
       displayMedium: TextStyle(
         fontFamily: AppFonts.headline,
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
         fontSize: 45,
         height: 52 / 45,
         fontWeight: FontWeight.w700,
@@ -62,6 +64,7 @@ class AppTypography {
       ),
       displaySmall: TextStyle(
         fontFamily: AppFonts.headline,
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
         fontSize: 36,
         height: 44 / 36,
         fontWeight: FontWeight.w700,
@@ -76,6 +79,7 @@ class AppTypography {
       // Headlines: Bricolage Grotesque (Section and page headers)
       headlineLarge: TextStyle(
         fontFamily: AppFonts.headline,
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
         fontSize: 32,
         height: 40 / 32,
         fontWeight: FontWeight.w700,
@@ -88,6 +92,7 @@ class AppTypography {
       ),
       headlineMedium: TextStyle(
         fontFamily: AppFonts.headline,
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
         fontSize: 28,
         height: 36 / 28,
         fontWeight: FontWeight.w700,
@@ -100,6 +105,7 @@ class AppTypography {
       ),
       headlineSmall: TextStyle(
         fontFamily: AppFonts.headline,
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
         fontSize: 24,
         height: 32 / 24,
         fontWeight: FontWeight.w600,

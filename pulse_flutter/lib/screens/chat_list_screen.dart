@@ -537,12 +537,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       subtitle: chat.isSecret
           ? context.l10n.secretDeleteWarning
           : isDirect
-          ? context.l10n.chatDeleteMessageBody
+          ? context.l10n.modalDeleteChatBody
           : context.l10n.groupManageLeaveBody,
       confirmLabel:
           isDirect ? context.l10n.commonDelete : context.l10n.groupManageLeave,
       cancelLabel: context.l10n.commonCancel,
-      icon: Icons.delete_outline_rounded,
+      icon: isDirect ? Icons.delete_outline_rounded : Icons.logout_rounded,
       destructive: true,
     );
     if (confirmed != true) return;

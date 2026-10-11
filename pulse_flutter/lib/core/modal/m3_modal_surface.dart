@@ -1,19 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
-enum ModalVariant {
-  dialog,
-  bottomSheet,
-  sideSheet,
-}
+enum ModalVariant { dialog, bottomSheet, sideSheet }
 
-enum ModalTone {
-  low,
-  standard,
-  high,
-  highest,
-  error,
-}
+enum ModalTone { low, standard, high, highest, error }
 
 /// A unified Material 3 Expressive surface container for modals, dialogs, sheets, and side panels.
 /// Guarantees zero live blur passes, purely tonal elevation, and standardized radius scaling.
@@ -42,7 +32,7 @@ class M3ModalSurface extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
 
   Color _resolveBackgroundColor(ColorScheme scheme) {
-    if (destructive || tone == ModalTone.error) {
+    if (tone == ModalTone.error) {
       return scheme.errorContainer;
     }
     switch (tone) {
@@ -64,9 +54,7 @@ class M3ModalSurface extends StatelessWidget {
       case ModalVariant.dialog:
         return AppRadii.xlRadius;
       case ModalVariant.bottomSheet:
-        return const BorderRadius.vertical(
-          top: Radius.circular(AppRadii.xl),
-        );
+        return const BorderRadius.vertical(top: Radius.circular(AppRadii.xl));
       case ModalVariant.sideSheet:
         return const BorderRadius.horizontal(
           left: Radius.circular(AppRadii.xl),
@@ -79,7 +67,6 @@ class M3ModalSurface extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color backgroundColor = _resolveBackgroundColor(scheme);
     final BorderRadius borderRadius = _resolveBorderRadius();
-    final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     Widget content = child;
     if (padding != null) {
@@ -104,20 +91,13 @@ class M3ModalSurface extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
-        if (isScrollable)
-          Flexible(child: content)
-        else
-          content,
+        if (isScrollable) Flexible(child: content) else content,
       ],
     );
 
     // Apply safe area constraints depending on modal variant
     if (variant == ModalVariant.bottomSheet) {
-      body = SafeArea(
-        top: false,
-        bottom: true,
-        child: body,
-      );
+      body = SafeArea(top: false, bottom: true, child: body);
     } else if (variant == ModalVariant.sideSheet) {
       body = SafeArea(
         top: true,
@@ -130,14 +110,7 @@ class M3ModalSurface extends StatelessWidget {
 
     Widget surface = Material(
       color: backgroundColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: borderRadius,
-        side: BorderSide(
-          color: destructive
-              ? scheme.error.withValues(alpha: 0.28)
-              : scheme.outlineVariant.withValues(alpha: 0.20),
-        ),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: borderRadius),
       clipBehavior: Clip.antiAlias,
       elevation: 0,
       child: body,
@@ -149,13 +122,6 @@ class M3ModalSurface extends StatelessWidget {
           maxWidth: maxWidth ?? double.infinity,
           maxHeight: maxHeight ?? double.infinity,
         ),
-        child: surface,
-      );
-    }
-
-    if (bottomInset > 0 && variant == ModalVariant.bottomSheet) {
-      surface = Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
         child: surface,
       );
     }

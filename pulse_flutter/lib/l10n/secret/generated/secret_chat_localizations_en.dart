@@ -92,4 +92,29 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   @override
   String get secretVerificationFailed =>
       'Could not save the key verification. Your messages have not been deleted.';
+
+  @override
+  String get modalDeleteChatBody =>
+      'Remove this conversation from your chat list?';
+
+  @override
+  String get modalSessionTitle => 'End this session?';
+
+  @override
+  String modalSessionBody(String device) {
+    return 'The device “$device” will be disconnected from your account.';
+  }
+
+  @override
+  String get modalSessionConfirm => 'End session';
+
+  @override
+  String get modalSessionsTitle => 'End all other sessions?';
+
+  @override
+  String get modalSessionsBody =>
+      'Every device except this one will be disconnected from your account.';
+
+  @override
+  String get modalSessionsConfirm => 'End all other sessions';
 }
