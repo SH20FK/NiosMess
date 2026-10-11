@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:pulse_flutter/models/api/call_models.dart';
@@ -106,5 +108,73 @@ void main() {
     expect(session.currentData.state, CallSessionState.ended);
     expect(session.currentData.fatalError, 'signaling_failed');
     expect(peer.events, ['remote:start', 'close', 'dispose']);
+  });
+
+  group('Native call audio routing', () {
+    const channel = MethodChannel('FlutterWebRTC.Method');
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    late WebRtcCallSession session;
+    TargetPlatform? previousPlatform;
+    setUp(() {
+      previousPlatform = debugDefaultTargetPlatformOverride;
+      session = WebRtcCallSession(
+        chatId: 1, callId: 2, roomId: 'routing', isVideo: false,
+        direction: CallDirection.outgoing, displayName: 'Fixture',
+        gatewayInfo: ApiCallGatewayInfo.defaultFor(),
+        localRenderer: _Renderer(), remoteRenderer: _Renderer(),
+      );
+    });
+    tearDown(() async {
+      await session.dispose();
+      messenger.setMockMethodCallHandler(channel, null);
+      debugDefaultTargetPlatformOverride = previousPlatform;
+    });
+
+    for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+      test('$platform switches the real WebRTC audio device', () async {
+        debugDefaultTargetPlatformOverride = platform;
+        final routes = <bool>[];
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'initialize') return null;
+          expect(call.method, 'enableSpeakerphone');
+          routes.add((call.arguments as Map)['enable'] as bool);
+          return null;
+        });
+        await session.setSpeakerOn(true);
+        expect(session.currentData.isSpeakerOn, isTrue);
+        await session.setSpeakerOn(false);
+        expect(session.currentData.isSpeakerOn, isFalse);
+        expect(routes, [true, false]);
+        await session.end();
+        await session.setSpeakerOn(true);
+        expect(routes, [true, false], reason: 'An ended call cannot change routing');
+      });
+    }
+
+    test('failed device selection does not claim speaker is enabled', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      messenger.setMockMethodCallHandler(channel, (_) async {
+        throw PlatformException(code: 'route_unavailable');
+      });
+      await session.setSpeakerOn(true);
+      expect(session.currentData.isSpeakerOn, isFalse);
+      expect(session.currentData.state, CallSessionState.idle);
+    });
+
+    test('a late route result cannot revive a finished call', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final route = Completer<void>();
+      messenger.setMockMethodCallHandler(channel, (_) async {
+        await route.future;
+        return null;
+      });
+      final selection = session.setSpeakerOn(true);
+      await Future<void>.delayed(Duration.zero);
+      await session.end();
+      route.complete();
+      await selection;
+      expect(session.currentData.isSpeakerOn, isFalse);
+      expect(session.currentData.state, CallSessionState.ended);
+    });
   });
 }

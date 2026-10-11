@@ -14,6 +14,7 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/services/calls/call_starter.dart';
+import 'package:pulse_flutter/screens/calls/incoming_call_overlay.dart';
 
 class _Auth extends AuthNotifier {
   @override
@@ -43,8 +44,12 @@ class _Socket extends WebSocketClient {
 }
 
 class _Sound extends Fake implements SoundService {
+  int starts = 0;
+  int stops = 0;
   @override
-  Future<void> stopLoop() async {}
+  Future<void> startLoop(dynamic soundOrEvent, {double? volume}) async { starts++; }
+  @override
+  Future<void> stopLoop() async { stops++; }
 }
 
 Future<void> _flush() async {
@@ -137,5 +142,26 @@ void main() {
     expect(socket.actions, contains('join_call'));
     expect(failure.toString(), contains('fixture join rejected'));
     expect(failure.toString(), isNot(contains('disposed')));
+  });
+
+  testWidgets('incoming overlay stops ringing safely when removed', (tester) async {
+    container.read(incomingCallProvider.notifier).set(const IncomingCallData(
+      callId: 100, roomId: 'fixture-room', chatId: 42, isVideo: false,
+      initiatorId: 2, initiatorName: 'Two',
+    ));
+    final sound = container.read(appSoundProvider) as _Sound;
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: Scaffold(body: IncomingCallOverlay())),
+    ));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Two'), findsOneWidget);
+    expect(sound.starts, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(sound.stops, 1);
+    expect(tester.takeException(), isNull);
+    container.dispose();
+    containerDisposed = true;
+    await tester.pumpAndSettle();
   });
 }

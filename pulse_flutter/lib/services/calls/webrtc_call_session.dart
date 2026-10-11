@@ -105,6 +105,8 @@ class WebRtcCallSession {
       if (_ended) return;
       await _initLocalMedia();
       if (_ended) return;
+      await setSpeakerOn(_isSpeakerOn);
+      if (_ended) return;
 
       final String signalUrl = gatewayInfo.signalUrl.isNotEmpty
           ? gatewayInfo.signalUrl
@@ -152,7 +154,7 @@ class WebRtcCallSession {
         avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
         androidAudioAttributes: AndroidAudioAttributes(
           contentType: AndroidAudioContentType.speech,
-          usage: _isSpeakerOn ? AndroidAudioUsage.media : AndroidAudioUsage.voiceCommunication,
+          usage: AndroidAudioUsage.voiceCommunication,
         ),
         androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
         androidWillPauseWhenDucked: true,
@@ -565,8 +567,21 @@ class WebRtcCallSession {
   }
 
   Future<void> setSpeakerOn(bool speaker) async {
+    if (_ended) return;
+    // audio_session.configure sets attributes, but does not select the
+    // WebRTC audio device. Native AudioSwitch owns routing on Android/iOS.
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS)) {
+      try {
+        await Helper.setSpeakerphoneOn(speaker);
+      } catch (_) {
+        debugPrint('[WebRtcCallSession] Audio route unavailable');
+        return;
+      }
+    }
+    if (_ended) return;
     _isSpeakerOn = speaker;
-    await _configureAudioSession();
     _triggerStateUpdate();
   }
 

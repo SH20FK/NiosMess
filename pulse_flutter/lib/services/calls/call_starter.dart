@@ -165,4 +165,5 @@ Future<void> startIncomingCall({
   );
   accountRef.read(callSessionProvider.notifier).setSession(manager);
   await manager.accept();
+  if (!manager.isActive) throw StateError('call_connection_failed');
 }

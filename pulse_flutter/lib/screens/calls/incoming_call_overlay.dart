@@ -35,10 +35,13 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   late final Animation<double> _pulseOpacity;
 
   IncomingCallData? _lastIncoming;
+  late final SoundService _sound;
+  late final ProviderSubscription<IncomingCallData?> _incomingSubscription;
 
   @override
   void initState() {
     super.initState();
+    _sound = ref.read(appSoundProvider);
 
     _slideController = AnimationController(
       vsync: this,
@@ -67,34 +70,41 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     _pulseOpacity = Tween<double>(begin: 0.45, end: 0.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
     );
+    _incomingSubscription = ref.listenManual(
+      incomingCallProvider,
+      (_, incoming) => _onIncomingChanged(incoming),
+      fireImmediately: true,
+    );
+  }
+
+  void _onIncomingChanged(IncomingCallData? incoming) {
+    if (incoming != null) {
+      final bool startRinging = _lastIncoming == null;
+      setState(() => _lastIncoming = incoming);
+      if (startRinging) {
+        _slideController.forward();
+        HapticService.notification();
+        unawaited(_sound.startLoop(SoundEvent.callIncoming));
+      }
+    } else if (_lastIncoming != null) {
+      unawaited(_sound.stopLoop());
+      _slideController.reverse().then((_) {
+        if (mounted) setState(() => _lastIncoming = null);
+      });
+    }
   }
 
   @override
   void dispose() {
+    _incomingSubscription.close();
     _slideController.dispose();
     _pulseController.dispose();
-    ref.read(appSoundProvider).stopLoop();
+    unawaited(_sound.stopLoop());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final incoming = ref.watch(incomingCallProvider);
-
-    if (incoming != null && _lastIncoming == null) {
-      _lastIncoming = incoming;
-      _slideController.forward();
-      Future.microtask(() {
-        HapticService.notification();
-        ref.read(appSoundProvider).startLoop(SoundEvent.callIncoming);
-      });
-    } else if (incoming == null && _lastIncoming != null) {
-      ref.read(appSoundProvider).stopLoop();
-      _slideController.reverse().then((_) {
-        if (mounted) setState(() => _lastIncoming = null);
-      });
-    }
-
     final data = _lastIncoming;
     if (data == null) return const SizedBox.shrink();
 
@@ -235,6 +245,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   }
 
   Future<void> _acceptCall(BuildContext context, WidgetRef ref, IncomingCallData incoming) async {
+    final router = ref.read(appRouterProvider);
     HapticService.confirm();
     ref.read(incomingCallProvider.notifier).set(null);
     unawaited(PushNotificationService.cancelCallNotification());
@@ -257,7 +268,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         peerName: incoming.initiatorName,
       );
 
-      ref.read(appRouterProvider).push('/call/${incoming.callId}');
+      router.push('/call/${incoming.callId}');
     } on CallStartException catch (e) {
       if (context.mounted) {
         AppToast.showError(
@@ -267,9 +278,13 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
               : context.l10n.chatCallFailed(e),
         );
       }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.showError(context, e);
+    } catch (_) {
+      final errorContext = context.mounted
+          ? context
+          : AppRouter.navigatorKey.currentContext;
+      if (errorContext != null && errorContext.mounted) {
+        AppToast.showError(errorContext,
+          errorContext.l10n.callFailureMessage('connection_failed'));
       }
     }
   }
