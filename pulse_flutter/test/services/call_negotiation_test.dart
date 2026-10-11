@@ -21,21 +21,26 @@ class _Peer extends Fake implements RTCPeerConnection {
     remoteReady = true;
     events.add('remote:done');
   }
+
   @override
   Future<void> setLocalDescription(RTCSessionDescription description) async {
     events.add('local');
   }
+
   @override
-  Future<RTCSessionDescription> createAnswer([Map<String, dynamic>? constraints]) async =>
-      RTCSessionDescription('answer', 'answer');
+  Future<RTCSessionDescription> createAnswer([
+    Map<String, dynamic>? constraints,
+  ]) async => RTCSessionDescription('answer', 'answer');
   @override
-  Future<RTCSessionDescription> createOffer([Map<String, dynamic>? constraints]) async =>
-      RTCSessionDescription('offer', 'offer');
+  Future<RTCSessionDescription> createOffer([
+    Map<String, dynamic>? constraints,
+  ]) async => RTCSessionDescription('offer', 'offer');
   @override
   Future<void> addCandidate(RTCIceCandidate candidate) async {
     if (!remoteReady) throw StateError('ICE before remote description');
     events.add('ice:${candidate.candidate}');
   }
+
   @override
   set onIceCandidate(void Function(RTCIceCandidate)? callback) {}
   @override
@@ -43,9 +48,14 @@ class _Peer extends Fake implements RTCPeerConnection {
   @override
   set onConnectionState(void Function(RTCPeerConnectionState)? callback) {}
   @override
-  Future<void> close() async { events.add('close'); }
+  Future<void> close() async {
+    events.add('close');
+  }
+
   @override
-  Future<void> dispose() async { events.add('dispose'); }
+  Future<void> dispose() async {
+    events.add('dispose');
+  }
 }
 
 class _Renderer extends Fake implements RTCVideoRenderer {
@@ -55,54 +65,118 @@ class _Renderer extends Fake implements RTCVideoRenderer {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  for (final video in [false, true]) {
-    test('${video ? 'video' : 'audio'} buffers early ICE and serializes SDP', () async {
-      final peer = _Peer()..remoteGate = Completer<void>();
-      var creations = 0;
+  test(
+    'capture failure ends instead of silently connecting without a microphone',
+    () async {
       final session = WebRtcCallSession(
-        chatId: 1, callId: 2, roomId: 'fixture', isVideo: video,
-        direction: CallDirection.incoming, displayName: 'Fixture', isListener: true,
+        chatId: 1,
+        callId: 2,
+        roomId: 'fixture',
+        isVideo: true,
+        direction: CallDirection.incoming,
+        displayName: 'Fixture',
         gatewayInfo: ApiCallGatewayInfo.defaultFor(),
-        localRenderer: _Renderer(), remoteRenderer: _Renderer(),
-        peerConnectionFactory: (_) async { creations++; return peer; },
+        localRenderer: _Renderer(),
+        remoteRenderer: _Renderer(),
+        mediaStreamFactory: (constraints) async {
+          expect(constraints['audio'], isTrue);
+          throw StateError('capture rejected');
+        },
       );
       addTearDown(session.dispose);
-      await session.handleSignalingMessage({
-        'type': 'ice', 'from_id': 7,
-        'candidate': {'candidate': 'early', 'sdpMid': '0', 'sdpMLineIndex': 0},
-      });
-      final offer = session.handleSignalingMessage({
-        'type': 'offer', 'from_id': 7, 'sdp': {'type': 'offer', 'sdp': 'offer'},
-      });
-      final laterIce = session.handleSignalingMessage({
-        'type': 'ice', 'from_id': 7, 'candidate': {'candidate': 'later'},
-      });
-      await Future<void>.delayed(Duration.zero);
-      expect(peer.events, ['remote:start']);
-      peer.remoteGate!.complete();
-      await Future.wait([offer, laterIce]);
-      expect(creations, 1);
-      expect(peer.events, ['remote:start', 'remote:done', 'ice:early', 'local', 'ice:later']);
-      expect(session.currentData.fatalError, isNull);
-      expect(session.wasAnswered, isFalse, reason: 'SDP alone is not connected media');
-      await session.end();
-      await session.end();
-      expect(peer.events.where((e) => e == 'close').length, 1);
-      expect(peer.events.where((e) => e == 'dispose').length, 1);
-    });
+      await session.start();
+      expect(session.currentData.state, CallSessionState.ended);
+      expect(session.currentData.fatalError, 'media_unavailable');
+      expect(session.wasAnswered, isFalse);
+    },
+  );
+  for (final video in [false, true]) {
+    test(
+      '${video ? 'video' : 'audio'} buffers early ICE and serializes SDP',
+      () async {
+        final peer = _Peer()..remoteGate = Completer<void>();
+        var creations = 0;
+        final session = WebRtcCallSession(
+          chatId: 1,
+          callId: 2,
+          roomId: 'fixture',
+          isVideo: video,
+          direction: CallDirection.incoming,
+          displayName: 'Fixture',
+          isListener: true,
+          gatewayInfo: ApiCallGatewayInfo.defaultFor(),
+          localRenderer: _Renderer(),
+          remoteRenderer: _Renderer(),
+          peerConnectionFactory: (_) async {
+            creations++;
+            return peer;
+          },
+        );
+        addTearDown(session.dispose);
+        await session.handleSignalingMessage({
+          'type': 'ice',
+          'from_id': 7,
+          'candidate': {
+            'candidate': 'early',
+            'sdpMid': '0',
+            'sdpMLineIndex': 0,
+          },
+        });
+        final offer = session.handleSignalingMessage({
+          'type': 'offer',
+          'from_id': 7,
+          'sdp': {'type': 'offer', 'sdp': 'offer'},
+        });
+        final laterIce = session.handleSignalingMessage({
+          'type': 'ice',
+          'from_id': 7,
+          'candidate': {'candidate': 'later'},
+        });
+        await Future<void>.delayed(Duration.zero);
+        expect(peer.events, ['remote:start']);
+        peer.remoteGate!.complete();
+        await Future.wait([offer, laterIce]);
+        expect(creations, 1);
+        expect(peer.events, [
+          'remote:start',
+          'remote:done',
+          'ice:early',
+          'local',
+          'ice:later',
+        ]);
+        expect(session.currentData.fatalError, isNull);
+        expect(
+          session.wasAnswered,
+          isFalse,
+          reason: 'SDP alone is not connected media',
+        );
+        await session.end();
+        await session.end();
+        expect(peer.events.where((e) => e == 'close').length, 1);
+        expect(peer.events.where((e) => e == 'dispose').length, 1);
+      },
+    );
   }
 
   test('failed negotiation ends the session and releases its peer', () async {
     final peer = _Peer()..failDescription = true;
     final session = WebRtcCallSession(
-      chatId: 1, callId: 2, roomId: 'fixture', isVideo: true,
-      direction: CallDirection.incoming, displayName: 'Fixture', isListener: true,
+      chatId: 1,
+      callId: 2,
+      roomId: 'fixture',
+      isVideo: true,
+      direction: CallDirection.incoming,
+      displayName: 'Fixture',
+      isListener: true,
       gatewayInfo: ApiCallGatewayInfo.defaultFor(),
-      localRenderer: _Renderer(), remoteRenderer: _Renderer(),
+      localRenderer: _Renderer(),
+      remoteRenderer: _Renderer(),
       peerConnectionFactory: (_) async => peer,
     );
     await session.handleSignalingMessage({
-      'type': 'offer', 'from_id': 7, 'sdp': {'type': 'offer', 'sdp': 'bad'},
+      'type': 'offer',
+      'from_id': 7,
+      'sdp': {'type': 'offer', 'sdp': 'bad'},
     });
     await session.dispose();
     expect(session.currentData.state, CallSessionState.ended);
@@ -112,16 +186,22 @@ void main() {
 
   group('Native call audio routing', () {
     const channel = MethodChannel('FlutterWebRTC.Method');
-    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     late WebRtcCallSession session;
     TargetPlatform? previousPlatform;
     setUp(() {
       previousPlatform = debugDefaultTargetPlatformOverride;
       session = WebRtcCallSession(
-        chatId: 1, callId: 2, roomId: 'routing', isVideo: false,
-        direction: CallDirection.outgoing, displayName: 'Fixture',
+        chatId: 1,
+        callId: 2,
+        roomId: 'routing',
+        isVideo: false,
+        direction: CallDirection.outgoing,
+        displayName: 'Fixture',
         gatewayInfo: ApiCallGatewayInfo.defaultFor(),
-        localRenderer: _Renderer(), remoteRenderer: _Renderer(),
+        localRenderer: _Renderer(),
+        remoteRenderer: _Renderer(),
       );
     });
     tearDown(() async {
@@ -147,7 +227,10 @@ void main() {
         expect(routes, [true, false]);
         await session.end();
         await session.setSpeakerOn(true);
-        expect(routes, [true, false], reason: 'An ended call cannot change routing');
+        expect(routes, [
+          true,
+          false,
+        ], reason: 'An ended call cannot change routing');
       });
     }
 

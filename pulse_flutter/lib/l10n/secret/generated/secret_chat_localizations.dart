@@ -101,6 +101,12 @@ abstract class SecretChatLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @callMediaUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not access the microphone or camera. Check app permissions and try again.'**
+  String get callMediaUnavailable;
+
   /// No description provided for @callConnectionFailed.
   ///
   /// In en, this message translates to:

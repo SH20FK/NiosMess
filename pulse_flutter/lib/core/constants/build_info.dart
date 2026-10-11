@@ -5,16 +5,16 @@ class BuildInfo {
   const BuildInfo._();
 
   /// Semantic version (e.g. "3.63.0").
-  static const String version = '3.96.1';
+  static const String version = '3.99.3';
 
   /// Build number (e.g. "147").
-  static const String buildNumber = '215';
+  static const String buildNumber = '228';
 
   /// Version with 'v' prefix (e.g. "v3.63.1").
-  static const String versionWithPrefix = 'v3.96.1';
+  static const String versionWithPrefix = 'v$version';
 
   /// Full version with build number (e.g. "v3.63.1+147").
-  static const String fullVersion = 'v3.96.1+215';
+  static const String fullVersion = '$versionWithPrefix+$buildNumber';
 
   /// Git commit hash of this release.
   static const String commitHash = 'e8fade3';
@@ -23,5 +23,5 @@ class BuildInfo {
   static const String buildChannel = 'stable';
 
   /// Release date string (YYYY-MM-DD).
-  static const String buildDate = '2026-10-08';
+  static const String buildDate = '2026-10-11';
 }

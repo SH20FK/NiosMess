@@ -44,6 +44,10 @@ class _Socket extends WebSocketClient {
 }
 
 class _Sound extends Fake implements SoundService {
+  @override
+  Future<void> suspendForCall() async {}
+  @override
+  void resumeAfterCall() {}
   int starts = 0;
   int stops = 0;
   @override

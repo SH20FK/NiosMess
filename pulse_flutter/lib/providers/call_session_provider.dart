@@ -15,8 +15,8 @@ import 'package:pulse_flutter/services/calls/call_session.dart';
 /// `null` when no call is active.
 final callSessionProvider =
     NotifierProvider<CallSessionNotifier, CallSessionManager?>(
-  CallSessionNotifier.new,
-);
+      CallSessionNotifier.new,
+    );
 
 /// Long-lived [Ref] for call sessions, which outlive the widget that started them.
 final callRefProvider = Provider<Ref>((Ref ref) => ref);
@@ -87,6 +87,12 @@ class CallSessionManager {
   bool _renderersReady = false;
   Future<void>? _rendererInit;
   bool _disposed = false;
+  SoundService? _callSound;
+
+  void _releaseCallSound() {
+    _callSound?.resumeAfterCall();
+    _callSound = null;
+  }
 
   Stream<CallSessionData> get stateStream => _stateController.stream;
 
@@ -151,7 +157,8 @@ class CallSessionManager {
       peerAvatarUrl: peerAvatarUrl,
       peerUsername: peerUsername,
       isListener: isListener,
-      gatewayInfo: _gatewayInfo ?? gatewayInfo ?? ApiCallGatewayInfo.defaultFor(),
+      gatewayInfo:
+          _gatewayInfo ?? gatewayInfo ?? ApiCallGatewayInfo.defaultFor(),
       localRenderer: _localRenderer,
       remoteRenderer: _remoteRenderer,
       onStateChanged: _onSessionData,
@@ -171,7 +178,6 @@ class CallSessionManager {
     if (!_answerHandled && (_session?.wasAnswered ?? false)) {
       _answerHandled = true;
       unawaited(ref.read(appSoundProvider).stopLoop());
-      unawaited(ref.read(appSoundProvider).playEvent(SoundEvent.callConnected));
     }
 
     if (data.state == CallSessionState.connected) {
@@ -198,6 +204,13 @@ class CallSessionManager {
   }
 
   Future<void> _connect() async {
+    final sound = ref.read(appSoundProvider) as SoundService;
+    _callSound = sound;
+    await sound.suspendForCall();
+    if (_disposed || _ended) {
+      _releaseCallSound();
+      return;
+    }
     final WebRtcCallSession session = await _ensureSession();
     await session.start();
   }
@@ -208,8 +221,8 @@ class CallSessionManager {
     required Map<String, dynamic> startResponse,
     String? peerDisplayName,
   }) async {
-    // Outgoing calls get a ringback loop while the peer's phone is ringing.
-    unawaited(ref.read(appSoundProvider).startLoop(SoundEvent.callIncoming));
+    // WebRTC owns audio from capture until teardown; media tones must not
+    // request a competing focus or reset the communication route.
     try {
       await _connect();
     } catch (e) {
@@ -224,22 +237,28 @@ class CallSessionManager {
 
   Future<void> accept() async {
     try {
-      final Map<String, dynamic> response =
-          await _sendWsAction('join_call', <String, dynamic>{
-        'chat_id': chatId,
-        'room_id': roomId,
-        'message_id': callId,
-      });
+      final Map<String, dynamic> response = await _sendWsAction(
+        'join_call',
+        <String, dynamic>{
+          'chat_id': chatId,
+          'room_id': roomId,
+          'message_id': callId,
+        },
+      );
       final dynamic error = response['error'];
       if (error != null) {
         throw Exception(error.toString());
       }
-      final Map<String, dynamic> payload =
-          response['payload'] is Map ? response['payload'] as Map<String, dynamic> : response;
+      final Map<String, dynamic> payload = response['payload'] is Map
+          ? response['payload'] as Map<String, dynamic>
+          : response;
       if (payload.containsKey('call_access_token')) {
         final bool isCallsTester =
             ref.read(authProvider).profile?.isCallsTester ?? false;
-        _gatewayInfo = ApiCallGatewayInfo.fromJson(payload, isCallsTester: isCallsTester);
+        _gatewayInfo = ApiCallGatewayInfo.fromJson(
+          payload,
+          isCallsTester: isCallsTester,
+        );
       }
       await _connect();
     } catch (e) {
@@ -265,6 +284,7 @@ class CallSessionManager {
     final CallSessionData data = currentData;
     _cleanup();
     await _session?.end();
+    _releaseCallSound();
     if (identical(ref.read(callSessionProvider), this)) {
       ref.read(callSessionProvider.notifier).setSession(null);
     }
@@ -288,6 +308,7 @@ class CallSessionManager {
     _ended = true;
     _cleanup();
     await _session?.end();
+    _releaseCallSound();
     if (identical(ref.read(callSessionProvider), this)) {
       ref.read(callSessionProvider.notifier).setSession(null);
     }
@@ -295,7 +316,8 @@ class CallSessionManager {
 
   RTCVideoRenderer get localRenderer => _localRenderer;
   RTCVideoRenderer get remoteRenderer => _remoteRenderer;
-  bool get isLocalVideoEnabled => _session?.currentData.isSelfVideoEnabled ?? false;
+  bool get isLocalVideoEnabled =>
+      _session?.currentData.isSelfVideoEnabled ?? false;
   MediaStream? get localStream => _session?.localStream;
   Map<int, MediaStream> get remoteStreams => _session?.remoteStream != null
       ? <int, MediaStream>{0: _session!.remoteStream!}
@@ -351,6 +373,7 @@ class CallSessionManager {
 
   Future<void> _disposeResources() async {
     await _session?.dispose();
+    _releaseCallSound();
     if (_rendererInit != null) {
       try {
         await _rendererInit;
@@ -375,5 +398,5 @@ class IsCallScreenOpenNotifier extends Notifier<bool> {
 
 final isCallScreenOpenProvider =
     NotifierProvider<IsCallScreenOpenNotifier, bool>(
-  IsCallScreenOpenNotifier.new,
-);
+      IsCallScreenOpenNotifier.new,
+    );

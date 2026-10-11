@@ -9,6 +9,10 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   SecretChatLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get callMediaUnavailable =>
+      'Could not access the microphone or camera. Check app permissions and try again.';
+
+  @override
   String get callConnectionFailed =>
       'Could not connect the call. Please try again.';
 

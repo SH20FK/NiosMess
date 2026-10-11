@@ -6,12 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 /// Acoustic event priority for resource contention and routing.
-enum SoundPriority {
-  low,
-  normal,
-  high,
-  urgent,
-}
+enum SoundPriority { low, normal, high, urgent }
 
 /// Semantic acoustic events for NiosMess Material 3 Expressive audio design.
 enum SoundEvent {
@@ -211,6 +206,7 @@ class SoundService {
   dynamic _loopingTarget;
   Future<void>? _initializing;
   bool _enabled = true;
+  int _callOwners = 0;
   double _volume = 0.85;
 
   final Map<SoundEvent, int> _lastPlayedTimestamp = <SoundEvent, int>{};
@@ -233,6 +229,24 @@ class SoundService {
   );
 
   bool get enabled => _enabled;
+  bool get suspendedForCall => _callOwners > 0;
+
+  /// Finish pending player initialization before WebRTC takes audio ownership.
+  Future<void> suspendForCall() async {
+    _callOwners++;
+    await initialize();
+    await stopLoop();
+    await Future.wait([
+      if (_priorityPlayer != null) _priorityPlayer!.stop(),
+      for (final player in _effectPlayers ?? <AudioPlayer>[]) player.stop(),
+      for (final player in _uiPlayers ?? <AudioPlayer>[]) player.stop(),
+    ]);
+  }
+
+  void resumeAfterCall() {
+    if (_callOwners > 0) _callOwners--;
+  }
+
   double get volume => _volume;
 
   Future<void> initialize() {
@@ -299,10 +313,14 @@ class SoundService {
     }
 
     if (kDebugMode) {
-      unawaited(verifyBundleAssets().then((Map<String, bool> results) {
-        final int ok = results.values.where((bool v) => v).length;
-        debugPrint('[SoundService] Asset diagnostic: $ok/${results.length} bundle assets verified');
-      }));
+      unawaited(
+        verifyBundleAssets().then((Map<String, bool> results) {
+          final int ok = results.values.where((bool v) => v).length;
+          debugPrint(
+            '[SoundService] Asset diagnostic: $ok/${results.length} bundle assets verified',
+          );
+        }),
+      );
     }
   }
 
@@ -328,7 +346,9 @@ class SoundService {
           results[key] = data.lengthInBytes > 0;
         } catch (e) {
           results[key] = false;
-          debugPrint('[SoundService:AssetDiagnostic] Missing legacy asset $key: $e');
+          debugPrint(
+            '[SoundService:AssetDiagnostic] Missing legacy asset $key: $e',
+          );
         }
       }
     }
@@ -376,7 +396,7 @@ class SoundService {
 
   /// Plays a semantic SoundEvent with rate-limiting, priority routing and normalized volume.
   Future<void> playEvent(SoundEvent event, {double? volume}) async {
-    if (!_enabled) return;
+    if (!_enabled || suspendedForCall) return;
 
     // Check cooldown for rapid events (e.g. uiTap, uiSelect)
     if (event.cooldownMs > 0) {
@@ -390,7 +410,10 @@ class SoundService {
 
     try {
       await initialize();
-      final double effectiveVol = _effectiveVolume(volume ?? event.defaultVolume);
+      if (!_enabled || suspendedForCall) return;
+      final double effectiveVol = _effectiveVolume(
+        volume ?? event.defaultVolume,
+      );
 
       AudioPlayer? player;
       // Routing according to priority and event type
@@ -417,7 +440,9 @@ class SoundService {
       }
 
       if (player == null) {
-        debugPrint('[SoundService] playEvent: No player available for ${event.name}');
+        debugPrint(
+          '[SoundService] playEvent: No player available for ${event.name}',
+        );
         return;
       }
 
@@ -432,10 +457,8 @@ class SoundService {
 
       await player.stop();
       await player.setReleaseMode(ReleaseMode.stop);
-      await player.play(
-        AssetSource(event.assetPath),
-        volume: effectiveVol,
-      );
+      if (!_enabled || suspendedForCall) return;
+      await player.play(AssetSource(event.assetPath), volume: effectiveVol);
     } catch (e, st) {
       debugPrint('[SoundService] playEvent error for ${event.name}: $e\n$st');
     }
@@ -463,7 +486,7 @@ class SoundService {
 
   /// Starts a seamless loop for either [SoundEvent] or [AppSound].
   Future<void> startLoop(dynamic soundOrEvent, {double? volume}) async {
-    if (!_enabled) return;
+    if (!_enabled || suspendedForCall) return;
     if (_loopingTarget == soundOrEvent) return;
     _loopingTarget = soundOrEvent;
 
@@ -481,6 +504,9 @@ class SoundService {
 
     try {
       await initialize();
+      if (!_enabled || suspendedForCall || _loopingTarget != soundOrEvent) {
+        return;
+      }
       final AudioPlayer? player = _loopPlayer;
       if (player == null) return;
       final double effectiveVol = _effectiveVolume(volume ?? defaultVol);
@@ -494,10 +520,10 @@ class SoundService {
 
       await player.stop();
       await player.setReleaseMode(ReleaseMode.loop);
-      await player.play(
-        AssetSource(assetPath),
-        volume: effectiveVol,
-      );
+      if (!_enabled || suspendedForCall || _loopingTarget != soundOrEvent) {
+        return;
+      }
+      await player.play(AssetSource(assetPath), volume: effectiveVol);
     } catch (e, st) {
       debugPrint('[SoundService] startLoop error: $e\n$st');
     }
@@ -506,7 +532,9 @@ class SoundService {
   /// Stops current looping playback.
   Future<void> stopLoop() async {
     if (kDebugMode && _loopingTarget != null) {
-      debugPrint('[SoundService] stopLoop called (was looping: $_loopingTarget)');
+      debugPrint(
+        '[SoundService] stopLoop called (was looping: $_loopingTarget)',
+      );
     }
     _loopingTarget = null;
     try {

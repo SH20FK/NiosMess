@@ -62,7 +62,8 @@ class MockAudioplayersPlatform extends AudioplayersPlatformInterface {
   @override
   Future<void> setReleaseMode(String playerId, ReleaseMode releaseMode) async {}
 
-  final List<({String playerId, String url})> playedSources = <({String playerId, String url})>[];
+  final List<({String playerId, String url})> playedSources =
+      <({String playerId, String url})>[];
 
   @override
   Future<void> setSourceBytes(
@@ -131,9 +132,9 @@ void main() {
         MockGlobalAudioplayersPlatform();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (MethodCall methodCall) async => '.',
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (MethodCall methodCall) async => '.',
+        );
   });
 
   group('SoundEvent Enum', () {
@@ -203,43 +204,103 @@ void main() {
       await expectLater(soundService.initialize(), completes);
     });
 
+    test(
+      'call ownership suppresses tones and releases only the last owner',
+      () async {
+        final mock =
+            AudioplayersPlatformInterface.instance as MockAudioplayersPlatform;
+        await soundService.startLoop(SoundEvent.callIncoming);
+        await soundService.suspendForCall();
+        await soundService.suspendForCall();
+        mock.playedSources.clear();
+        await soundService.playEvent(SoundEvent.callConnected);
+        await soundService.playEvent(SoundEvent.messageReceive);
+        await soundService.startLoop(SoundEvent.callIncoming);
+        expect(mock.playedSources, isEmpty);
+        soundService.resumeAfterCall();
+        expect(soundService.suspendedForCall, isTrue);
+        soundService.resumeAfterCall();
+        expect(soundService.suspendedForCall, isFalse);
+        await soundService.playEvent(SoundEvent.messageReceive);
+        expect(mock.playedSources, hasLength(1));
+      },
+    );
+
+    test(
+      'pending ringtone cannot restart after call audio takes ownership',
+      () async {
+        final mock =
+            AudioplayersPlatformInterface.instance as MockAudioplayersPlatform;
+        mock.playedSources.clear();
+        final pending = soundService.startLoop(SoundEvent.callIncoming);
+        await soundService.suspendForCall();
+        await pending;
+        expect(mock.playedSources, isEmpty);
+        soundService.resumeAfterCall();
+      },
+    );
+
     test('all 28 SoundEvent items can be played without error', () async {
       for (final SoundEvent event in SoundEvent.values) {
         await expectLater(soundService.playEvent(event), completes);
       }
     });
 
-    test('play, playUiTick, startLoop, stopLoop run without throwing', () async {
-      await expectLater(soundService.play(AppSound.message), completes);
-      await expectLater(soundService.playUiTick(), completes);
-      await expectLater(soundService.startLoop(AppSound.navigation), completes);
-      await expectLater(soundService.stopLoop(), completes);
+    test(
+      'play, playUiTick, startLoop, stopLoop run without throwing',
+      () async {
+        await expectLater(soundService.play(AppSound.message), completes);
+        await expectLater(soundService.playUiTick(), completes);
+        await expectLater(
+          soundService.startLoop(AppSound.navigation),
+          completes,
+        );
+        await expectLater(soundService.stopLoop(), completes);
 
-      await soundService.setEnabled(false);
-      await expectLater(soundService.play(AppSound.message), completes);
-      await expectLater(soundService.playUiTick(), completes);
-      await expectLater(soundService.startLoop(AppSound.navigation), completes);
-    });
+        await soundService.setEnabled(false);
+        await expectLater(soundService.play(AppSound.message), completes);
+        await expectLater(soundService.playUiTick(), completes);
+        await expectLater(
+          soundService.startLoop(AppSound.navigation),
+          completes,
+        );
+      },
+    );
 
-    test('effect pool distributes rapid normal events without collisions', () async {
-      final mock = AudioplayersPlatformInterface.instance as MockAudioplayersPlatform;
-      mock.playedSources.clear();
+    test(
+      'effect pool distributes rapid normal events without collisions',
+      () async {
+        final mock =
+            AudioplayersPlatformInterface.instance as MockAudioplayersPlatform;
+        mock.playedSources.clear();
 
-      // Play 4 normal events rapidly
-      await soundService.playEvent(SoundEvent.messageSend);
-      await soundService.playEvent(SoundEvent.messageReceive);
-      await soundService.playEvent(SoundEvent.uploadComplete);
-      await soundService.playEvent(SoundEvent.aiComplete);
+        // Play 4 normal events rapidly
+        await soundService.playEvent(SoundEvent.messageSend);
+        await soundService.playEvent(SoundEvent.messageReceive);
+        await soundService.playEvent(SoundEvent.uploadComplete);
+        await soundService.playEvent(SoundEvent.aiComplete);
 
-      expect(mock.playedSources.length, 4);
-      final playerIds = mock.playedSources.map((s) => s.playerId).toList();
-      expect(playerIds, containsAll(<String>['nios_effect_0', 'nios_effect_1', 'nios_effect_2', 'nios_effect_3']));
-    });
+        expect(mock.playedSources.length, 4);
+        final playerIds = mock.playedSources.map((s) => s.playerId).toList();
+        expect(
+          playerIds,
+          containsAll(<String>[
+            'nios_effect_0',
+            'nios_effect_1',
+            'nios_effect_2',
+            'nios_effect_3',
+          ]),
+        );
+      },
+    );
 
-    test('dispose cleans up gracefully and can be called multiple times', () async {
-      await soundService.initialize();
-      await soundService.dispose();
-      await expectLater(soundService.dispose(), completes);
-    });
+    test(
+      'dispose cleans up gracefully and can be called multiple times',
+      () async {
+        await soundService.initialize();
+        await soundService.dispose();
+        await expectLater(soundService.dispose(), completes);
+      },
+    );
   });
 }

@@ -6,6 +6,7 @@ extension SecretChatL10n on AppLocalizations {
   SecretChatLocalizations get _secret =>
       lookupSecretChatLocalizations(Locale(localeName.split('_').first));
   String callFailureMessage(String code) => switch (code) {
+    'media_unavailable' => _secret.callMediaUnavailable,
     'connection_failed' => _secret.callConnectionFailed,
     'connection_lost' => _secret.callConnectionLost,
     'signaling_failed' => _secret.callSignalingFailed,

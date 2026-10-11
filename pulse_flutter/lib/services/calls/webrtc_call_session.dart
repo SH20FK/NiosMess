@@ -24,6 +24,7 @@ class WebRtcCallSession {
     required this.remoteRenderer,
     this.onStateChanged,
     this.peerConnectionFactory,
+    this.mediaStreamFactory,
   });
 
   final int chatId;
@@ -42,7 +43,8 @@ class WebRtcCallSession {
   final RTCVideoRenderer remoteRenderer;
   final void Function(CallSessionData data)? onStateChanged;
   final Future<RTCPeerConnection> Function(Map<String, dynamic>)?
-      peerConnectionFactory;
+  peerConnectionFactory;
+  final Future<MediaStream> Function(Map<String, dynamic>)? mediaStreamFactory;
 
   WebRtcSignalingClient? _signaling;
   StreamSubscription<Map<String, dynamic>>? _signalingSub;
@@ -75,23 +77,25 @@ class WebRtcCallSession {
   Stream<CallSessionData> get stateStream => _stateController.stream;
 
   CallSessionData get currentData => CallSessionData(
-        state: _state,
-        callId: callId,
-        roomId: roomId,
-        isVideo: isVideo,
-        direction: direction,
-        localClientId: _signaling?.localUserId,
-        peerName: peerName,
-        peerAvatarUrl: peerAvatarUrl,
-        peerUsername: peerUsername,
-        durationSeconds: _elapsedSeconds,
-        remoteParticipants: List<RemoteParticipant>.unmodifiable(_remoteParticipants),
-        isMuted: _isMuted,
-        isSpeakerOn: _isSpeakerOn,
-        isSelfVideoEnabled: _isSelfVideoEnabled,
-        isListener: isListener,
-        fatalError: _fatalError,
-      );
+    state: _state,
+    callId: callId,
+    roomId: roomId,
+    isVideo: isVideo,
+    direction: direction,
+    localClientId: _signaling?.localUserId,
+    peerName: peerName,
+    peerAvatarUrl: peerAvatarUrl,
+    peerUsername: peerUsername,
+    durationSeconds: _elapsedSeconds,
+    remoteParticipants: List<RemoteParticipant>.unmodifiable(
+      _remoteParticipants,
+    ),
+    isMuted: _isMuted,
+    isSpeakerOn: _isSpeakerOn,
+    isSelfVideoEnabled: _isSelfVideoEnabled,
+    isListener: isListener,
+    fatalError: _fatalError,
+  );
 
   bool get wasAnswered => _peerSeen;
   MediaStream? get localStream => _localStream;
@@ -137,7 +141,7 @@ class WebRtcCallSession {
       }
     } catch (e) {
       debugPrint('[WebRtcCallSession] Start failed');
-      _fatalError = 'connection_failed';
+      _fatalError ??= 'connection_failed';
       _handleEnd();
     }
   }
@@ -145,20 +149,23 @@ class WebRtcCallSession {
   Future<void> _configureAudioSession() async {
     try {
       final session = await AudioSession.instance;
-      await session.configure(AudioSessionConfiguration(
-        avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
-        avAudioSessionCategoryOptions: _isSpeakerOn
-            ? AVAudioSessionCategoryOptions(0x4 | 0x8) // defaultToSpeaker
-            : AVAudioSessionCategoryOptions(0x4),
-        avAudioSessionMode: AVAudioSessionMode.voiceChat,
-        avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
-        androidAudioAttributes: AndroidAudioAttributes(
-          contentType: AndroidAudioContentType.speech,
-          usage: AndroidAudioUsage.voiceCommunication,
+      await session.configure(
+        AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+          avAudioSessionCategoryOptions: _isSpeakerOn
+              ? AVAudioSessionCategoryOptions(0x4 | 0x8) // defaultToSpeaker
+              : AVAudioSessionCategoryOptions(0x4),
+          avAudioSessionMode: AVAudioSessionMode.voiceChat,
+          avAudioSessionRouteSharingPolicy:
+              AVAudioSessionRouteSharingPolicy.defaultPolicy,
+          androidAudioAttributes: AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.speech,
+            usage: AndroidAudioUsage.voiceCommunication,
+          ),
+          androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+          androidWillPauseWhenDucked: true,
         ),
-        androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
-        androidWillPauseWhenDucked: true,
-      ));
+      );
     } catch (e) {
       debugPrint('[WebRtcCallSession] AudioSession config error: $e');
     }
@@ -166,21 +173,21 @@ class WebRtcCallSession {
 
   Future<void> _initLocalMedia() async {
     if (isListener) {
-      debugPrint('[WebRtcCallSession] Joining as listener only (no media capture)');
+      debugPrint(
+        '[WebRtcCallSession] Joining as listener only (no media capture)',
+      );
       return;
     }
 
     try {
-      final int maxHeight = gatewayInfo.maxVideoHeight > 0 ? gatewayInfo.maxVideoHeight : 480;
+      final int maxHeight = gatewayInfo.maxVideoHeight > 0
+          ? gatewayInfo.maxVideoHeight
+          : 480;
       final int idealWidth = (maxHeight * 16 ~/ 9);
 
       final Map<String, dynamic> mediaConstraints = {
-        'audio': {
-          'echoCancellation': true,
-          'noiseSuppression': true,
-          'autoGainControl': true,
-          'highpassFilter': true,
-        },
+        // Native WebRTC supplies its supported audio processing defaults.
+        'audio': true,
         'video': isVideo
             ? {
                 'mandatory': {
@@ -199,7 +206,10 @@ class WebRtcCallSession {
             : false,
       };
 
-      final stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      final stream =
+          await (mediaStreamFactory ?? navigator.mediaDevices.getUserMedia)(
+            mediaConstraints,
+          );
       if (_ended) {
         for (final track in stream.getTracks()) {
           await track.stop();
@@ -208,6 +218,9 @@ class WebRtcCallSession {
         return;
       }
       _localStream = stream;
+      if (stream.getAudioTracks().isEmpty) {
+        throw StateError('Microphone track unavailable');
+      }
 
       if (isVideo && _localStream != null) {
         localRenderer.srcObject = _localStream;
@@ -218,9 +231,10 @@ class WebRtcCallSession {
           track.enabled = false;
         }
       }
-    } catch (e) {
-      debugPrint('[WebRtcCallSession] Local media init failed: $e');
-      // If mic/camera failed, continue as listener
+    } catch (_) {
+      debugPrint('[WebRtcCallSession] Local media capture unavailable');
+      _fatalError = 'media_unavailable';
+      rethrow;
     }
   }
 
@@ -245,7 +259,9 @@ class WebRtcCallSession {
     }
 
     if (iceServers.isEmpty) {
-      iceServers.add({'urls': ['stun:c.ni-os.ru:3478', 'stun:stun.l.google.com:19302']});
+      iceServers.add({
+        'urls': ['stun:c.ni-os.ru:3478', 'stun:stun.l.google.com:19302'],
+      });
     }
 
     return {
@@ -255,7 +271,10 @@ class WebRtcCallSession {
     };
   }
 
-  Future<RTCPeerConnection> _getOrCreatePeerConnection(int peerId, {String? peerDisplayName}) async {
+  Future<RTCPeerConnection> _getOrCreatePeerConnection(
+    int peerId, {
+    String? peerDisplayName,
+  }) async {
     if (_peerConnections.containsKey(peerId)) {
       return _peerConnections[peerId]!;
     }
@@ -287,7 +306,9 @@ class WebRtcCallSession {
     };
 
     pc.onTrack = (RTCTrackEvent event) {
-      debugPrint('[WebRtcCallSession] Received remote track: ${event.track.kind}');
+      debugPrint(
+        '[WebRtcCallSession] Received remote track: ${event.track.kind}',
+      );
       if (event.streams.isNotEmpty) {
         _remoteStream = event.streams[0];
         remoteRenderer.srcObject = _remoteStream;
@@ -359,7 +380,11 @@ class WebRtcCallSession {
               if (remoteId > 0 && remoteId != localId) {
                 // If localId < remoteId, this client initiates the offer
                 final bool makeOffer = localId < remoteId;
-                await _negotiatePeer(remoteId, makeOffer: makeOffer, peerName: name);
+                await _negotiatePeer(
+                  remoteId,
+                  makeOffer: makeOffer,
+                  peerName: name,
+                );
               }
             }
           }
@@ -418,19 +443,28 @@ class WebRtcCallSession {
 
   /// Queues signaling frames; callers may await processing, unlike Stream.listen.
   Future<void> handleSignalingMessage(Map<String, dynamic> message) {
-    _signalChain = _signalChain.then((_) async {
-      if (!_ended) await _onSignalingMessage(message);
-    }).catchError((Object _) {
-      if (!_ended) {
-        _fatalError = 'signaling_failed';
-        _handleEnd();
-      }
-    });
+    _signalChain = _signalChain
+        .then((_) async {
+          if (!_ended) await _onSignalingMessage(message);
+        })
+        .catchError((Object _) {
+          if (!_ended) {
+            _fatalError = 'signaling_failed';
+            _handleEnd();
+          }
+        });
     return _signalChain;
   }
 
-  Future<void> _negotiatePeer(int remoteId, {required bool makeOffer, required String peerName}) async {
-    final pc = await _getOrCreatePeerConnection(remoteId, peerDisplayName: peerName);
+  Future<void> _negotiatePeer(
+    int remoteId, {
+    required bool makeOffer,
+    required String peerName,
+  }) async {
+    final pc = await _getOrCreatePeerConnection(
+      remoteId,
+      peerDisplayName: peerName,
+    );
 
     if (makeOffer) {
       final RTCSessionDescription offer = await pc.createOffer({
@@ -439,10 +473,7 @@ class WebRtcCallSession {
       });
       await pc.setLocalDescription(offer);
 
-      _signaling?.sendOffer(remoteId, {
-        'type': offer.type,
-        'sdp': offer.sdp,
-      });
+      _signaling?.sendOffer(remoteId, {'type': offer.type, 'sdp': offer.sdp});
       debugPrint('[WebRtcCallSession] Sent offer to peer $remoteId');
     }
   }
@@ -460,10 +491,7 @@ class WebRtcCallSession {
     });
     await pc.setLocalDescription(answer);
 
-    _signaling?.sendAnswer(fromId, {
-      'type': answer.type,
-      'sdp': answer.sdp,
-    });
+    _signaling?.sendAnswer(fromId, {'type': answer.type, 'sdp': answer.sdp});
     debugPrint('[WebRtcCallSession] Sent answer to peer $fromId');
   }
 
@@ -482,7 +510,8 @@ class WebRtcCallSession {
     final pc = _peerConnections[fromId];
     final String? candidate = candidateData['candidate']?.toString();
     final String? sdpMid = candidateData['sdpMid']?.toString();
-    final int? sdpMLineIndex = (candidateData['sdpMLineIndex'] as num?)?.toInt();
+    final int? sdpMLineIndex = (candidateData['sdpMLineIndex'] as num?)
+        ?.toInt();
 
     if (candidate != null) {
       final ice = RTCIceCandidate(candidate, sdpMid, sdpMLineIndex);
@@ -638,7 +667,7 @@ class WebRtcCallSession {
     if (_localStream != null) {
       for (final track in _localStream!.getTracks()) {
         try {
-          track.stop();
+          await track.stop();
         } catch (_) {}
       }
       try {
