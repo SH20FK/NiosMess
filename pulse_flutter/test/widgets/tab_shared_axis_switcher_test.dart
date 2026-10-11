@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/l10n/app_localizations.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/widgets/nav/tab_shared_axis_switcher.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
+
+class _NavTestSettings extends UiSettingsNotifier {
+  @override
+  UiSettingsState build() => const UiSettingsState.defaults().copyWith(soundEffects: false);
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -76,7 +85,7 @@ void main() {
       );
 
       // Mid-flight: pump partial duration
-      await tester.pump(const Duration(milliseconds: 110));
+      await tester.pump(const Duration(milliseconds: 130));
       await tester.pump();
       expect(find.text('Tab 1 Content'), findsOneWidget);
 
@@ -176,6 +185,69 @@ void main() {
       // State is preserved!
       expect(find.text('Persistent state'), findsOneWidget);
       expect(textController.text, 'Persistent state');
+    });
+
+    testWidgets('bottom navigation accepts successive taps inside feedback cooldown', (tester) async {
+      var index = 0;
+      final selections = <int>[];
+      await tester.pumpWidget(ProviderScope(overrides: [
+        uiSettingsProvider.overrideWith(_NavTestSettings.new),
+        totalUnreadCountProvider.overrideWithValue(0),
+      ], child: MaterialApp(
+        locale: const Locale('ru'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: StatefulBuilder(builder: (context, update) => Scaffold(
+          bottomNavigationBar: AppBottomNav(currentIndex: index, hapticsEnabled: false,
+            onTap: (next) { selections.add(next); update(() => index = next); }),
+        )),
+      )));
+      await tester.pump();
+      await tester.tap(find.text('Лента'));
+      await tester.pump();
+      await tester.tap(find.text('Настройки'));
+      await tester.pumpAndSettle();
+      expect(selections, [1, 2]);
+      expect(index, 2);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('indicator retarget preserves its position and deformation', (tester) async {
+      Widget app(int index, {bool animate = true}) => MaterialApp(home: Scaffold(
+        body: SizedBox(width: 400, height: 80, child: TravelingNavIndicator(
+          index: index, count: 4, color: Colors.blue, animate: animate,
+        )),
+      ));
+      await tester.pumpWidget(app(0));
+      await tester.pumpWidget(app(3));
+      await tester.pump(const Duration(milliseconds: 70));
+      final before = tester.getRect(find.byType(DecoratedBox));
+      await tester.pumpWidget(app(1));
+      final after = tester.getRect(find.byType(DecoratedBox));
+      expect(after.center.dx, closeTo(before.center.dx, 0.001));
+      expect(after.width, closeTo(before.width, 0.001));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpWidget(app(1, animate: false));
+      expect(tester.getCenter(find.byType(DecoratedBox)).dx, closeTo(150, 0.001));
+      expect(tester.binding.transientCallbackCount, 0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('tab icon lifts and settles when motion is disabled mid-flight', (tester) async {
+      Widget app(bool selected, {bool animate = true}) => MaterialApp(home: Scaffold(
+        body: TabMorphIcon(outlineIcon: Icons.chat_bubble_outline_rounded,
+          filledIcon: Icons.chat_bubble_rounded, isSelected: selected,
+          color: Colors.blue, animate: animate, duration: const Duration(milliseconds: 320)),
+      ));
+      await tester.pumpWidget(app(false));
+      await tester.pumpWidget(app(true));
+      await tester.pump(const Duration(milliseconds: 100));
+      final transforms = tester.widgetList<Transform>(find.byType(Transform)).toList();
+      expect(transforms.any((t) => t.transform.storage[13] < 0), isTrue);
+      expect(transforms.any((t) => t.transform.storage[0] > 1), isTrue);
+      await tester.pumpWidget(app(true, animate: false));
+      expect(tester.binding.transientCallbackCount, 0);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('TravelingNavIndicator animates horizontal position', (WidgetTester tester) async {

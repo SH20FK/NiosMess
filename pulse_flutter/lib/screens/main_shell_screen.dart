@@ -459,9 +459,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
           animate: tabMotion,
           duration: tier.isTierA
               ? (isWide
-                  ? const Duration(milliseconds: 220)
-                  : const Duration(milliseconds: 250))
-              : const Duration(milliseconds: 220),
+                  ? const Duration(milliseconds: 300)
+                  : const Duration(milliseconds: 320))
+              : const Duration(milliseconds: 300),
           children: List<Widget>.generate(pages.length, (int index) {
             if (!_activatedTabs.contains(index)) {
               return const SizedBox.shrink();

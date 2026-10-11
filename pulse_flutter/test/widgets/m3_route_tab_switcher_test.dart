@@ -92,28 +92,51 @@ void main() {
       expect(find.byType(RawImage), findsNothing);
     },
   );
-  testWidgets('fade through exposes one page and no lateral slide', (
-    tester,
-  ) async {
-    await tester.pumpWidget(harness(0));
-    await tester.pumpWidget(harness(1));
-    await tester.pump(const Duration(milliseconds: 35));
-    expect(find.text('page 0: 0'), findsOneWidget);
-    expect(find.text('page 1: 0'), findsNothing);
-    await tester.pump(const Duration(milliseconds: 60));
-    await tester.pump();
-    expect(find.text('page 1: 0'), findsOneWidget);
-    expect(find.text('page 0: 0'), findsNothing);
-    expect(
-      find.descendant(
-        of: find.byType(M3RouteTabSwitcher),
-        matching: find.byType(SlideTransition),
-      ),
-      findsNothing,
-    );
-    await tester.pumpAndSettle();
-    expect(disposed, isEmpty);
-  });
+  testWidgets(
+    'directional transition exposes one page and settles its transform',
+    (tester) async {
+      await tester.pumpWidget(harness(0));
+      await tester.pumpWidget(harness(1));
+      await tester.pump(const Duration(milliseconds: 35));
+      expect(find.text('page 0: 0'), findsOneWidget);
+      expect(find.text('page 1: 0'), findsNothing);
+      expect(
+        tester
+            .widgetList<Transform>(
+              find.descendant(
+                of: find.byType(M3RouteTabSwitcher),
+                matching: find.byType(Transform),
+              ),
+            )
+            .any((transform) => transform.transform.storage[12] < 0),
+        isTrue,
+      );
+      await tester.pump(const Duration(milliseconds: 60));
+      await tester.pump();
+      expect(find.text('page 1: 0'), findsOneWidget);
+      expect(find.text('page 0: 0'), findsNothing);
+      expect(
+        tester
+            .widgetList<Transform>(
+              find.descendant(
+                of: find.byType(M3RouteTabSwitcher),
+                matching: find.byType(Transform),
+              ),
+            )
+            .any((transform) => transform.transform.storage[12] > 0),
+        isTrue,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(M3RouteTabSwitcher),
+          matching: find.byType(SlideTransition),
+        ),
+        findsNothing,
+      );
+      await tester.pumpAndSettle();
+      expect(disposed, isEmpty);
+    },
+  );
   for (final elapsed in [25, 110, 185]) {
     testWidgets(
       'rapid return and third-tab retarget at ${elapsed}ms settles on latest selection',
@@ -135,6 +158,33 @@ void main() {
       },
     );
   }
+  testWidgets(
+    'retargeting an incoming page keeps its visible transform continuous',
+    (tester) async {
+      double x() => tester
+          .widgetList<Transform>(
+            find.descendant(
+              of: find.byType(M3RouteTabSwitcher),
+              matching: find.byType(Transform),
+            ),
+          )
+          .first
+          .transform
+          .storage[12];
+      await tester.pumpWidget(harness(0));
+      await tester.pumpWidget(harness(1));
+      await tester.pump(const Duration(milliseconds: 95));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 25));
+      final before = x();
+      await tester.pumpWidget(harness(2));
+      expect(x(), closeTo(before, 0.001));
+      await tester.pumpAndSettle();
+      expect(find.text('page 2: 0'), findsOneWidget);
+      expect(x(), 0);
+    },
+  );
+
   testWidgets('incoming page cannot accept taps before transition completes', (
     tester,
   ) async {

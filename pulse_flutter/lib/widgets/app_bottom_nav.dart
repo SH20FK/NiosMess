@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -44,20 +45,19 @@ class TravelingNavIndicator extends StatefulWidget {
 class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _curveAnim;
+  late final CurvedAnimation _curveAnim;
   double _from = 0.0;
+  double _fromStretch = 0;
 
   @override
   void initState() {
     super.initState();
     _from = widget.index.toDouble();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    )..value = 1.0;
+    _controller = AnimationController(vsync: this, duration: widget.duration)
+      ..value = 1.0;
     _curveAnim = CurvedAnimation(
       parent: _controller,
-      curve: M3SpringCurves.expressiveDecel,
+      curve: M3SpringCurves.spatial,
     );
   }
 
@@ -67,10 +67,25 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
     if (oldWidget.duration != widget.duration) {
       _controller.duration = widget.duration;
     }
+    if (!widget.animate) {
+      _from = widget.index.toDouble();
+      _fromStretch = 0;
+      _controller.value = 1;
+      return;
+    }
     if (oldWidget.index == widget.index) return;
+    final raw = _controller.value;
+    final oldTravel = ((oldWidget.index - _from).abs() / oldWidget.count).clamp(
+      0.0,
+      1.0,
+    );
+    _fromStretch =
+        _fromStretch * (1 - raw) +
+        oldWidget.stretch * 4 * raw * (1 - raw) * oldTravel;
     if (_controller.isAnimating) {
       final double currentT = _curveAnim.value;
-      _from = ui.lerpDouble(_from, oldWidget.index.toDouble(), currentT) ??
+      _from =
+          ui.lerpDouble(_from, oldWidget.index.toDouble(), currentT) ??
           oldWidget.index.toDouble();
     } else {
       _from = oldWidget.index.toDouble();
@@ -84,6 +99,7 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
 
   @override
   void dispose() {
+    _curveAnim.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -96,31 +112,34 @@ class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
           return const SizedBox.shrink();
         }
         final double slot = constraints.maxWidth / widget.count;
-        final double baseWidth =
-            (slot * 0.62).clamp(48.0, widget.maxPillWidth);
+        final double baseWidth = (slot * 0.62).clamp(48.0, widget.maxPillWidth);
         final double travel =
-            ((widget.index.toDouble() - _from).abs() / widget.count)
-                .clamp(0.0, 1.0);
+            ((widget.index.toDouble() - _from).abs() / widget.count).clamp(
+              0.0,
+              1.0,
+            );
 
-        double slotCenterX(double i) => (i + 0.5) * slot;
+        double slotCenterX(double i) =>
+            (Directionality.of(context) == TextDirection.rtl
+                ? widget.count - i - 0.5
+                : i + 0.5) *
+            slot;
 
         return AnimatedBuilder(
           animation: _controller,
           builder: (BuildContext context, Widget? child) {
-            final double t = _curveAnim.value.clamp(0.0, 1.0);
-            // Squash and stretch: perfectly in-phase with monotonic curve progress `t`.
-            // Peaks at t=0.5 (center of transit) and smoothly rests at 0.0 at both endpoints,
-            // eliminating phase lag and out-of-phase jerk from separate sin() oscillator.
-            final double wobble = (4.0 * t * (1.0 - t)).clamp(0.0, 1.0) * travel;
-            final double pillW = baseWidth * (1.0 + widget.stretch * wobble);
-            final double pillH = widget.pillHeight * (1.0 - 0.16 * wobble);
+            final double t = _curveAnim.value;
+            final raw = _controller.value;
+            final deformation =
+                _fromStretch * (1 - raw) +
+                widget.stretch * 4 * raw * (1 - raw) * travel;
+            final double pillW = baseWidth * (1 + deformation);
+            final double pillH = widget.pillHeight * (1 - deformation * .5);
             final double fromX = slotCenterX(_from);
             final double toX = slotCenterX(widget.index.toDouble());
             final double currentCenterX = ui.lerpDouble(fromX, toX, t)!;
             final double left = currentCenterX - pillW / 2;
             final double top = (constraints.maxHeight - pillH) / 2;
-
-
 
             return Stack(
               clipBehavior: Clip.none,
@@ -168,15 +187,13 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
 
   void _handleTap(int index) {
     final DateTime now = DateTime.now();
-    if (now.difference(_lastTapTime).inMilliseconds < 120) {
-      return; // Ignore rapid burst taps within 120ms to protect transition phase
-    }
+    final feedback = now.difference(_lastTapTime).inMilliseconds >= 120;
     _lastTapTime = now;
 
-    if (ref.read(uiSettingsProvider).soundEffects) {
+    if (feedback && ref.read(uiSettingsProvider).soundEffects) {
       unawaited(ref.read(appSoundProvider).playUiTick());
     }
-    if (widget.hapticsEnabled && index != widget.currentIndex) {
+    if (feedback && widget.hapticsEnabled && index != widget.currentIndex) {
       HapticService.tap();
     }
     widget.onTap(index);
@@ -216,16 +233,17 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
     ];
 
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final bool isDesktop = !kIsWeb &&
+    final bool isDesktop =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
     final Duration duration = isDesktop
-        ? const Duration(milliseconds: 180)
+        ? const Duration(milliseconds: 300)
         : (tier.isTierA
-            ? const Duration(milliseconds: 220)
-            : const Duration(milliseconds: 180));
-    final double stretch = tier.isTierA ? 0.22 : 0.0;
+              ? const Duration(milliseconds: 320)
+              : const Duration(milliseconds: 280));
+    final double stretch = tier.isTierA ? 0.42 : 0.20;
 
     final Widget navBarContent = SizedBox(
       height: 80,
@@ -283,7 +301,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
 
               final Widget labelWidget = AnimatedDefaultTextStyle(
                 duration: animate ? duration : Duration.zero,
-                curve: Curves.easeOutCubic,
+                curve: M3SpringCurves.expressiveStandard,
                 style: TextStyle(
                   fontSize: 12,
                   fontFamily: 'Onest',
@@ -315,15 +333,9 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
-                        SizedBox(
-                          height: 34,
-                          child: Center(child: badgedIcon),
-                        ),
+                        SizedBox(height: 34, child: Center(child: badgedIcon)),
                         const SizedBox(height: 4),
-                        SizedBox(
-                          height: 18,
-                          child: Center(child: labelWidget),
-                        ),
+                        SizedBox(height: 18, child: Center(child: labelWidget)),
                       ],
                     ),
                   ),
@@ -351,10 +363,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
             clipBehavior: Clip.hardEdge,
-            child: Material(
-              color: Colors.transparent,
-              child: navBarContent,
-            ),
+            child: Material(color: Colors.transparent, child: navBarContent),
           ),
         ),
       );
@@ -371,10 +380,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
         ),
         child: SafeArea(
           top: false,
-          child: Material(
-            color: Colors.transparent,
-            child: navBarContent,
-          ),
+          child: Material(color: Colors.transparent, child: navBarContent),
         ),
       );
     }
@@ -417,7 +423,7 @@ class TabMorphIcon extends StatefulWidget {
 class _TabMorphIconState extends State<TabMorphIcon>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _animation;
+  late final CurvedAnimation _animation;
 
   @override
   void initState() {
@@ -430,7 +436,7 @@ class _TabMorphIconState extends State<TabMorphIcon>
     _animation = CurvedAnimation(
       parent: _controller,
       curve: M3SpringCurves.expressiveDecel,
-      reverseCurve: Curves.easeInCubic,
+      reverseCurve: M3SpringCurves.expressiveAccel,
     );
   }
 
@@ -440,12 +446,16 @@ class _TabMorphIconState extends State<TabMorphIcon>
     if (oldWidget.duration != widget.duration) {
       _controller.duration = widget.duration;
     }
+    if (!widget.animate) {
+      _controller.value = widget.isSelected ? 1 : 0;
+      return;
+    }
     if (oldWidget.isSelected != widget.isSelected) {
       if (widget.animate) {
         _controller.animateTo(
           widget.isSelected ? 1.0 : 0.0,
           duration: widget.duration,
-          curve: M3SpringCurves.expressiveDecel,
+          curve: Curves.linear,
         );
       } else {
         _controller.value = widget.isSelected ? 1.0 : 0.0;
@@ -455,6 +465,7 @@ class _TabMorphIconState extends State<TabMorphIcon>
 
   @override
   void dispose() {
+    _animation.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -465,32 +476,36 @@ class _TabMorphIconState extends State<TabMorphIcon>
       animation: _animation,
       builder: (BuildContext context, _) {
         final double t = _animation.value;
-        final double scale = 1.0 + 0.08 * (t * (1.0 - t) * 4);
+        final pulse = math.sin(math.pi * _controller.value);
+        final double scale = 1.0 + 0.16 * pulse;
 
-        return Transform.scale(
-          scale: scale,
-          child: SizedBox.square(
-            dimension: widget.size,
-            child: Stack(
-              alignment: Alignment.center,
-              children: <Widget>[
-                Opacity(
-                  opacity: (1.0 - t).clamp(0.0, 1.0),
-                  child: Icon(
-                    widget.outlineIcon,
-                    size: widget.size,
-                    color: widget.color,
+        return Transform.translate(
+          offset: Offset(0, -3.5 * pulse),
+          child: Transform.scale(
+            scale: scale,
+            child: SizedBox.square(
+              dimension: widget.size,
+              child: Stack(
+                alignment: Alignment.center,
+                children: <Widget>[
+                  Opacity(
+                    opacity: (1.0 - t).clamp(0.0, 1.0),
+                    child: Icon(
+                      widget.outlineIcon,
+                      size: widget.size,
+                      color: widget.color,
+                    ),
                   ),
-                ),
-                Opacity(
-                  opacity: t.clamp(0.0, 1.0),
-                  child: Icon(
-                    widget.filledIcon,
-                    size: widget.size,
-                    color: widget.color,
+                  Opacity(
+                    opacity: t.clamp(0.0, 1.0),
+                    child: Icon(
+                      widget.filledIcon,
+                      size: widget.size,
+                      color: widget.color,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -498,4 +513,3 @@ class _TabMorphIconState extends State<TabMorphIcon>
     );
   }
 }
-
