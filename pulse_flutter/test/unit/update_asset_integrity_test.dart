@@ -294,4 +294,76 @@ void main() {
       expect(requested.map((url) => url.toString()), contains(manifestUrl));
     },
   );
+
+  test('unified build upgrades every previously published ABI code', () async {
+    for (final installedCode in [229, 1229, 2229, 4229]) {
+      for (final includeSplit in [false, true]) {
+        PackageInfo.setMockInitialValues(
+          appName: 'fixture',
+          packageName: 'fixture',
+          version: '3.100.0',
+          buildNumber: '$installedCode',
+          buildSignature: 'fixture',
+        );
+        const baseUrl = 'https://github.com/fixture/releases/download/latest/';
+        final assets = <String, Map<String, Object>>{
+          'universal': {
+            'url': '${baseUrl}niosmess.apk',
+            'size': 20,
+            'sha256': 'a' * 64,
+          },
+          if (includeSplit)
+            'arm64-v8a': {
+              'url': '${baseUrl}niosmess-arm64-v8a.apk',
+              'size': 10,
+              'sha256': 'b' * 64,
+            },
+        };
+        final client = MockClient((request) async {
+          if (request.url.host == 'api.github.com') {
+            return http.Response(
+              jsonEncode({
+                'name': 'NiosMess v3.100.0+4230',
+                'tag_name': 'latest',
+                'assets': [
+                  for (final entry in assets.entries)
+                    {
+                      'name': entry.key == 'universal'
+                          ? 'niosmess.apk'
+                          : 'niosmess-${entry.key}.apk',
+                      'browser_download_url': entry.value['url'],
+                      'size': entry.value['size'],
+                      'digest': 'sha256:${entry.value['sha256']}',
+                    },
+                ],
+              }),
+              200,
+            );
+          }
+          return http.Response(
+            jsonEncode({'version': '3.100.0+4230', 'android_assets': assets}),
+            200,
+          );
+        });
+        addTearDown(client.close);
+        final result = await AppUpdateService(
+          httpClient: client,
+          androidAbi: 'arm64-v8a',
+        ).checkForUpdate();
+        expect(
+          result.hasUpdate,
+          isTrue,
+          reason: 'installed code $installedCode',
+        );
+        expect(result.currentVersion, '3.100.0+$installedCode');
+        expect(result.latestVersion, '3.100.0+4230');
+        expect(
+          result.downloadUrl,
+          includeSplit
+              ? assets['arm64-v8a']!['url']
+              : assets['universal']!['url'],
+        );
+      }
+    }
+  });
 }

@@ -50,7 +50,7 @@ jobs:
         run: flutter test test/suite_test.dart --timeout 90s
 
       - name: Verify release metadata tooling
-        run: python3 -m unittest discover -s tool -p 'test_release_metadata.py'
+        run: python3 -m unittest discover -s tool -p 'test_*.py'
 
   # ──────────────────────────────────────────────────────────────────────────
   # 2. Build Android APK (Release with Gradle Cache)
@@ -138,6 +138,9 @@ jobs:
             cp "build/app/outputs/flutter-apk/app-$ABI-release.apk" "dist/android/niosmess-$ABI.apk"
           done
           flutter build appbundle --release --dart-define=NIOSMESS_BUILD_COMMIT=$GITHUB_SHA
+
+      - name: Verify actual Android artifact manifests and architectures
+        run: python3 tool/verify_android_artifacts.py
 
       - name: Generate Version Metadata & Changelog
         id: version_meta

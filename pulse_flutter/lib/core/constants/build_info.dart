@@ -8,7 +8,7 @@ class BuildInfo {
   static const String version = '3.100.0';
 
   /// Build number (e.g. "147").
-  static const String buildNumber = '229';
+  static const String buildNumber = '4230';
 
   /// Version with 'v' prefix (e.g. "v3.63.1").
   static const String versionWithPrefix = 'v$version';
