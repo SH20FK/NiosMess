@@ -1,22 +1,23 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 /// Optimized Animated Theme Toggler wrapper.
 /// Smoothly reveals the new theme via an expanding circular cutout from tap coordinates
 /// using an ultra-efficient 1.0 pixel-ratio snapshot with hardware-accelerated rendering.
 class CircularThemeSwitcher extends StatefulWidget {
-  const CircularThemeSwitcher({
-    super.key,
-    required this.child,
-  });
+  const CircularThemeSwitcher({super.key, required this.child});
 
   final Widget child;
 
   static CircularThemeSwitcherState of(BuildContext context) {
     final state = context.findAncestorStateOfType<CircularThemeSwitcherState>();
-    assert(state != null, 'No CircularThemeSwitcher found in widget tree context');
+    assert(
+      state != null,
+      'No CircularThemeSwitcher found in widget tree context',
+    );
     return state!;
   }
 
@@ -89,7 +90,8 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     ui.Image? snapshotImage;
     try {
       final RenderRepaintBoundary? boundary =
-          _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+          _repaintKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary != null && boundary.attached && boundary.hasSize) {
         // Synchronous GPU texture capture to prevent pipeline stalls and per-frame CPU rasterization (ЛАГ-12)
         snapshotImage = boundary.toImageSync(pixelRatio: 1.0);
@@ -132,10 +134,8 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
                   child: AnimatedBuilder(
                     animation: _animController,
                     builder: (BuildContext context, Widget? child) {
-                      final double progress = CurvedAnimation(
-                        parent: _animController,
-                        curve: Curves.fastOutSlowIn,
-                      ).value;
+                      final double progress = M3SpringCurves.expressiveDecel
+                          .transform(_animController.value);
 
                       return CustomPaint(
                         size: Size.infinite,

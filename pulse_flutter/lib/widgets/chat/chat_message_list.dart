@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:collection';
+import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
@@ -17,7 +21,6 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
-
 class MessageLayoutData {
   const MessageLayoutData({
     required this.showDateSep,
@@ -30,144 +33,149 @@ class MessageLayoutData {
   final bool isNextSame;
 }
 
-/// Incremental message layout store to eliminate O(n) layout recomputations on each message update.
+/// Maintains layout only for changed rows and their neighbours. Stable logical
+/// positions make reverse-index lookup O(1), without rewriting every map entry
+/// when a new message arrives or an older page is prepended.
 class MessageLayoutStore {
   final List<ApiMessage> messages = <ApiMessage>[];
   final List<MessageLayoutData> layout = <MessageLayoutData>[];
   final Map<int, ApiMessage> byId = <int, ApiMessage>{};
-  final Map<int, int> idToIndex = <int, int>{};
+  final Map<int, int> _positions = <int, int>{};
+  int _origin = 0;
+  late final Map<int, int> idToIndex = _ReverseMessageIndex(this);
 
   static bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  MessageLayoutData _computeSingle(int i, List<ApiMessage> list) {
-    final ApiMessage msg = list[i];
-    final bool showDateSep = (i == 0)
-        ? true
-        : !_isSameDay(msg.resolvedSentAt, list[i - 1].resolvedSentAt);
-
-    final bool isPrevSame = (i > 0 && !showDateSep)
-        ? (list[i - 1].senderId == msg.senderId && !list[i - 1].isDeleted)
-        : false;
-
-    final bool isNextSame = (i < list.length - 1)
-        ? (_isSameDay(list[i + 1].resolvedSentAt, msg.resolvedSentAt) &&
-            list[i + 1].senderId == msg.senderId &&
-            !list[i + 1].isDeleted)
-        : false;
-
+  MessageLayoutData _computeSingle(int i) {
+    final msg = messages[i];
+    final showDateSep =
+        i == 0 ||
+        !_isSameDay(msg.resolvedSentAt, messages[i - 1].resolvedSentAt);
     return MessageLayoutData(
       showDateSep: showDateSep,
-      isPrevSame: isPrevSame,
-      isNextSame: isNextSame,
+      isPrevSame:
+          i > 0 &&
+          !showDateSep &&
+          messages[i - 1].senderId == msg.senderId &&
+          !messages[i - 1].isDeleted,
+      isNextSame:
+          i < messages.length - 1 &&
+          _isSameDay(messages[i + 1].resolvedSentAt, msg.resolvedSentAt) &&
+          messages[i + 1].senderId == msg.senderId &&
+          !messages[i + 1].isDeleted,
     );
   }
 
-  void reset(List<ApiMessage> newMessages) {
+  void reset(List<ApiMessage> next) {
     messages.clear();
     layout.clear();
     byId.clear();
-    idToIndex.clear();
-
-    messages.addAll(newMessages);
-    final int len = newMessages.length;
-    for (int i = 0; i < len; i++) {
-      layout.add(_computeSingle(i, newMessages));
-      final ApiMessage m = newMessages[i];
-      byId[m.id] = m;
-      idToIndex[m.id] = len - 1 - i;
+    _positions.clear();
+    _origin = 0;
+    messages.addAll(next);
+    for (var i = 0; i < next.length; i++) {
+      layout.add(_computeSingle(i));
+      byId[next[i].id] = next[i];
+      _positions[next[i].id] = i;
     }
   }
 
-  /// Synchronizes current state with updated list [nextMessages] using O(1)/O(k) fast-paths.
-  void sync(List<ApiMessage> nextMessages) {
-    if (messages.isEmpty || nextMessages.isEmpty) {
-      reset(nextMessages);
+  void sync(List<ApiMessage> next) {
+    final oldLength = messages.length;
+    if (oldLength == 0 || next.isEmpty || next.length < oldLength) {
+      reset(next);
       return;
     }
-
-    final int oldLen = messages.length;
-    final int newLen = nextMessages.length;
-
-    // 1. O(1) Fast-path: Single message append at the end (new incoming message)
-    if (newLen == oldLen + 1 && nextMessages[0].id == messages[0].id) {
-      if (nextMessages[oldLen - 1].id == messages[oldLen - 1].id) {
-        final ApiMessage newMsg = nextMessages[newLen - 1];
-        messages.add(newMsg);
-
-        final int prevIdx = oldLen - 1;
-        layout[prevIdx] = _computeSingle(prevIdx, messages);
-        layout.add(_computeSingle(oldLen, messages));
-
-        byId[newMsg.id] = newMsg;
-        for (int i = 0; i < newLen; i++) {
-          idToIndex[messages[i].id] = newLen - 1 - i;
-        }
+    final added = next.length - oldLength;
+    int offset = 0;
+    if (added > 0 && next.first.id != messages.first.id) {
+      if (next[added].id != messages.first.id) {
+        reset(next);
+        return;
+      }
+      offset = added;
+    }
+    // Verify all retained identities. A concurrent edit plus append must not
+    // silently discard the edit just because the first/last IDs still match.
+    for (var i = 0; i < oldLength; i++) {
+      if (next[i + offset].id != messages[i].id) {
+        reset(next);
         return;
       }
     }
-
-    // 2. O(k) Fast-path: Prepend older history at the beginning (pagination)
-    if (newLen > oldLen && nextMessages[newLen - 1].id == messages[oldLen - 1].id) {
-      final int prependedCount = newLen - oldLen;
-      if (nextMessages[prependedCount].id == messages[0].id) {
-        final List<ApiMessage> prepended = nextMessages.sublist(0, prependedCount);
-        messages.insertAll(0, prepended);
-
-        final List<MessageLayoutData> prependedLayout = <MessageLayoutData>[];
-        for (int i = 0; i < prependedCount; i++) {
-          prependedLayout.add(_computeSingle(i, messages));
-        }
-        layout.insertAll(0, prependedLayout);
-        layout[prependedCount] = _computeSingle(prependedCount, messages);
-
-        byId.clear();
-        idToIndex.clear();
-        for (int i = 0; i < newLen; i++) {
-          final ApiMessage m = messages[i];
-          byId[m.id] = m;
-          idToIndex[m.id] = newLen - 1 - i;
-        }
-        return;
+    final dirty = <int>{};
+    if (offset > 0) {
+      _origin -= offset;
+      messages.insertAll(0, next.take(offset));
+      layout.insertAll(
+        0,
+        List.generate(
+          offset,
+          (_) => const MessageLayoutData(
+            showDateSep: false,
+            isPrevSame: false,
+            isNextSame: false,
+          ),
+        ),
+      );
+      for (var i = 0; i < offset; i++) {
+        final message = next[i];
+        byId[message.id] = message;
+        _positions[message.id] = _origin + i;
+        dirty.add(i);
+      }
+      dirty.add(offset);
+    } else if (added > 0) {
+      for (var i = oldLength; i < next.length; i++) {
+        final message = next[i];
+        messages.add(message);
+        layout.add(
+          const MessageLayoutData(
+            showDateSep: false,
+            isPrevSame: false,
+            isNextSame: false,
+          ),
+        );
+        byId[message.id] = message;
+        _positions[message.id] = _origin + i;
+        dirty.add(i);
+      }
+      dirty.add(oldLength - 1);
+    }
+    for (var i = offset; i < oldLength + offset; i++) {
+      if (!identical(messages[i], next[i])) {
+        messages[i] = next[i];
+        byId[next[i].id] = next[i];
+        dirty.addAll([i - 1, i, i + 1]);
       }
     }
-
-    // 3. O(1) Fast-path: Single in-place update (edited, read status, reactions)
-    if (newLen == oldLen) {
-      int diffIndex = -1;
-      int diffCount = 0;
-      for (int i = 0; i < oldLen; i++) {
-        if (!identical(messages[i], nextMessages[i])) {
-          diffCount++;
-          diffIndex = i;
-          if (diffCount > 1) break;
-        }
-      }
-      if (diffCount == 1) {
-        final ApiMessage oldMsg = messages[diffIndex];
-        final ApiMessage updatedMsg = nextMessages[diffIndex];
-        messages[diffIndex] = updatedMsg;
-        byId.remove(oldMsg.id);
-        byId[updatedMsg.id] = updatedMsg;
-        if (oldMsg.id != updatedMsg.id) {
-          idToIndex.remove(oldMsg.id);
-          idToIndex[updatedMsg.id] = newLen - 1 - diffIndex;
-        }
-
-        if (diffIndex > 0) {
-          layout[diffIndex - 1] = _computeSingle(diffIndex - 1, messages);
-        }
-        layout[diffIndex] = _computeSingle(diffIndex, messages);
-        if (diffIndex < newLen - 1) {
-          layout[diffIndex + 1] = _computeSingle(diffIndex + 1, messages);
-        }
-        return;
-      }
+    for (final i in dirty) {
+      if (i >= 0 && i < messages.length) layout[i] = _computeSingle(i);
     }
-
-    // Fallback: full reset
-    reset(nextMessages);
   }
+}
+
+class _ReverseMessageIndex extends MapBase<int, int> {
+  _ReverseMessageIndex(this.store);
+  final MessageLayoutStore store;
+  @override
+  int? operator [](Object? key) {
+    final position = store._positions[key];
+    return position == null
+        ? null
+        : store.messages.length - 1 - (position - store._origin);
+  }
+
+  @override
+  Iterable<int> get keys => store._positions.keys;
+  @override
+  void operator []=(int key, int value) =>
+      throw UnsupportedError('Read-only message index');
+  @override
+  void clear() => throw UnsupportedError('Read-only message index');
+  @override
+  int? remove(Object? key) => throw UnsupportedError('Read-only message index');
 }
 
 class ChatMessageList extends ConsumerStatefulWidget {
@@ -178,6 +186,9 @@ class ChatMessageList extends ConsumerStatefulWidget {
     required this.amAdminOrOwner,
     required this.isChannel,
     this.isGroup = false,
+    this.followingLatest = true,
+    this.onRequestMessage,
+    this.highlightMessageId,
     this.bottomPadding = 56.0,
     this.topPadding = 48.0,
     this.onOpenComments,
@@ -204,20 +215,23 @@ class ChatMessageList extends ConsumerStatefulWidget {
   final bool amAdminOrOwner;
   final bool isChannel;
   final bool isGroup;
+  final bool followingLatest;
+  final Future<bool> Function(int)? onRequestMessage;
+  final int? highlightMessageId;
   final double bottomPadding;
   final double topPadding;
   final void Function(ApiMessage message, String emoji)? onReactionTap;
   final void Function(ApiMessage)? onOpenComments;
   final void Function(ApiMessage) onOpenMedia;
   final void Function(ApiMessage, bool isMine, bool amAdminOrOwner)
-      onLongPressMedia;
+  onLongPressMedia;
   final void Function(
     ApiMessage,
     bool isMine,
     bool isChannel,
     bool amAdminOrOwner,
   )
-      onLongPress;
+  onLongPress;
   final void Function(ApiMessage) onSwipeToReply;
   final void Function(ApiMessage, String data) onCallbackQuery;
   final void Function(ApiMessage) onRetrySend;
@@ -226,7 +240,7 @@ class ChatMessageList extends ConsumerStatefulWidget {
   final bool Function(ApiMessage, String url) isImageMediaBuilder;
   final String? Function(ApiMessage, String url) mediaLabelBuilder;
   final String? Function(ApiMessage, Map<int, ApiMessage> byId)
-      replyPreviewBuilder;
+  replyPreviewBuilder;
   final Widget Function(DateTime date, DateTime now) dateSeparatorBuilder;
   final Widget Function({
     required int messageId,
@@ -234,100 +248,205 @@ class ChatMessageList extends ConsumerStatefulWidget {
     required bool isMine,
     required Widget child,
   })
-      animatedMessageBuilder;
+  animatedMessageBuilder;
 
   @override
   ConsumerState<ChatMessageList> createState() => _ChatMessageListState();
 }
 
 class _ChatMessageListState extends ConsumerState<ChatMessageList> {
+  late final AdaptivePerformanceNotifier _performance;
+  final Map<int, _HistoryAnchorBox> _anchors = {};
+  final Key _centerSliverKey = UniqueKey();
+  int? _centerMessageId;
+  double? _anchorFraction;
+
+  void _rebaseAnchor(List<ApiMessage> next) {
+    if (next.isEmpty) return;
+    final scroll = widget.scrollController;
+    if (!scroll.hasClients) {
+      _centerMessageId = next.last.id;
+      return;
+    }
+    final position = scroll.position;
+    final atBottom = position.pixels - position.minScrollExtent <= 60;
+    final viewport = context.findRenderObject();
+    if (widget.followingLatest && atBottom) {
+      _centerMessageId = next.last.id;
+      _anchorFraction = null;
+    } else if (viewport is RenderBox && viewport.hasSize) {
+      final bounds = viewport.localToGlobal(Offset.zero) & viewport.size;
+      final ids = next.map((m) => m.id).toSet();
+      _HistoryAnchorBox? chosen;
+      double? best;
+      for (final row in _anchors.values) {
+        if (!ids.contains(row.messageId) || !row.attached || !row.hasSize) {
+          continue;
+        }
+        final rect = row.localToGlobal(Offset.zero) & row.size;
+        if (rect.bottom <= bounds.top ||
+            rect.top >= bounds.bottom - widget.bottomPadding) {
+          continue;
+        }
+        final distance = (rect.top - bounds.top).abs();
+        if (best == null || distance < best) {
+          best = distance;
+          chosen = row;
+        }
+      }
+      if (chosen != null) {
+        final bottom =
+            chosen.localToGlobal(Offset.zero).dy + chosen.size.height;
+        _centerMessageId = chosen.messageId;
+        _anchorFraction = ((bounds.bottom - bottom) / bounds.height).clamp(
+          0.0,
+          1.0,
+        );
+      } else {
+        _centerMessageId = next.last.id;
+        _anchorFraction = null;
+      }
+    }
+    // Rebase the coordinate system before layout. Unlike jumpTo, correctBy lets
+    // ScrollPosition rebase its current ballistic activity with the new bounds.
+    position.correctBy(-position.pixels);
+  }
+
   final MessageLayoutStore _store = MessageLayoutStore();
-  Map<int, int>? get _idToIndexCache => _store.idToIndex;
   GlobalKey? _activeTargetKey;
   int? _activeTargetMessageId;
   final Set<int> _animatedMessageIds = <int>{};
   Timer? _highlightTimer;
+  Timer? _scrollIdleTimer;
+  final Stopwatch _scrollClock = Stopwatch()..start();
+  Duration? _previousScrollTime;
+  bool _fastScrolling = false;
+
+  void _setFastScrolling(bool value) {
+    if (_fastScrolling == value) return;
+    _fastScrolling = value;
+    AnimatedMediaControllerPool.instance.setFastScrolling(value, source: this);
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification.depth != 0) return false;
+    if (notification is ScrollUpdateNotification) {
+      final now = _scrollClock.elapsed;
+      final previous = _previousScrollTime;
+      _previousScrollTime = now;
+      final delta = notification.scrollDelta;
+      if (previous != null && delta != null) {
+        final elapsed = (now - previous).inMicroseconds;
+        if (elapsed > 0) {
+          final speed = delta.abs() * Duration.microsecondsPerSecond / elapsed;
+          if (speed > 1800) {
+            _scrollIdleTimer?.cancel();
+            _scrollIdleTimer = null;
+            _setFastScrolling(true);
+            _scheduleScrollIdle();
+          } else if (speed < 900) {
+            _scheduleScrollIdle();
+          }
+        }
+      }
+    } else if (notification is ScrollEndNotification) {
+      _performance.setInteractionActive(this, false);
+      _previousScrollTime = null;
+      _scheduleScrollIdle();
+    } else if (notification is ScrollStartNotification) {
+      _performance.setInteractionActive(this, true);
+      _previousScrollTime = _scrollClock.elapsed;
+    }
+    return false;
+  }
+
+  void _scheduleScrollIdle() {
+    _scrollIdleTimer ??= Timer(const Duration(milliseconds: 160), () {
+      _scrollIdleTimer = null;
+      _setFastScrolling(false);
+    });
+  }
+
   final ValueNotifier<int?> _highlightedIdNotifier = ValueNotifier<int?>(null);
 
   @override
   void initState() {
     super.initState();
+    _performance = ref.read(adaptivePerformanceProvider.notifier);
+    _centerMessageId = widget.messages.isEmpty ? null : widget.messages.last.id;
     _store.reset(widget.messages);
     _animatedMessageIds.addAll(widget.messages.map((ApiMessage m) => m.id));
+    if (widget.highlightMessageId case final id?) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_scrollToMessage(id));
+      });
+    }
   }
 
   @override
   void didUpdateWidget(ChatMessageList oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final id = widget.highlightMessageId;
+    if (id != null && id != oldWidget.highlightMessageId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_scrollToMessage(id));
+      });
+    }
     if (!identical(widget.messages, oldWidget.messages)) {
+      _rebaseAnchor(widget.messages);
       _store.sync(widget.messages);
+      _animatedMessageIds.retainAll(widget.messages.map((m) => m.id));
     }
   }
 
   @override
   void dispose() {
     _highlightTimer?.cancel();
+    _scrollIdleTimer?.cancel();
+    _scrollClock.stop();
+    _performance.setInteractionActive(this, false);
+    AnimatedMediaControllerPool.instance.setFastScrolling(false, source: this);
     _highlightedIdNotifier.dispose();
     super.dispose();
   }
 
-  void _scrollToMessage(int messageId) {
+  Future<void> _scrollToMessage(int messageId) async {
+    if (!_store.byId.containsKey(messageId) &&
+        widget.onRequestMessage != null) {
+      if (!await widget.onRequestMessage!(messageId) || !mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_scrollToMessage(messageId));
+      });
+      return;
+    }
     _highlightTimer?.cancel();
     _highlightedIdNotifier.value = messageId;
     _activeTargetMessageId = messageId;
     _activeTargetKey = GlobalKey(debugLabel: 'target_msg_$messageId');
     if (mounted) setState(() {});
 
+    // Center the exact target row, including rows that were outside the current
+    // 300-message window. No average-height estimate is needed for mixed media.
+    if (widget.scrollController.hasClients) {
+      _centerMessageId = messageId;
+      _anchorFraction = 0.7;
+      widget.scrollController.position.correctBy(
+        -widget.scrollController.position.pixels,
+      );
+      setState(() {});
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final GlobalKey? key = _activeTargetKey;
-      if (key != null && key.currentContext != null) {
-        Scrollable.ensureVisible(
-          key.currentContext!,
-          alignment: 0.3,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOutCubic,
+      final targetContext = _activeTargetKey?.currentContext;
+      if (targetContext != null) {
+        unawaited(
+          Scrollable.ensureVisible(
+            targetContext,
+            alignment: 0.3,
+            duration: M3Durations.medium2,
+            curve: M3SpringCurves.expressiveDecel,
+          ),
         );
-      } else {
-        final int? builderIndex = _idToIndexCache?[messageId];
-        final List<ApiMessage> messages = _store.messages;
-        if (builderIndex != null && widget.scrollController.hasClients && messages.isNotEmpty) {
-          final double maxScroll = widget.scrollController.position.maxScrollExtent;
-          final double estimatedItemHeight = (maxScroll / messages.length).clamp(50.0, 300.0);
-          final double targetOffset = (builderIndex * estimatedItemHeight).clamp(
-            0.0,
-            maxScroll,
-          );
-          widget.scrollController
-              .animateTo(
-            targetOffset,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOutCubic,
-          )
-              .then((_) {
-            if (!mounted) return;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              final GlobalKey? updatedKey = _activeTargetKey;
-              if (updatedKey != null && updatedKey.currentContext != null) {
-                final RenderBox? box = updatedKey.currentContext!.findRenderObject() as RenderBox?;
-                if (box != null && mounted) {
-                  final Offset pos = box.localToGlobal(Offset.zero);
-                  final double screenHeight = MediaQuery.sizeOf(context).height;
-                  // Single coordinator check: only correct if misaligned outside visible bounds
-                  if (pos.dy < 48 || pos.dy > screenHeight - 120) {
-                    Scrollable.ensureVisible(
-                      updatedKey.currentContext!,
-                      alignment: 0.3,
-                      duration: const Duration(milliseconds: 150),
-                      curve: Curves.easeInOutCubic,
-                    );
-                  }
-                }
-              }
-            });
-          });
-        }
       }
     });
 
@@ -349,7 +468,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
     final PerformanceTier tier = ref.watch(
       adaptivePerformanceProvider.select((s) => s.tier),
     );
-    final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+    final bool isWindows =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     final double cacheExtent = switch (tier) {
       PerformanceTier.tierC => 250.0,
       PerformanceTier.tierB => isWindows ? 350.0 : 500.0,
@@ -358,356 +478,474 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
 
     final DateTime now = AppTimeSettings.now();
 
-    return RepaintBoundary(
-      child: ListView.builder(
-        controller: widget.scrollController,
-        reverse: true,
-        // ignore: deprecated_member_use
-        cacheExtent: cacheExtent,
-        padding: EdgeInsets.fromLTRB(16, widget.topPadding, 16, widget.bottomPadding),
-        addAutomaticKeepAlives: false,
-        addRepaintBoundaries: false,
-        itemCount: messages.length,
-      itemBuilder: (BuildContext context, int index) {
-        final int reversedIndex = messages.length - 1 - index;
-        final ApiMessage message = messages[reversedIndex];
-        final MessageLayoutData data = layout[reversedIndex];
+    Widget buildRow(BuildContext context, int index) {
+      final int reversedIndex = messages.length - 1 - index;
+      final ApiMessage message = messages[reversedIndex];
+      final MessageLayoutData data = layout[reversedIndex];
 
-        final bool isMine = message.senderId == widget.authUserId;
+      final bool isMine = message.senderId == widget.authUserId;
 
-        final String? mediaUrl = widget.mediaUrlBuilder(message);
-        final bool hasMedia = mediaUrl != null && mediaUrl.trim().isNotEmpty;
-        final bool isImageMedia =
-            hasMedia ? widget.isImageMediaBuilder(message, mediaUrl) : false;
-        final String? mediaLabel =
-            hasMedia ? widget.mediaLabelBuilder(message, mediaUrl) : null;
+      final String? mediaUrl = widget.mediaUrlBuilder(message);
+      final bool hasMedia = mediaUrl != null && mediaUrl.trim().isNotEmpty;
+      final bool isImageMedia = hasMedia
+          ? widget.isImageMediaBuilder(message, mediaUrl)
+          : false;
+      final String? mediaLabel = hasMedia
+          ? widget.mediaLabelBuilder(message, mediaUrl)
+          : null;
 
-        final bool isVoice = message.msgType == 'voice' ||
-            (message.mediaType ?? '').toLowerCase().startsWith('audio/');
-        final bool isCircleVideo = message.msgType == 'circle' ||
-            message.msgType == 'circle_video' ||
-            message.msgType == 'video_note' ||
-            message.msgType == 'round_video';
-        final bool isSticker = message.isSticker;
-        final int? mediaDuration = message.mediaDuration;
-        final bool isLocalSending = message.isSending && message.id < 0;
+      final bool isVoice =
+          message.msgType == 'voice' ||
+          (message.mediaType ?? '').toLowerCase().startsWith('audio/');
+      final bool isCircleVideo =
+          message.msgType == 'circle' ||
+          message.msgType == 'circle_video' ||
+          message.msgType == 'video_note' ||
+          message.msgType == 'round_video';
+      final bool isSticker = message.isSticker;
+      final int? mediaDuration = message.mediaDuration;
+      final bool isLocalSending = message.isSending && message.id < 0;
 
-        final String rawText = message.isE2ee && !message.isDecrypted && message.content.isEmpty
-            ? context.l10n.secretUnavailable : widget.displayTextBuilder(message);
-        final bool isCallMessage = message.isCallEvent ||
-            rawText.startsWith('📹') ||
-            rawText.startsWith('📞');
+      final String rawText =
+          message.isE2ee && !message.isDecrypted && message.content.isEmpty
+          ? context.l10n.secretUnavailable
+          : widget.displayTextBuilder(message);
+      final bool isCallMessage =
+          message.isCallEvent ||
+          rawText.startsWith('📹') ||
+          rawText.startsWith('📞');
 
-        if (isCallMessage) {
-          final Widget callPill = _CallEventPill(
-            message: message,
-            formattedTime: formatMessageTime(message.sentAt),
-            isMine: isMine,
-          );
-          return RepaintBoundary(
-            key: ValueKey<int>(message.id),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (data.showDateSep)
-                  widget.dateSeparatorBuilder(message.resolvedSentAt, now),
-                callPill,
-              ],
-            ),
-          );
-        }
-
-        final bool isScreenshotMsg = message.isSystemEvent &&
-            message.systemEventType == 'screenshot';
-        if (message.isSystemEvent || isScreenshotMsg) {
-          final Widget systemPill = _SystemEventPill(
-            message: message,
-            formattedTime: formatMessageTime(message.sentAt),
-          );
-          return RepaintBoundary(
-            key: ValueKey<int>(message.id),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (data.showDateSep)
-                  widget.dateSeparatorBuilder(message.resolvedSentAt, now),
-                systemPill,
-              ],
-            ),
-          );
-        }
-
-        final bool shouldAnimate =
-            index == 0 &&
-            !_animatedMessageIds.contains(message.id) &&
-            now.difference(message.resolvedSentAt).inSeconds < 4;
-        if (shouldAnimate) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _animatedMessageIds.add(message.id);
-          });
-        }
-
-        Widget buildBubble({
-          double? progress,
-          int? bytesSent,
-          int? totalBytes,
-          UploadTask? uploadTask,
-          int? queuePosition,
-          required bool animateHighlight,
-        }) {
-          return MessageBubble(
-            key: ValueKey<int>(message.id),
-            chatId: message.chatId,
-            text: rawText,
-            isMine: isMine,
-            isE2ee: message.isE2ee,
-            e2eeFileKey: message.e2eeFileKey,
-            expiresAt: message.expiresAt,
-            isPrevSame: data.isPrevSame,
-            isNextSame: data.isNextSame,
-            formattedTime: formatMessageTime(message.sentAt),
-            isEdited: message.isEdited,
-            isDeleted: message.isDeleted,
-            isRead: message.isRead,
-            replyPreview: widget.replyPreviewBuilder(message, byId),
-            replyToId: message.replyToId,
-            onReplyTap: message.replyToId != null
-                ? () {
-                    _scrollToMessage(message.replyToId!);
-                  }
-                : null,
-            reactions: message.reactions,
-            onReactionTap: widget.onReactionTap != null
-                ? (String emoji) => widget.onReactionTap!(message, emoji)
-                : null,
-            mediaUrl: mediaUrl,
-            mediaIsImage: isImageMedia,
-            mediaLabel: mediaLabel,
-            mediaSize: totalBytes ?? message.mediaSize,
-            isVoice: isVoice,
-            isCircleVideo: isCircleVideo,
-            isSticker: isSticker,
-            sticker: message.sticker,
-            onStickerTap: () {
-              final int? stickerId = message.sticker?.id;
-              final int? targetSetId = message.resolvedStickerSetId ?? message.sticker?.setId;
-              if (targetSetId != null && targetSetId > 0) {
-                StickerSetDetailsSheet.show(
-                  context,
-                  setId: targetSetId,
-                  stickerId: stickerId,
-                );
-              } else if (stickerId != null && stickerId > 0) {
-                StickerSetDetailsSheet.showForSticker(
-                  context,
-                  stickerId: stickerId,
-                  knownSetId: targetSetId,
-                );
-              } else {
-                AppToast.showError(context, 'Стикерпак не найден');
-              }
-            },
-            mediaDuration: mediaDuration,
-            senderBadges: message.senderBadges,
-            senderDisplayName:
-                widget.isGroup ? message.senderDisplayName : null,
-            isChannel: widget.isChannel,
-            commentsCount: message.commentsCount,
-            onOpenComments: widget.onOpenComments != null
-                ? () => widget.onOpenComments!(message)
-                : null,
-            animate: shouldAnimate,
-            isSending: isLocalSending,
-            isFailed: message.isFailed,
-            onRetrySend: () => widget.onRetrySend(message),
-            uploadProgress: progress,
-            uploadBytesSent: bytesSent,
-            uploadTotalBytes: totalBytes,
-            uploadTask: uploadTask,
-            uploadQueuePosition: queuePosition,
-            localId: isLocalSending ? message.id.toString() : null,
-            onOpenMedia: hasMedia ? () => widget.onOpenMedia(message) : null,
-            onLongPressMedia: hasMedia
-                ? () => widget.onLongPressMedia(
-                    message, isMine, widget.amAdminOrOwner)
-                : null,
-            onLongPress: () => widget.onLongPress(
-                message, isMine, widget.isChannel, widget.amAdminOrOwner),
-            onSwipeToReply: () => widget.onSwipeToReply(message),
-            replyMarkup: message.replyMarkup,
-            onCallbackQuery: (String data) =>
-                widget.onCallbackQuery(message, data),
-            animateHighlight: animateHighlight,
-          );
-        }
-
-        final Key itemKey = (message.id == _activeTargetMessageId)
-            ? (_activeTargetKey ??= GlobalKey(debugLabel: 'target_msg_${message.id}'))
-            : ValueKey<int>(message.id);
-
-        final Widget bubble = ValueListenableBuilder<int?>(
-          valueListenable: _highlightedIdNotifier,
-          builder: (BuildContext context, int? highlightedId, Widget? _) {
-            final bool isHighlighted = message.id == highlightedId;
-            return isLocalSending
-                ? Consumer(
-                    builder: (context, ref, _) {
-                      final String localIdStr = message.id.toString();
-                      final uploadTask = ref.watch(
-                        uploadTaskProvider(localIdStr),
-                      );
-                      final int queuePosition = ref.watch(
-                        uploadQueuePositionProvider(localIdStr),
-                      );
-                      return buildBubble(
-                        progress: uploadTask?.progress ?? 0.0,
-                        bytesSent: uploadTask?.bytesSent,
-                        totalBytes: uploadTask != null && uploadTask.fileSize > 0
-                            ? uploadTask.fileSize
-                            : message.mediaSize,
-                        uploadTask: uploadTask,
-                        queuePosition: queuePosition,
-                        animateHighlight: isHighlighted,
-                      );
-                    },
-                  )
-                : buildBubble(
-                    progress: null,
-                    animateHighlight: isHighlighted,
-                  );
-          },
+      if (isCallMessage) {
+        final Widget callPill = _CallEventPill(
+          message: message,
+          formattedTime: formatMessageTime(message.sentAt),
+          isMine: isMine,
         );
-
-        final Widget animatedBubble = KeyedSubtree(
-          key: itemKey,
-          child: widget.animatedMessageBuilder(
-            messageId: message.id,
-            animate: shouldAnimate,
-            isMine: isMine,
-            child: bubble,
-          ),
-        );
-
-        if (isMine) {
-          return RepaintBoundary(
-            key: ValueKey<int>(message.id),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                if (data.showDateSep)
-                  widget.dateSeparatorBuilder(message.resolvedSentAt, now),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: <Widget>[
-                    if (message.isSending && !hasMedia && !isVoice && !isCircleVideo && !isSticker)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 8, bottom: 12),
-                        child: SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: AppLoadingIndicator(size: 14),
-                        ),
-                      ),
-                    if (message.isFailed)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 4, bottom: 4),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.refresh_rounded,
-                            color: Theme.of(context).colorScheme.error,
-                            size: 22,
-                          ),
-                          onPressed: () => widget.onRetrySend(message),
-                        ),
-                      ),
-                    Flexible(child: animatedBubble),
-                  ],
-                ),
-              ],
-            ),
-          );
-        }
-
         return RepaintBoundary(
           key: ValueKey<int>(message.id),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (data.showDateSep)
+                widget.dateSeparatorBuilder(message.resolvedSentAt, now),
+              callPill,
+            ],
+          ),
+        );
+      }
+
+      final bool isScreenshotMsg =
+          message.isSystemEvent && message.systemEventType == 'screenshot';
+      if (message.isSystemEvent || isScreenshotMsg) {
+        final Widget systemPill = _SystemEventPill(
+          message: message,
+          formattedTime: formatMessageTime(message.sentAt),
+        );
+        return RepaintBoundary(
+          key: ValueKey<int>(message.id),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (data.showDateSep)
+                widget.dateSeparatorBuilder(message.resolvedSentAt, now),
+              systemPill,
+            ],
+          ),
+        );
+      }
+
+      final bool shouldAnimate =
+          index == 0 &&
+          !_animatedMessageIds.contains(message.id) &&
+          now.difference(message.resolvedSentAt).inSeconds < 4;
+      if (shouldAnimate) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _animatedMessageIds.add(message.id);
+        });
+      }
+
+      Widget buildBubble({
+        double? progress,
+        int? bytesSent,
+        int? totalBytes,
+        UploadTask? uploadTask,
+        int? queuePosition,
+        required bool animateHighlight,
+      }) {
+        return MessageBubble(
+          key: ValueKey<int>(message.id),
+          chatId: message.chatId,
+          text: rawText,
+          isMine: isMine,
+          isE2ee: message.isE2ee,
+          e2eeFileKey: message.e2eeFileKey,
+          expiresAt: message.expiresAt,
+          isPrevSame: data.isPrevSame,
+          isNextSame: data.isNextSame,
+          formattedTime: formatMessageTime(message.sentAt),
+          isEdited: message.isEdited,
+          isDeleted: message.isDeleted,
+          isRead: message.isRead,
+          replyPreview: widget.replyPreviewBuilder(message, byId),
+          replyToId: message.replyToId,
+          onReplyTap: message.replyToId != null
+              ? () {
+                  _scrollToMessage(message.replyToId!);
+                }
+              : null,
+          reactions: message.reactions,
+          onReactionTap: widget.onReactionTap != null
+              ? (String emoji) => widget.onReactionTap!(message, emoji)
+              : null,
+          mediaUrl: mediaUrl,
+          mediaIsImage: isImageMedia,
+          mediaLabel: mediaLabel,
+          mediaSize: totalBytes ?? message.mediaSize,
+          isVoice: isVoice,
+          isCircleVideo: isCircleVideo,
+          isSticker: isSticker,
+          sticker: message.sticker,
+          onStickerTap: () {
+            final int? stickerId = message.sticker?.id;
+            final int? targetSetId =
+                message.resolvedStickerSetId ?? message.sticker?.setId;
+            if (targetSetId != null && targetSetId > 0) {
+              StickerSetDetailsSheet.show(
+                context,
+                setId: targetSetId,
+                stickerId: stickerId,
+              );
+            } else if (stickerId != null && stickerId > 0) {
+              StickerSetDetailsSheet.showForSticker(
+                context,
+                stickerId: stickerId,
+                knownSetId: targetSetId,
+              );
+            } else {
+              AppToast.showError(context, 'Стикерпак не найден');
+            }
+          },
+          mediaDuration: mediaDuration,
+          senderBadges: message.senderBadges,
+          senderDisplayName: widget.isGroup ? message.senderDisplayName : null,
+          isChannel: widget.isChannel,
+          commentsCount: message.commentsCount,
+          onOpenComments: widget.onOpenComments != null
+              ? () => widget.onOpenComments!(message)
+              : null,
+          animate: shouldAnimate,
+          isSending: isLocalSending,
+          isFailed: message.isFailed,
+          onRetrySend: () => widget.onRetrySend(message),
+          uploadProgress: progress,
+          uploadBytesSent: bytesSent,
+          uploadTotalBytes: totalBytes,
+          uploadTask: uploadTask,
+          uploadQueuePosition: queuePosition,
+          localId: isLocalSending ? message.id.toString() : null,
+          onOpenMedia: hasMedia ? () => widget.onOpenMedia(message) : null,
+          onLongPressMedia: hasMedia
+              ? () => widget.onLongPressMedia(
+                  message,
+                  isMine,
+                  widget.amAdminOrOwner,
+                )
+              : null,
+          onLongPress: () => widget.onLongPress(
+            message,
+            isMine,
+            widget.isChannel,
+            widget.amAdminOrOwner,
+          ),
+          onSwipeToReply: () => widget.onSwipeToReply(message),
+          replyMarkup: message.replyMarkup,
+          onCallbackQuery: (String data) =>
+              widget.onCallbackQuery(message, data),
+          animateHighlight: animateHighlight,
+        );
+      }
+
+      final Key itemKey = (message.id == _activeTargetMessageId)
+          ? (_activeTargetKey ??= GlobalKey(
+              debugLabel: 'target_msg_${message.id}',
+            ))
+          : ValueKey<int>(message.id);
+
+      final Widget bubble = ValueListenableBuilder<int?>(
+        valueListenable: _highlightedIdNotifier,
+        builder: (BuildContext context, int? highlightedId, Widget? _) {
+          final bool isHighlighted = message.id == highlightedId;
+          return isLocalSending
+              ? Consumer(
+                  builder: (context, ref, _) {
+                    final String localIdStr = message.id.toString();
+                    final uploadTask = ref.watch(
+                      uploadTaskProvider(localIdStr),
+                    );
+                    final int queuePosition = ref.watch(
+                      uploadQueuePositionProvider(localIdStr),
+                    );
+                    return buildBubble(
+                      progress: uploadTask?.progress ?? 0.0,
+                      bytesSent: uploadTask?.bytesSent,
+                      totalBytes: uploadTask != null && uploadTask.fileSize > 0
+                          ? uploadTask.fileSize
+                          : message.mediaSize,
+                      uploadTask: uploadTask,
+                      queuePosition: queuePosition,
+                      animateHighlight: isHighlighted,
+                    );
+                  },
+                )
+              : buildBubble(progress: null, animateHighlight: isHighlighted);
+        },
+      );
+
+      final Widget animatedBubble = KeyedSubtree(
+        key: itemKey,
+        child: widget.animatedMessageBuilder(
+          messageId: message.id,
+          animate: shouldAnimate,
+          isMine: isMine,
+          child: bubble,
+        ),
+      );
+
+      if (isMine) {
+        return RepaintBoundary(
+          key: ValueKey<int>(message.id),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
               if (data.showDateSep)
                 widget.dateSeparatorBuilder(message.resolvedSentAt, now),
               Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
-                  if (widget.isGroup) ...<Widget>[
-                    if (!data.isNextSame) ...[
-                      GestureDetector(
-                        onTap: () {
-                          final String username = message.senderUsername.trim();
-                          if (username.isNotEmpty) {
-                            context.push('/profile/$username');
-                          } else if (message.senderId > 0) {
-                            context.push('/profile/${message.senderId}');
-                          }
-                        },
-                        child: message.senderAvatarUrl != null
-                            ? ClipOval(
-                                child: CachedNetworkImage(
-                                  imageUrl: ApiConstants.resolve(
-                                    message.senderAvatarUrl,
-                                  ),
-                                  httpHeaders: cachedAuthHeaders(),
-                                  memCacheWidth: 56,
-                                  width: 28,
-                                  height: 28,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) =>
-                                      CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    child: const Icon(Icons.person, size: 16),
-                                  ),
-                                  errorWidget: (context, url, error) =>
-                                      CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    child: const Icon(Icons.person, size: 16),
-                                  ),
-                                ),
-                              )
-                            : CircleAvatar(
-                                radius: 14,
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest,
-                                child: Text(
-                                  message.senderDisplayName.isNotEmpty
-                                      ? message.senderDisplayName[0]
-                                      : '?',
-                                ),
-                              ),
+                  if (message.isSending &&
+                      !hasMedia &&
+                      !isVoice &&
+                      !isCircleVideo &&
+                      !isSticker)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8, bottom: 12),
+                      child: SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: AppLoadingIndicator(size: 14),
                       ),
-                      const SizedBox(width: 8),
-                    ] else
-                      const SizedBox(width: 36),
-                  ],
+                    ),
+                  if (message.isFailed)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4, bottom: 4),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.refresh_rounded,
+                          color: Theme.of(context).colorScheme.error,
+                          size: 22,
+                        ),
+                        onPressed: () => widget.onRetrySend(message),
+                      ),
+                    ),
                   Flexible(child: animatedBubble),
                 ],
               ),
             ],
           ),
         );
-      },
-      findChildIndexCallback: (Key key) {
-        if (key is! ValueKey<int>) return null;
-        return _idToIndexCache?[key.value];
-      },
-    ),
-  );
+      }
+
+      return RepaintBoundary(
+        key: ValueKey<int>(message.id),
+        child: Column(
+          children: <Widget>[
+            if (data.showDateSep)
+              widget.dateSeparatorBuilder(message.resolvedSentAt, now),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                if (widget.isGroup) ...<Widget>[
+                  if (!data.isNextSame) ...[
+                    GestureDetector(
+                      onTap: () {
+                        final String username = message.senderUsername.trim();
+                        if (username.isNotEmpty) {
+                          context.push('/profile/$username');
+                        } else if (message.senderId > 0) {
+                          context.push('/profile/${message.senderId}');
+                        }
+                      },
+                      child: message.senderAvatarUrl != null
+                          ? ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: ApiConstants.resolve(
+                                  message.senderAvatarUrl,
+                                ),
+                                httpHeaders: cachedAuthHeaders(),
+                                memCacheWidth: 56,
+                                width: 28,
+                                height: 28,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                                  child: const Icon(Icons.person, size: 16),
+                                ),
+                                errorWidget: (context, url, error) =>
+                                    CircleAvatar(
+                                      radius: 14,
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHighest,
+                                      child: const Icon(Icons.person, size: 16),
+                                    ),
+                              ),
+                            )
+                          : CircleAvatar(
+                              radius: 14,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
+                              child: Text(
+                                message.senderDisplayName.isNotEmpty
+                                    ? message.senderDisplayName[0]
+                                    : '?',
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                  ] else
+                    const SizedBox(width: 36),
+                ],
+                Flexible(child: animatedBubble),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    final centerReversed = _centerMessageId == null
+        ? null
+        : _store.idToIndex[_centerMessageId];
+    final center = centerReversed == null
+        ? messages.length - 1
+        : messages.length - 1 - centerReversed;
+    Widget anchored(BuildContext context, int ascending) => _HistoryAnchor(
+      key: ValueKey<int>(messages[ascending].id),
+      messageId: messages[ascending].id,
+      registry: _anchors,
+      child: buildRow(context, messages.length - 1 - ascending),
+    );
+    int? ascendingIndex(Key key) {
+      if (key is! ValueKey<int>) return null;
+      final reversed = _store.idToIndex[key.value];
+      return reversed == null ? null : messages.length - 1 - reversed;
+    }
+
+    return ScrollNotificationObserver(
+      child: NotificationListener<ScrollNotification>(
+        onNotification: _onScrollNotification,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final defaultAnchor = (widget.bottomPadding / constraints.maxHeight)
+                .clamp(0.0, 1.0);
+            return RepaintBoundary(
+              child: CustomScrollView(
+                controller: widget.scrollController,
+                reverse: true,
+                center: _centerSliverKey,
+                anchor: _anchorFraction ?? defaultAnchor,
+                // ignore: deprecated_member_use
+                cacheExtent: cacheExtent,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: widget.bottomPadding),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) =>
+                            anchored(context, center + 1 + index),
+                        childCount: (messages.length - center - 1).clamp(
+                          0,
+                          messages.length,
+                        ),
+                        addAutomaticKeepAlives: false,
+                        addRepaintBoundaries: false,
+                        findChildIndexCallback: (key) {
+                          final index = ascendingIndex(key);
+                          return index != null && index > center
+                              ? index - center - 1
+                              : null;
+                        },
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    key: _centerSliverKey,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => anchored(context, center - index),
+                        childCount: center + 1,
+                        addAutomaticKeepAlives: false,
+                        addRepaintBoundaries: false,
+                        findChildIndexCallback: (key) {
+                          final index = ascendingIndex(key);
+                          return index != null && index <= center
+                              ? center - index
+                              : null;
+                        },
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: widget.topPadding),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
+
+class _HistoryAnchor extends SingleChildRenderObjectWidget {
+  const _HistoryAnchor({
+    super.key,
+    required this.messageId,
+    required this.registry,
+    required super.child,
+  });
+  final int messageId;
+  final Map<int, _HistoryAnchorBox> registry;
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _HistoryAnchorBox(messageId, registry);
+}
+
+class _HistoryAnchorBox extends RenderProxyBox {
+  _HistoryAnchorBox(this.messageId, this.registry);
+  final int messageId;
+  final Map<int, _HistoryAnchorBox> registry;
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    registry[messageId] = this;
+  }
+
+  @override
+  void detach() {
+    if (identical(registry[messageId], this)) registry.remove(messageId);
+    super.detach();
+  }
 }
 
 class _CallEventPill extends StatelessWidget {
@@ -755,8 +993,8 @@ class _CallEventPill extends StatelessWidget {
           color: isMissed
               ? scheme.errorContainer.withValues(alpha: isDark ? 0.40 : 0.60)
               : (isDark
-                  ? scheme.surfaceContainerHighest.withValues(alpha: 0.60)
-                  : scheme.surfaceContainerHigh.withValues(alpha: 0.80)),
+                    ? scheme.surfaceContainerHighest.withValues(alpha: 0.60)
+                    : scheme.surfaceContainerHigh.withValues(alpha: 0.80)),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isMissed
@@ -795,10 +1033,7 @@ class _CallEventPill extends StatelessWidget {
 }
 
 class _SystemEventPill extends StatelessWidget {
-  const _SystemEventPill({
-    required this.message,
-    required this.formattedTime,
-  });
+  const _SystemEventPill({required this.message, required this.formattedTime});
 
   final ApiMessage message;
   final String formattedTime;
@@ -813,14 +1048,12 @@ class _SystemEventPill extends StatelessWidget {
         ? message.content
         : 'Системное уведомление';
 
-    final bool isScreenshot = message.isSystemEvent &&
-        message.systemEventType == 'screenshot';
+    final bool isScreenshot =
+        message.isSystemEvent && message.systemEventType == 'screenshot';
     final IconData icon = isScreenshot
         ? Icons.camera_alt_outlined
         : Icons.info_outline_rounded;
-    final Color iconColor = isScreenshot
-        ? scheme.error
-        : scheme.primary;
+    final Color iconColor = isScreenshot ? scheme.error : scheme.primary;
 
     return Center(
       child: Container(
@@ -866,4 +1099,3 @@ class _SystemEventPill extends StatelessWidget {
     );
   }
 }
-

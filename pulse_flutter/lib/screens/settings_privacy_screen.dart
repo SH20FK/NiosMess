@@ -21,10 +21,7 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:universal_io/io.dart';
 
 class SettingsPrivacyScreen extends ConsumerWidget {
-  const SettingsPrivacyScreen({
-    this.isEmbedded = false,
-    super.key,
-  });
+  const SettingsPrivacyScreen({this.isEmbedded = false, super.key});
 
   final bool isEmbedded;
 
@@ -97,12 +94,17 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                     title: Text(
                       _formatSelfDestructPeriod(months),
                       style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.normal,
                         color: isSelected ? scheme.primary : scheme.onSurface,
                       ),
                     ),
                     trailing: isSelected
-                        ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+                        ? Icon(
+                            Icons.check_circle_rounded,
+                            color: scheme.primary,
+                          )
                         : null,
                     onTap: () {
                       HapticService.confirm();
@@ -160,7 +162,10 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               ),
               SettingsRow(
                 anchor: SettingId.privacyMessages.value,
-                leading: Icon(Icons.chat_bubble_outline_rounded, color: scheme.primary),
+                leading: Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: scheme.primary,
+                ),
                 title: context.l10n.privacyRuleDirectMessages,
                 control: NavigationControl(
                   value: privacy.policyFor('messages').localized(context.l10n),
@@ -172,7 +177,9 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 leading: Icon(Icons.mic_none_rounded, color: scheme.primary),
                 title: context.l10n.privacyRuleVoiceMessages,
                 control: NavigationControl(
-                  value: privacy.policyFor('voice_messages').localized(context.l10n),
+                  value: privacy
+                      .policyFor('voice_messages')
+                      .localized(context.l10n),
                 ),
                 onTap: () => _openRule(context, 'voice_messages'),
               ),
@@ -180,7 +187,8 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 anchor: SettingId.privacyReadReceipts.value,
                 leading: Icon(Icons.done_all_rounded, color: scheme.primary),
                 title: 'Отчёты о прочтении',
-                subtitle: 'Показывать собеседникам, когда вы прочитали их сообщения',
+                subtitle:
+                    'Показывать собеседникам, когда вы прочитали их сообщения',
                 control: ToggleControl(
                   value: privacy.readReceiptsEnabled,
                   onChanged: (bool value) async {
@@ -250,10 +258,15 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               ),
               SettingsRow(
                 anchor: SettingId.privacyAvatar.value,
-                leading: Icon(Icons.account_circle_outlined, color: scheme.secondary),
+                leading: Icon(
+                  Icons.account_circle_outlined,
+                  color: scheme.secondary,
+                ),
                 title: context.l10n.privacyRuleAvatar,
                 control: NavigationControl(
-                  value: privacy.policyFor('profile_photos').localized(context.l10n),
+                  value: privacy
+                      .policyFor('profile_photos')
+                      .localized(context.l10n),
                 ),
                 onTap: () => _openRule(context, 'profile_photos'),
               ),
@@ -268,7 +281,10 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               ),
               SettingsRow(
                 anchor: SettingId.privacyGifts.value,
-                leading: Icon(Icons.card_giftcard_rounded, color: scheme.secondary),
+                leading: Icon(
+                  Icons.card_giftcard_rounded,
+                  color: scheme.secondary,
+                ),
                 title: context.l10n.privacyRuleGifts,
                 control: NavigationControl(
                   value: privacy.policyFor('gifts').localized(context.l10n),
@@ -277,10 +293,15 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               ),
               SettingsRow(
                 anchor: SettingId.privacyMusic.value,
-                leading: Icon(Icons.music_note_rounded, color: scheme.secondary),
+                leading: Icon(
+                  Icons.music_note_rounded,
+                  color: scheme.secondary,
+                ),
                 title: context.l10n.privacyRuleMusic,
                 control: NavigationControl(
-                  value: privacy.policyFor('saved_music').localized(context.l10n),
+                  value: privacy
+                      .policyFor('saved_music')
+                      .localized(context.l10n),
                 ),
                 onTap: () => _openRule(context, 'saved_music'),
               ),
@@ -294,7 +315,10 @@ class SettingsPrivacyScreen extends ConsumerWidget {
             children: <Widget>[
               SettingsRow(
                 anchor: SettingId.privacyLastSeen.value,
-                leading: Icon(Icons.access_time_rounded, color: scheme.tertiary),
+                leading: Icon(
+                  Icons.access_time_rounded,
+                  color: scheme.tertiary,
+                ),
                 title: context.l10n.privacyRuleLastSeen,
                 control: NavigationControl(
                   value: privacy.policyFor('last_seen').localized(context.l10n),
@@ -321,21 +345,33 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               ),
               SettingsRow(
                 anchor: SettingId.privacyHideOnline.value,
-                leading: Icon(Icons.visibility_off_rounded, color: scheme.tertiary),
+                leading: Icon(
+                  Icons.visibility_off_rounded,
+                  color: scheme.tertiary,
+                ),
                 title: context.l10n.settingsPrivacyHideOnline,
                 subtitle: context.l10n.settingsPrivacyHideOnlineDesc,
                 control: ToggleControl(
-                  value: privacy.policyFor('last_seen') == PrivacyPolicy.nobody || settings.hideOnline,
+                  value:
+                      privacy.policyFor('last_seen') == PrivacyPolicy.nobody ||
+                      settings.hideOnline,
                   onChanged: (bool value) async {
                     ref.read(uiSettingsProvider.notifier).setHideOnline(value);
                     try {
-                      await ref.read(privacyProvider.notifier).updateRule(
+                      await ref
+                          .read(privacyProvider.notifier)
+                          .updateRule(
                             key: 'last_seen',
-                            policy: value ? PrivacyPolicy.nobody : PrivacyPolicy.everyone,
+                            policy: value
+                                ? PrivacyPolicy.nobody
+                                : PrivacyPolicy.everyone,
                           );
                     } catch (e) {
                       if (context.mounted) {
-                        AppToast.showError(context, 'Не удалось сохранить статус видимости');
+                        AppToast.showError(
+                          context,
+                          'Не удалось сохранить статус видимости',
+                        );
                       }
                     }
                   },
@@ -354,12 +390,17 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 title: context.l10n.privacyBlacklist,
                 subtitle: privacy.blockedUsers.isEmpty
                     ? context.l10n.privacyNoBlocked
-                    : context.l10n.privacyBlockedCount(privacy.blockedUsers.length),
+                    : context.l10n.privacyBlockedCount(
+                        privacy.blockedUsers.length,
+                      ),
                 control: const NavigationControl(),
                 onTap: () => _openBlockedUsers(context),
               ),
               SettingsRow(
-                leading: Icon(Icons.enhanced_encryption_rounded, color: scheme.primary),
+                leading: Icon(
+                  Icons.enhanced_encryption_rounded,
+                  color: scheme.primary,
+                ),
                 title: context.l10n.settingsSecretChatsTitle,
                 subtitle: context.l10n.settingsSecretChatsSubtitle,
                 control: const NavigationControl(),
@@ -377,7 +418,8 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 anchor: SettingId.privacyLinkPreviewsSecret.value,
                 leading: Icon(Icons.link_rounded, color: scheme.primary),
                 title: 'Предпросмотр ссылок в секретных чатах',
-                subtitle: 'Генерировать предпросмотр для отправляемых веб-ссылок',
+                subtitle:
+                    'Генерировать предпросмотр для отправляемых веб-ссылок',
                 control: ToggleControl(
                   value: settings.linkPreviewsInSecretChats,
                   onChanged: (bool value) {
@@ -391,7 +433,8 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 anchor: SettingId.privacyScreenshotsSecret.value,
                 leading: Icon(Icons.screenshot_rounded, color: scheme.primary),
                 title: 'Защита от снимков экрана',
-                subtitle: 'Блокировать скриншоты и запись экрана в секретных чатах',
+                subtitle:
+                    'Блокировать скриншоты и запись экрана в секретных чатах',
                 control: ToggleControl(
                   value: settings.secureScreenshotsInSecretChats,
                   onChanged: (bool value) {
@@ -407,15 +450,21 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           // 5. Удалить мой аккаунт
           SettingsSection(
             title: 'Удалить мой аккаунт',
-            subtitle: 'Автоматическое удаление аккаунта при длительном отсутствии',
+            subtitle:
+                'Автоматическое удаление аккаунта при длительном отсутствии',
             children: <Widget>[
               SettingsRow(
                 anchor: SettingId.privacyAccountSelfDestruct.value,
-                leading: Icon(Icons.delete_forever_rounded, color: scheme.error),
+                leading: Icon(
+                  Icons.delete_forever_rounded,
+                  color: scheme.error,
+                ),
                 title: 'Если я не захожу',
                 subtitle: 'Срок отсутствия до полной очистки данных',
                 control: NavigationControl(
-                  value: _formatSelfDestructPeriod(settings.accountSelfDestructMonths),
+                  value: _formatSelfDestructPeriod(
+                    settings.accountSelfDestructMonths,
+                  ),
                 ),
                 onTap: () => _showSelfDestructPicker(
                   context,
@@ -443,7 +492,10 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                           ButtonSegment<BackgroundMode>(
                             value: BackgroundMode.off,
                             label: Text('Отключен'),
-                            icon: Icon(Icons.power_settings_new_rounded, size: 18),
+                            icon: Icon(
+                              Icons.power_settings_new_rounded,
+                              size: 18,
+                            ),
                           ),
                           ButtonSegment<BackgroundMode>(
                             value: BackgroundMode.economy,
@@ -459,15 +511,13 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                         selected: <BackgroundMode>{settings.backgroundMode},
                         onSelectionChanged: (Set<BackgroundMode> selected) async {
                           final BackgroundMode newMode = selected.first;
-                          ref.read(uiSettingsProvider.notifier).setBackgroundMode(newMode);
+                          ref
+                              .read(uiSettingsProvider.notifier)
+                              .setBackgroundMode(newMode);
                           if (newMode == BackgroundMode.reliable) {
-                            await BackgroundService.startReliable();
                             await BackgroundService.requestDisableBatteryOptimization();
                           } else if (newMode == BackgroundMode.economy) {
-                            await BackgroundService.stop();
                             await SystemUtils.requestIgnoreBatteryOptimizations();
-                          } else {
-                            await BackgroundService.stop();
                           }
                         },
                       ),
@@ -482,24 +532,31 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                             context.l10n.settingsBackgroundReliableDesc,
                         },
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              height: 1.35,
-                            ),
+                          color: scheme.onSurfaceVariant,
+                          height: 1.35,
+                        ),
                       ),
-                      if (settings.backgroundMode == BackgroundMode.reliable) ...<Widget>[
+                      if (settings.backgroundMode ==
+                          BackgroundMode.reliable) ...<Widget>[
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             onPressed: () async {
                               await BackgroundService.requestDisableBatteryOptimization();
                             },
-                            icon: const Icon(Icons.battery_charging_full_rounded, size: 16),
+                            icon: const Icon(
+                              Icons.battery_charging_full_rounded,
+                              size: 16,
+                            ),
                             label: Text(
                               context.l10n.privacyBatteryOptimization,
                               style: const TextStyle(fontSize: 12),
@@ -513,7 +570,10 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               ] else
                 SettingsRow(
                   anchor: SettingId.privacyBackgroundMode.value,
-                  leading: Icon(Icons.info_outline_rounded, color: scheme.onSurfaceVariant),
+                  leading: Icon(
+                    Icons.info_outline_rounded,
+                    color: scheme.onSurfaceVariant,
+                  ),
                   title: context.l10n.settingsBackgroundNotAvailable,
                   subtitle: context.l10n.settingsBackgroundNotAvailableDesc,
                   control: const ValueControl(''),

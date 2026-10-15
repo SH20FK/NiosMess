@@ -101,6 +101,12 @@ abstract class SecretChatLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @updateIntegrityFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The update file is incomplete or corrupted. Download it again.'**
+  String get updateIntegrityFailed;
+
   /// No description provided for @callMediaUnavailable.
   ///
   /// In en, this message translates to:

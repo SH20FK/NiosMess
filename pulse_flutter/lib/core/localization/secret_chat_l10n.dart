@@ -3,6 +3,8 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.dart';
 
 extension SecretChatL10n on AppLocalizations {
+  String updateFailureMessage(String message) => message == 'UPDATE_INTEGRITY_MISMATCH'
+      ? _secret.updateIntegrityFailed : message;
   SecretChatLocalizations get _secret =>
       lookupSecretChatLocalizations(Locale(localeName.split('_').first));
   String callFailureMessage(String code) => switch (code) {

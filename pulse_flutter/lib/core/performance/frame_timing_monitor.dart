@@ -84,6 +84,22 @@ class PerformanceMetricsSnapshot {
   final int rasterJankFrames;
   final int totalFramesSampled;
 
+  Map<String, Object> toJson() => {
+    'refresh_hz': deviceRefreshRate,
+    'frame_budget_ms': targetFrameBudgetMs,
+    'frames': totalFramesSampled,
+    'build_p50_ms': p50BuildMs,
+    'build_p90_ms': p90BuildMs,
+    'build_p99_ms': p99BuildMs,
+    'raster_p50_ms': p50RasterMs,
+    'raster_p90_ms': p90RasterMs,
+    'raster_p99_ms': p99RasterMs,
+    'total_p99_ms': p99TotalMs,
+    'pipeline_jank_ratio': jankRatio,
+    'ui_over_budget': uiJankFrames,
+    'raster_over_budget': rasterJankFrames,
+  };
+
   static const PerformanceMetricsSnapshot initial = PerformanceMetricsSnapshot(
     deviceRefreshRate: 60.0,
     targetFrameBudgetMs: 16.67,
@@ -113,11 +129,9 @@ class PerformanceMetricsSnapshot {
 /// - 8-second downgrade cooldown before permitting any upgrade.
 /// - Requires 180 consecutive smooth frames under budget to upgrade.
 class FrameTimingMonitor {
-  FrameTimingMonitor({
-    this.capacity = 60,
-    DateTime Function()? nowProvider,
-  })  : _nowProvider = nowProvider ?? DateTime.now,
-        _ringBuffer = List<FrameMetric?>.filled(capacity, null);
+  FrameTimingMonitor({this.capacity = 60, DateTime Function()? nowProvider})
+    : _nowProvider = nowProvider ?? DateTime.now,
+      _ringBuffer = List<FrameMetric?>.filled(capacity, null);
 
   final int capacity;
   final DateTime Function() _nowProvider;
@@ -134,7 +148,8 @@ class FrameTimingMonitor {
   /// Detects display refresh rate (120Hz, 90Hz, 60Hz) from the platform dispatcher.
   static double detectRefreshRate({WidgetsBinding? binding}) {
     try {
-      final dispatcher = (binding ?? WidgetsBinding.instance).platformDispatcher;
+      final dispatcher =
+          (binding ?? WidgetsBinding.instance).platformDispatcher;
       final view = dispatcher.views.firstOrNull;
       if (view != null) {
         final double rate = view.display.refreshRate;
@@ -146,16 +161,12 @@ class FrameTimingMonitor {
 
   /// Calculates target frame budget in milliseconds based on refresh rate.
   static double computeBudgetMs(double refreshRate) {
-    if (refreshRate >= 110.0) return 8.33; // 120Hz
-    if (refreshRate >= 80.0) return 11.11; // 90Hz
-    return 16.67; // 60Hz
+    return 1000.0 / computeTargetFps(refreshRate);
   }
 
   /// Target FPS corresponding to refresh rate.
   static double computeTargetFps(double refreshRate) {
-    if (refreshRate >= 110.0) return 120.0;
-    if (refreshRate >= 80.0) return 90.0;
-    return 60.0;
+    return refreshRate.isFinite && refreshRate > 24.0 ? refreshRate : 60.0;
   }
 
   int get consecutiveSmoothFrames => _consecutiveSmoothFrames;
@@ -250,7 +261,8 @@ class FrameTimingMonitor {
     final int upperIndex = rank.ceil();
     if (lowerIndex == upperIndex) return sorted[lowerIndex];
     final double fraction = rank - lowerIndex;
-    return sorted[lowerIndex] + (sorted[upperIndex] - sorted[lowerIndex]) * fraction;
+    return sorted[lowerIndex] +
+        (sorted[upperIndex] - sorted[lowerIndex]) * fraction;
   }
 
   DateTime? _lastPercentileCalcTime;
@@ -397,7 +409,8 @@ class FrameTimingMonitor {
   /// and cooldown of at least 5 seconds.
   bool shouldUpgrade({required double budgetMs, DateTime? currentTime}) {
     final now = currentTime ?? _nowProvider();
-    if (_downgradeCooldownUntil != null && now.isBefore(_downgradeCooldownUntil!)) {
+    if (_downgradeCooldownUntil != null &&
+        now.isBefore(_downgradeCooldownUntil!)) {
       return false;
     }
     if (_upgradeCooldownUntil != null && now.isBefore(_upgradeCooldownUntil!)) {

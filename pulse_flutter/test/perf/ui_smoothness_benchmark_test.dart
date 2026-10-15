@@ -1,9 +1,11 @@
+// Synthetic FrameTimingMonitor classification fixtures. No widgets are rendered here,
+// and these numbers are not measured Android performance or a release baseline.
 import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/performance/frame_timing_monitor.dart';
 
 void main() {
-  group('Phase 0: UI Smoothness Benchmark & Telemetry Baseline', () {
+  group('Synthetic frame-metric scenarios (not device benchmarks)', () {
     const double budget60Hz = 16.67;
     const double budget120Hz = 8.33;
 
@@ -12,7 +14,7 @@ void main() {
 
       // In current unoptimized state, _PulseBackdrop runs an 80-second AnimationController
       // that recalculates Path, creates gradients, and applies MaskFilter.blur(56) on every frame.
-      // We simulate the measured raster load of this continuous background painting:
+      // We supply a synthetic raster-load fixture of this continuous background painting:
       for (int f = 0; f < 180; f++) {
         // Build is relatively cheap (custom paint dispatch), but raster thread is heavily loaded:
         const double buildMs = 1.2;

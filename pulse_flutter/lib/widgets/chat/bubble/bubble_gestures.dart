@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 class SwipeToReply extends StatefulWidget {
@@ -20,7 +21,7 @@ class SwipeToReply extends StatefulWidget {
 class SwipeToReplyState extends State<SwipeToReply>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _animation;
+  double _releaseStart = 0;
   final ValueNotifier<double> _dragNotifier = ValueNotifier<double>(0.0);
   static const double _maxDrag = 64;
   bool _triggered = false;
@@ -32,9 +33,10 @@ class SwipeToReplyState extends State<SwipeToReply>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
     _controller.addListener(() {
-      _dragNotifier.value = _animation.value;
+      _dragNotifier.value =
+          _releaseStart *
+          (1 - M3SpringCurves.expressiveDecel.transform(_controller.value));
     });
   }
 
@@ -60,14 +62,18 @@ class SwipeToReplyState extends State<SwipeToReply>
           delta *= 0.3;
         }
 
-        final double next = (_dragNotifier.value + delta).clamp(-_maxDrag * 1.2, 0.0);
+        final double next = (_dragNotifier.value + delta).clamp(
+          -_maxDrag * 1.2,
+          0.0,
+        );
         _dragNotifier.value = next;
 
         if (next <= -_maxDrag && !_triggered) {
           _triggered = true;
           HapticService.reaction(); // Pop when threshold met
         } else if (next > -_maxDrag + 12.0 && _triggered) {
-          _triggered = false; // Reset with hysteresis, without chatter vibration
+          _triggered =
+              false; // Reset with hysteresis, without chatter vibration
         }
       },
       onHorizontalDragEnd: (DragEndDetails details) {
@@ -78,11 +84,7 @@ class SwipeToReplyState extends State<SwipeToReply>
         }
 
         // Snap back without overshooting past 0
-        _animation = Tween<double>(
-          begin: current,
-          end: 0,
-        ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
-
+        _releaseStart = current;
         _controller.forward(from: 0);
       },
       child: ValueListenableBuilder<double>(
@@ -91,10 +93,7 @@ class SwipeToReplyState extends State<SwipeToReply>
           return Stack(
             clipBehavior: Clip.none,
             children: <Widget>[
-              Transform.translate(
-                offset: Offset(dragX, 0),
-                child: cachedChild,
-              ),
+              Transform.translate(offset: Offset(dragX, 0), child: cachedChild),
               if (dragX < -8)
                 Positioned(
                   right: 16,
@@ -110,7 +109,11 @@ class SwipeToReplyState extends State<SwipeToReply>
                           color: widget.scheme.primaryContainer,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.reply_rounded, color: widget.scheme.primary, size: 20),
+                        child: Icon(
+                          Icons.reply_rounded,
+                          color: widget.scheme.primary,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -123,4 +126,3 @@ class SwipeToReplyState extends State<SwipeToReply>
     );
   }
 }
-

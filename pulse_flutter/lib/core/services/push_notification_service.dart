@@ -28,11 +28,13 @@ class PushNotificationService {
   static StreamSubscription<RemoteMessage>? _openedAppSubscription;
   static int _notificationIdCounter = 0;
   static int? _currentChatId;
+  static Completer<void>? _firebaseBootstrap;
   static final _incomingCalls =
       StreamController<Map<String, dynamic>>.broadcast();
 
   /// FCM and notification taps enter the same call flow as WebSocket pushes.
-  static Stream<Map<String, dynamic>> get incomingCalls => _incomingCalls.stream;
+  static Stream<Map<String, dynamic>> get incomingCalls =>
+      _incomingCalls.stream;
 
   static FlutterLocalNotificationsPlugin get localNotifications => _local;
   static int? get currentChatId => _currentChatId;
@@ -41,8 +43,20 @@ class PushNotificationService {
     _currentChatId = chatId;
   }
 
+  /// Called before runApp; auth and permission UX can then safely overlap the
+  /// first frame with Firebase startup without touching an uninitialized app.
+  static void prepareDeferredFirebase() {
+    _firebaseBootstrap ??= Completer<void>();
+  }
+
+  static void finishDeferredFirebase() {
+    final bootstrap = _firebaseBootstrap;
+    if (bootstrap != null && !bootstrap.isCompleted) bootstrap.complete();
+  }
+
   static Future<bool> requestPermission() async {
     try {
+      await _firebaseBootstrap?.future;
       final NotificationSettings settings = await _fcm.requestPermission(
         alert: true,
         badge: true,
@@ -58,14 +72,20 @@ class PushNotificationService {
 
   static Future<bool> isPermissionGranted() async {
     try {
-      final NotificationSettings settings = await _fcm.getNotificationSettings();
+      await _firebaseBootstrap?.future;
+      final NotificationSettings settings = await _fcm
+          .getNotificationSettings();
       return settings.authorizationStatus == AuthorizationStatus.authorized;
     } catch (_) {
       return false;
     }
   }
 
-  static bool _shouldIgnorePush(String title, String body, {bool isCall = false}) {
+  static bool _shouldIgnorePush(
+    String title,
+    String body, {
+    bool isCall = false,
+  }) {
     final String cleanTitle = title.trim().toLowerCase();
     final String cleanBody = body.trim().toLowerCase();
     if (cleanTitle == 'new activity' || cleanBody == 'new activity') {
@@ -151,7 +171,8 @@ class PushNotificationService {
   }
 
   static Future<void> showLocalNotification(Map<String, dynamic> data) async {
-    final String title = data['title']?.toString() ?? data['route']?.toString() ?? 'NiosMess';
+    final String title =
+        data['title']?.toString() ?? data['route']?.toString() ?? 'NiosMess';
     final String body = data['body']?.toString() ?? '';
     final bool isCall = data['type'] == 'incoming_call';
     if (_shouldIgnorePush(title, body, isCall: isCall)) return;
@@ -181,24 +202,14 @@ class PushNotificationService {
     );
   }
 
+  static void registerBackgroundHandler() {
+    if (!kIsWeb) FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
+  }
+
   static Future<void> init() async {
-    if (!kIsWeb) {
-      FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
-    }
-
-    // On mobile, request permission during init; on web, permission can be requested via user gesture.
-    if (!kIsWeb) {
-      try {
-        await _fcm.requestPermission(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
-      } catch (e) {
-        debugPrint('[PushNotificationService] requestPermission error: $e');
-      }
-    }
-
+    registerBackgroundHandler();
+    // Notification permission is requested by the authenticated shell/settings
+    // UX, rather than blocking bootstrap or showing a prompt over the splash.
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings iosSettings =
@@ -211,13 +222,22 @@ class PushNotificationService {
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
 
-    const AndroidNotificationChannel messagesChannel = AndroidNotificationChannel(
-      'niosmess_messages',
-      'NiosMess Messages',
-      description: 'Уведомления о новых сообщениях',
-      importance: Importance.high,
-      playSound: true,
-    );
+    if (!kIsWeb) {
+      final NotificationAppLaunchDetails? launch = await _local
+          .getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp == true) {
+        _pendingLocalResponse = launch?.notificationResponse;
+      }
+    }
+
+    const AndroidNotificationChannel messagesChannel =
+        AndroidNotificationChannel(
+          'niosmess_messages',
+          'NiosMess Messages',
+          description: 'Уведомления о новых сообщениях',
+          importance: Importance.high,
+          playSound: true,
+        );
     const AndroidNotificationChannel callsChannel = AndroidNotificationChannel(
       'niosmess_calls',
       'NiosMess Calls',
@@ -226,18 +246,20 @@ class PushNotificationService {
       playSound: true,
       enableVibration: true,
     );
-    const AndroidNotificationChannel updatesChannel = AndroidNotificationChannel(
-      'niosmess_updates',
-      'NiosMess Updates',
-      description: 'Уведомления о загрузке и установке обновлений',
-      importance: Importance.low,
-      playSound: false,
-      enableVibration: false,
-    );
+    const AndroidNotificationChannel updatesChannel =
+        AndroidNotificationChannel(
+          'niosmess_updates',
+          'NiosMess Updates',
+          description: 'Уведомления о загрузке и установке обновлений',
+          importance: Importance.low,
+          playSound: false,
+          enableVibration: false,
+        );
 
     final AndroidFlutterLocalNotificationsPlugin? androidPlugin = _local
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (androidPlugin != null) {
       await androidPlugin.createNotificationChannel(messagesChannel);
       await androidPlugin.createNotificationChannel(callsChannel);
@@ -260,8 +282,12 @@ class PushNotificationService {
   }
 
   static Map<String, dynamic>? pendingNotificationData;
+  static NotificationResponse? _pendingLocalResponse;
 
   static void checkAndHandlePendingNotification() {
+    final response = _pendingLocalResponse;
+    _pendingLocalResponse = null;
+    if (response != null) _onNotificationTap(response);
     if (pendingNotificationData != null) {
       final Map<String, dynamic> data = pendingNotificationData!;
       pendingNotificationData = null;
@@ -278,6 +304,7 @@ class PushNotificationService {
 
   static Future<String?> getToken() async {
     try {
+      await _firebaseBootstrap?.future;
       if (kIsWeb) {
         return await _fcm.getToken(vapidKey: kVapidKey);
       }
@@ -292,12 +319,10 @@ class PushNotificationService {
 
   static Future<void> _onForegroundMessage(RemoteMessage message) async {
     final Map<String, dynamic> data = message.data;
-    final String title = message.notification?.title
-        ?? data['title']?.toString()
-        ?? 'NiosMess';
-    final String body = message.notification?.body
-        ?? data['body']?.toString()
-        ?? '';
+    final String title =
+        message.notification?.title ?? data['title']?.toString() ?? 'NiosMess';
+    final String body =
+        message.notification?.body ?? data['body']?.toString() ?? '';
     final bool isCall = data['type'] == 'incoming_call';
     if (_shouldIgnorePush(title, body, isCall: isCall)) return;
 

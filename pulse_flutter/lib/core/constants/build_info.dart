@@ -5,10 +5,10 @@ class BuildInfo {
   const BuildInfo._();
 
   /// Semantic version (e.g. "3.63.0").
-  static const String version = '3.99.3';
+  static const String version = '3.100.0';
 
   /// Build number (e.g. "147").
-  static const String buildNumber = '228';
+  static const String buildNumber = '229';
 
   /// Version with 'v' prefix (e.g. "v3.63.1").
   static const String versionWithPrefix = 'v$version';
@@ -17,11 +17,14 @@ class BuildInfo {
   static const String fullVersion = '$versionWithPrefix+$buildNumber';
 
   /// Git commit hash of this release.
-  static const String commitHash = 'e8fade3';
+  static const String commitHash = String.fromEnvironment(
+    'NIOSMESS_BUILD_COMMIT',
+    defaultValue: 'unknown',
+  );
 
   /// Release channel (e.g. "stable", "beta", "alpha").
   static const String buildChannel = 'stable';
 
   /// Release date string (YYYY-MM-DD).
-  static const String buildDate = '2026-10-11';
+  static const String buildDate = '2026-10-15';
 }

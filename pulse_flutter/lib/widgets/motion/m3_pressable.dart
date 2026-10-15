@@ -62,33 +62,33 @@ class _M3PressableState extends State<M3Pressable>
   late final AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _translateAnimation;
+  late final CurvedAnimation _curved;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    _curved = CurvedAnimation(
+      parent: _controller,
+      curve: widget.curve,
+      reverseCurve: widget.curve,
     );
     _buildAnimations();
   }
 
   void _buildAnimations() {
-    final CurvedAnimation curved = CurvedAnimation(
-      parent: _controller,
-      curve: widget.curve,
-      reverseCurve: widget.curve,
-    );
+    _curved.curve = widget.curve;
+    _curved.reverseCurve = widget.curve;
 
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: widget.pressedScale,
-    ).animate(curved);
+    ).animate(_curved);
 
     _translateAnimation = Tween<double>(
       begin: 0.0,
       end: widget.pressedTranslationY,
-    ).animate(curved);
+    ).animate(_curved);
   }
 
   @override
@@ -105,6 +105,7 @@ class _M3PressableState extends State<M3Pressable>
 
   @override
   void dispose() {
+    _curved.dispose();
     _controller.dispose();
     super.dispose();
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -18,6 +19,12 @@ class PaletteMeshPreview extends StatefulWidget {
   });
   final List<Color> colors;
   final bool animate;
+
+  @visibleForTesting
+  static int get cachedPaletteCount => _CloudFrameCache._entries.length;
+
+  @visibleForTesting
+  static void clearFrameCache() => _CloudFrameCache.clear();
   @override
   State<PaletteMeshPreview> createState() => _PaletteMeshPreviewState();
 }
@@ -36,6 +43,10 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
   bool _visible = true;
   bool _reducedMotion = false;
   bool _foreground = true;
+  Brightness _brightness = Brightness.light;
+  Timer? _bakeTimer;
+  int _bakeGeneration = 0;
+  bool _baking = false;
 
   @override
   void initState() {
@@ -91,13 +102,7 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
         return;
       }
       _shader = provider;
-      final frames = _bakeClouds(widget.colors);
-      setState(() {
-        _frames = frames;
-        _fallback?.dispose();
-        _fallback = null;
-      });
-      _syncMotion();
+      await _bakeLatest();
     } catch (error) {
       provider?.dispose();
       _shader = null;
@@ -108,10 +113,14 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
     }
   }
 
-  List<ui.Image> _bakeClouds(List<Color> colors) {
+  Future<List<ui.Image>?> _bakeClouds(
+    List<Color> colors,
+    int generation,
+  ) async {
     final images = <ui.Image>[];
     try {
-      for (int frame = 0; frame < 3; frame++) {
+      final count = widget.animate ? 3 : 1;
+      for (int frame = 0; frame < count; frame++) {
         final angle = frame * math.pi * 2 / 3;
         final vertices = <OVertex>[];
         for (int row = 0; row < 4; row++) {
@@ -141,33 +150,22 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
           tessellation: 12,
           debugMode: null,
         ).paint(canvas, Offset.zero & _size);
-        final random = math.Random(41);
-        final grain = Paint()
-          ..color = const Color.from(
-            alpha: 0.025,
-            red: 0.5,
-            green: 0.5,
-            blue: 0.5,
-          );
-        for (int i = 0; i < 5000; i++) {
-          canvas.drawRect(
-            Rect.fromLTWH(
-              random.nextDouble() * _size.width,
-              random.nextDouble() * _size.height,
-              1,
-              1,
-            ),
-            grain,
-          );
-        }
         final picture = recorder.endRecording();
         try {
           images.add(
-            picture.toImageSync(_size.width.toInt(), _size.height.toInt()),
+            await picture.toImage(_size.width.toInt(), _size.height.toInt()),
           );
         } finally {
           picture.dispose();
         }
+        if (!mounted || generation != _bakeGeneration) {
+          for (final image in images) {
+            image.dispose();
+          }
+          return null;
+        }
+        // Each toImage completion yields to the event loop before recording
+        // the next independent raster job.
       }
       return images;
     } catch (_) {
@@ -175,6 +173,74 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
         image.dispose();
       }
       rethrow;
+    }
+  }
+
+  void _requestBake() {
+    _bakeGeneration++;
+    _bakeTimer?.cancel();
+    // Theme interpolation can deliver a different palette on every frame.
+    // Coalesce it into the latest selection instead of baking stale colors.
+    _bakeTimer = Timer(const Duration(milliseconds: 60), _bakeLatest);
+  }
+
+  Future<void> _bakeLatest() async {
+    if (!mounted || _baking) return;
+    _baking = true;
+    final generation = _bakeGeneration;
+    final colors = List<Color>.of(widget.colors);
+    try {
+      if (_shader == null) {
+        final fallback = _rasterize(_fallbackColors(colors));
+        if (!mounted || generation != _bakeGeneration) {
+          fallback.dispose();
+          return;
+        }
+        setState(() {
+          _fallback?.dispose();
+          _fallback = fallback;
+        });
+        return;
+      }
+      final key =
+          '${_size.width}x${_size.height}:${_brightness.name}:'
+          '${widget.animate ? 3 : 1}:${colors.map((c) => c.toARGB32()).join(',')}';
+      var next = _CloudFrameCache.take(key);
+      if (next == null) {
+        next = await _bakeClouds(colors, generation);
+        if (next == null) return;
+        _CloudFrameCache.put(key, next);
+      }
+      if (!mounted || generation != _bakeGeneration) {
+        for (final image in next) {
+          image.dispose();
+        }
+        return;
+      }
+      final snapshot = _frames.isEmpty ? null : _capturePalette();
+      setState(() {
+        _previousPalette?.dispose();
+        _previousPalette = snapshot;
+        for (final image in _frames) {
+          image.dispose();
+        }
+        _frames = next!;
+        _fallback?.dispose();
+        _fallback = null;
+      });
+      if (_reducedMotion || !_foreground || snapshot == null) {
+        _colorBlend.value = 1;
+      } else {
+        _colorBlend.forward(from: 0);
+      }
+      _syncMotion();
+    } catch (error) {
+      debugPrint(
+        '[PaletteMeshPreview] CLOUD_BAKE_FAILED: ${error.runtimeType}',
+      );
+    } finally {
+      _baking = false;
+      if (mounted && generation != _bakeGeneration) _requestBake();
     }
   }
 
@@ -217,6 +283,11 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
     super.didChangeDependencies();
     _visible = TickerMode.valuesOf(context).enabled;
     _reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final brightness = Theme.of(context).brightness;
+    if (_brightness != brightness) {
+      _brightness = brightness;
+      _requestBake();
+    }
     _syncMotion();
   }
 
@@ -229,32 +300,9 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
   @override
   void didUpdateWidget(covariant PaletteMeshPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!listEquals(oldWidget.colors, widget.colors)) {
-      if (_shader == null) {
-        final next = _rasterize(_fallbackColors(widget.colors));
-        _fallback?.dispose();
-        _fallback = next;
-        _colorBlend.value = 1;
-      } else {
-        final snapshot = _capturePalette();
-        try {
-          final next = _bakeClouds(widget.colors);
-          _previousPalette?.dispose();
-          _previousPalette = snapshot;
-          for (final image in _frames) {
-            image.dispose();
-          }
-          _frames = next;
-          if (_reducedMotion || !_foreground) {
-            _colorBlend.value = 1;
-          } else {
-            _colorBlend.forward(from: 0);
-          }
-        } catch (_) {
-          snapshot.dispose();
-          rethrow;
-        }
-      }
+    if (!listEquals(oldWidget.colors, widget.colors) ||
+        oldWidget.animate != widget.animate) {
+      _requestBake();
     }
     _syncMotion();
   }
@@ -346,6 +394,8 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
 
   @override
   void dispose() {
+    _bakeGeneration++;
+    _bakeTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
     _colorBlend.dispose();
@@ -361,7 +411,7 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
 
   @override
   Widget build(BuildContext context) => ExcludeSemantics(
-    child: _shader == null
+    child: _frames.isEmpty
         ? RawImage(
             image: _fallback,
             fit: BoxFit.cover,
@@ -379,6 +429,47 @@ class _PaletteMeshPreviewState extends State<PaletteMeshPreview>
   );
 }
 
+/// Four palettes at most (12 full-size frames, about 12 MiB before sharing).
+/// Image.clone shares the underlying native texture; widgets own their handles.
+class _CloudFrameCache {
+  static const capacity = 4;
+  static final _entries = <String, List<ui.Image>>{};
+
+  static List<ui.Image>? take(String key) {
+    final frames = _entries.remove(key);
+    if (frames == null) return null;
+    _entries[key] = frames;
+    return frames.map((image) => image.clone()).toList(growable: false);
+  }
+
+  static void put(String key, List<ui.Image> frames) {
+    final replaced = _entries.remove(key);
+    if (replaced != null) {
+      for (final image in replaced) {
+        image.dispose();
+      }
+    }
+    _entries[key] = frames
+        .map((image) => image.clone())
+        .toList(growable: false);
+    while (_entries.length > capacity) {
+      final evicted = _entries.remove(_entries.keys.first)!;
+      for (final image in evicted) {
+        image.dispose();
+      }
+    }
+  }
+
+  static void clear() {
+    for (final frames in _entries.values) {
+      for (final image in frames) {
+        image.dispose();
+      }
+    }
+    _entries.clear();
+  }
+}
+
 class _CloudPainter extends CustomPainter {
   _CloudPainter({
     required this.frames,
@@ -390,6 +481,32 @@ class _CloudPainter extends CustomPainter {
   final ui.Image? previousPalette;
   final ValueListenable<double> phase;
   final Animation<double> progress;
+  static final Paint _grainPaint = _createGrain();
+
+  static Paint _createGrain() {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final random = math.Random(41);
+    final paint = Paint()
+      ..color = const Color.from(alpha: 0.025, red: 0.5, green: 0.5, blue: 0.5);
+    for (var i = 0; i < 180; i++) {
+      canvas.drawRect(
+        Rect.fromLTWH(random.nextDouble() * 96, random.nextDouble() * 96, 1, 1),
+        paint,
+      );
+    }
+    final picture = recorder.endRecording();
+    final texture = picture.toImageSync(96, 96);
+    picture.dispose();
+    final shader = ui.ImageShader(
+      texture,
+      TileMode.repeated,
+      TileMode.repeated,
+      Float64List.fromList([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+    );
+    texture.dispose();
+    return Paint()..shader = shader;
+  }
 
   static void draw(
     Canvas canvas,
@@ -426,8 +543,10 @@ class _CloudPainter extends CustomPainter {
   }
 
   @override
-  void paint(Canvas canvas, Size size) =>
-      draw(canvas, size, frames, phase.value, previousPalette, progress.value);
+  void paint(Canvas canvas, Size size) {
+    draw(canvas, size, frames, phase.value, previousPalette, progress.value);
+    canvas.drawRect(Offset.zero & size, _grainPaint);
+  }
 
   @override
   bool shouldRepaint(covariant _CloudPainter oldDelegate) =>

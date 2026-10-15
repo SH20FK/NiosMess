@@ -33,6 +33,60 @@ Future<void> _waitForMeshShader(WidgetTester tester) async {
 
 void main() {
   testWidgets(
+    'mesh coalesces rapid palettes and retains a bounded shared cache',
+    (tester) async {
+      PaletteMeshPreview.clearFrameCache();
+      addTearDown(PaletteMeshPreview.clearFrameCache);
+      Widget preview(int value) => MaterialApp(
+        home: SizedBox(
+          width: 320,
+          height: 160,
+          child: PaletteMeshPreview(
+            colors: [
+              Color(0xff700050 + value),
+              Color(0xffc0a0d0 + value),
+              Color(0xff7080b0 + value),
+              Color(0xffdfc0d0 + value),
+            ],
+          ),
+        ),
+      );
+      Future<void> waitForCount(int count) async {
+        for (
+          var i = 0;
+          i < 100 && PaletteMeshPreview.cachedPaletteCount < count;
+          i++
+        ) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump(const Duration(milliseconds: 20));
+        }
+        expect(PaletteMeshPreview.cachedPaletteCount, count);
+      }
+
+      await tester.pumpWidget(preview(0));
+      await waitForCount(1);
+      for (var i = 1; i <= 20; i++) {
+        await tester.pumpWidget(preview(i));
+      }
+      expect(PaletteMeshPreview.cachedPaletteCount, 1);
+      await waitForCount(2);
+      for (var i = 21; i <= 25; i++) {
+        await tester.pumpWidget(preview(i));
+        await tester.pump(const Duration(milliseconds: 70));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 40)),
+        );
+        await tester.pump();
+      }
+      expect(PaletteMeshPreview.cachedPaletteCount, lessThanOrEqualTo(4));
+      await tester.pumpWidget(const SizedBox());
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'appearance uses intermediate theme colors and one atomic accent update',
     (tester) async {
       SharedPreferences.setMockInitialValues({

@@ -1,8 +1,14 @@
 import 'dart:async';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
+import 'package:pulse_flutter/core/storage/chat_history_retention.dart';
+import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
@@ -29,19 +35,40 @@ class _Auth extends AuthNotifier {
       displayName: 'One',
     ),
   );
+  void switchAccount(int userId) {
+    state = state.copyWith(
+      session: AuthSession(
+        accessToken: 'fixture',
+        userId: userId,
+        username: 'account$userId',
+        displayName: 'Account $userId',
+      ),
+    );
+  }
 }
 
 class _Chats extends ChatsNotifier {
   @override
   Future<List<ApiChatSummary>> build() async => const [
     ApiChatSummary(
-      id: 42,
+      id: 9142001,
       chatType: 'direct',
       name: 'Two',
       unreadCount: 0,
       membersCount: 2,
     ),
   ];
+}
+
+class _NoopSound extends SoundService {
+  @override
+  Future<void> playEvent(SoundEvent event, {double? volume}) async {}
+}
+
+class _NoopCache extends CacheService {
+  const _NoopCache();
+  @override
+  Future<void> saveChats(List<ApiChatSummary> chats) async {}
 }
 
 class _Socket extends WebSocketClient {
@@ -51,6 +78,7 @@ class _Socket extends WebSocketClient {
   final connections = StreamController<void>.broadcast();
   final histories = <Completer<dynamic>>[];
   final pages = <int>[];
+  final sentMessages = <Completer<dynamic>>[];
   @override
   Stream<Map<String, dynamic>> get pushStream => pushes.stream;
   @override
@@ -62,6 +90,11 @@ class _Socket extends WebSocketClient {
     Duration timeout = const Duration(seconds: 15),
     int maxRetries = 2,
   }) async {
+    if (action == 'send_message') {
+      final result = Completer<dynamic>();
+      sentMessages.add(result);
+      return result.future;
+    }
     if (action != 'history') return <String, dynamic>{};
     pages.add(payload!['page'] as int);
     final result = Completer<dynamic>();
@@ -89,7 +122,7 @@ class _Socket extends WebSocketClient {
 
 ApiMessage _message(int id, {String? text}) => ApiMessage.fromJson({
   'id': id,
-  'chat_id': 42,
+  'chat_id': 9142001,
   'sender_id': 2,
   'content': text ?? 'Message $id',
   'msg_type': 'text',
@@ -98,131 +131,429 @@ ApiMessage _message(int id, {String? text}) => ApiMessage.fromJson({
 
 Future<void> _flush() async {
   for (int i = 0; i < 12; i++) {
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 2));
   }
+}
+
+Future<void> _waitUntil(bool Function() predicate) async {
+  for (var i = 0; i < 600 && !predicate(); i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+  expect(predicate(), isTrue);
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late _Socket socket;
-  late ProviderContainer container;
-  late Directory temporaryDirectory;
-  setUpAll(() async {
-    temporaryDirectory = await Directory.systemTemp.createTemp('ordinary_realtime_');
-    Hive.init(temporaryDirectory.path);
-    await Hive.openBox<List<dynamic>>('chat_shared_media_v1');
-  });
-  tearDownAll(() async {
-    await Hive.close();
-    await temporaryDirectory.delete(recursive: true);
-  });
-  List<ApiMessage> messages() =>
-      container.read(chatMessagesProvider(42)).requireValue;
+  group('Isolated ordinary history fixture', () {
+    late _Socket socket;
+    late ProviderContainer container;
+    late Directory temporaryDirectory;
+    setUpAll(() async {
+      FlutterSecureStorage.setMockInitialValues({});
+      EncryptedMessageCache.resetMemoryForTesting();
+      temporaryDirectory = await Directory.systemTemp.createTemp(
+        'ordinary_realtime_',
+      );
+      Hive.init(temporaryDirectory.path);
+      await ChatMediaCache.ensureInitialized();
+    });
+    tearDownAll(() async {
+      await Hive.close();
+      await temporaryDirectory.delete(recursive: true);
+    });
+    List<ApiMessage> messages() =>
+        container.read(chatMessagesProvider(9142001)).requireValue;
 
-  setUp(() async {
-    WebSocketPushDispatcher.dispose();
-    socket = _Socket();
-    container = ProviderContainer(
-      overrides: [
-        authProvider.overrideWith(_Auth.new),
-        chatsProvider.overrideWith(_Chats.new),
-        webSocketClientProvider.overrideWithValue(socket),
-      ],
+    setUp(() async {
+      await EncryptedMessageCache.clearAll();
+      await EncryptedMessageCache.clearAccount(1, []);
+      await EncryptedMessageCache.clearAccount(2, []);
+      WebSocketPushDispatcher.dispose();
+      socket = _Socket();
+      container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith(_Auth.new),
+          chatsProvider.overrideWith(_Chats.new),
+          webSocketClientProvider.overrideWithValue(socket),
+          appSoundProvider.overrideWithValue(_NoopSound()),
+        ],
+      );
+      PushNotificationService.setCurrentChat(9142001);
+      await container.read(chatsProvider.future);
+      container.listen(chatMessagesProvider(9142001), (_, _) {});
+      for (var i = 0; i < 200 && socket.histories.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      socket.history(0, [_message(1)]);
+      await container.read(chatMessagesProvider(9142001).future);
+      await container
+          .read(chatMessagesProvider(9142001).notifier)
+          .flushHistoryArchive();
+    });
+    tearDown(() async {
+      if (container.exists(chatMessagesProvider(9142001))) {
+        await container
+            .read(chatMessagesProvider(9142001).notifier)
+            .flushHistoryArchive();
+      }
+      container.dispose();
+      WebSocketPushDispatcher.dispose();
+      PushNotificationService.setCurrentChat(null);
+      socket.close();
+      await EncryptedMessageCache.clearAccount(1, []);
+      await EncryptedMessageCache.clearAccount(2, []);
+      await _flush();
+    });
+
+    test(
+      'unobserved history expires but an active send retains its notifier',
+      () async {
+        container.dispose();
+        WebSocketPushDispatcher.dispose();
+        socket.close();
+        await EncryptedMessageCache.clearAccount(1, []);
+        socket = _Socket();
+        final retention = ChatHistoryRetention(
+          idleTtl: const Duration(milliseconds: 40),
+        );
+        container = ProviderContainer(
+          overrides: [
+            authProvider.overrideWith(_Auth.new),
+            chatsProvider.overrideWith(_Chats.new),
+            webSocketClientProvider.overrideWithValue(socket),
+            appSoundProvider.overrideWithValue(_NoopSound()),
+            chatHistoryRetentionProvider.overrideWithValue(retention),
+            cacheServiceProvider.overrideWithValue(const _NoopCache()),
+          ],
+        );
+        addTearDown(retention.dispose);
+        final subscription = container.listen(
+          chatMessagesProvider(9142001),
+          (_, _) {},
+        );
+        await _waitUntil(() => socket.histories.isNotEmpty);
+        socket.history(0, [_message(1)]);
+        await container.read(chatMessagesProvider(9142001).future);
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        await notifier.flushHistoryArchive();
+        final sending = notifier.send('still delivering');
+        await _waitUntil(() => socket.sentMessages.isNotEmpty);
+        await notifier.flushHistoryArchive();
+        subscription.close();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await container.pump();
+        expect(container.exists(chatMessagesProvider(9142001)), isTrue);
+        expect(retention.idleCount, 0);
+        socket.sentMessages.single.complete(
+          _message(2, text: 'still delivering').toJson(),
+        );
+        await sending;
+        await notifier.flushHistoryArchive();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await container.pump();
+        expect(container.exists(chatMessagesProvider(9142001)), isFalse);
+      },
     );
-    PushNotificationService.setCurrentChat(42);
-    await container.read(chatsProvider.future);
-    container.listen(chatMessagesProvider(42), (_, _) {});
-    await _flush();
-    socket.history(0, [_message(1)]);
-    await container.read(chatMessagesProvider(42).future);
-  });
-  tearDown(() {
-    container.dispose();
-    WebSocketPushDispatcher.dispose();
-    PushNotificationService.setCurrentChat(null);
-    socket.close();
-  });
 
-  test(
-    'real dispatcher delivers incoming messages without leaving the chat',
-    () async {
-      socket.push(_message(2));
-      socket.push(_message(2));
-      await _flush();
-      expect(messages().map((m) => m.id), [1, 2]);
-      expect(socket.histories, hasLength(1));
-    },
-  );
+    test(
+      'cold offline history reads the same account key used for saving',
+      () async {
+        container.dispose();
+        WebSocketPushDispatcher.dispose();
+        socket.close();
+        await EncryptedMessageCache.clearAccount(1, []);
+        FlutterSecureStorage.setMockInitialValues({});
+        await EncryptedMessageCache.ensureInitialized();
+        await EncryptedMessageCache.saveMessages(9142001, [
+          _message(73, text: 'saved offline'),
+        ], userId: 1);
+        socket = _Socket();
+        container = ProviderContainer(
+          overrides: [
+            authProvider.overrideWith(_Auth.new),
+            chatsProvider.overrideWith(_Chats.new),
+            webSocketClientProvider.overrideWithValue(socket),
+            appSoundProvider.overrideWithValue(_NoopSound()),
+          ],
+        );
+        container.listen(chatMessagesProvider(9142001), (_, _) {});
+        // Encryption may complete on a real worker isolate before the fetch starts.
+        for (var i = 0; i < 100 && socket.histories.isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        expect(socket.histories, hasLength(1));
+        socket.histories.single.completeError(StateError('offline'));
+        final restored = await container.read(
+          chatMessagesProvider(9142001).future,
+        );
+        expect(restored.single.content, 'saved offline');
+      },
+    );
 
-  test(
-    'reconnection automatically catches up and coalesces repeated signals',
-    () async {
+    test(
+      'an old account send response cannot enter the new account history',
+      () async {
+        final sending = container
+            .read(chatMessagesProvider(9142001).notifier)
+            .send('old account');
+        await _flush();
+        expect(socket.sentMessages, hasLength(1));
+        (container.read(authProvider.notifier) as _Auth).switchAccount(2);
+        for (var i = 0; i < 200 && socket.histories.length < 2; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        expect(socket.histories, hasLength(2));
+        socket.history(1, [_message(80, text: 'new account')]);
+        for (var i = 0; i < 200 && messages().isEmpty; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        await container
+            .read(chatMessagesProvider(9142001).notifier)
+            .flushHistoryArchive();
+        socket.sentMessages.single.complete(
+          _message(99, text: 'old account').toJson(),
+        );
+        await sending;
+        expect(messages().map((m) => m.content), ['new account']);
+      },
+    );
+
+    test(
+      'older page merge preserves concurrent pushes and edits and coalesces pagination',
+      () async {
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        final older = notifier.loadOlder();
+        final duplicate = notifier.loadOlder();
+        expect(identical(older, duplicate), isTrue);
+        await _flush();
+        expect(socket.histories, hasLength(2));
+        socket.push(_message(2));
+        socket.push(
+          _message(1, text: 'edited while paging'),
+          action: 'message_edited',
+        );
+        await _flush();
+        socket.history(1, [_message(0)]);
+        expect(await older, 1);
+        expect(messages().map((m) => m.id), [0, 1, 2]);
+        expect(messages()[1].content, 'edited while paging');
+      },
+    );
+
+    test(
+      'a deleted off-window row cannot be resurrected by an older response',
+      () async {
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        final older = notifier.loadOlder();
+        await _waitUntil(() => socket.histories.length == 2);
+        socket.pushes.add({
+          'action': 'message_deleted',
+          'payload': {'chat_id': 9142001, 'message_id': 77},
+        });
+        await _flush();
+        socket.history(1, [_message(77)]);
+        expect(await older, 0);
+        expect(messages().map((m) => m.id), [1]);
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        expect(await archive.message(77), isNull);
+      },
+    );
+
+    test(
+      'real dispatcher delivers incoming messages without leaving the chat',
+      () async {
+        socket.push(_message(2));
+        socket.push(_message(2));
+        await _waitUntil(() => messages().any((m) => m.id == 2));
+        expect(messages().map((m) => m.id), [1, 2]);
+        expect(socket.histories, hasLength(1));
+      },
+    );
+
+    test(
+      'reconnection automatically catches up and coalesces repeated signals',
+      () async {
+        socket.connections.add(null);
+        socket.connections.add(null);
+        await _flush();
+        expect(socket.histories, hasLength(2));
+        socket.history(1, [_message(1), _message(2)]);
+        await _waitUntil(() => messages().any((m) => m.id == 2));
+        expect(messages().map((m) => m.id), [1, 2]);
+      },
+    );
+
+    test(
+      'history cannot erase a push or revert an edit or deletion received during load',
+      () async {
+        final refresh = container
+            .read(chatMessagesProvider(9142001).notifier)
+            .refresh();
+        await _flush();
+        socket.push(_message(2));
+        socket.push(_message(1, text: 'Edited'), action: 'message_edited');
+        await _flush();
+        socket.history(1, [_message(1)]);
+        await refresh;
+        expect(messages().map((m) => m.id), [1, 2]);
+        expect(messages().first.content, 'Edited');
+
+        final deleting = container
+            .read(chatMessagesProvider(9142001).notifier)
+            .refresh();
+        await _flush();
+        socket.pushes.add({
+          'action': 'message_deleted',
+          'payload': {'chat_id': 9142001, 'message_id': 1},
+        });
+        await _flush();
+        socket.history(2, [_message(1), _message(2)]);
+        await deleting;
+        expect(messages().map((m) => m.id), [2]);
+      },
+    );
+
+    test(
+      'failed catch-up retains displayed history and retries on next connection',
+      () async {
+        socket.connections.add(null);
+        await _flush();
+        socket.histories[1].completeError(StateError('Connection lost'));
+        await _flush();
+        expect(messages().map((m) => m.id), [1]);
+        socket.connections.add(null);
+        await _flush();
+        socket.history(2, [_message(1), _message(2)]);
+        await _waitUntil(() => messages().any((m) => m.id == 2));
+        expect(messages().map((m) => m.id), [1, 2]);
+      },
+    );
+
+    test(
+      'a deletion from the first catch-up page stays deleted while the next page loads',
+      () async {
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        final refreshing = notifier.refresh();
+        await _waitUntil(() => socket.histories.length == 2);
+        socket.history(1, [for (var id = 22; id <= 101; id++) _message(id)]);
+        await _waitUntil(() => socket.histories.length == 3);
+        socket.pushes.add({
+          'action': 'message_deleted',
+          'payload': {'chat_id': 9142001, 'message_id': 100},
+        });
+        await _flush();
+        socket.history(2, [for (var id = 1; id <= 21; id++) _message(id)]);
+        await refreshing;
+        await notifier.flushHistoryArchive();
+        expect(messages().length, 100);
+        expect(messages().any((m) => m.id == 100), isFalse);
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        expect(await archive.message(100), isNull);
+      },
+    );
+
+    test('catch-up pages through more than eighty missed messages', () async {
       socket.connections.add(null);
-      socket.connections.add(null);
       await _flush();
-      expect(socket.histories, hasLength(2));
-      socket.history(1, [_message(1), _message(2)]);
-      await _flush();
-      expect(messages().map((m) => m.id), [1, 2]);
-    },
-  );
-
-  test(
-    'history cannot erase a push or revert an edit or deletion received during load',
-    () async {
-      final refresh = container
-          .read(chatMessagesProvider(42).notifier)
-          .refresh();
-      await _flush();
-      socket.push(_message(2));
-      socket.push(_message(1, text: 'Edited'), action: 'message_edited');
-      await _flush();
-      socket.history(1, [_message(1)]);
-      await refresh;
-      expect(messages().map((m) => m.id), [1, 2]);
-      expect(messages().first.content, 'Edited');
-
-      final deleting = container
-          .read(chatMessagesProvider(42).notifier)
-          .refresh();
-      await _flush();
-      socket.pushes.add({
-        'action': 'message_deleted',
-        'payload': {'chat_id': 42, 'message_id': 1},
-      });
-      await _flush();
-      socket.history(2, [_message(1), _message(2)]);
-      await deleting;
-      expect(messages().map((m) => m.id), [2]);
-    },
-  );
-
-  test(
-    'failed catch-up retains displayed history and retries on next connection',
-    () async {
-      socket.connections.add(null);
-      await _flush();
-      socket.histories[1].completeError(StateError('Connection lost'));
-      await _flush();
-      expect(messages().map((m) => m.id), [1]);
-      socket.connections.add(null);
-      await _flush();
-      socket.history(2, [_message(1), _message(2)]);
-      await _flush();
-      expect(messages().map((m) => m.id), [1, 2]);
-    },
-  );
-
-  test('catch-up pages through more than eighty missed messages', () async {
-    socket.connections.add(null);
-    await _flush();
-    socket.history(1, [for (int id = 22; id <= 101; id++) _message(id)]);
-    await _flush();
-    expect(socket.pages, [1, 1, 2]);
-    socket.history(2, [for (int id = 1; id <= 21; id++) _message(id)]);
-    await _flush();
-    expect(messages(), hasLength(101));
-    expect(messages().first.id, 1);
-    expect(messages().last.id, 101);
+      socket.history(1, [for (int id = 22; id <= 101; id++) _message(id)]);
+      await _waitUntil(() => socket.pages.length == 3);
+      expect(socket.pages, [1, 1, 2]);
+      socket.history(2, [for (int id = 1; id <= 21; id++) _message(id)]);
+      await _waitUntil(() => messages().length == 101);
+      expect(messages(), hasLength(101));
+      expect(messages().first.id, 1);
+      expect(messages().last.id, 101);
+    });
+    test(
+      'active archive window pages both ways, preserves pending sends and loads reply targets',
+      () async {
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        await archive.write([for (var id = 1; id <= 1600; id++) _message(id)]);
+        final jumping = notifier.jumpToLatest();
+        for (var i = 0; i < 300 && socket.histories.length < 2; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        socket.history(1, [for (var id = 1521; id <= 1600; id++) _message(id)]);
+        await jumping;
+        expect(messages().length, ChatMessagesNotifier.maxVisibleMessages);
+        expect(messages().first.id, 1301);
+        for (var page = 0; page < 8; page++) {
+          expect(await notifier.loadOlder(), 50);
+          expect(messages().length, ChatMessagesNotifier.maxVisibleMessages);
+        }
+        expect(messages().first.id, 901);
+        expect(notifier.window.hasNewer, isTrue);
+        final anchorIds = messages().map((m) => m.id).toList();
+        socket.push(_message(1601));
+        await _flush();
+        await notifier.flushHistoryArchive();
+        expect(messages().map((m) => m.id), anchorIds);
+        expect((await archive.message(1601))?.content, 'Message 1601');
+        final sending = notifier.send('pending outside archive window');
+        await _flush();
+        await notifier.flushHistoryArchive();
+        expect(messages().length, ChatMessagesNotifier.maxVisibleMessages);
+        expect(messages().any((m) => m.id < 0), isFalse);
+        socket.sentMessages.single.completeError(StateError('offline'));
+        await sending;
+        expect(
+          (await archive.read()).last.content,
+          'pending outside archive window',
+        );
+        expect((await archive.read()).last.isFailed, isTrue);
+        await notifier.loadNewer();
+        expect(messages().first.id, 951);
+        expect(messages().length, ChatMessagesNotifier.maxVisibleMessages);
+        expect(await notifier.loadAround(12), isTrue);
+        expect(messages().any((m) => m.id == 12), isTrue);
+        expect(
+          messages().length,
+          lessThanOrEqualTo(ChatMessagesNotifier.maxVisibleMessages),
+        );
+        final latest = notifier.jumpToLatest();
+        for (var i = 0; i < 300 && socket.histories.length < 3; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        socket.histories.last.completeError(StateError('offline'));
+        await latest;
+        expect(messages().last.content, 'pending outside archive window');
+        expect(messages().last.isFailed, isTrue);
+        expect(messages().length, ChatMessagesNotifier.maxVisibleMessages);
+      },
+    );
+    test(
+      'disk failure keeps the full unsaved candidate until archive retry succeeds',
+      () async {
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        final rows = [for (var id = 1; id <= 300; id++) _message(id)];
+        await archive.write(rows);
+        expect(await notifier.loadAround(151), isTrue);
+        // Centered read has only 299 rows around this boundary; use one extra
+        // saved row so the next candidate exceeds the hard in-memory window.
+        notifier.setFollowingLatest(true);
+        for (var id = 301; id <= 304; id++) {
+          notifier.addOptimisticLocalMessage(_message(id));
+        }
+        await notifier.flushHistoryArchive();
+        expect(messages().length, 300);
+        await Hive.lazyBox<String>('enc_history_archive_v1').close();
+        notifier.addOptimisticLocalMessage(
+          _message(305, text: 'keep on failed disk'),
+        );
+        await expectLater(
+          notifier.flushHistoryArchive(),
+          throwsA(isA<HiveError>()),
+        );
+        expect(messages().length, 301);
+        expect(messages().last.content, 'keep on failed disk');
+        await Hive.openLazyBox<String>('enc_history_archive_v1');
+        await notifier.flushHistoryArchive();
+        expect(messages().length, 300);
+        expect((await archive.message(305))?.content, 'keep on failed disk');
+        expect((await archive.message(1))?.content, 'Message 1');
+      },
+    );
   });
 }

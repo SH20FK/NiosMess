@@ -1,6 +1,33 @@
 // Unified test suite aggregator for rapid single-pass compilation in CI.
 import 'package:flutter_test/flutter_test.dart';
 
+import 'unit/performance_lifecycle_regression_test.dart' as perf_lifecycle;
+import 'unit/background_service_serialization_test.dart'
+    as background_service_serialization;
+import 'unit/update_asset_integrity_test.dart' as update_asset_integrity;
+import 'unit/ota_update_artifact_state_test.dart' as ota_update_artifact_state;
+import 'unit/e2ee_streaming_file_cipher_test.dart'
+    as e2ee_streaming_file_cipher;
+import 'unit/history_retention_test.dart' as history_retention;
+import 'unit/encrypted_history_archive_test.dart' as encrypted_history_archive;
+import 'unit/hive_bootstrap_account_cache_test.dart' as hive_account_cache;
+import 'widgets/message_layout_store_test.dart' as message_layout_store;
+import 'core/animated_media_budget_test.dart' as animated_media_budget;
+import 'core/e2ee_file_pipeline_test.dart' as e2ee_file_pipeline;
+import 'core/media_file_cache_pipeline_test.dart' as media_file_cache_pipeline;
+import 'services/blob_upload_resources_test.dart' as blob_upload_resources;
+import 'services/secret_storage_performance_test.dart'
+    as secret_storage_performance;
+import 'services/secret_attachment_file_store_test.dart'
+    as secret_attachment_file_store;
+import 'providers/secret_attachment_file_delivery_test.dart'
+    as secret_attachment_file_delivery;
+import 'services/secret_engine_optimization_test.dart'
+    as secret_engine_optimization;
+import 'providers/secret_coordinator_lifecycle_test.dart'
+    as secret_coordinator_lifecycle;
+import 'unit/frame_timing_monitor_percentiles_test.dart' as frame_percentiles;
+import 'perf/ui_smoothness_regression_guard_test.dart' as perf_logic_guards;
 import 'binary_packet_test.dart' as binary_packet;
 import 'bots_inline_query_test.dart' as bots_inline_query;
 import 'calls_gateway_limits_test.dart' as calls_gateway_limits;
@@ -9,7 +36,8 @@ import 'double_ratchet_test.dart' as double_ratchet;
 import 'e2ee_file_crypto_test.dart' as e2ee_file_crypto;
 import 'e2ee_safety_words_test.dart' as e2ee_safety_words;
 import 'services/secret_chat_delivery_test.dart' as secret_chat_delivery;
-import 'services/call_signaling_connection_test.dart' as call_signaling_connection;
+import 'services/call_signaling_connection_test.dart'
+    as call_signaling_connection;
 import 'services/call_negotiation_test.dart' as call_negotiation;
 import 'providers/incoming_call_delivery_test.dart' as incoming_call_delivery;
 import 'services/secret_chat_e2ee_test.dart' as secret_chat_e2ee;
@@ -22,7 +50,8 @@ import 'formatter_and_detector_test.dart' as formatter_and_detector;
 import 'global_search_deep_links_test.dart' as global_search_deep_links;
 import 'group_moderation_test.dart' as group_moderation;
 import 'legal_viewer_screen_test.dart' as legal_viewer_screen;
-import 'milestone2_adversarial_stress_test.dart' as milestone2_adversarial_stress;
+import 'milestone2_adversarial_stress_test.dart'
+    as milestone2_adversarial_stress;
 import 'niosgram_media_reactions_test.dart' as niosgram_media_reactions;
 import 'onboarding_screens_test.dart' as onboarding_screens;
 import 'privacy_blocklist_test.dart' as privacy_blocklist;
@@ -32,46 +61,62 @@ import 'stickers_test.dart' as stickers;
 import 'core/m3_spring_constants_test.dart' as core_m3_spring_constants;
 import 'e2e/niosgram_and_settings_e2e_test.dart' as e2e_niosgram_and_settings;
 import 'integration/e2e_auth_flow_test.dart' as integration_e2e_auth_flow;
-import 'integration/e2e_cold_start_and_logout_test.dart' as integration_e2e_cold_start;
+import 'integration/e2e_cold_start_and_logout_test.dart'
+    as integration_e2e_cold_start;
 import 'models/chat_wallpaper_config_test.dart' as models_chat_wallpaper_config;
 import 'screens/login_screen_test.dart' as screens_login_screen;
 import 'screens/register_screen_test.dart' as screens_register_screen;
-import 'unit/adaptive_performance_engine_test.dart' as unit_adaptive_performance_engine;
+import 'unit/adaptive_performance_engine_test.dart'
+    as unit_adaptive_performance_engine;
 import 'unit/app_update_service_test.dart' as unit_app_update_service;
 import 'unit/call_transport_test.dart' as unit_call_transport;
 import 'unit/quic_transport_stub_test.dart' as unit_quic_transport_stub;
 import 'unit/chat_creation_flow_test.dart' as unit_chat_creation_flow;
 import 'unit/chat_media_cache_test.dart' as unit_chat_media_cache;
 import 'unit/chat_message_sorting_test.dart' as unit_chat_message_sorting;
-import 'unit/device_hardware_recognition_test.dart' as unit_device_hardware_recognition;
+import 'unit/device_hardware_recognition_test.dart'
+    as unit_device_hardware_recognition;
 import 'unit/docx_parser_test.dart' as unit_docx_parser;
 import 'unit/feed_and_stickers_cache_test.dart' as unit_feed_and_stickers_cache;
-import 'unit/gallery_optimization_and_caching_test.dart' as unit_gallery_optimization_and_caching;
-import 'unit/list_virtualization_memory_test.dart' as unit_list_virtualization_memory;
+import 'unit/gallery_optimization_and_caching_test.dart'
+    as unit_gallery_optimization_and_caching;
+import 'unit/list_virtualization_memory_test.dart'
+    as unit_list_virtualization_memory;
 import 'unit/oauth_service_test.dart' as unit_oauth_service;
 import 'unit/pkce_test.dart' as unit_pkce;
-import 'unit/shared_media_classification_test.dart' as unit_shared_media_classification;
+import 'unit/shared_media_classification_test.dart'
+    as unit_shared_media_classification;
 import 'unit/smooth_text_streamer_test.dart' as unit_smooth_text_streamer;
 import 'unit/sound_service_test.dart' as unit_sound_service;
 import 'unit/sticker_formatter_test.dart' as unit_sticker_formatter;
 import 'unit/morphing_brand_mark_test.dart' as unit_morphing_brand_mark;
 import 'unit/moments_test.dart' as unit_moments;
 import 'unit/tri_sync_test.dart' as unit_tri_sync;
-import 'unit/nios_link_and_blob_store_test.dart' as unit_nios_link_and_blob_store;
+import 'unit/nios_link_and_blob_store_test.dart'
+    as unit_nios_link_and_blob_store;
 import 'widgets/adaptive_glass_test.dart' as widgets_adaptive_glass;
 import 'm3e_design_audit_test.dart' as m3e_design_audit;
-import 'widgets/chat_list_header_and_performance_test.dart' as widgets_chat_list_header;
-import 'widgets/chat_wallpaper_painter_test.dart' as widgets_chat_wallpaper_painter;
+import 'widgets/chat_list_header_and_performance_test.dart'
+    as widgets_chat_list_header;
+import 'widgets/chat_wallpaper_painter_test.dart'
+    as widgets_chat_wallpaper_painter;
 import 'widgets/create_post_screen_test.dart' as widgets_create_post_screen;
 import 'widgets/niosgram_feed_m3_test.dart' as widgets_niosgram_feed_m3;
-import 'widgets/public_profile_and_grouped_gallery_test.dart' as widgets_public_profile_gallery;
-import 'widgets/settings_about_screen_test.dart' as widgets_settings_about_screen;
-import 'widgets/settings_desktop_restructure_test.dart' as widgets_settings_desktop_restructure;
-import 'widgets/settings_master_detail_test.dart' as widgets_settings_master_detail;
+import 'widgets/public_profile_and_grouped_gallery_test.dart'
+    as widgets_public_profile_gallery;
+import 'widgets/settings_about_screen_test.dart'
+    as widgets_settings_about_screen;
+import 'widgets/settings_desktop_restructure_test.dart'
+    as widgets_settings_desktop_restructure;
+import 'widgets/settings_master_detail_test.dart'
+    as widgets_settings_master_detail;
 import 'widgets/settings_screens_m3_test.dart' as widgets_settings_screens_m3;
-import 'widgets/settings_scroll_smoothness_test.dart' as widgets_settings_scroll_smoothness;
-import 'widgets/settings_system_device_test.dart' as widgets_settings_system_device;
-import 'widgets/tab_shared_axis_switcher_test.dart' as widgets_tab_shared_axis_switcher;
+import 'widgets/settings_scroll_smoothness_test.dart'
+    as widgets_settings_scroll_smoothness;
+import 'widgets/settings_system_device_test.dart'
+    as widgets_settings_system_device;
+import 'widgets/tab_shared_axis_switcher_test.dart'
+    as widgets_tab_shared_axis_switcher;
 import 'widgets/vector_illustrations_test.dart' as widgets_vector_illustrations;
 import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
@@ -108,6 +153,34 @@ void main() {
     unit_tri_sync.main();
     unit_nios_link_and_blob_store.main();
     unit_m3_motion_kit.main();
+
+    // Performance lifecycle, storage and resource regressions. No device FPS assertions.
+    group('perf_lifecycle', perf_lifecycle.main);
+    group(
+      'background_service_serialization',
+      background_service_serialization.main,
+    );
+    group('update_asset_integrity', update_asset_integrity.main);
+    group('ota_update_artifact_state', ota_update_artifact_state.main);
+    group('e2ee_streaming_file_cipher', e2ee_streaming_file_cipher.main);
+    group('history_retention', history_retention.main);
+    group('encrypted_history_archive', encrypted_history_archive.main);
+    group('hive_account_cache', hive_account_cache.main);
+    group('message_layout_store', message_layout_store.main);
+    group('animated_media_budget', animated_media_budget.main);
+    group('e2ee_file_pipeline', e2ee_file_pipeline.main);
+    group('media_file_cache_pipeline', media_file_cache_pipeline.main);
+    group('blob_upload_resources', blob_upload_resources.main);
+    group('secret_storage_performance', secret_storage_performance.main);
+    group('secret_attachment_file_store', secret_attachment_file_store.main);
+    group(
+      'secret_attachment_file_delivery',
+      secret_attachment_file_delivery.main,
+    );
+    group('secret_engine_optimization', secret_engine_optimization.main);
+    group('secret_coordinator_lifecycle', secret_coordinator_lifecycle.main);
+    group('frame_percentiles', frame_percentiles.main);
+    group('perf_logic_guards', perf_logic_guards.main);
 
     // Protocol & Logic Suites
     group('Call connection regression', call_signaling_connection.main);

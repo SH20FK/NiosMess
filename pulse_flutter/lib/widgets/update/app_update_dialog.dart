@@ -10,18 +10,12 @@ import 'package:pulse_flutter/widgets/common/touch_container.dart';
 
 /// with release notes, live streaming progress, and seamless background download capability.
 class AppUpdateDialog extends ConsumerWidget {
-  const AppUpdateDialog({
-    super.key,
-    required this.updateInfo,
-  });
+  const AppUpdateDialog({super.key, required this.updateInfo});
 
   final AppUpdateInfo updateInfo;
 
   /// Shows the update bottom sheet sliding up smoothly from the bottom.
-  static Future<void> show(
-    BuildContext context,
-    AppUpdateInfo updateInfo,
-  ) {
+  static Future<void> show(BuildContext context, AppUpdateInfo updateInfo) {
     return AppBottomSheets.show<void>(
       context: context,
       isDismissible: true,
@@ -189,7 +183,9 @@ class AppUpdateDialog extends ConsumerWidget {
               children: <Widget>[
                 Text(
                   otaState.progress > 0
-                      ? context.l10n.updateDownloadingProgress((otaState.progress * 100).toInt())
+                      ? context.l10n.updateDownloadingProgress(
+                          (otaState.progress * 100).toInt(),
+                        )
                       : context.l10n.updateDownloadingPackage,
                   style: textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w600,
@@ -221,8 +217,11 @@ class AppUpdateDialog extends ConsumerWidget {
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.check_circle_outline_rounded,
-                      color: scheme.primary, size: 22),
+                  Icon(
+                    Icons.check_circle_outline_rounded,
+                    color: scheme.primary,
+                    size: 22,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -249,12 +248,18 @@ class AppUpdateDialog extends ConsumerWidget {
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.error_outline_rounded,
-                      color: scheme.error, size: 20),
+                  Icon(
+                    Icons.error_outline_rounded,
+                    color: scheme.error,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      otaState.errorMessage ?? context.l10n.updateDownloadFailed,
+                      context.l10n.updateFailureMessage(
+                        otaState.errorMessage ??
+                            context.l10n.updateDownloadFailed,
+                      ),
                       style: textTheme.bodySmall?.copyWith(
                         color: scheme.onErrorContainer,
                       ),
@@ -308,9 +313,7 @@ class AppUpdateDialog extends ConsumerWidget {
                 HapticService.tap();
                 notifier.cancelDownload();
               },
-              style: TextButton.styleFrom(
-                foregroundColor: scheme.error,
-              ),
+              style: TextButton.styleFrom(foregroundColor: scheme.error),
               child: Text(context.l10n.updateCancelDownload),
             ),
           ] else if (isReady) ...<Widget>[
@@ -366,10 +369,7 @@ class AppUpdateDialog extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    AppLoadingIndicator(
-                      size: 20,
-                      color: scheme.primary,
-                    ),
+                    AppLoadingIndicator(size: 20, color: scheme.primary),
                     const SizedBox(width: 12),
                     Text(
                       context.l10n.updateStartingInstaller,
@@ -400,13 +400,17 @@ class AppUpdateDialog extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       Icon(
-                        isError ? Icons.refresh_rounded : Icons.download_rounded,
+                        isError
+                            ? Icons.refresh_rounded
+                            : Icons.download_rounded,
                         color: scheme.onPrimary,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        isError ? context.l10n.updateRetry : context.l10n.updateNow,
+                        isError
+                            ? context.l10n.updateRetry
+                            : context.l10n.updateNow,
                         style: textTheme.labelLarge?.copyWith(
                           color: scheme.onPrimary,
                           fontWeight: FontWeight.w700,

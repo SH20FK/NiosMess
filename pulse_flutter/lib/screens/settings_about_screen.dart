@@ -37,15 +37,13 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 /// - Responsive team members grid with brand shape avatars and clean typography.
 /// - Pure M3 motion: horizontal [SharedAxisTransition] + one-shot entrance stagger.
 class SettingsAboutScreen extends ConsumerStatefulWidget {
-  const SettingsAboutScreen({
-    this.isEmbedded = false,
-    super.key,
-  });
+  const SettingsAboutScreen({this.isEmbedded = false, super.key});
 
   final bool isEmbedded;
 
   @override
-  ConsumerState<SettingsAboutScreen> createState() => _SettingsAboutScreenState();
+  ConsumerState<SettingsAboutScreen> createState() =>
+      _SettingsAboutScreenState();
 }
 
 class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
@@ -69,10 +67,12 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     setState(() => _isLoadingChangelog = true);
 
     try {
-      final String rawChangelog =
-          await rootBundle.loadString('assets/CHANGELOG.md');
-      final List<ChangelogRelease> releases =
-          AppUpdateService.parseAllReleases(rawChangelog);
+      final String rawChangelog = await rootBundle.loadString(
+        'assets/CHANGELOG.md',
+      );
+      final List<ChangelogRelease> releases = AppUpdateService.parseAllReleases(
+        rawChangelog,
+      );
       if (mounted) {
         setState(() {
           _cachedReleases = releases;
@@ -100,7 +100,8 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     HapticService.tap();
     SharePlus.instance.share(
       ShareParams(
-        text: '${context.l10n.appName} — ${context.l10n.aboutTagline}\n${AppConstants.webOrigin}',
+        text:
+            '${context.l10n.appName} — ${context.l10n.aboutTagline}\n${AppConstants.webOrigin}',
         subject: context.l10n.appName,
       ),
     );
@@ -164,14 +165,14 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
 
         // Block 2: Segmented Tabs, Content, and Footer
         Column(
-          children: <Widget>[
-            _buildSegmentedTabSelector(context, scheme, textTheme),
-            const SizedBox(height: 16),
-            _buildCurrentTabContent(context, scheme, textTheme),
-            const SizedBox(height: 14),
-            _buildFooter(context, scheme, textTheme),
-          ],
-        )
+              children: <Widget>[
+                _buildSegmentedTabSelector(context, scheme, textTheme),
+                const SizedBox(height: 16),
+                _buildCurrentTabContent(context, scheme, textTheme),
+                const SizedBox(height: 14),
+                _buildFooter(context, scheme, textTheme),
+              ],
+            )
             .animate(delay: const Duration(milliseconds: 100))
             .fadeIn(
               duration: M3Durations.medium2,
@@ -206,10 +207,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         child: Column(
           children: <Widget>[
             // Interactive shape-morphing brand mark
-            MorphingBrandMark(
-              size: 84,
-              onEasterEgg: _showEasterEgg,
-            ),
+            MorphingBrandMark(size: 84, onEasterEgg: _showEasterEgg),
             const SizedBox(height: 16),
 
             // App Name
@@ -236,10 +234,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             const SizedBox(height: 16),
 
             // Copyable Version Chip
-            _VersionChip(
-              packageInfoFuture: _packageInfo,
-              onCopy: _copyVersion,
-            ),
+            _VersionChip(packageInfoFuture: _packageInfo, onCopy: _copyVersion),
             const SizedBox(height: 20),
 
             // Tier 1: Primary Action (Bug Report)
@@ -392,21 +387,27 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
       alignment: Alignment.topCenter,
       child: PageTransitionSwitcher(
         duration: M3Durations.medium2,
-        transitionBuilder: (
-          Widget child,
-          Animation<double> primaryAnimation,
-          Animation<double> secondaryAnimation,
-        ) {
-          return SharedAxisTransition(
-            animation: primaryAnimation,
-            secondaryAnimation: secondaryAnimation,
-            transitionType: SharedAxisTransitionType.horizontal,
-            child: child,
-          );
-        },
+        transitionBuilder:
+            (
+              Widget child,
+              Animation<double> primaryAnimation,
+              Animation<double> secondaryAnimation,
+            ) {
+              return SharedAxisTransition(
+                animation: primaryAnimation,
+                secondaryAnimation: secondaryAnimation,
+                transitionType: SharedAxisTransitionType.horizontal,
+                child: child,
+              );
+            },
         child: KeyedSubtree(
           key: ValueKey<int>(_selectedTabIndex),
-          child: _tabWidgetForIndex(_selectedTabIndex, context, scheme, textTheme),
+          child: _tabWidgetForIndex(
+            _selectedTabIndex,
+            context,
+            scheme,
+            textTheme,
+          ),
         ),
       ),
     );
@@ -437,7 +438,8 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    final List<ChangelogRelease> releases = _cachedReleases ?? const <ChangelogRelease>[];
+    final List<ChangelogRelease> releases =
+        _cachedReleases ?? const <ChangelogRelease>[];
 
     if (_isLoadingChangelog && releases.isEmpty) {
       return Container(
@@ -447,7 +449,9 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
       );
     }
 
-    final ChangelogRelease? currentRelease = releases.isNotEmpty ? releases.first : null;
+    final ChangelogRelease? currentRelease = releases.isNotEmpty
+        ? releases.first
+        : null;
 
     return Material(
       color: scheme.surfaceContainerLow,
@@ -496,7 +500,10 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: scheme.primary.withValues(alpha: 0.15),
                               borderRadius: AppRadii.of(context).fullRadius,
@@ -533,11 +540,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                 (String change) => _buildChangeItem(scheme, textTheme, change),
               )
             else
-              _buildChangeItem(
-                scheme,
-                textTheme,
-                context.l10n.aboutUpToDate,
-              ),
+              _buildChangeItem(scheme, textTheme, context.l10n.aboutUpToDate),
           ],
         ),
       ),
@@ -645,7 +648,9 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                   padding: const EdgeInsets.all(12),
                   child: SizedBox.square(
                     dimension: 52,
-                    child: SvgPicture.asset('assets/svg/niosmess_logo_tintable.svg'),
+                    child: SvgPicture.asset(
+                      'assets/svg/niosmess_logo_tintable.svg',
+                    ),
                   ),
                 ),
               );
@@ -677,7 +682,8 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: _TeamMemberTile(
                     member: member,
-                    onOpenTelegram: () => _openUrl('https://t.me/${member.handle}'),
+                    onOpenTelegram: () =>
+                        _openUrl('https://t.me/${member.handle}'),
                   ),
                 ),
               );
@@ -792,10 +798,15 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
     final OtaUpdateState updated = ref.read(otaUpdateProvider);
     if (updated.status == OtaStatus.idle) {
       AppToast.showSuccess(context, context.l10n.aboutUpToDate);
-    } else if (updated.status == OtaStatus.available && updated.updateInfo != null) {
+    } else if (updated.status == OtaStatus.available &&
+        updated.updateInfo != null) {
       AppUpdateDialog.show(context, updated.updateInfo!);
-    } else if (updated.status == OtaStatus.error && updated.errorMessage != null) {
-      AppToast.showError(context, updated.errorMessage!);
+    } else if (updated.status == OtaStatus.error &&
+        updated.errorMessage != null) {
+      AppToast.showError(
+        context,
+        context.l10n.updateFailureMessage(updated.errorMessage!),
+      );
     }
   }
 
@@ -819,19 +830,22 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
     String subtitleText = context.l10n.aboutOtaSubtitle;
 
     if (isReady) {
-      final String ver = otaState.updateInfo?.latestVersion ?? BuildInfo.version;
+      final String ver =
+          otaState.updateInfo?.latestVersion ?? BuildInfo.version;
       subtitleText = context.l10n.aboutReadyToInstall(ver);
     } else if (isDownloading) {
       final int pct = (otaState.progress * 100).toInt().clamp(0, 100);
       subtitleText = context.l10n.aboutDownloadingProgress(pct);
     } else if (isAvailable && otaState.updateInfo != null) {
-      subtitleText = context.l10n.aboutUpdateAvailable(otaState.updateInfo!.latestVersion);
+      subtitleText = context.l10n.aboutUpdateAvailable(
+        otaState.updateInfo!.latestVersion,
+      );
     } else if (isChecking) {
       subtitleText = context.l10n.aboutCheckingStatus;
     } else if (isInstalling) {
       subtitleText = context.l10n.commonContinue;
     } else if (isError && otaState.errorMessage != null) {
-      subtitleText = otaState.errorMessage!;
+      subtitleText = context.l10n.updateFailureMessage(otaState.errorMessage!);
     }
 
     // Leading icon resolution
@@ -878,11 +892,7 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
                       color: containerBg,
                       borderRadius: AppRadii.of(context).smRadius,
                     ),
-                    child: Icon(
-                      leadingIcon,
-                      size: 20,
-                      color: leadingColor,
-                    ),
+                    child: Icon(leadingIcon, size: 20, color: leadingColor),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -903,8 +913,12 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
                           style: textTheme.bodySmall?.copyWith(
                             color: isReady
                                 ? scheme.primary
-                                : (isError ? scheme.error : scheme.onSurfaceVariant),
-                            fontWeight: isReady ? FontWeight.w600 : FontWeight.w400,
+                                : (isError
+                                      ? scheme.error
+                                      : scheme.onSurfaceVariant),
+                            fontWeight: isReady
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -933,7 +947,10 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: AppRadii.of(context).mdRadius,
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                         minimumSize: const Size(48, 48),
                       ),
                       child: (isChecking || isInstalling)
@@ -942,10 +959,10 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
                               isReady
                                   ? context.l10n.aboutInstallAction
                                   : (isAvailable
-                                      ? context.l10n.aboutDownloadAction
-                                      : (isError
-                                          ? context.l10n.commonRetry
-                                          : context.l10n.aboutCheckAction)),
+                                        ? context.l10n.aboutDownloadAction
+                                        : (isError
+                                              ? context.l10n.commonRetry
+                                              : context.l10n.aboutCheckAction)),
                               style: textTheme.labelMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -998,10 +1015,7 @@ class _OtaUpdateCardWidget extends ConsumerWidget {
 // =============================================================================
 
 class _VersionChip extends StatelessWidget {
-  const _VersionChip({
-    required this.packageInfoFuture,
-    required this.onCopy,
-  });
+  const _VersionChip({required this.packageInfoFuture, required this.onCopy});
 
   final Future<PackageInfo> packageInfoFuture;
   final ValueChanged<String> onCopy;
@@ -1102,7 +1116,12 @@ class _ConnectedGroup extends StatelessWidget {
     return Row(
       children: List<Widget>.generate(items.length, (int index) {
         final _GroupItem item = items[index];
-        final BorderRadius radius = _groupRadius(index, items.length, full, tight);
+        final BorderRadius radius = _groupRadius(
+          index,
+          items.length,
+          full,
+          tight,
+        );
 
         return Expanded(
           child: Padding(
@@ -1186,10 +1205,7 @@ class _BrandLink extends StatelessWidget {
                 svgAsset,
                 width: 20,
                 height: 20,
-                colorFilter: ColorFilter.mode(
-                  scheme.primary,
-                  BlendMode.srcIn,
-                ),
+                colorFilter: ColorFilter.mode(scheme.primary, BlendMode.srcIn),
               ),
             ),
           ),
@@ -1235,11 +1251,7 @@ class _ActionRow extends StatelessWidget {
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
                 borderRadius: AppRadii.of(context).smRadius,
               ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: scheme.onSurfaceVariant,
-              ),
+              child: Icon(icon, size: 20, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1278,10 +1290,7 @@ class _ActionRow extends StatelessWidget {
 }
 
 class _TeamMemberTile extends StatelessWidget {
-  const _TeamMemberTile({
-    required this.member,
-    required this.onOpenTelegram,
-  });
+  const _TeamMemberTile({required this.member, required this.onOpenTelegram});
 
   final TeamMember member;
   final VoidCallback onOpenTelegram;
@@ -1505,7 +1514,9 @@ class _BugReportDialogState extends ConsumerState<_BugReportDialog> {
             children: <Widget>[
               Expanded(
                 child: TextButton(
-                  onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isSubmitting
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -1526,7 +1537,9 @@ class _BugReportDialogState extends ConsumerState<_BugReportDialog> {
 
                           setState(() => _isSubmitting = true);
                           try {
-                            await ref.read(supportRepositoryProvider).createTicket(
+                            await ref
+                                .read(supportRepositoryProvider)
+                                .createTicket(
                                   ticketType: 'bug',
                                   subject: subj,
                                   body: desc,

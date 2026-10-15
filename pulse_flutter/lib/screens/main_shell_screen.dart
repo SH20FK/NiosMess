@@ -33,6 +33,10 @@ import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
 import 'package:pulse_flutter/widgets/nav/tab_shared_axis_switcher.dart';
 import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
+import 'package:pulse_flutter/providers/call_session_provider.dart';
+import 'package:pulse_flutter/core/services/background_service.dart';
+import 'package:pulse_flutter/core/services/account_background_policy.dart';
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 
 class MainShellScreen extends ConsumerStatefulWidget {
   const MainShellScreen({required this.tab, super.key});
@@ -45,11 +49,7 @@ class MainShellScreen extends ConsumerStatefulWidget {
 
 class _MainShellScreenState extends ConsumerState<MainShellScreen>
     with WidgetsBindingObserver {
-  static const List<String> _tabs = [
-    'chats',
-    'niosgram',
-    'settings',
-  ];
+  static const List<String> _tabs = ['chats', 'niosgram', 'settings'];
 
   late final Set<int> _activatedTabs;
   final TabTransitionController _tabTransition = TabTransitionController();
@@ -59,26 +59,99 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   Timer? _startupTimer;
   Timer? _tabWarmupTimer;
   bool _mainScrolling = false;
+  ProviderSubscription<BackgroundMode>? _backgroundModeSubscription;
+  ProviderSubscription<bool>? _callSubscription;
+  ProviderSubscription<bool>? _authSubscription;
+  AdaptivePerformanceNotifier? _performance;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _activatedTabs = <int>{_tabIndex(widget.tab)};
+    _performance = ref.read(adaptivePerformanceProvider.notifier);
+    unawaited(
+      BackgroundService.setAuthenticated(
+        ref.read(authProvider).isAuthenticated &&
+            !ref.read(authProvider.notifier).isLoggingOut,
+      ),
+    );
+    BackgroundService.workCount.addListener(_syncBackgroundPolicy);
+    _authSubscription = ref.listenManual(
+      authProvider.select((s) => s.isAuthenticated),
+      (_, authenticated) {
+        unawaited(
+          BackgroundService.setAuthenticated(
+            authenticated && !ref.read(authProvider.notifier).isLoggingOut,
+          ),
+        );
+        _syncBackgroundPolicy();
+      },
+    );
+    _backgroundModeSubscription = ref.listenManual(
+      uiSettingsProvider.select((s) => s.backgroundMode),
+      (_, _) => _syncBackgroundPolicy(),
+    );
+    _callSubscription = ref.listenManual(
+      callSessionProvider.select((session) => session?.isActive ?? false),
+      (_, _) => _syncBackgroundPolicy(),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _runStartupSequence();
+      _syncBackgroundPolicy();
       _scheduleTabWarmup();
     });
+  }
+
+  void _syncInteraction() {
+    _performance?.setInteractionActive(
+      this,
+      _mainScrolling || _tabTransition.isTransitioning,
+    );
+  }
+
+  void _syncBackgroundPolicy() {
+    if (!mounted) return;
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    final policy = AccountBackgroundPolicy(
+      authenticated:
+          ref.read(authProvider).isAuthenticated &&
+          BackgroundService.accountAuthenticated,
+      background:
+          lifecycle == AppLifecycleState.paused ||
+          lifecycle == AppLifecycleState.hidden,
+      reliable:
+          ref.read(uiSettingsProvider).backgroundMode ==
+          BackgroundMode.reliable,
+      activeWork:
+          (ref.read(callSessionProvider)?.isActive ?? false) ||
+          BackgroundService.workCount.value > 0,
+    );
+    final socket = ref.read(webSocketClientProvider);
+    if (policy.keepSocket) {
+      socket.resumeFromBackground();
+    } else {
+      socket.pauseForBackground();
+    }
+    if (ref.exists(secretChatCoordinatorProvider)) {
+      ref.read(secretChatCoordinatorProvider).value?.setTransportAllowed(policy.keepSocket);
+    }
+    unawaited(BackgroundService.applyPolicy(policy));
   }
 
   void _scheduleTabWarmup() {
     _tabWarmupTimer?.cancel();
     _tabWarmupTimer = Timer(const Duration(milliseconds: 400), () {
       if (!mounted) return;
-      if (_tabTransition.isTransitioning || _mainScrolling) { _scheduleTabWarmup(); return; }
-      final pending = List.generate(_tabs.length, (i) => i)
-          .where((i) => !_activatedTabs.contains(i)).firstOrNull;
+      if (_tabTransition.isTransitioning || _mainScrolling) {
+        _scheduleTabWarmup();
+        return;
+      }
+      final pending = List.generate(
+        _tabs.length,
+        (i) => i,
+      ).where((i) => !_activatedTabs.contains(i)).firstOrNull;
       if (pending == null) return;
       setState(() => _activatedTabs.add(pending));
       _scheduleTabWarmup();
@@ -101,13 +174,12 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _syncBackgroundPolicy();
     if (state == AppLifecycleState.resumed) {
       if (_activatedTabs.length < _tabs.length) _scheduleTabWarmup();
-      ref.read(webSocketClientProvider).resumeFromBackground();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       _tabWarmupTimer?.cancel();
-      ref.read(webSocketClientProvider).pauseForBackground();
     }
   }
 
@@ -143,9 +215,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radii.card),
-          side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.2),
-          ),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.2)),
         ),
         margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 12),
@@ -195,7 +265,10 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   .read(authProvider.notifier)
                   .refreshFcmTokenRegistration();
               if (mounted) {
-                AppToast.showSuccess(context, context.l10n.shellPushNotificationsSuccess);
+                AppToast.showSuccess(
+                  context,
+                  context.l10n.shellPushNotificationsSuccess,
+                );
               }
             }
           },
@@ -214,8 +287,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       final int lastCheckMs =
           prefs.getInt('last_daily_ota_check_timestamp') ?? 0;
       final DateTime now = DateTime.now();
-      final DateTime lastCheck =
-          DateTime.fromMillisecondsSinceEpoch(lastCheckMs);
+      final DateTime lastCheck = DateTime.fromMillisecondsSinceEpoch(
+        lastCheckMs,
+      );
 
       // Only check automatically once every 24 hours
       if (now.difference(lastCheck).inHours < 24) {
@@ -255,6 +329,11 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
   @override
   void dispose() {
+    _authSubscription?.close();
+    _backgroundModeSubscription?.close();
+    _callSubscription?.close();
+    BackgroundService.workCount.removeListener(_syncBackgroundPolicy);
+    _performance?.setInteractionActive(this, false);
     _startupTimer?.cancel();
     _tabWarmupTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -316,8 +395,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
             ),
             tooltip: 'Начать общение',
             onPressed: () {
-              final bool haptics =
-                  ref.read(uiSettingsProvider.select((s) => s.haptics));
+              final bool haptics = ref.read(
+                uiSettingsProvider.select((s) => s.haptics),
+              );
               if (haptics) {
                 HapticService.tap();
               }
@@ -335,9 +415,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     final bool navBarFloating = ref.watch(
       uiSettingsProvider.select((s) => s.navBarFloating),
     );
-    final bool haptics = ref.watch(
-      uiSettingsProvider.select((s) => s.haptics),
-    );
+    final bool haptics = ref.watch(uiSettingsProvider.select((s) => s.haptics));
     final int? desktopChatId = ref.watch(desktopSelectedChatProvider);
     final int currentIndex = _tabIndex(widget.tab);
     final bool isOffline = !(ref.watch(connectivityProvider).value ?? true);
@@ -373,196 +451,225 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         SystemUtils.minimizeApp();
       },
       child: LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isWide = constraints.maxWidth >= Breakpoints.medium;
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final bool isWide = constraints.maxWidth >= Breakpoints.medium;
 
-        final double minChatListWidth = 260.0;
-        final double maxChatListWidth =
-            (constraints.maxWidth - 340.0).clamp(minChatListWidth, 640.0);
-        final double effectiveChatListWidth =
-            _desktopChatListWidth.clamp(minChatListWidth, maxChatListWidth);
+          final double minChatListWidth = 260.0;
+          final double maxChatListWidth = (constraints.maxWidth - 340.0).clamp(
+            minChatListWidth,
+            640.0,
+          );
+          final double effectiveChatListWidth = _desktopChatListWidth.clamp(
+            minChatListWidth,
+            maxChatListWidth,
+          );
 
-        final List<Widget> pages = <Widget>[
-          if (isWide)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                SizedBox(
-                  width: effectiveChatListWidth,
-                  child: const ChatListScreen(),
-                ),
-                _DraggableSidebarDivider(
-                  onDragUpdate: (double delta) {
-                    setState(() {
-                      _desktopChatListWidth = (_desktopChatListWidth + delta)
-                          .clamp(minChatListWidth, maxChatListWidth);
-                    });
-                  },
-                  onReset: () {
-                    setState(() {
-                      _desktopChatListWidth = 360.0;
-                    });
-                  },
-                ),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    switchInCurve: M3SpringCurves.expressiveDecel,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (Widget child, Animation<double> animation) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0.015, 0.0), // ~12dp subtle slide
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: desktopChatId != null
-                        ? ChatDetailScreen(
-                            key: ValueKey<int>(desktopChatId),
-                            chatId: desktopChatId.toString(),
-                            isDesktopSplit: true,
-                          )
-                        : KeyedSubtree(
-                            key: const ValueKey<String>('desktop_empty_chat'),
-                            child: _buildDesktopEmptyChatPlaceholder(context),
-                          ),
+          final List<Widget> pages = <Widget>[
+            if (isWide)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  SizedBox(
+                    width: effectiveChatListWidth,
+                    child: const ChatListScreen(),
                   ),
-                ),
-              ],
-            )
-          else
-            const ChatListScreen(),
-          isWide
-              ? Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 820), child: const NiosgramScreen()))
-              : const NiosgramScreen(),
-          const ProfileScreen(),
-        ];
-        final PerformanceTier tier =
-            ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
-        final bool tabMotion =
-            !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
+                  _DraggableSidebarDivider(
+                    onDragUpdate: (double delta) {
+                      setState(() {
+                        _desktopChatListWidth = (_desktopChatListWidth + delta)
+                            .clamp(minChatListWidth, maxChatListWidth);
+                      });
+                    },
+                    onReset: () {
+                      setState(() {
+                        _desktopChatListWidth = 360.0;
+                      });
+                    },
+                  ),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: M3SpringCurves.expressiveDecel,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(
+                                    0.015,
+                                    0.0,
+                                  ), // ~12dp subtle slide
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: child,
+                              ),
+                            );
+                          },
+                      child: desktopChatId != null
+                          ? ChatDetailScreen(
+                              key: ValueKey<int>(desktopChatId),
+                              chatId: desktopChatId.toString(),
+                              isDesktopSplit: true,
+                            )
+                          : KeyedSubtree(
+                              key: const ValueKey<String>('desktop_empty_chat'),
+                              child: _buildDesktopEmptyChatPlaceholder(context),
+                            ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              const ChatListScreen(),
+            isWide
+                ? Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 820),
+                      child: const NiosgramScreen(),
+                    ),
+                  )
+                : const NiosgramScreen(),
+            const ProfileScreen(),
+          ];
+          final PerformanceTier tier = ref.watch(
+            adaptivePerformanceProvider.select((s) => s.tier),
+          );
+          final bool tabMotion =
+              !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
 
-        final Widget body = NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            if (notification is ScrollStartNotification) _mainScrolling = true;
-            if (notification is ScrollEndNotification) _mainScrolling = false;
-            return false;
-          },
-          child: M3RouteTabSwitcher(
-          index: currentIndex,
-          controller: _tabTransition,
-          animate: tabMotion,
-          duration: tier.isTierA
-              ? (isWide
-                  ? const Duration(milliseconds: 300)
-                  : const Duration(milliseconds: 320))
-              : const Duration(milliseconds: 300),
-          children: List<Widget>.generate(pages.length, (int index) {
-            if (!_activatedTabs.contains(index)) {
-              return const SizedBox.shrink();
-            }
-            final bool isActive = index == currentIndex;
-            return TickerMode(
-              enabled: isActive,
-              child: RepaintBoundary(child: pages[index]),
+          final Widget body = NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollStartNotification) {
+                _mainScrolling = true;
+              }
+              if (notification is ScrollEndNotification) _mainScrolling = false;
+              _syncInteraction();
+              return false;
+            },
+            child: M3RouteTabSwitcher(
+              onTransitionStateChanged: (_) => _syncInteraction(),
+              index: currentIndex,
+              controller: _tabTransition,
+              animate: tabMotion,
+              duration: tier.isTierA
+                  ? (isWide
+                        ? const Duration(milliseconds: 300)
+                        : const Duration(milliseconds: 320))
+                  : const Duration(milliseconds: 300),
+              children: List<Widget>.generate(pages.length, (int index) {
+                if (!_activatedTabs.contains(index)) {
+                  return const SizedBox.shrink();
+                }
+                final bool isActive = index == currentIndex;
+                return TickerMode(
+                  enabled: isActive,
+                  child: RepaintBoundary(child: pages[index]),
+                );
+              }),
+            ),
+          );
+
+          if (isWide) {
+            return Scaffold(
+              body: Column(
+                children: [
+                  OfflineBanner(isOffline: isOffline),
+                  Expanded(
+                    child: Row(
+                      children: <Widget>[
+                        NavigationRail(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerLow,
+                          selectedIndex: currentIndex,
+                          onDestinationSelected: _onTapTab,
+                          labelType: NavigationRailLabelType.all,
+                          useIndicator: true,
+                          indicatorColor: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer,
+                          leading: Padding(
+                            padding: const EdgeInsets.only(bottom: 20, top: 12),
+                            child: FloatingActionButton(
+                              elevation: 0,
+                              onPressed: () {
+                                if (haptics) {
+                                  HapticService.tap();
+                                }
+                                _showCreateMenu(context);
+                              },
+                              child: const Icon(Icons.edit_rounded),
+                            ),
+                          ),
+                          destinations: <NavigationRailDestination>[
+                            NavigationRailDestination(
+                              icon: const Icon(
+                                Icons.chat_bubble_outline_rounded,
+                              ),
+                              selectedIcon: const Icon(
+                                Icons.chat_bubble_rounded,
+                              ),
+                              label: Text(context.l10n.tabChats),
+                            ),
+                            NavigationRailDestination(
+                              icon: const Icon(Icons.grid_view_rounded),
+                              selectedIcon: const Icon(Icons.grid_view_rounded),
+                              label: Text(context.l10n.tabNiosgram),
+                            ),
+                            NavigationRailDestination(
+                              icon: const Icon(Icons.settings_outlined),
+                              selectedIcon: const Icon(Icons.settings_rounded),
+                              label: Text(context.l10n.tabSettings),
+                            ),
+                          ],
+                        ),
+                        const VerticalDivider(thickness: 1, width: 1),
+                        Expanded(
+                          child: PulseScaffoldBody(
+                            expand: true,
+                            topSafe: false,
+                            bottomSafe: true,
+                            child: body,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             );
-          }),
-        ));
+          }
 
-        if (isWide) {
           return Scaffold(
+            extendBody: navBarFloating,
             body: Column(
               children: [
                 OfflineBanner(isOffline: isOffline),
                 Expanded(
-                  child: Row(
-                    children: <Widget>[
-                      NavigationRail(
-                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                        selectedIndex: currentIndex,
-                        onDestinationSelected: _onTapTab,
-                        labelType: NavigationRailLabelType.all,
-                        useIndicator: true,
-                        indicatorColor: Theme.of(context).colorScheme.primaryContainer,
-                        leading: Padding(
-                          padding: const EdgeInsets.only(bottom: 20, top: 12),
-                          child: FloatingActionButton(
-                            elevation: 0,
-                            onPressed: () {
-                              if (haptics) {
-                                HapticService.tap();
-                              }
-                              _showCreateMenu(context);
-                            },
-                            child: const Icon(Icons.edit_rounded),
-                          ),
-                        ),
-                        destinations: <NavigationRailDestination>[
-                          NavigationRailDestination(
-                            icon: const Icon(Icons.chat_bubble_outline_rounded),
-                            selectedIcon: const Icon(Icons.chat_bubble_rounded),
-                            label: Text(context.l10n.tabChats),
-                          ),
-                          NavigationRailDestination(
-                            icon: const Icon(Icons.grid_view_rounded),
-                            selectedIcon: const Icon(Icons.grid_view_rounded),
-                            label: Text(context.l10n.tabNiosgram),
-                          ),
-                          NavigationRailDestination(
-                            icon: const Icon(Icons.settings_outlined),
-                            selectedIcon: const Icon(Icons.settings_rounded),
-                            label: Text(context.l10n.tabSettings),
-                          ),
-                        ],
-                      ),
-                      const VerticalDivider(thickness: 1, width: 1),
-                      Expanded(
-                        child: PulseScaffoldBody(
-                          expand: true,
-                          topSafe: false,
-                          bottomSafe: true,
-                          child: body,
-                        ),
-                      ),
-                    ],
+                  child: PulseScaffoldBody(
+                    expand: true,
+                    topSafe: false,
+                    bottomSafe: false,
+                    child: body,
                   ),
                 ),
               ],
             ),
-          );
-        }
-
-        return Scaffold(
-          extendBody: navBarFloating,
-          body: Column(
-            children: [
-              OfflineBanner(isOffline: isOffline),
-              Expanded(
-                child: PulseScaffoldBody(
-                  expand: true,
-                  topSafe: false,
-                  bottomSafe: false,
-                  child: body,
-                ),
+            bottomNavigationBar: RepaintBoundary(
+              child: AppBottomNav(
+                currentIndex: currentIndex,
+                onTap: _onTapTab,
+                hapticsEnabled: haptics,
               ),
-            ],
-          ),
-          bottomNavigationBar: RepaintBoundary(
-            child: AppBottomNav(
-              currentIndex: currentIndex,
-              onTap: _onTapTab,
-              hapticsEnabled: haptics,
             ),
-          ),
-          floatingActionButton: currentIndex == 0 ? _composeFab(context) : null,
-        );
-      },
-    ),
+            floatingActionButton: currentIndex == 0
+                ? _composeFab(context)
+                : null,
+          );
+        },
+      ),
     );
   }
 
@@ -631,10 +738,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 }
 
 class _DraggableSidebarDivider extends StatefulWidget {
-  const _DraggableSidebarDivider({
-    required this.onDragUpdate,
-    this.onReset,
-  });
+  const _DraggableSidebarDivider({required this.onDragUpdate, this.onReset});
 
   final ValueChanged<double> onDragUpdate;
   final VoidCallback? onReset;

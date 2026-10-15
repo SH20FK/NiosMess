@@ -119,8 +119,3 @@ typedef SendAudioCallback = void Function(Uint8List opusData);
 /// Callback: outgoing video frame to send.
 typedef SendVideoCallback = void Function(
     Uint8List data, int frameType, double timestamp);
-
-// AbstractCallSession intentionally omitted.
-// CallSession is a concrete class defined in the platform-specific
-// implementation files (call_session_io.dart / call_session_web_stub.dart).
-// Both expose the same public API.

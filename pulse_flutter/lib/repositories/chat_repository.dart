@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/utils/cancellation_token.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/chat_actions_models.dart';
@@ -567,79 +568,97 @@ class ChatRepository {
     String? localId,
   }) async {
     cancellationToken?.throwIfCancelled();
-    onStageChanged?.call(UploadStage.hashing);
+    final releaseWork = BackgroundService.retainWork();
+    RandomAccessFile? uploadFile;
+    try {
+      onStageChanged?.call(UploadStage.hashing);
 
-    // 1. Fast streaming SHA-256 in background Isolate
-    final BlobHashResult hashResult = await BlobHasher.hashFile(
-      filePath: filePath,
-      bytes: bytes,
-    );
-    cancellationToken?.throwIfCancelled();
-
-    final BlobStoreService blobService = _ref.read(blobStoreServiceProvider);
-
-    // 2. Client-side deduplication check
-    onStageChanged?.call(UploadStage.checking);
-    final BlobCheckResult check = await blobService.checkDedup(
-      BlobCheckRequest(
-        contentHash: hashResult.contentHash,
-        size: hashResult.fileSize,
-        mimeType: _guessMime(filename),
-        chunkSize: hashResult.chunkSize,
-        chunkCount: hashResult.chunkCount,
-      ),
-    );
-    cancellationToken?.throwIfCancelled();
-
-    // Instant deduplication hit!
-    if (check.alreadyExists && check.status == 'ready') {
-      onProgress(hashResult.fileSize, hashResult.fileSize);
-      onStageChanged?.call(UploadStage.processing);
-      return check.blobId;
-    }
-
-    // 3. Resumable chunked upload
-    onStageChanged?.call(UploadStage.uploading);
-    final List<int> missing = check.missingChunks;
-    int bytesUploaded = (hashResult.chunkCount - missing.length) * hashResult.chunkSize;
-    if (bytesUploaded > hashResult.fileSize) bytesUploaded = hashResult.fileSize;
-    onProgress(bytesUploaded, hashResult.fileSize);
-
-    for (final int chunkIdx in missing) {
-      cancellationToken?.throwIfCancelled();
-      final Uint8List chunkData = await BlobStoreService.sliceChunkBytes(
+      // 1. Fast streaming SHA-256 in background Isolate
+      final BlobHashResult hashResult = await BlobHasher.hashFile(
         filePath: filePath,
         bytes: bytes,
-        chunkIndex: chunkIdx,
-        chunkSize: hashResult.chunkSize,
-        totalSize: hashResult.fileSize,
       );
+      cancellationToken?.throwIfCancelled();
 
-      final String? chunkHash = chunkIdx < hashResult.chunkHashes.length
-          ? hashResult.chunkHashes[chunkIdx]
+      final BlobStoreService blobService = _ref.read(blobStoreServiceProvider);
+
+      // 2. Client-side deduplication check
+      onStageChanged?.call(UploadStage.checking);
+      final BlobCheckResult check = await blobService.checkDedup(
+        BlobCheckRequest(
+          contentHash: hashResult.contentHash,
+          size: hashResult.fileSize,
+          mimeType: _guessMime(filename),
+          chunkSize: hashResult.chunkSize,
+          chunkCount: hashResult.chunkCount,
+        ),
+      );
+      cancellationToken?.throwIfCancelled();
+
+      // Instant deduplication hit!
+      if (check.alreadyExists && check.status == 'ready') {
+        onProgress(hashResult.fileSize, hashResult.fileSize);
+        onStageChanged?.call(UploadStage.processing);
+        return check.blobId;
+      }
+
+      // 3. Resumable chunked upload
+      onStageChanged?.call(UploadStage.uploading);
+      final List<int> missing = check.missingChunks;
+      int bytesUploaded =
+          (hashResult.chunkCount - missing.length) * hashResult.chunkSize;
+      if (bytesUploaded > hashResult.fileSize) {
+        bytesUploaded = hashResult.fileSize;
+      }
+      onProgress(bytesUploaded, hashResult.fileSize);
+
+      uploadFile = filePath != null && filePath.isNotEmpty
+          ? await File(filePath).open(mode: FileMode.read)
           : null;
+      for (final int chunkIdx in missing) {
+        cancellationToken?.throwIfCancelled();
+        final Uint8List chunkData = await BlobStoreService.sliceChunkBytes(
+          filePath: filePath,
+          bytes: bytes,
+          chunkIndex: chunkIdx,
+          chunkSize: hashResult.chunkSize,
+          totalSize: hashResult.fileSize,
+          fileHandle: uploadFile,
+        );
 
-      await blobService.uploadChunk(
+        final String? chunkHash = chunkIdx < hashResult.chunkHashes.length
+            ? hashResult.chunkHashes[chunkIdx]
+            : null;
+
+        await blobService.uploadChunk(
+          blobId: check.blobId,
+          chunkIndex: chunkIdx,
+          bytes: chunkData,
+          chunkHash: chunkHash,
+          cancellationToken: cancellationToken,
+        );
+
+        bytesUploaded += chunkData.length;
+        if (bytesUploaded > hashResult.fileSize) {
+          bytesUploaded = hashResult.fileSize;
+        }
+        onProgress(bytesUploaded, hashResult.fileSize);
+      }
+      // 4. Finalize & assemble CAS blob on server
+      onStageChanged?.call(UploadStage.processing);
+      final BlobCommitResult commit = await blobService.commitBlob(
         blobId: check.blobId,
-        chunkIndex: chunkIdx,
-        bytes: chunkData,
-        chunkHash: chunkHash,
         cancellationToken: cancellationToken,
       );
 
-      bytesUploaded += chunkData.length;
-      if (bytesUploaded > hashResult.fileSize) bytesUploaded = hashResult.fileSize;
-      onProgress(bytesUploaded, hashResult.fileSize);
+      return commit.blobId;
+    } finally {
+      try {
+        await uploadFile?.close();
+      } finally {
+        releaseWork();
+      }
     }
-
-    // 4. Finalize & assemble CAS blob on server
-    onStageChanged?.call(UploadStage.processing);
-    final BlobCommitResult commit = await blobService.commitBlob(
-      blobId: check.blobId,
-      cancellationToken: cancellationToken,
-    );
-
-    return commit.blobId;
   }
 
   static String _guessMime(String filename) {
@@ -676,17 +695,55 @@ class ChatRepository {
 
   /// Secret uploads always use the deployed opaque-file endpoint, never CAS
   /// deduplication or a fallback that could receive the original plaintext.
-  Future<String> uploadSecretCiphertext({required Uint8List bytes,
-    required String mediaSubtype, required String localId}) async {
+  Future<String> uploadSecretCiphertext({Uint8List? bytes, String? filePath,
+    required String mediaSubtype, required String localId,
+    CancellationToken? cancellationToken}) async {
+    cancellationToken?.throwIfCancelled();
     final token = _ref.read(webSocketClientProvider).readToken();
     if (token == null) throw StateError('No session');
-    return _httpMultipartUpload(bytes: bytes, filename: 'encrypted.bin',
+    if ((filePath == null || filePath.isEmpty) && (bytes == null || bytes.isEmpty)) {
+      throw StateError('Secret ciphertext unavailable');
+    }
+    final size = filePath != null && filePath.isNotEmpty
+        ? await File(filePath).length() : bytes!.length;
+    return _httpMultipartUpload(bytes: bytes, filePath: filePath, filename: 'encrypted.bin',
       mediaSubtype: (mediaSubtype == 'voice' || mediaSubtype == 'circle') ? mediaSubtype : 'media',
-      fileSize: bytes.length, token: token, localId: localId,
-      onProgress: (sent, total) {});
+      fileSize: size, token: token, localId: localId,
+      cancellationToken: cancellationToken, onProgress: (sent, total) {});
   }
 
   Future<String> _httpMultipartUpload({
+    Uint8List? bytes,
+    String? filePath,
+    required String filename,
+    required String mediaSubtype,
+    required int fileSize,
+    required String token,
+    required void Function(int sent, int total) onProgress,
+    void Function(UploadStage stage)? onStageChanged,
+    CancellationToken? cancellationToken,
+    String? localId,
+  }) async {
+    final release = BackgroundService.retainWork();
+    try {
+      return await _httpMultipartUploadOwned(
+        bytes: bytes,
+        filePath: filePath,
+        filename: filename,
+        mediaSubtype: mediaSubtype,
+        fileSize: fileSize,
+        token: token,
+        onProgress: onProgress,
+        onStageChanged: onStageChanged,
+        cancellationToken: cancellationToken,
+        localId: localId,
+      );
+    } finally {
+      release();
+    }
+  }
+
+  Future<String> _httpMultipartUploadOwned({
     Uint8List? bytes,
     String? filePath,
     required String filename,

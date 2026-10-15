@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'android_abi.dart';
+import 'update_asset_selector.dart';
 
 /// Information about an available application update.
 class AppUpdateInfo {
@@ -15,6 +17,7 @@ class AppUpdateInfo {
     required this.changelog,
     this.apkSize,
     this.publishedAt,
+    this.sha256,
   });
 
   /// Whether a newer version is available.
@@ -43,6 +46,7 @@ class AppUpdateInfo {
 
   /// Date and time when the release was published.
   final DateTime? publishedAt;
+  final String? sha256;
 }
 
 /// A parsed release entry from CHANGELOG.md.
@@ -72,35 +76,17 @@ class AppUpdateService {
   const AppUpdateService({
     this.repoOwner = 'SH20FK',
     this.repoName = 'NiosMess',
+    this.httpClient,
+    this.androidAbi,
   });
 
   final String repoOwner;
   final String repoName;
+  final http.Client? httpClient;
+  final String? androidAbi;
 
-  /// Remote raw pubspec URL to reliably fetch latest version without API rate limits.
-  String get _rawPubspecUrl =>
-      'https://raw.githubusercontent.com/$repoOwner/$repoName/main/pulse_flutter/pubspec.yaml';
-
-  /// Remote raw CHANGELOG.md URL to fetch release notes directly.
-  String get _rawChangelogUrl =>
-      'https://raw.githubusercontent.com/$repoOwner/$repoName/main/CHANGELOG.md';
-
-  /// Release API URL for latest release notes and assets.
   String get _latestReleaseUrl =>
       'https://api.github.com/repos/$repoOwner/$repoName/releases/latest';
-
-  /// Canonical fallback direct download URL for latest APK.
-  String get _canonicalApkUrl =>
-      'https://github.com/$repoOwner/$repoName/releases/download/latest/niosmess.apk';
-
-  /// Platform-aware canonical download URL for latest release binary.
-  String get _canonicalDownloadUrl {
-    final bool isWindows =
-        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-    return isWindows
-        ? 'https://github.com/$repoOwner/$repoName/releases/download/latest/niosmess-windows-setup.exe'
-        : _canonicalApkUrl;
-  }
 
   /// Compares two Semantic Versioning strings (e.g. "3.49.1+102" vs "3.47.0+98").
   /// Returns `true` if [latest] is strictly greater than [current].
@@ -162,10 +148,10 @@ class AppUpdateService {
 
     final String cleanTarget = targetVersion != null
         ? targetVersion
-            .split('+')
-            .first
-            .replaceFirst(RegExp(r'^v', caseSensitive: false), '')
-            .trim()
+              .split('+')
+              .first
+              .replaceFirst(RegExp(r'^v', caseSensitive: false), '')
+              .trim()
         : '';
 
     for (final String line in lines) {
@@ -175,18 +161,17 @@ class AppUpdateService {
           // Strictly stop at the start of any older version section
           break;
         }
-        if (cleanTarget.isEmpty || trimmed.contains(cleanTarget)) {
+        final headerVersion = RegExp(
+          r'^##\s*\[?v?(\d+\.\d+\.\d+)',
+          caseSensitive: false,
+        ).firstMatch(trimmed)?.group(1);
+        if (cleanTarget.isEmpty || headerVersion == cleanTarget) {
           capturing = true;
           continue;
         }
       } else if (capturing) {
         buffer.writeln(line);
       }
-    }
-
-    if (buffer.isEmpty && cleanTarget.isNotEmpty) {
-      // Fallback: extract the very first '## ' section (the latest version)
-      return parseChangelog(trimmedInput, null);
     }
 
     return buffer.toString().trim();
@@ -207,18 +192,21 @@ class AppUpdateService {
 
     void saveCurrent() {
       if (currentVersion.isNotEmpty && currentChanges.isNotEmpty) {
-        releases.add(ChangelogRelease(
-          version: currentVersion,
-          rawHeader: currentHeader,
-          changes: List<String>.unmodifiable(currentChanges),
-          date: currentDate,
-        ));
+        releases.add(
+          ChangelogRelease(
+            version: currentVersion,
+            rawHeader: currentHeader,
+            changes: List<String>.unmodifiable(currentChanges),
+            date: currentDate,
+          ),
+        );
       }
       currentChanges.clear();
     }
 
-    final RegExp headerRegex =
-        RegExp(r'^##\s*\\?\[?([0-9]+\.[0-9]+\.[0-9]+[^\]\n]*)\]?(.*)$');
+    final RegExp headerRegex = RegExp(
+      r'^##\s*\\?\[?([0-9]+\.[0-9]+\.[0-9]+[^\]\n]*)\]?(.*)$',
+    );
 
     for (final String line in lines) {
       final String trimmed = line.trim();
@@ -241,7 +229,9 @@ class AppUpdateService {
         }
       } else if (trimmed.isNotEmpty && currentVersion.isNotEmpty) {
         String item = trimmed;
-        if (item.startsWith('• ') || item.startsWith('- ') || item.startsWith('* ')) {
+        if (item.startsWith('• ') ||
+            item.startsWith('- ') ||
+            item.startsWith('* ')) {
           item = item.substring(2).trim();
         }
         if (item.isNotEmpty) {
@@ -256,174 +246,168 @@ class AppUpdateService {
 
   /// Checks for a newer version of the application using multi-source verification.
   Future<AppUpdateInfo> checkForUpdate() async {
-    final PackageInfo packageInfo = await PackageInfo.fromPlatform();
-    final String currentBaseVersion = packageInfo.version;
-    final String currentBuildNumber = packageInfo.buildNumber;
-    final String fullCurrentVersion = currentBuildNumber.isNotEmpty
-        ? '$currentBaseVersion+$currentBuildNumber'
-        : currentBaseVersion;
+    final package = await PackageInfo.fromPlatform();
+    final current =
+        '${package.version}${package.buildNumber.isEmpty ? '' : '+${package.buildNumber}'}';
+    final client = httpClient ?? http.Client();
+    Future<Map<String, dynamic>?> readJson(String url) async {
+      try {
+        final response = await client
+            .get(
+              Uri.parse(url),
+              headers: {
+                'User-Agent': 'NiosMess-App-Updater',
+                'Accept': 'application/json',
+              },
+            )
+            .timeout(const Duration(seconds: 8));
+        if (response.statusCode != 200) return null;
+        final body = jsonDecode(response.body);
+        return body is Map<String, dynamic> ? body : null;
+      } catch (_) {
+        return null;
+      }
+    }
 
-    String latestVersion = '';
-    String tagName = 'latest';
-    String downloadUrl = _canonicalApkUrl;
-    String changelog = '';
-    int? apkSize;
-    DateTime? publishedAt;
-
-    // 1. Primary: Read version directly from raw pubspec.yaml on main branch
-    // (Fast, 100% reliable, zero GitHub API rate limits)
     try {
-      final http.Response pubspecResponse = await http.get(
-        Uri.parse(_rawPubspecUrl),
-        headers: <String, String>{
-          'User-Agent': 'NiosMess-App-Updater',
-        },
-      ).timeout(const Duration(seconds: 8));
-
-      if (pubspecResponse.statusCode == 200) {
-        final String content = pubspecResponse.body;
-        for (final String line in content.split('\n')) {
-          final String trimmed = line.trim();
-          if (trimmed.startsWith('version:')) {
-            latestVersion = trimmed.replaceFirst('version:', '').trim();
-            break;
+      final fallbackManifestUrl =
+          'https://github.com/$repoOwner/$repoName/releases/latest/download/version.json';
+      final responses = await Future.wait([
+        readJson(_latestReleaseUrl),
+        readJson(fallbackManifestUrl),
+      ]);
+      final release = responses[0];
+      final releaseAssets = release?['assets'] as List<dynamic>? ?? [];
+      final manifestAssetUrl =
+          releaseAssets
+                  .whereType<Map<String, dynamic>>()
+                  .where((asset) => asset['name'] == 'version.json')
+                  .firstOrNull?['browser_download_url']
+              as String?;
+      final releaseTag = release?['tag_name'] as String?;
+      final manifestUrl =
+          manifestAssetUrl ??
+          (releaseTag == null
+              ? fallbackManifestUrl
+              : 'https://github.com/$repoOwner/$repoName/releases/download/${Uri.encodeComponent(releaseTag)}/version.json');
+      final metadata = manifestUrl == fallbackManifestUrl
+          ? responses[1]
+          : await readJson(manifestUrl);
+      final versionPattern = RegExp(r'v?(\d+\.\d+\.\d+(?:\+\d+)?)');
+      final publishedVersion = versionPattern
+          .firstMatch('${release?['name'] ?? ''} ${release?['tag_name'] ?? ''}')
+          ?.group(1);
+      final metadataVersion =
+          metadata?['version'] is String &&
+              RegExp(
+                r'^\d+\.\d+\.\d+(?:\+\d+)?$',
+              ).hasMatch(metadata!['version'] as String)
+          ? metadata['version'] as String
+          : null;
+      final matchingMetadata =
+          metadata != null &&
+          metadataVersion != null &&
+          (publishedVersion == null || metadataVersion == publishedVersion);
+      final latest = publishedVersion ?? metadataVersion ?? current;
+      final windows =
+          !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+      final abi = androidAbi ?? currentAndroidAbi();
+      final selected = selectUpdateAsset(
+        releaseAssets,
+        windows: windows,
+        androidAbi: abi,
+      );
+      final androidAssets = matchingMetadata
+          ? metadata['android_assets']
+          : null;
+      final manifestAsset = windows
+          ? (matchingMetadata ? metadata['windows_asset'] : null)
+          : androidAssets is Map
+          ? androidAssets.values
+                    .whereType<Map>()
+                    .where(
+                      (asset) => sameUpdateAssetUrl(
+                        asset['url'],
+                        selected?['browser_download_url'],
+                      ),
+                    )
+                    .firstOrNull ??
+                (androidAssets[abi] ?? androidAssets['universal'])
+          : null;
+      String url = selected?['browser_download_url'] as String? ?? '';
+      int? size = selected?['size'] as int?;
+      String? digest = updateSha256(selected?['digest']);
+      // A mutable `latest` release can expose its new name before all uploads
+      // finish. Never combine that name with assets from an older manifest.
+      var consistent = matchingMetadata;
+      if (matchingMetadata) {
+        if (url.isEmpty) {
+          url =
+              (manifestAsset is Map
+                      ? manifestAsset['url']
+                      : windows
+                      ? metadata['windows_download_url']
+                      : metadata['download_url'])
+                  as String? ??
+              '';
+          if (manifestAsset is Map) {
+            size = manifestAsset['size'] as int?;
+            digest = updateSha256(manifestAsset['sha256']);
           }
+        } else if (manifestAsset is Map) {
+          final manifestDigest = updateSha256(manifestAsset['sha256']);
+          final manifestSize = manifestAsset['size'] as int?;
+          consistent =
+              sameUpdateAssetUrl(manifestAsset['url'], url) &&
+              (size == null || manifestSize == null || size == manifestSize) &&
+              (digest == null ||
+                  manifestDigest == null ||
+                  digest == manifestDigest);
+          digest ??= manifestDigest;
+          size ??= manifestSize;
+        }
+        // The new manifest format guarantees authenticated artifact hashes.
+        // Legacy manifests remain readable until their next published release.
+        final hasManifestAssets = windows
+            ? metadata.containsKey('windows_asset')
+            : androidAssets is Map;
+        if (hasManifestAssets &&
+            (manifestAsset is! Map ||
+                updateSha256(manifestAsset['sha256']) == null ||
+                (manifestAsset['size'] as int? ?? 0) <= 0 ||
+                digest == null)) {
+          consistent = false;
         }
       }
-    } catch (e) {
-      debugPrint('[AppUpdateService] Error fetching raw pubspec: $e');
+      final notes = matchingMetadata ? metadata['changelog'] as String? : null;
+      return AppUpdateInfo(
+        hasUpdate:
+            consistent && isNewerVersion(latest, current) && url.isNotEmpty,
+        currentVersion: current,
+        latestVersion: latest,
+        tagName:
+            releaseTag ??
+            (matchingMetadata ? metadata['tag_name'] as String? : null) ??
+            'latest',
+        downloadUrl: url,
+        changelog:
+            notes ??
+            parseChangelog(
+              release?['body'] as String? ?? '',
+              latest.split('+').first,
+            ),
+        apkSize: size,
+        sha256: digest,
+        publishedAt: DateTime.tryParse(
+          ((matchingMetadata ? metadata['published_at'] : null) ??
+                  release?['published_at'] ??
+                  '')
+              .toString(),
+        ),
+      );
+    } finally {
+      if (httpClient == null) client.close();
     }
-
-    // 2. Fetch clean human-friendly CHANGELOG.md without API rate limits
-    try {
-      final http.Response changelogResponse = await http.get(
-        Uri.parse(_rawChangelogUrl),
-        headers: <String, String>{
-          'User-Agent': 'NiosMess-App-Updater',
-        },
-      ).timeout(const Duration(seconds: 8));
-
-      if (changelogResponse.statusCode == 200) {
-        final String parsed = parseChangelog(
-          changelogResponse.body,
-          latestVersion.isNotEmpty ? latestVersion : null,
-        );
-        if (parsed.isNotEmpty) {
-          changelog = parsed;
-        }
-      }
-    } catch (e) {
-      debugPrint('[AppUpdateService] Error fetching raw CHANGELOG.md: $e');
-    }
-
-    // 3. Secondary: Query release metadata for assets, size and fallback changelog
-    try {
-      final http.Response response = await http.get(
-        Uri.parse(_latestReleaseUrl),
-        headers: <String, String>{
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'NiosMess-App-Updater',
-        },
-      ).timeout(const Duration(seconds: 8));
-
-      if (response.statusCode == 200) {
-        final dynamic decoded = jsonDecode(response.body);
-        if (decoded is Map<String, dynamic>) {
-          tagName = decoded['tag_name'] as String? ?? 'latest';
-          final String releaseName = decoded['name'] as String? ?? '';
-          final String releaseBody = decoded['body'] as String? ?? '';
-          final String? publishedAtStr = decoded['published_at'] as String?;
-
-          if (publishedAtStr != null) {
-            publishedAt = DateTime.tryParse(publishedAtStr);
-          }
-
-          if (changelog.isEmpty &&
-              releaseBody.isNotEmpty &&
-              !releaseBody.contains('Full Changelog')) {
-            changelog = releaseBody;
-          }
-
-          // If latestVersion was not retrieved from pubspec, extract from release
-          if (latestVersion.isEmpty) {
-            final String cleanTag =
-                tagName.replaceFirst(RegExp(r'^v', caseSensitive: false), '').trim();
-            if (cleanTag.isNotEmpty && cleanTag.toLowerCase() != 'latest') {
-              latestVersion = cleanTag;
-            } else if (releaseName.isNotEmpty) {
-              final RegExp verRegex = RegExp(r'v?(\d+\.\d+\.\d+(?:\+\d+)?)');
-              final RegExpMatch? match = verRegex.firstMatch(releaseName);
-              if (match != null) {
-                latestVersion = match.group(1)!;
-              }
-            }
-          }
-
-          final List<dynamic> assets =
-              decoded['assets'] as List<dynamic>? ?? <dynamic>[];
-
-          final bool isWindows =
-              !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-          Map<String, dynamic>? selectedAsset;
-
-          for (final dynamic asset in assets) {
-            if (asset is Map<String, dynamic>) {
-              final String name =
-                  (asset['name'] as String? ?? '').toLowerCase();
-              if (isWindows) {
-                if (name.endsWith('.exe')) {
-                  // Prefer explicit setup or installer exe
-                  if (name.contains('setup') ||
-                      name.contains('installer') ||
-                      selectedAsset == null) {
-                    selectedAsset = asset;
-                  }
-                }
-              } else {
-                if (name.endsWith('.apk')) {
-                  selectedAsset = asset;
-                  break;
-                }
-              }
-            }
-          }
-
-          if (selectedAsset != null) {
-            final String? url =
-                selectedAsset['browser_download_url'] as String?;
-            if (url != null && url.isNotEmpty) {
-              downloadUrl = url;
-            }
-            apkSize = selectedAsset['size'] as int?;
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('[AppUpdateService] Error fetching release metadata: $e');
-    }
-
-    if (downloadUrl.isEmpty &&
-        isNewerVersion(latestVersion, fullCurrentVersion)) {
-      downloadUrl = _canonicalDownloadUrl;
-    }
-
-    if (latestVersion.isEmpty) {
-      latestVersion = fullCurrentVersion;
-    }
-
-    final bool hasUpdate = isNewerVersion(latestVersion, fullCurrentVersion) &&
-        downloadUrl.isNotEmpty;
-
-    return AppUpdateInfo(
-      hasUpdate: hasUpdate,
-      currentVersion: fullCurrentVersion,
-      latestVersion: latestVersion,
-      tagName: tagName,
-      downloadUrl: downloadUrl,
-      changelog: changelog,
-      apkSize: apkSize,
-      publishedAt: publishedAt,
-    );
   }
 }
 

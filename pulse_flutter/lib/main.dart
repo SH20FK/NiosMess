@@ -16,6 +16,7 @@ import 'package:pulse_flutter/router/app_router.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/core/storage/hive_bootstrap.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -52,55 +53,37 @@ Future<void> main() async {
         debugPrint('FLUTTER_ERROR_EXCEPTION: ${details.exception}');
         debugPrint('FLUTTER_ERROR_STACK: ${details.stack}');
       };
-      PlatformDispatcher.instance.onError = (
-        Object error,
-        StackTrace stack,
-      ) {
+      PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
         logger.error(error, stack, source: 'platform');
         debugPrint('PLATFORM_ERROR: $error\n$stack');
         return true;
       };
 
-      // Parallelize independent storage & cache initializations for fast cold boot
+      // Register the native background entry point before yielding bootstrap.
+      // Plugin initialization and permission UX run after the first screen.
+      if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
+        PushNotificationService.prepareDeferredFirebase();
+      }
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        PushNotificationService.registerBackgroundHandler();
+      }
       late final SharedPreferences sharedPrefs;
       await Future.wait(<Future<void>>[
-        const CacheService().ensureInitialized(),
-        EncryptedMessageCache.ensureInitialized(),
-        ChatMediaCache.ensureInitialized(),
+        (() async {
+          await HiveBootstrap.ensureInitialized();
+          await Future.wait(<Future<void>>[
+            const CacheService().ensureInitialized(),
+            EncryptedMessageCache.ensureInitialized(),
+            ChatMediaCache.ensureInitialized(),
+          ]);
+        })(),
         SharedPreferences.getInstance().then((SharedPreferences p) {
           sharedPrefs = p;
         }),
       ]);
       UiSettingsNotifier.cachedPrefs = sharedPrefs;
       AppTimeSettings.initialize();
-      if (kIsWeb) {
-        try {
-          await Firebase.initializeApp(
-            options: DefaultFirebaseOptions.currentPlatform,
-          );
-          await PushNotificationService.init();
-        } catch (e) {
-          AppLogger.instance.error(e, StackTrace.current, source: 'firebase_web');
-        }
-      } else {
-        await Future.wait(<Future<void>>[
-          DeepLinkService.init(),
-          if (Platform.isAndroid || Platform.isIOS)
-            (() async {
-              try {
-                await Firebase.initializeApp(
-                  options: DefaultFirebaseOptions.currentPlatform,
-                );
-                await PushNotificationService.init();
-              } catch (e) {
-                AppLogger.instance.error(e, StackTrace.current, source: 'firebase');
-              }
-            })(),
-          if (DesktopWindowService.isDesktop)
-            DesktopWindowService.instance.initialize(),
-        ]);
-        BackgroundService.init();
-      }
+      if (!kIsWeb) BackgroundService.init();
       logger.info('Application started', source: 'bootstrap');
       runApp(const ProviderScope(child: PulseApp()));
     },
@@ -174,9 +157,11 @@ class _PulseAppState extends ConsumerState<PulseApp> {
       }
       final int? chatId = int.tryParse(data['chat_id']?.toString() ?? '');
       final int? callId = int.tryParse(
-          data['call_id']?.toString() ?? data['message_id']?.toString() ?? '');
+        data['call_id']?.toString() ?? data['message_id']?.toString() ?? '',
+      );
       final String? roomId = data['room_id']?.toString();
-      final bool isVideo = data['is_video'] == true ||
+      final bool isVideo =
+          data['is_video'] == true ||
           data['is_video'] == 'true' ||
           data['is_video'] == 1 ||
           data['is_video'] == '1';
@@ -200,7 +185,10 @@ class _PulseAppState extends ConsumerState<PulseApp> {
         } catch (_) {
           final context = AppRouter.navigatorKey.currentContext;
           if (mounted && context != null && context.mounted) {
-            AppToast.showError(context, context.l10n.callFailureMessage('connection_failed'));
+            AppToast.showError(
+              context,
+              context.l10n.callFailureMessage('connection_failed'),
+            );
           }
         } finally {
           _acceptingNotificationCall = false;
@@ -212,20 +200,73 @@ class _PulseAppState extends ConsumerState<PulseApp> {
       final int? chatId = int.tryParse(data['chat_id']?.toString() ?? '');
       final String? roomId = data['room_id']?.toString();
       final int? callId = int.tryParse(
-          data['call_id']?.toString() ?? data['message_id']?.toString() ?? '');
+        data['call_id']?.toString() ?? data['message_id']?.toString() ?? '',
+      );
       if (chatId != null && roomId != null) {
         ref.read(incomingCallProvider.notifier).set(null);
-        unawaited(ref.read(callRepositoryProvider).decline(
-              chatId: chatId,
-              roomId: roomId,
-              messageId: callId ?? 0,
-            ));
+        unawaited(
+          ref
+              .read(callRepositoryProvider)
+              .decline(chatId: chatId, roomId: roomId, messageId: callId ?? 0),
+        );
       }
     };
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      PushNotificationService.checkAndHandlePendingNotification();
+      if (!mounted) return;
+      unawaited(_initializeDeferredServices());
     });
+  }
+
+  Future<void> _initializeDeferredServices() async {
+    Future<void> guarded(String source, Future<void> Function() action) async {
+      try {
+        await action();
+      } catch (error, stack) {
+        AppLogger.instance.error(error, stack, source: source);
+      }
+    }
+
+    await Future.wait(<Future<void>>[
+      if (!kIsWeb) guarded('deep_links', DeepLinkService.init),
+      if (DesktopWindowService.isDesktop)
+        guarded('desktop_window', DesktopWindowService.instance.initialize),
+      if (kIsWeb || Platform.isAndroid || Platform.isIOS)
+        guarded('firebase', () async {
+          try {
+            await Firebase.initializeApp(
+              options: DefaultFirebaseOptions.currentPlatform,
+            );
+          } finally {
+            // Auth's token request and the shell's permission UX may already
+            // be waiting. Release both even on failure so their normal error
+            // handling can run instead of leaving startup futures pending.
+            PushNotificationService.finishDeferredFirebase();
+          }
+          await PushNotificationService.init();
+          if (!mounted) return;
+          if (!ref.read(authProvider).hydrated) {
+            final hydrated = Completer<void>();
+            final subscription = ref.listenManual(
+              authProvider.select((state) => state.hydrated),
+              (_, ready) {
+                if (ready && !hydrated.isCompleted) hydrated.complete();
+              },
+              fireImmediately: true,
+            );
+            await hydrated.future;
+            subscription.close();
+          }
+          if (!mounted) return;
+          // The first frame may have passed before getInitialMessage completes.
+          // Consume it only now, after router/call listeners have mounted.
+          ref.read(callPushHandlerProvider);
+          PushNotificationService.checkAndHandlePendingNotification();
+          if (ref.read(authProvider).isAuthenticated) {
+            await ref.read(authProvider.notifier).refreshFcmTokenRegistration();
+          }
+        }),
+    ]);
   }
 
   @override
@@ -257,20 +298,27 @@ class _PulseAppState extends ConsumerState<PulseApp> {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeMode themeMode =
-        ref.watch(uiSettingsProvider.select((s) => s.themeMode));
-    final String? localeCode =
-        ref.watch(uiSettingsProvider.select((s) => s.localeCode));
-    final AppTimeZoneMode timeZoneMode =
-        ref.watch(uiSettingsProvider.select((s) => s.timeZoneMode));
-    final String? timeZoneId =
-        ref.watch(uiSettingsProvider.select((s) => s.timeZoneId));
-    final AppFontScale fontScale =
-        ref.watch(uiSettingsProvider.select((s) => s.fontScale));
-    final bool showPerformanceOverlay =
-        ref.watch(uiSettingsProvider.select((s) => s.showPerformanceOverlay));
-    final VisualThemeSettings visualTheme =
-        ref.watch(uiSettingsProvider.select((s) => s.visualTheme));
+    final ThemeMode themeMode = ref.watch(
+      uiSettingsProvider.select((s) => s.themeMode),
+    );
+    final String? localeCode = ref.watch(
+      uiSettingsProvider.select((s) => s.localeCode),
+    );
+    final AppTimeZoneMode timeZoneMode = ref.watch(
+      uiSettingsProvider.select((s) => s.timeZoneMode),
+    );
+    final String? timeZoneId = ref.watch(
+      uiSettingsProvider.select((s) => s.timeZoneId),
+    );
+    final AppFontScale fontScale = ref.watch(
+      uiSettingsProvider.select((s) => s.fontScale),
+    );
+    final bool showPerformanceOverlay = ref.watch(
+      uiSettingsProvider.select((s) => s.showPerformanceOverlay),
+    );
+    final VisualThemeSettings visualTheme = ref.watch(
+      uiSettingsProvider.select((s) => s.visualTheme),
+    );
     final GoRouter router = ref.watch(appRouterProvider);
     ref.watch(callPushHandlerProvider);
     ref.watch(secretChatCoordinatorProvider);
@@ -279,24 +327,32 @@ class _PulseAppState extends ConsumerState<PulseApp> {
     final String normalized = (localeCode ?? '').trim().toLowerCase();
     final String effectiveLocaleCode =
         (normalized == 'ru' || normalized == 'en')
-            ? normalized
-            : systemLanguageCode.toLowerCase().startsWith('ru')
-                ? 'ru'
-                : 'en';
-    final Locale? appLocale =
-        localeCode == null ? null : Locale(effectiveLocaleCode);
+        ? normalized
+        : systemLanguageCode.toLowerCase().startsWith('ru')
+        ? 'ru'
+        : 'en';
+    final Locale? appLocale = localeCode == null
+        ? null
+        : Locale(effectiveLocaleCode);
 
     _syncTimeSettings(effectiveLocaleCode, timeZoneMode, timeZoneId);
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        final bool isHighContrast =
-            WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.highContrast;
+        final bool isHighContrast = WidgetsBinding
+            .instance
+            .platformDispatcher
+            .accessibilityFeatures
+            .highContrast;
         final double contrastLevel = isHighContrast ? 1.0 : 0.0;
         return MaterialApp.router(
           title: 'NiosMess',
-          themeAnimationDuration: WidgetsBinding.instance.platformDispatcher
-                  .accessibilityFeatures.disableAnimations
+          themeAnimationDuration:
+              WidgetsBinding
+                  .instance
+                  .platformDispatcher
+                  .accessibilityFeatures
+                  .disableAnimations
               ? Duration.zero
               : const Duration(milliseconds: 500),
           themeAnimationCurve: M3SpringCurves.expressiveStandard,
@@ -324,9 +380,9 @@ class _PulseAppState extends ConsumerState<PulseApp> {
             return CircularThemeSwitcher(
               child: Builder(
                 builder: (BuildContext innerContext) {
-                  final mediaQuery = MediaQuery.of(innerContext).copyWith(
-                    textScaler: TextScaler.linear(fontScale.scale),
-                  );
+                  final mediaQuery = MediaQuery.of(
+                    innerContext,
+                  ).copyWith(textScaler: TextScaler.linear(fontScale.scale));
                   return MediaQuery(
                     data: mediaQuery,
                     child: AppLockGate(
@@ -339,8 +395,8 @@ class _PulseAppState extends ConsumerState<PulseApp> {
                           Consumer(
                             builder: (BuildContext context, WidgetRef ref, _) =>
                                 ref.watch(incomingCallProvider) == null
-                                    ? const SizedBox.shrink()
-                                    : const IncomingCallOverlay(),
+                                ? const SizedBox.shrink()
+                                : const IncomingCallOverlay(),
                           ),
                           const CallOverlay(),
                           const InAppNotificationBannerOverlay(),
@@ -363,10 +419,10 @@ class AppScrollBehavior extends MaterialScrollBehavior {
 
   @override
   Set<PointerDeviceKind> get dragDevices => const <PointerDeviceKind>{
-        PointerDeviceKind.touch,
-        PointerDeviceKind.trackpad,
-        PointerDeviceKind.stylus,
-      };
+    PointerDeviceKind.touch,
+    PointerDeviceKind.trackpad,
+    PointerDeviceKind.stylus,
+  };
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
@@ -393,7 +449,11 @@ class AppScrollBehavior extends MaterialScrollBehavior {
   }
 
   @override
-  Widget buildScrollbar(BuildContext context, Widget child, ScrollableDetails details) {
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
     if (kIsWeb && details.controller != null) {
       return RawScrollbar(
         controller: details.controller,

@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppTimeZoneMode { auto, manual }
@@ -724,11 +723,7 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   void setBackgroundMode(BackgroundMode value) {
     state = state.copyWith(backgroundMode: value);
     _persistKey(_backgroundModeKey, value.name);
-    if (value == BackgroundMode.reliable) {
-      BackgroundService.startReliable();
-    } else {
-      BackgroundService.stop();
-    }
+    // Account lifecycle owns the foreground service and socket together.
   }
 
   void setUseSystemDynamic(bool value) {

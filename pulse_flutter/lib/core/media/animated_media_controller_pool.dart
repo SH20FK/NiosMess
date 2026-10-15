@@ -1,132 +1,217 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 
-/// Entry for an actively playing animated media widget.
-class _ActiveMediaEntry {
-  _ActiveMediaEntry({
-    required this.id,
-    required this.onPause,
-    required this.onResume,
-  });
-
-  final String id;
+class _PlayingMedia {
+  _PlayingMedia(this.onPause, this.onResume);
   final VoidCallback onPause;
   final VoidCallback onResume;
 }
 
-/// Global coordinator for animated media and video controllers in chat bubbles.
-///
-/// Guarantees:
-/// - Maximum 1-2 active playing video decoders concurrently.
-/// - Tier-aware: Tier A = 2, Tier B = 1, Tier C / Power Saver = 0 (poster frame only).
-/// - Automatically pauses oldest active players when new items enter the viewport.
-/// - Pauses active media during rapid flings / fast scrolling.
-class AnimatedMediaControllerPool {
+class _DecoderLease {
+  _DecoderLease(this.release, this.userInitiated);
+  final Future<void> Function() release;
+  final bool userInitiated;
+}
+
+class _PosterLease {
+  _PosterLease(this.bytes, this.evict);
+  final int bytes;
+  final VoidCallback evict;
+}
+
+/// Native decoder reservations are granted before controller initialization.
+/// Tokens belong to widget instances, never URLs (identical stickers may coexist).
+class AnimatedMediaControllerPool extends ChangeNotifier {
   AnimatedMediaControllerPool._();
 
   static final AnimatedMediaControllerPool instance =
       AnimatedMediaControllerPool._();
 
-  final List<_ActiveMediaEntry> _activePlayers = <_ActiveMediaEntry>[];
-  bool _isFastScrolling = false;
-  bool get isFastScrolling => _isFastScrolling;
+  final Map<Object, _DecoderLease> _decoders = {};
+  final Map<Object, _PlayingMedia> _playing = {};
+  final Set<Object> _fastScrollSources = {};
+  final Set<Future<void>> _releases = {};
+  final Map<Object, _PosterLease> _posters = {};
+  int _posterBytes = 0;
+  static const maxPosterCount = 8;
+  static const maxPosterBytes = 2 * 1024 * 1024;
+  static const _defaultScrollSource = 'default';
+  Future<void> _acquisition = SynchronousFuture<void>(null);
+  int _generation = 0;
 
-  /// Returns maximum concurrent active players for the given [tier].
-  int getMaxActive(PerformanceTier tier) {
-    if (_isFastScrolling) return 0;
-    return switch (tier) {
-      PerformanceTier.tierA => 2,
-      PerformanceTier.tierB => 1,
-      PerformanceTier.tierC => 0,
-    };
+  bool get isFastScrolling => _fastScrollSources.isNotEmpty;
+  int get activeCount => _playing.length;
+  int get initializedCount => _decoders.length;
+  int get posterCount => _posters.length;
+  int get posterBytes => _posterBytes;
+
+  bool retainPoster({
+    required Object id,
+    required int bytes,
+    required VoidCallback onEvict,
+  }) {
+    if (bytes > maxPosterBytes || bytes <= 0) return false;
+    releasePoster(id);
+    while (_posters.length >= maxPosterCount ||
+        _posterBytes + bytes > maxPosterBytes) {
+      final oldest = _posters.keys.first;
+      final lease = _posters[oldest]!;
+      releasePoster(oldest);
+      lease.evict();
+    }
+    _posters[id] = _PosterLease(bytes, onEvict);
+    _posterBytes += bytes;
+    return true;
   }
 
-  /// Whether autoplay is currently allowed for the given [tier].
-  bool canAutoplay(PerformanceTier tier) {
-    if (_isFastScrolling) return false;
-    return tier != PerformanceTier.tierC;
+  void releasePoster(Object id) {
+    final removed = _posters.remove(id);
+    if (removed != null) _posterBytes -= removed.bytes;
   }
 
-  /// Requests permission to play. If limit is reached, pauses the oldest player.
-  /// Returns `true` if this item is allowed to play.
+  int getMaxActive(PerformanceTier tier) => isFastScrolling
+      ? 0
+      : switch (tier) {
+          PerformanceTier.tierA => 2,
+          PerformanceTier.tierB => 1,
+          PerformanceTier.tierC => 0,
+        };
+
+  int getMaxInitialized(PerformanceTier tier) => getMaxActive(tier);
+  bool canAutoplay(PerformanceTier tier) => getMaxActive(tier) > 0;
+
+  void enforceBudget(PerformanceTier tier) {
+    final hasManual = _decoders.values.any((entry) => entry.userInitiated);
+    final limit = hasManual ? 1 : getMaxInitialized(tier);
+    while (_decoders.length > limit) {
+      final candidate = _decoders.entries.firstWhere(
+        (entry) => !entry.value.userInitiated,
+        orElse: () => _decoders.entries.first,
+      );
+      unawaited(release(candidate.key));
+    }
+  }
+
+  /// Evicted codecs finish releasing before a replacement may initialize.
+  Future<bool> acquireInitialization({
+    required Object id,
+    required PerformanceTier tier,
+    required Future<void> Function() onRelease,
+    bool isUserInitiated = false,
+  }) {
+    final completion = Completer<bool>();
+    final generation = _generation;
+    _acquisition = _acquisition.then((_) async {
+      try {
+        if (_releases.isNotEmpty) await Future.wait(_releases.toList());
+        final limit = isUserInitiated ? 1 : getMaxInitialized(tier);
+        if (generation != _generation || limit == 0) {
+          completion.complete(false);
+          return;
+        }
+        if (_decoders.containsKey(id)) {
+          completion.complete(true);
+          return;
+        }
+        // Autoplay must never steal the codec of a manually playing circle.
+        if (!isUserInitiated &&
+            _decoders.values.any((entry) => entry.userInitiated)) {
+          completion.complete(false);
+          return;
+        }
+        while (_decoders.length >= limit) {
+          await release(_decoders.keys.first);
+        }
+        if (generation != _generation ||
+            (!isUserInitiated && !canAutoplay(tier))) {
+          completion.complete(false);
+          return;
+        }
+        _decoders[id] = _DecoderLease(onRelease, isUserInitiated);
+        completion.complete(true);
+      } catch (error, stack) {
+        completion.completeError(error, stack);
+      }
+    });
+    return completion.future;
+  }
+
   bool requestPlay({
-    required String id,
+    required Object id,
     required PerformanceTier tier,
     required VoidCallback onPause,
     required VoidCallback onResume,
     bool isUserInitiated = false,
   }) {
-    // If already active, move to MRU position
-    final int existingIndex = _activePlayers.indexWhere((e) => e.id == id);
-    if (existingIndex >= 0) {
-      final entry = _activePlayers.removeAt(existingIndex);
-      _activePlayers.add(entry);
-      return true;
+    if (!_decoders.containsKey(id)) return false;
+    final limit = isUserInitiated ? 1 : getMaxActive(tier);
+    if (limit == 0) return false;
+    _playing.remove(id);
+    while (_playing.length >= limit) {
+      final oldest = _playing.remove(_playing.keys.first)!;
+      oldest.onPause();
     }
-
-    final int maxAllowed = isUserInitiated ? 1 : getMaxActive(tier);
-    if (maxAllowed <= 0 && !isUserInitiated) {
-      return false;
-    }
-
-    // Evict oldest until under budget
-    while (_activePlayers.length >= maxAllowed && _activePlayers.isNotEmpty) {
-      final oldest = _activePlayers.removeAt(0);
-      try {
-        oldest.onPause();
-      } catch (_) {}
-    }
-
-    _activePlayers.add(
-      _ActiveMediaEntry(
-        id: id,
-        onPause: onPause,
-        onResume: onResume,
-      ),
-    );
+    _playing[id] = _PlayingMedia(onPause, onResume);
     return true;
   }
 
-  /// Informs the pool that a media element was paused (e.g. scrolled offscreen).
-  void notifyPaused(String id) {
-    _activePlayers.removeWhere((e) => e.id == id);
+  void notifyPaused(Object id) => _playing.remove(id);
+  void notifyDisposed(Object id) => unawaited(release(id));
+
+  Future<void> release(Object id) {
+    try {
+      _playing.remove(id)?.onPause();
+    } catch (_) {
+      /* The controller may have already lost its native texture. */
+    }
+    final entry = _decoders.remove(id);
+    if (entry == null) return Future<void>.value();
+    late final Future<void> release;
+    release = Future<void>.sync(entry.release)
+        .catchError((Object _) {
+          debugPrint('AnimatedMediaControllerPool: DECODER_RELEASE_FAILED');
+        })
+        .whenComplete(() {
+          _releases.remove(release);
+        });
+    _releases.add(release);
+    return release;
   }
 
-  /// Informs the pool that a media controller was disposed.
-  void notifyDisposed(String id) {
-    _activePlayers.removeWhere((e) => e.id == id);
-  }
-
-  /// Notifies the pool of scroll activity. Pauses active players during fast flings.
-  void setFastScrolling(bool isFast) {
-    if (_isFastScrolling == isFast) return;
-    _isFastScrolling = isFast;
-    if (_isFastScrolling) {
-      for (final entry in _activePlayers) {
-        try {
-          entry.onPause();
-        } catch (_) {}
-      }
+  void setFastScrolling(bool isFast, {Object? source}) {
+    final wasFast = isFastScrolling;
+    final token = source ?? _defaultScrollSource;
+    if (isFast) {
+      _fastScrollSources.add(token);
     } else {
-      for (final entry in _activePlayers) {
-        try {
-          entry.onResume();
-        } catch (_) {}
+      _fastScrollSources.remove(token);
+    }
+    if (wasFast == isFastScrolling) return;
+    if (isFastScrolling) {
+      for (final id in _decoders.keys.toList(growable: false)) {
+        if (!_decoders[id]!.userInitiated) unawaited(release(id));
       }
     }
+    notifyListeners();
   }
 
-  /// Resets all active players (e.g. when exiting chat).
   void reset() {
-    for (final entry in _activePlayers) {
-      try {
-        entry.onPause();
-      } catch (_) {}
+    _generation++;
+    // Old queued acquisitions are invalidated by generation. A fresh queue
+    // must not inherit their scheduling zone (or wait on an obsolete request).
+    // The native release barrier below still protects replacement codecs.
+    _acquisition = SynchronousFuture<void>(null);
+    for (final id in _decoders.keys.toList(growable: false)) {
+      unawaited(release(id));
     }
-    _activePlayers.clear();
-    _isFastScrolling = false;
+    _playing.clear();
+    _fastScrollSources.clear();
+    for (final entry in _posters.values.toList()) {
+      entry.evict();
+    }
+    _posters.clear();
+    _posterBytes = 0;
   }
-
-  /// Number of currently active playing media items.
-  int get activeCount => _activePlayers.length;
 }

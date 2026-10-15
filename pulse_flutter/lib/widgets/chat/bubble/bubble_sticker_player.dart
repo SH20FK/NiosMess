@@ -1,10 +1,14 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
+import 'package:pulse_flutter/core/media/media_playback_visibility.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class StickerVideoPlayer extends ConsumerStatefulWidget {
   const StickerVideoPlayer({required this.url, super.key});
@@ -15,92 +19,263 @@ class StickerVideoPlayer extends ConsumerStatefulWidget {
 }
 
 class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
+  final Object _mediaToken = Object();
+  final _pool = AnimatedMediaControllerPool.instance;
   VideoPlayerController? _controller;
+  ProviderSubscription<AdaptivePerformanceState>? _performanceSubscription;
   bool _isInit = false;
+  bool _visible = false;
+  bool _starting = false;
+  bool _disposing = false;
+  bool _retryRequested = false;
+  final GlobalKey _posterBoundary = GlobalKey();
+  ui.Image? _posterImage;
+  bool _posterCapturePending = false;
+  ScrollPosition? _scrollPosition;
+  bool _imageFallback = false;
+  bool _imagePlaying = false;
+  int _generation = 0;
 
   @override
   void initState() {
     super.initState();
-    _initVideo();
+    _pool.addListener(_syncPlayback);
+    _performanceSubscription = ref.listenManual(adaptivePerformanceProvider, (
+      previous,
+      next,
+    ) {
+      if (previous?.tier != next.tier) {
+        _pool.enforceBudget(next.tier);
+        _syncPlayback();
+      }
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final bool isTickerActive = TickerMode.valuesOf(context).enabled;
-    if (!isTickerActive && _controller != null && _controller!.value.isPlaying) {
-      AnimatedMediaControllerPool.instance.notifyPaused(widget.url);
-      _controller!.pause();
-    } else if (isTickerActive && _controller != null && _isInit && !_controller!.value.isPlaying) {
+    final position = Scrollable.maybeOf(context)?.position;
+    if (position != _scrollPosition) {
+      _scrollPosition?.isScrollingNotifier.removeListener(_onScrollingChanged);
+      _scrollPosition = position;
+      position?.isScrollingNotifier.addListener(_onScrollingChanged);
+    }
+  }
+
+  void _onScrollingChanged() {
+    final controller = _controller;
+    if (_scrollPosition?.isScrollingNotifier.value == false &&
+        controller != null &&
+        _isInit) {
+      _capturePoster(controller, _generation);
+    }
+  }
+
+  void _onVisibilityChanged(bool visible) {
+    _visible = visible;
+    _syncPlayback();
+  }
+
+  void _syncPlayback() {
+    if (!mounted) return;
+    final tier = ref.read(adaptivePerformanceProvider).tier;
+    if (!_visible || !_pool.canAutoplay(tier)) {
+      unawaited(_pool.release(_mediaToken));
+    } else if (_isInit) {
       _requestPlay();
+    } else if (!_starting) {
+      unawaited(_initVideo(tier));
+    } else {
+      _retryRequested = true;
     }
   }
 
   void _requestPlay() {
-    if (_controller == null) return;
-    final PerformanceTier tier = ref.read(adaptivePerformanceProvider).tier;
-    final bool allowed = AnimatedMediaControllerPool.instance.requestPlay(
-      id: widget.url,
-      tier: tier,
+    final controller = _controller;
+    if ((controller == null && !_imageFallback) || !_visible) return;
+    final allowed = _pool.requestPlay(
+      id: _mediaToken,
+      tier: ref.read(adaptivePerformanceProvider).tier,
       onPause: () {
-        if (mounted && _controller != null && _controller!.value.isPlaying) {
-          _controller!.pause();
+        if (controller != null && _controller == controller) {
+          unawaited(controller.pause());
+        } else if (_imagePlaying && mounted && !_disposing) {
+          setState(() => _imagePlaying = false);
         }
       },
-      onResume: () {
-        if (mounted && _controller != null && !_controller!.value.isPlaying && TickerMode.valuesOf(context).enabled) {
-          _controller!.play();
-        }
-      },
+      onResume: _syncPlayback,
     );
-    if (allowed && mounted && TickerMode.valuesOf(context).enabled) {
-      _controller!.play();
+    if (allowed) {
+      if (controller != null) {
+        unawaited(controller.play());
+      } else if (!_imagePlaying) {
+        setState(() => _imagePlaying = true);
+      }
     }
   }
 
-  Future<void> _initVideo() async {
+  Future<void> _releaseController() async {
+    _generation++;
+    final controller = _controller;
+    _controller = null;
+    _isInit = false;
+    _imageFallback = false;
+    _imagePlaying = false;
+    if (mounted && !_disposing) setState(() {});
+    await controller?.dispose();
+  }
+
+  Future<void> _initVideo(PerformanceTier tier) async {
+    _starting = true;
+    final generation = _generation;
     try {
-      final Uri uri = Uri.parse(widget.url);
-      _controller = VideoPlayerController.networkUrl(uri);
-      await _controller!.initialize();
-      await _controller!.setLooping(true);
-      await _controller!.setVolume(0.0);
-      if (mounted && TickerMode.valuesOf(context).enabled) {
-        _requestPlay();
+      final granted = await _pool.acquireInitialization(
+        id: _mediaToken,
+        tier: tier,
+        onRelease: _releaseController,
+      );
+      if (!granted) return;
+      if (!mounted ||
+          !_visible ||
+          generation != _generation ||
+          !_pool.canAutoplay(ref.read(adaptivePerformanceProvider).tier)) {
+        await _pool.release(_mediaToken);
+        return;
       }
-      if (mounted) setState(() => _isInit = true);
-    } catch (_) {
-      // Graceful fallback to static thumbnail
+      final path = Uri.parse(widget.url).path.toLowerCase();
+      if (path.endsWith('.gif') ||
+          path.endsWith('.webp') ||
+          path.endsWith('.apng')) {
+        // Flutter image codecs must obey the same visibility/play budget.
+        setState(() {
+          _isInit = true;
+          _imageFallback = true;
+        });
+        _requestPlay();
+        return;
+      }
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.url),
+      );
+      _controller = controller;
+      await controller.initialize();
+      if (!mounted || generation != _generation || !_visible) return;
+      await controller.setLooping(true);
+      await controller.setVolume(0);
+      if (!mounted || generation != _generation || !_visible) return;
+      setState(() => _isInit = true);
+      _requestPlay();
+      _capturePoster(controller, generation);
+    } catch (error) {
+      debugPrint(
+        'StickerVideoPlayer: DECODER_INIT_FAILED ${error.runtimeType}',
+      );
+      await _pool.release(_mediaToken);
+    } finally {
+      _starting = false;
+      if (_retryRequested) {
+        _retryRequested = false;
+        _syncPlayback();
+      }
+    }
+  }
+
+  void _capturePoster(VideoPlayerController controller, int generation) {
+    if (_posterImage != null || _posterCapturePending) return;
+    _posterCapturePending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        if (!mounted ||
+            !_visible ||
+            _pool.isFastScrolling ||
+            (_scrollPosition?.isScrollingNotifier.value ?? false) ||
+            _controller != controller ||
+            generation != _generation) {
+          return;
+        }
+        final boundary = _posterBoundary.currentContext?.findRenderObject();
+        if (boundary is! RenderRepaintBoundary || boundary.debugNeedsPaint) {
+          return;
+        }
+        final image = await boundary.toImage(pixelRatio: 1);
+        if (!mounted ||
+            !_visible ||
+            generation != _generation ||
+            _posterImage != null ||
+            !_pool.retainPoster(
+              id: _mediaToken,
+              bytes: image.width * image.height * 4,
+              onEvict: _evictPoster,
+            )) {
+          image.dispose();
+          return;
+        }
+        _posterImage = image;
+      } catch (_) {
+        // A platform texture can disappear while the snapshot is in flight.
+      } finally {
+        _posterCapturePending = false;
+      }
+    });
+  }
+
+  void _evictPoster() {
+    _posterImage?.dispose();
+    _posterImage = null;
+    if (mounted && !_disposing) setState(() {});
+  }
+
+  @override
+  void didUpdateWidget(covariant StickerVideoPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _pool.releasePoster(_mediaToken);
+      _posterImage?.dispose();
+      _posterImage = null;
+      unawaited(_pool.release(_mediaToken).then((_) => _syncPlayback()));
     }
   }
 
   @override
   void dispose() {
-    AnimatedMediaControllerPool.instance.notifyDisposed(widget.url);
-    _controller?.pause();
-    _controller?.dispose();
+    _disposing = true;
+    _visible = false;
+    _pool.removeListener(_syncPlayback);
+    _performanceSubscription?.close();
+    _scrollPosition?.isScrollingNotifier.removeListener(_onScrollingChanged);
+    _pool.releasePoster(_mediaToken);
+    _posterImage?.dispose();
+    _pool.notifyDisposed(_mediaToken);
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_controller != null && _isInit && _controller!.value.isInitialized) {
-      return FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: _controller!.value.size.width,
-          height: _controller!.value.size.height,
-          child: VideoPlayer(_controller!),
-        ),
-      );
-    }
-    return CachedNetworkImage(
-      imageUrl: widget.url,
-      fit: BoxFit.contain,
-      memCacheWidth: 400,
-      memCacheHeight: 400,
-      placeholder: (_, _) => const AppLoadingIndicator(size: 24),
-      errorWidget: (_, _, _) => const Icon(Icons.sticky_note_2_outlined),
-    );
-  }
+  Widget build(BuildContext context) => MediaPlaybackVisibility(
+    onChanged: _onVisibilityChanged,
+    child: RepaintBoundary(
+      key: _posterBoundary,
+      child: _controller != null && _isInit && _controller!.value.isInitialized
+          ? FittedBox(
+              fit: BoxFit.contain,
+              child: SizedBox(
+                width: _controller!.value.size.width,
+                height: _controller!.value.size.height,
+                child: VideoPlayer(_controller!),
+              ),
+            )
+          : _imagePlaying
+          ? CachedNetworkImage(
+              imageUrl: widget.url,
+              fit: BoxFit.contain,
+              memCacheWidth: 400,
+              memCacheHeight: 400,
+              placeholder: (_, _) => const Icon(Icons.sticky_note_2_outlined),
+              errorWidget: (_, _, _) =>
+                  const Icon(Icons.sticky_note_2_outlined),
+            )
+          : _posterImage != null
+          ? RawImage(image: _posterImage, fit: BoxFit.contain)
+          : const Icon(Icons.sticky_note_2_outlined),
+    ),
+  );
 }

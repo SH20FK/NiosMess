@@ -8,6 +8,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      profile:
+        description: Build an additional Android profile APK for DevTools
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -43,6 +48,9 @@ jobs:
 
       - name: Run Test Suite
         run: flutter test test/suite_test.dart --timeout 90s
+
+      - name: Verify release metadata tooling
+        run: python3 -m unittest discover -s tool -p 'test_release_metadata.py'
 
   # ──────────────────────────────────────────────────────────────────────────
   # 2. Build Android APK (Release with Gradle Cache)
@@ -115,53 +123,55 @@ jobs:
           }
           EOF
 
-      - name: Build Android APK (Release)
+      - name: Optimize symbol font axes without removing glyphs
         run: |
-          flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/niosmess.apk
+          python3 -m pip install --disable-pip-version-check fonttools==4.67.0
+          python3 tool/optimize_symbol_fonts.py
+
+      - name: Build Android APKs and App Bundle (Release)
+        run: |
+          mkdir -p dist/android
+          flutter build apk --release --dart-define=NIOSMESS_BUILD_COMMIT=$GITHUB_SHA
+          cp build/app/outputs/flutter-apk/app-release.apk dist/android/niosmess.apk
+          flutter build apk --release --split-per-abi --dart-define=NIOSMESS_BUILD_COMMIT=$GITHUB_SHA
+          for ABI in arm64-v8a armeabi-v7a x86_64; do
+            cp "build/app/outputs/flutter-apk/app-$ABI-release.apk" "dist/android/niosmess-$ABI.apk"
+          done
+          flutter build appbundle --release --dart-define=NIOSMESS_BUILD_COMMIT=$GITHUB_SHA
 
       - name: Generate Version Metadata & Changelog
         id: version_meta
+        run: python3 tool/release_metadata.py >> "$GITHUB_OUTPUT"
+
+      - name: Build optional profile APK
+        if: github.event_name == 'workflow_dispatch' && inputs.profile
         run: |
-          VERSION=$(grep '^version:' pubspec.yaml | head -n 1 | awk '{print $2}')
-          echo "app_version=$VERSION" >> $GITHUB_OUTPUT
-          python3 -c "
-          import json, re, os
+          flutter build apk --profile --target-platform android-arm64 --dart-define=PERF_TRACE=true --dart-define=NIOSMESS_BUILD_COMMIT=$GITHUB_SHA
+          mkdir -p dist/profile
+          cp build/app/outputs/flutter-apk/app-profile.apk dist/profile/niosmess-profile.apk
+          flutter build apk --profile --target-platform android-arm64 --target integration_test/performance_test.dart --dart-define=NIOSMESS_BUILD_COMMIT=$GITHUB_SHA
+          cp build/app/outputs/flutter-apk/app-profile.apk dist/profile/niosmess-performance-benchmark.apk
 
-          version = '$VERSION'.split('+')[0]
-          changelog = ''
-          changelog_file = '../CHANGELOG.md'
-          if os.path.exists(changelog_file):
-              with open(changelog_file, 'r', encoding='utf-8') as f:
-                  content = f.read()
-              m = re.search(r'##\s*\[?' + re.escape(version) + r'\]?[^\n]*\n(.*?)(?=\n##\s*\[|\Z)', content, re.DOTALL)
-              if not m:
-                  m = re.search(r'##\s*\[.*?\][^\n]*\n(.*?)(?=\n##\s*\[|\Z)', content, re.DOTALL)
-              if m:
-                  changelog = m.group(1).strip()
+      - name: Upload Android Profile
+        if: github.event_name == 'workflow_dispatch' && inputs.profile
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-profile
+          path: pulse_flutter/dist/profile/*.apk
+          retention-days: 7
 
-          if not changelog:
-              changelog = '• Повышение стабильности и производительности\n• Исправление мелких ошибок'
-
-          with open('version.json', 'w', encoding='utf-8') as f:
-              json.dump({
-                  'version': '$VERSION',
-                  'tag_name': 'latest',
-                  'changelog': changelog,
-                  'download_url': 'https://github.com/SH20FK/NiosMess/releases/download/latest/niosmess.apk',
-                  'windows_download_url': 'https://github.com/SH20FK/NiosMess/releases/download/latest/niosmess-windows-setup.exe',
-                  'published_at': os.popen('date -u +"%Y-%m-%dT%H:%M:%SZ"').read().strip()
-              }, f, ensure_ascii=False, indent=2)
-
-          with open('changelog_release.txt', 'w', encoding='utf-8') as f:
-              f.write(changelog)
-          "
+      - name: Upload Android App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-appbundle-release
+          path: pulse_flutter/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 7
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk-release
-          path: pulse_flutter/build/app/outputs/flutter-apk/niosmess.apk
+          path: pulse_flutter/dist/android/*.apk
           retention-days: 7
 
       - name: Upload Release Metadata
@@ -204,7 +214,7 @@ jobs:
       - name: Build Windows Desktop (Release)
         env:
           CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
-        run: flutter build windows --release
+        run: flutter build windows --release --dart-define=NIOSMESS_BUILD_COMMIT=${{ github.sha }}
 
       - name: Compile Inno Setup Installer (.exe)
         shell: pwsh
@@ -245,8 +255,30 @@ jobs:
           path: pulse_flutter/build/installer/niosmess-windows-setup.exe
           retention-days: 7
 
+  build-web:
+    name: Build Web
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pulse_flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.5
+          cache: true
+      - run: flutter pub get
+      - run: flutter build web --release --dart-define=NIOSMESS_BUILD_COMMIT=${{ github.sha }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-release
+          path: pulse_flutter/build/web/
+          retention-days: 7
+
   # ──────────────────────────────────────────────────────────────────────────
-  # 4. Publish GitHub Release (Unified: APK + Windows Installer)
+  # Publish GitHub Release (Unified: APK + Windows Installer)
   # ──────────────────────────────────────────────────────────────────────────
   publish-release:
     name: Publish GitHub Release
@@ -277,11 +309,14 @@ jobs:
           name: release-metadata
           path: dist
 
+      - name: Include installer integrity in published manifest
+        run: python3 pulse_flutter/tool/release_metadata.py --windows-dir dist
+
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/niosmess.apk
+            dist/*.apk
             dist/niosmess-windows-setup.exe
             dist/version.json
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest' }}

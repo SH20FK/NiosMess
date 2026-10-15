@@ -13,6 +13,7 @@ import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
+import 'package:pulse_flutter/services/update/update_integrity.dart';
 import 'package:universal_io/io.dart';
 
 enum OtaStatus {
@@ -73,51 +74,87 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
   DateTime _lastUiUpdate = DateTime.fromMillisecondsSinceEpoch(0);
   double _lastUiProgress = 0.0;
   http.Client? _downloadClient;
+  bool _downloadActive = false;
+  int _downloadEpoch = 0;
 
   @override
   OtaUpdateState build() {
+    ref.onDispose(() {
+      _downloadEpoch++;
+      _downloadClient?.close();
+    });
     return const OtaUpdateState();
   }
 
   void setUpdateInfo(AppUpdateInfo info) {
-    state = state.copyWith(
+    if (_downloadActive || state.status == OtaStatus.installing) return;
+    _downloadEpoch++;
+    final ready =
+        state.status == OtaStatus.readyToInstall &&
+        _sameArtifact(state.updateInfo, info);
+    state = OtaUpdateState(
       updateInfo: info,
-      status: state.status == OtaStatus.readyToInstall
-          ? OtaStatus.readyToInstall
-          : OtaStatus.available,
+      status: ready ? OtaStatus.readyToInstall : OtaStatus.available,
+      downloadedApkPath: ready ? state.downloadedApkPath : null,
+      progress: ready ? state.progress : 0,
+      receivedBytes: ready ? state.receivedBytes : 0,
+      totalBytes: ready ? state.totalBytes : 0,
     );
   }
+
+  static bool _sameArtifact(AppUpdateInfo? previous, AppUpdateInfo next) =>
+      previous != null &&
+      previous.latestVersion == next.latestVersion &&
+      previous.downloadUrl == next.downloadUrl &&
+      previous.apkSize == next.apkSize &&
+      previous.sha256 == next.sha256;
+
+  bool _currentDownload(int epoch) =>
+      ref.mounted && _downloadEpoch == epoch && _downloadActive;
 
   Future<File> _resolveTargetFile(String version) async {
     final Directory tempDir = await getTemporaryDirectory();
     final String safeVer = version.replaceAll('+', '_');
     final String ext =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.windows
-            ? 'exe'
-            : 'apk';
+        ? 'exe'
+        : 'apk';
     return File('${tempDir.path}/niosmess_$safeVer.$ext');
   }
 
   Future<void> checkForUpdate() async {
     if (state.status == OtaStatus.checking ||
-        state.status == OtaStatus.downloading) {
+        state.status == OtaStatus.installing ||
+        _downloadActive) {
       return;
     }
+    final epoch = ++_downloadEpoch;
 
     state = state.copyWith(status: OtaStatus.checking, errorMessage: null);
 
     try {
       final AppUpdateService service = ref.read(appUpdateServiceProvider);
       final AppUpdateInfo info = await service.checkForUpdate();
+      if (_downloadActive || !ref.mounted || epoch != _downloadEpoch) return;
 
       if (info.hasUpdate) {
         // Check if update package was already downloaded and is ready
         final File updateFile = await _resolveTargetFile(info.latestVersion);
+        if (_downloadActive || !ref.mounted || epoch != _downloadEpoch) return;
 
         if (await updateFile.exists()) {
           final int length = await updateFile.length();
-          if (info.apkSize != null && length == info.apkSize && length > 1000000) {
-            state = state.copyWith(
+          if (info.apkSize != null &&
+              length > 1000000 &&
+              await UpdateIntegrity.verify(
+                updateFile,
+                size: info.apkSize,
+                sha: info.sha256,
+              ) &&
+              !_downloadActive &&
+              ref.mounted &&
+              epoch == _downloadEpoch) {
+            state = OtaUpdateState(
               status: OtaStatus.readyToInstall,
               updateInfo: info,
               downloadedApkPath: updateFile.path,
@@ -127,17 +164,13 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
           }
         }
 
-        state = state.copyWith(
-          status: OtaStatus.available,
-          updateInfo: info,
-        );
+        if (_downloadActive || !ref.mounted || epoch != _downloadEpoch) return;
+        state = OtaUpdateState(status: OtaStatus.available, updateInfo: info);
       } else {
-        state = state.copyWith(
-          status: OtaStatus.idle,
-          updateInfo: info,
-        );
+        state = OtaUpdateState(status: OtaStatus.idle, updateInfo: info);
       }
     } catch (e) {
+      if (_downloadActive || !ref.mounted || epoch != _downloadEpoch) return;
       state = state.copyWith(
         status: OtaStatus.error,
         errorMessage: e.toString(),
@@ -146,9 +179,31 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
   }
 
   Future<void> startDownload({AppUpdateInfo? info}) async {
+    if (_downloadActive || state.status == OtaStatus.installing) return;
     final AppUpdateInfo? targetInfo = info ?? state.updateInfo;
     if (targetInfo == null || targetInfo.downloadUrl.isEmpty) return;
+    _downloadActive = true;
+    final epoch = ++_downloadEpoch;
+    state = OtaUpdateState(
+      status: OtaStatus.downloading,
+      totalBytes: targetInfo.apkSize ?? 0,
+      updateInfo: targetInfo,
+    );
+    try {
+      await _startDownload(targetInfo, epoch);
+    } catch (error) {
+      if (!_currentDownload(epoch)) return;
+      state = OtaUpdateState(
+        status: OtaStatus.error,
+        updateInfo: targetInfo,
+        errorMessage: error.toString(),
+      );
+    } finally {
+      _downloadActive = false;
+    }
+  }
 
+  Future<void> _startDownload(AppUpdateInfo targetInfo, int epoch) async {
     if (kIsWeb) {
       state = state.copyWith(
         status: OtaStatus.error,
@@ -159,12 +214,21 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
 
     // Check if already downloaded
     final File updateFile = await _resolveTargetFile(targetInfo.latestVersion);
+    if (!_currentDownload(epoch)) return;
 
     if (await updateFile.exists()) {
       final int length = await updateFile.length();
-      if (targetInfo.apkSize != null && length == targetInfo.apkSize && length > 1000000) {
-        state = state.copyWith(
+      if (targetInfo.apkSize != null &&
+          length > 1000000 &&
+          await UpdateIntegrity.verify(
+            updateFile,
+            size: targetInfo.apkSize,
+            sha: targetInfo.sha256,
+          ) &&
+          _currentDownload(epoch)) {
+        state = OtaUpdateState(
           status: OtaStatus.readyToInstall,
+          updateInfo: targetInfo,
           downloadedApkPath: updateFile.path,
           progress: 1.0,
           receivedBytes: length,
@@ -175,17 +239,12 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       }
     }
 
-    state = state.copyWith(
-      status: OtaStatus.downloading,
-      progress: 0.0,
-      receivedBytes: 0,
-      totalBytes: targetInfo.apkSize ?? 0,
-      errorMessage: null,
-      updateInfo: targetInfo,
-    );
+    if (!_currentDownload(epoch)) return;
 
     _showProgressNotification(targetInfo, 0.0);
 
+    IOSink? output;
+    var published = false;
     try {
       _downloadClient = http.Client();
       Uri currentUri = Uri.parse(targetInfo.downloadUrl);
@@ -199,6 +258,7 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
         request.maxRedirects = 5;
 
         final http.StreamedResponse resp = await _downloadClient!.send(request);
+        if (!_currentDownload(epoch)) return;
         if (resp.statusCode == 301 ||
             resp.statusCode == 302 ||
             resp.statusCode == 307 ||
@@ -207,7 +267,9 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
           if (loc != null && loc.isNotEmpty) {
             currentUri = Uri.parse(loc);
             if (currentUri.scheme != 'https') {
-              throw HttpException('Небезопасный протокол перенаправления: ${currentUri.scheme}');
+              throw HttpException(
+                'Небезопасный протокол перенаправления: ${currentUri.scheme}',
+              );
             }
             redirectCount++;
             continue;
@@ -218,10 +280,13 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       }
 
       if (streamedResponse == null || streamedResponse.statusCode != 200) {
-        throw HttpException('Ошибка сервера: HTTP ${streamedResponse?.statusCode}');
+        throw HttpException(
+          'Ошибка сервера: HTTP ${streamedResponse?.statusCode}',
+        );
       }
 
-      final int total = streamedResponse.contentLength ?? (targetInfo.apkSize ?? 0);
+      final int total =
+          streamedResponse.contentLength ?? (targetInfo.apkSize ?? 0);
       int received = 0;
 
       if (await updateFile.exists()) {
@@ -231,9 +296,10 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       }
 
       final IOSink sink = updateFile.openWrite();
+      output = sink;
 
       await for (final List<int> chunk in streamedResponse.stream) {
-        if (state.status != OtaStatus.downloading) {
+        if (!_currentDownload(epoch)) {
           await sink.close();
           try {
             await updateFile.delete();
@@ -245,7 +311,9 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
         received += chunk.length;
         sink.add(chunk);
 
-        final double currentProgress = total > 0 ? (received / total).clamp(0.0, 1.0) : 0.0;
+        final double currentProgress = total > 0
+            ? (received / total).clamp(0.0, 1.0)
+            : 0.0;
 
         final DateTime now = DateTime.now();
         if (now.difference(_lastUiUpdate).inMilliseconds >= 33 ||
@@ -269,6 +337,18 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
 
       await sink.flush();
       await sink.close();
+      if (!_currentDownload(epoch)) return;
+
+      if (!await UpdateIntegrity.verify(
+        updateFile,
+        size: targetInfo.apkSize,
+        sha: targetInfo.sha256,
+      )) {
+        await updateFile.delete();
+        throw StateError(UpdateIntegrity.errorCode);
+      }
+      if (!_currentDownload(epoch)) return;
+      published = true;
 
       state = state.copyWith(
         status: OtaStatus.readyToInstall,
@@ -280,24 +360,32 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
 
       _notifyDownloadComplete(targetInfo, updateFile.path);
     } catch (e) {
+      if (!_currentDownload(epoch)) return;
       debugPrint('[OtaUpdateNotifier] Download error: $e');
       state = state.copyWith(
         status: OtaStatus.error,
-        errorMessage: 'Ошибка при загрузке: $e',
+        errorMessage: e is StateError && e.message == UpdateIntegrity.errorCode
+            ? UpdateIntegrity.errorCode
+            : 'Ошибка при загрузке: $e',
       );
       _cancelProgressNotification();
     } finally {
       _downloadClient?.close();
       _downloadClient = null;
+      await output?.close();
+      if (output != null && !published && await updateFile.exists()) {
+        await updateFile.delete();
+      }
     }
   }
 
   void cancelDownload() {
+    _downloadEpoch++;
     _downloadClient?.close();
     _downloadClient = null;
-    state = state.copyWith(
+    state = OtaUpdateState(
       status: state.updateInfo != null ? OtaStatus.available : OtaStatus.idle,
-      progress: 0.0,
+      updateInfo: state.updateInfo,
     );
     _cancelProgressNotification();
   }
@@ -324,6 +412,18 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       return;
     }
 
+    if (!await UpdateIntegrity.verify(
+      updateFile,
+      size: state.updateInfo?.apkSize,
+      sha: state.updateInfo?.sha256,
+    )) {
+      state = state.copyWith(
+        status: OtaStatus.error,
+        errorMessage: UpdateIntegrity.errorCode,
+      );
+      return;
+    }
+
     // Windows OTA installation (Hardened per Forensic Audit P0 #4):
     // Silent automatic execution disabled until cryptographically signed manifest is verified.
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
@@ -332,7 +432,8 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
           context: context,
           icon: Icons.system_update_rounded,
           title: 'Установка обновления',
-          message: 'Скачан официальный инсталлятор ${state.updateInfo?.latestVersion ?? ""}.\n'
+          message:
+              'Скачан официальный инсталлятор ${state.updateInfo?.latestVersion ?? ""}.\n'
               'Путь: $path\n\n'
               'Запустить установщик NiosMess?',
           confirmLabel: 'Запустить',
@@ -347,14 +448,12 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       state = state.copyWith(status: OtaStatus.installing);
       try {
         // Run installer with standard user UI (interactive, not silent)
-        await Process.start(
-          path,
-          <String>[],
-          mode: ProcessStartMode.detached,
-        );
+        await Process.start(path, <String>[], mode: ProcessStartMode.detached);
         exit(0);
       } catch (e) {
-        debugPrint('[OtaUpdateNotifier] Windows installer execution failed: $e');
+        debugPrint(
+          '[OtaUpdateNotifier] Windows installer execution failed: $e',
+        );
         state = state.copyWith(
           status: OtaStatus.readyToInstall,
           errorMessage: 'Не удалось запустить установщик: $e',
@@ -369,8 +468,9 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
         final PermissionStatus status =
             await Permission.requestInstallPackages.status;
         if (!status.isGranted) {
-          final PermissionStatus reqStatus =
-              await Permission.requestInstallPackages.request();
+          final PermissionStatus reqStatus = await Permission
+              .requestInstallPackages
+              .request();
           if (!reqStatus.isGranted) {
             if (context != null && context.mounted) {
               await _showPermissionDialog(context);
@@ -426,28 +526,32 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
     if (kIsWeb) return;
     try {
       final int percent = (progress * 100).toInt().clamp(0, 100);
-      PushNotificationService.localNotifications.show(
-        id: _notificationId,
-        title: 'Загрузка обновления NiosMess',
-        body: 'Версия v${targetInfo.latestVersion} • $percent%',
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            'niosmess_updates',
-            'NiosMess Updates',
-            importance: Importance.low,
-            priority: Priority.low,
-            icon: '@mipmap/ic_launcher',
-            color: const Color(0xFF0D6EFD),
-            showProgress: true,
-            maxProgress: 100,
-            progress: percent,
-            ongoing: true,
-            autoCancel: false,
-            onlyAlertOnce: true,
-            playSound: false,
-            enableVibration: false,
-          ),
-        ),
+      unawaited(
+        PushNotificationService.localNotifications
+            .show(
+              id: _notificationId,
+              title: 'Загрузка обновления NiosMess',
+              body: 'Версия v${targetInfo.latestVersion} • $percent%',
+              notificationDetails: NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'niosmess_updates',
+                  'NiosMess Updates',
+                  importance: Importance.low,
+                  priority: Priority.low,
+                  icon: '@mipmap/ic_launcher',
+                  color: const Color(0xFF0D6EFD),
+                  showProgress: true,
+                  maxProgress: 100,
+                  progress: percent,
+                  ongoing: true,
+                  autoCancel: false,
+                  onlyAlertOnce: true,
+                  playSound: false,
+                  enableVibration: false,
+                ),
+              ),
+            )
+            .catchError((Object _) {}),
       );
     } catch (_) {}
   }
@@ -457,41 +561,49 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
 
     // 1. Android Status Bar Notification
     try {
-      PushNotificationService.localNotifications.show(
-        id: _notificationId,
-        title: 'Обновление NiosMess готово',
-        body: 'Нажмите для завершения установки v${targetInfo.latestVersion}',
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'niosmess_updates',
-            'NiosMess Updates',
-            importance: Importance.high,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-            color: Color(0xFF0D6EFD),
-            autoCancel: true,
-            ongoing: false,
-            playSound: true,
-            sound: RawResourceAndroidNotificationSound('notification'),
-          ),
-        ),
-        payload: jsonEncode(<String, dynamic>{
-          'action': 'install_update',
-          'apk_path': apkPath,
-        }),
+      unawaited(
+        PushNotificationService.localNotifications
+            .show(
+              id: _notificationId,
+              title: 'Обновление NiosMess готово',
+              body:
+                  'Нажмите для завершения установки v${targetInfo.latestVersion}',
+              notificationDetails: const NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'niosmess_updates',
+                  'NiosMess Updates',
+                  importance: Importance.high,
+                  priority: Priority.high,
+                  icon: '@mipmap/ic_launcher',
+                  color: Color(0xFF0D6EFD),
+                  autoCancel: true,
+                  ongoing: false,
+                  playSound: true,
+                  sound: RawResourceAndroidNotificationSound('notification'),
+                ),
+              ),
+              payload: jsonEncode(<String, dynamic>{
+                'action': 'install_update',
+                'apk_path': apkPath,
+              }),
+            )
+            .catchError((Object _) {}),
       );
     } catch (_) {}
 
     // 2. In-App Banner Overlay
-    ref.read(inAppNotificationProvider.notifier).show(
-      InAppNotificationItem(
-        id: 'ota_ready_${targetInfo.latestVersion}',
-        title: 'Обновление загружено',
-        body: 'Версия v${targetInfo.latestVersion} готова к установке. Нажмите для обновления.',
-        icon: Icons.system_update_rounded,
-        timestamp: DateTime.now(),
-      ),
-    );
+    ref
+        .read(inAppNotificationProvider.notifier)
+        .show(
+          InAppNotificationItem(
+            id: 'ota_ready_${targetInfo.latestVersion}',
+            title: 'Обновление загружено',
+            body:
+                'Версия v${targetInfo.latestVersion} готова к установке. Нажмите для обновления.',
+            icon: Icons.system_update_rounded,
+            timestamp: DateTime.now(),
+          ),
+        );
 
     HapticService.confirm();
   }
@@ -499,12 +611,15 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
   void _cancelProgressNotification() {
     if (kIsWeb) return;
     try {
-      PushNotificationService.localNotifications.cancel(id: _notificationId);
+      unawaited(
+        PushNotificationService.localNotifications
+            .cancel(id: _notificationId)
+            .catchError((Object _) {}),
+      );
     } catch (_) {}
   }
 }
 
-final otaUpdateProvider =
-    NotifierProvider<OtaUpdateNotifier, OtaUpdateState>(
+final otaUpdateProvider = NotifierProvider<OtaUpdateNotifier, OtaUpdateState>(
   OtaUpdateNotifier.new,
 );

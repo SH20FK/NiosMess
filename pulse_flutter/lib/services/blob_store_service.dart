@@ -12,15 +12,23 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 
 final Provider<BlobStoreService> blobStoreServiceProvider =
     Provider<BlobStoreService>((Ref ref) {
-  return BlobStoreService(ref);
-});
+      final service = BlobStoreService(ref);
+      ref.onDispose(service.dispose);
+      return service;
+    });
 
 class BlobStoreService {
   BlobStoreService(this._ref, {http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client(),
+      _ownsClient = client == null;
 
   final Ref _ref;
   final http.Client _client;
+  final bool _ownsClient;
+
+  void dispose() {
+    if (_ownsClient) _client.close();
+  }
 
   String? _getToken() {
     return _ref.read(authProvider).session?.accessToken;
@@ -71,10 +79,20 @@ class BlobStoreService {
   }) async {
     cancellationToken?.throwIfCancelled();
     final String? token = _getToken();
-    final Uri uri =
-        Uri.parse('${ApiConstants.origin}/api/blobs/$blobId/chunks/$chunkIndex');
+    final Uri uri = Uri.parse(
+      '${ApiConstants.origin}/api/blobs/$blobId/chunks/$chunkIndex',
+    );
 
-    final http.Request request = http.Request('PUT', uri);
+    final abort = Completer<void>();
+    void cancelRequest() {
+      if (!abort.isCompleted) abort.complete();
+    }
+
+    final http.Request request = http.AbortableRequest(
+      'PUT',
+      uri,
+      abortTrigger: abort.future,
+    );
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
@@ -84,19 +102,27 @@ class BlobStoreService {
     request.headers['Content-Type'] = 'application/octet-stream';
     request.bodyBytes = bytes;
 
-    if (onProgress != null) {
-      onProgress(bytes.length, bytes.length);
-    }
-
-    final http.StreamedResponse response = await _client.send(request);
-    cancellationToken?.throwIfCancelled();
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      final String body = await response.stream.bytesToString();
-      throw ApiException(
-        statusCode: response.statusCode,
-        message: 'Chunk upload $chunkIndex failed: $body',
-      );
+    cancellationToken?.addListener(cancelRequest);
+    try {
+      final response = await _client.send(request);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final body = await response.stream.bytesToString();
+        cancellationToken?.throwIfCancelled();
+        throw ApiException(
+          statusCode: response.statusCode,
+          message: 'Chunk upload $chunkIndex failed: $body',
+        );
+      }
+      // Even an empty success response owns a transport stream. Consuming it
+      // releases the socket for reuse, including cancellation after headers.
+      await response.stream.drain<void>();
+      cancellationToken?.throwIfCancelled();
+      onProgress?.call(bytes.length, bytes.length);
+    } on http.RequestAbortedException {
+      cancellationToken?.throwIfCancelled();
+      rethrow;
+    } finally {
+      cancellationToken?.removeListener(cancelRequest);
     }
   }
 
@@ -107,8 +133,9 @@ class BlobStoreService {
   }) async {
     cancellationToken?.throwIfCancelled();
     final String? token = _getToken();
-    final Uri uri =
-        Uri.parse('${ApiConstants.origin}/api/blobs/$blobId/commit');
+    final Uri uri = Uri.parse(
+      '${ApiConstants.origin}/api/blobs/$blobId/commit',
+    );
 
     final http.Response response = await _client.post(
       uri,
@@ -175,14 +202,20 @@ class BlobStoreService {
     required int chunkIndex,
     required int chunkSize,
     required int totalSize,
+    RandomAccessFile? fileHandle,
   }) async {
     final int start = chunkIndex * chunkSize;
-    final int end = (start + chunkSize) > totalSize ? totalSize : (start + chunkSize);
+    final int end = (start + chunkSize) > totalSize
+        ? totalSize
+        : (start + chunkSize);
     final int count = end - start;
 
     if (count <= 0) return Uint8List(0);
 
-    if (filePath != null && filePath.isNotEmpty) {
+    if (fileHandle != null) {
+      await fileHandle.setPosition(start);
+      return fileHandle.read(count);
+    } else if (filePath != null && filePath.isNotEmpty) {
       final File file = File(filePath);
       final RandomAccessFile raf = await file.open(mode: FileMode.read);
       try {

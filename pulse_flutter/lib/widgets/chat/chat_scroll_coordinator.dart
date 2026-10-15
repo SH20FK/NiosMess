@@ -10,6 +10,9 @@ class ChatScrollCoordinator {
     ScrollController? controller,
     this.onNearTop,
     this.onReachedBottom,
+    this.onNearBottom,
+    this.onJumpToLatest,
+    this.onFollowLatestChanged,
   }) : scrollController = controller ?? ScrollController() {
     scrollController.addListener(_handleScroll);
   }
@@ -17,27 +20,45 @@ class ChatScrollCoordinator {
   final ScrollController scrollController;
   final VoidCallback? onNearTop;
   final VoidCallback? onReachedBottom;
+  final VoidCallback? onNearBottom;
+  final Future<void> Function()? onJumpToLatest;
+  final ValueChanged<bool>? onFollowLatestChanged;
+  bool _hasNewerHistory = false;
+  bool _jumping = false;
+  bool _disposed = false;
 
-  final ValueNotifier<bool> showScrollToBottomNotifier = ValueNotifier<bool>(false);
+  void setHasNewerHistory(bool value) {
+    _hasNewerHistory = value;
+    _handleScroll();
+  }
+
+  final ValueNotifier<bool> showScrollToBottomNotifier = ValueNotifier<bool>(
+    false,
+  );
   final ValueNotifier<int> unreadWhileScrolledNotifier = ValueNotifier<int>(0);
 
   void _handleScroll() {
     if (!scrollController.hasClients) return;
-    final double offset = scrollController.offset;
+    final double offset =
+        scrollController.offset - scrollController.position.minScrollExtent;
     final double maxExtent = scrollController.position.maxScrollExtent;
 
-    final bool shouldShow = offset > 300;
+    final bool shouldShow = _hasNewerHistory || offset > 300;
     if (shouldShow != showScrollToBottomNotifier.value) {
       showScrollToBottomNotifier.value = shouldShow;
     }
 
-    if (offset <= 60 && unreadWhileScrolledNotifier.value != 0) {
+    onFollowLatestChanged?.call(offset <= 60 && !_hasNewerHistory);
+    if (!_jumping && _hasNewerHistory && offset < 400) onNearBottom?.call();
+    if (offset <= 60 &&
+        !_hasNewerHistory &&
+        unreadWhileScrolledNotifier.value != 0) {
       unreadWhileScrolledNotifier.value = 0;
       onReachedBottom?.call();
     }
 
     // Auto-load older messages when near the end of the reversed scrollable
-    if (offset > maxExtent - 400) {
+    if (!_jumping && scrollController.offset > maxExtent - 400) {
       onNearTop?.call();
     }
   }
@@ -50,20 +71,29 @@ class ChatScrollCoordinator {
   }
 
   /// Smoothly scrolls down to the newest message.
-  void scrollToBottom({bool animate = true}) {
-    if (!scrollController.hasClients) return;
-    unreadWhileScrolledNotifier.value = 0;
-
-    if (!animate) {
-      scrollController.jumpTo(0.0);
-      return;
+  Future<void> scrollToBottom({bool animate = true}) async {
+    if (_disposed || _jumping) return;
+    _jumping = true;
+    try {
+      await onJumpToLatest?.call();
+      if (_disposed) return;
+      WidgetsBinding.instance.ensureVisualUpdate();
+      await WidgetsBinding.instance.endOfFrame;
+      if (_disposed || !scrollController.hasClients) return;
+      unreadWhileScrolledNotifier.value = 0;
+      final target = scrollController.position.minScrollExtent;
+      if (!animate) {
+        scrollController.jumpTo(target);
+        return;
+      }
+      await scrollController.animateTo(
+        target,
+        duration: M3Durations.medium2,
+        curve: M3SpringCurves.expressiveDecel,
+      );
+    } finally {
+      _jumping = false;
     }
-
-    scrollController.animateTo(
-      0.0,
-      duration: M3Durations.medium2,
-      curve: M3SpringCurves.expressiveDecel,
-    );
   }
 
   /// Builds the isolated reactive FAB widget.
@@ -87,6 +117,7 @@ class ChatScrollCoordinator {
   }
 
   void dispose() {
+    _disposed = true;
     scrollController.removeListener(_handleScroll);
     scrollController.dispose();
     showScrollToBottomNotifier.dispose();

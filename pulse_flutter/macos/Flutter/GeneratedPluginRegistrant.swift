@@ -22,7 +22,6 @@ import flutter_webrtc
 import just_audio
 import local_auth_darwin
 import open_file_mac
-import opus_codec_macos
 import package_info_plus
 import pasteboard
 import photo_manager
@@ -55,7 +54,6 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   JustAudioPlugin.register(with: registry.registrar(forPlugin: "JustAudioPlugin"))
   LocalAuthPlugin.register(with: registry.registrar(forPlugin: "LocalAuthPlugin"))
   OpenFilePlugin.register(with: registry.registrar(forPlugin: "OpenFilePlugin"))
-  OpusFlutterMacosPlugin.register(with: registry.registrar(forPlugin: "OpusFlutterMacosPlugin"))
   FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))
   PasteboardPlugin.register(with: registry.registrar(forPlugin: "PasteboardPlugin"))
   PhotoManagerPlugin.register(with: registry.registrar(forPlugin: "PhotoManagerPlugin"))

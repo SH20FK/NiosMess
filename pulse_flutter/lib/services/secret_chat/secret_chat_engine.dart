@@ -59,10 +59,7 @@ class SecretChatEngine {
     edPublicKey = base64Encode((await _identity.extractPublicKey()).bytes);
   }
 
-  String? findChat(int uiId) => journal.conversations.where((key) {
-    final state = journal.state(key);
-    return state['ui_id'] == uiId || state['remote_id'] == uiId;
-  }).firstOrNull;
+  String? findChat(int uiId) => journal.findChat(uiId);
 
   SecretJson chat(int uiId) => journal.state(findChat(uiId) ?? '$uiId');
 
@@ -105,20 +102,23 @@ class SecretChatEngine {
   }) async {
     if (_stopped) throw StateError('Secret account is closed');
     if (remove.isEmpty &&
-        jsonEncode(state) == jsonEncode(journal.state(key)) &&
+        secretEqual(state, journal.stateView(key)) &&
         messages.entries.every(
-          (entry) =>
-              jsonEncode(entry.value) ==
-              jsonEncode(
-                journal
-                    .messages(key)
-                    .where((row) => row['local_id'] == entry.key)
-                    .firstOrNull,
-              ),
+          (entry) => secretEqual(
+            entry.value,
+            journal.messageViewByLocalId(key, entry.key),
+          ),
         )) {
       return;
     }
     await journal.commit(key, state, messages: messages, remove: remove);
+    if (state['status'] == 'deleted' ||
+        remove.isNotEmpty ||
+        messages.values.any(
+          (row) => secretMap(row['message'])['is_deleted'] == true,
+        )) {
+      _projections.remove(key);
+    }
     if (!_changes.isClosed) _changes.add(key);
   }
 
@@ -144,7 +144,7 @@ class SecretChatEngine {
         if (_deleting.contains(existing)) {
           throw StateError('Conversation is being deleted');
         }
-        if (journal.state(existing)['status'] == 'deleted' &&
+        if (journal.stateView(existing)['status'] == 'deleted' &&
             remoteId == null) {
           await _serial.run(existing, () async {
             final state = journal.state(existing);
@@ -158,7 +158,7 @@ class SecretChatEngine {
         }
         if (peerProfile != null ||
             (remoteId != null &&
-                journal.state(existing)['remote_id'] == null)) {
+                journal.stateView(existing)['remote_id'] == null)) {
           await _serial.run(existing, () async {
             final state = journal.state(existing);
             if (remoteId != null && state['remote_id'] == null) {
@@ -172,7 +172,7 @@ class SecretChatEngine {
             await _commit(existing, state);
           });
         }
-        return journal.state(existing)['ui_id'] as int;
+        return journal.stateView(existing)['ui_id'] as int;
       }
       final key = _uuid.v4();
       final id = remoteId ?? -DateTime.now().microsecondsSinceEpoch;
@@ -305,46 +305,107 @@ class SecretChatEngine {
       };
       await _commit(key, state, messages: {id: row});
     });
-    wake();
+    wake(chatKey: key);
     return id;
+  }
+
+  final Map<String, _SecretMessageProjection> _projections = {};
+
+  SecretJson _projectMessage(SecretJson row, int uiId) {
+    final message = row['message'] as Map? ?? const {};
+    final body = row['body'] as Map? ?? const {};
+    final file = body['file'] as Map? ?? const {};
+    final operations = row['operations'] as List? ?? const [];
+    final failed = operations.any((op) => (op as Map)['failed'] == true);
+    return secretFreeze({
+      ...message.cast<String, dynamic>(),
+      'chat_id': uiId,
+      'content': body['text'] ?? message['content'] ?? '',
+      'msg_type': body['type'] ?? message['msg_type'] ?? 'text',
+      'is_e2ee': true,
+      'is_decrypted': row['unavailable'] != true,
+      'is_sending': operations.isNotEmpty && !failed,
+      'is_failed': failed,
+      'client_message_id': row['local_id'],
+      if (body['sticker'] != null) 'sticker': body['sticker'],
+      if (file.isNotEmpty) ...{
+        'e2ee_file_key': file['key'],
+        'media_name': file['name'],
+        'media_size': file['size'],
+        'media_type': file['mime'],
+        if (file['attachment_id'] != null)
+          'media_url': 'secret-local://${file['attachment_id']}',
+      },
+    });
+  }
+
+  bool _visible(SecretJson row, DateTime now) {
+    final message = row['message'] as Map? ?? const {};
+    if (message['is_deleted'] == true) return false;
+    final expiry = DateTime.tryParse('${message['expires_at']}');
+    return expiry == null || expiry.isAfter(now);
   }
 
   List<SecretJson> messages(int uiId) {
     final key = findChat(uiId);
-    if (key == null) return [];
-    final result = <SecretJson>[];
-    for (final row in journal.messages(key)) {
-      final message = secretMap(row['message']);
-      final body = secretMap(row['body']);
-      if (message['is_deleted'] == true) continue;
-      final expiry = DateTime.tryParse('${message['expires_at']}');
-      if (expiry != null && expiry.isBefore(DateTime.now())) continue;
-      final file = secretMap(body['file']);
-      final operations = row['operations'] as List? ?? [];
-      final failed = operations.any((op) => secretMap(op)['failed'] == true);
-      result.add({
-        ...message,
-        'chat_id': uiId,
-        'content': body['text'] ?? message['content'] ?? '',
-        'msg_type': body['type'] ?? message['msg_type'] ?? 'text',
-        'is_e2ee': true,
-        'is_decrypted': row['unavailable'] != true,
-        'is_sending': operations.isNotEmpty && !failed,
-        'is_failed': failed,
-        'client_message_id': row['local_id'],
-        if (body['sticker'] != null) 'sticker': body['sticker'],
-        if (file.isNotEmpty) ...{
-          'e2ee_file_key': file['key'],
-          'media_name': file['name'],
-          'media_size': file['size'],
-          'media_type': file['mime'],
-          if (file['attachment_id'] != null)
-            'media_url': 'secret-local://${file['attachment_id']}',
-        },
-      });
+    if (key == null) return const [];
+    final revision = journal.messageRevision(key);
+    final previous = _projections[key];
+    final now = DateTime.now();
+    if (previous != null &&
+        previous.revision == revision &&
+        previous.uiId == uiId &&
+        (previous.nextExpiry == null || previous.nextExpiry!.isAfter(now))) {
+      _projections.remove(key);
+      _projections[key] = previous;
+      return previous.messages;
     }
-    result.sort((a, b) => '${a['sent_at']}'.compareTo('${b['sent_at']}'));
+    final rows = <String, SecretJson>{};
+    final messages = <SecretJson>[];
+    final byId = <String, SecretJson>{};
+    DateTime? nextExpiry;
+    for (final row in journal.orderedMessageViews(key)) {
+      if (!_visible(row, now)) continue;
+      final id = row['local_id'] as String;
+      final projection =
+          previous?.uiId == uiId && identical(previous?.rows[id], row)
+          ? previous!.byId[id]!
+          : _projectMessage(row, uiId);
+      rows[id] = row;
+      byId[id] = projection;
+      messages.add(projection);
+      final expiry = DateTime.tryParse('${projection['expires_at']}');
+      if (expiry != null &&
+          (nextExpiry == null || expiry.isBefore(nextExpiry))) {
+        nextExpiry = expiry;
+      }
+    }
+    final result = List<SecretJson>.unmodifiable(messages);
+    _projections[key] = _SecretMessageProjection(
+      revision,
+      uiId,
+      result,
+      rows,
+      byId,
+      nextExpiry,
+    );
+    // This is an optional UI projection, never the durable outbox/history.
+    // Visiting many chats must not keep a second full copy of each archive.
+    while (_projections.length > 4) {
+      _projections.remove(_projections.keys.first);
+    }
     return result;
+  }
+
+  /// The chat list needs one row, not a sorted copy of every secret archive.
+  SecretJson? lastVisibleMessage(int uiId) {
+    final key = findChat(uiId);
+    if (key == null) return null;
+    final now = DateTime.now();
+    for (final row in journal.orderedMessageViews(key, reverse: true)) {
+      if (_visible(row, now)) return _projectMessage(row, uiId);
+    }
+    return null;
   }
 
   Future<void> edit(int uiId, int messageId, String text) =>
@@ -360,10 +421,7 @@ class SecretChatEngine {
   ) async {
     final key = findChat(uiId)!;
     await _serial.run(key, () async {
-      final row = journal
-          .messages(key)
-          .where((row) => secretMap(row['message'])['id'] == messageId)
-          .firstOrNull;
+      final row = journal.messageById(key, messageId);
       if (row == null) return;
       final message = secretMap(row['message']);
       if (message['sender_id'] != userId) throw StateError('Not your message');
@@ -406,16 +464,13 @@ class SecretChatEngine {
       row['operations'] = ops;
       await _commit(key, state, messages: {row['local_id'] as String: row});
     });
-    wake();
+    wake(chatKey: key);
   }
 
   Future<void> retry(int uiId, int messageId) async {
     final key = findChat(uiId)!;
     await _serial.run(key, () async {
-      final row = journal
-          .messages(key)
-          .where((row) => secretMap(row['message'])['id'] == messageId)
-          .firstOrNull;
+      final row = journal.messageById(key, messageId);
       if (row == null) return;
       for (final op in row['operations'] as List? ?? []) {
         (op as Map).remove('failed');
@@ -426,23 +481,45 @@ class SecretChatEngine {
         messages: {row['local_id'] as String: row},
       );
     });
-    wake();
+    wake(chatKey: key);
   }
 
-  void wake() {
+  final Set<String> _rewake = {};
+
+  void wake({String? chatKey}) {
     if (_stopped) return;
-    for (final key in journal.conversations) {
-      if (journal.state(key)['status'] == 'deleted' || _deleting.contains(key)) {
+    for (final key in chatKey == null ? journal.conversations : [chatKey]) {
+      if (journal.stateView(key)['status'] == 'deleted' ||
+          _deleting.contains(key)) {
         continue;
       }
-      unawaited(pump(key).catchError((Object _) {}));
+      if (_pumping.contains(key)) {
+        // A push received during an in-flight sync must not disappear in the
+        // busy guard. One extra pass catches events appended after its cursor.
+        _rewake.add(key);
+      } else {
+        unawaited(pump(key).catchError((Object _) {}));
+      }
     }
   }
+
+  void wakeChat(int uiId) {
+    final key = findChat(uiId);
+    if (key != null) wake(chatKey: key);
+  }
+
+  Future<void> pumpAll() => Future.wait([
+    for (final key in journal.conversations)
+      _pumpIdle[key]?.future ?? pump(key),
+  ]);
+
+  Future<void> expireDue() =>
+      Future.wait([for (final key in journal.conversations) _expire(key)]);
 
   Future<void> pump(String key) async {
     if (_stopped ||
         _deleting.contains(key) ||
-        journal.state(key)['status'] == 'deleted' ||
+        journal.stateView(key)['status'] == 'deleted' ||
         !_pumping.add(key)) {
       return;
     }
@@ -451,12 +528,12 @@ class SecretChatEngine {
     try {
       await _expire(key);
       await _resolve(key);
-      if (_stopped || journal.state(key)['remote_id'] == null) return;
+      if (_stopped || journal.stateView(key)['remote_id'] == null) return;
       await _sync(key);
       await _prepareHandshake(key);
-      await _sendControls(key);
-      // Re-read controls immediately: the peer may already have answered.
-      await _sync(key);
+      final sentControl = await _sendControls(key);
+      // A second read is useful only after an actual handshake transmission.
+      if (sentControl) await _sync(key);
       await _retryInbox(key);
       for (var count = 0; count < 32 && !_stopped; count++) {
         if (!await _sendNext(key)) break;
@@ -468,10 +545,7 @@ class SecretChatEngine {
           if (error.code.contains('DEVICE_MISMATCH')) {
             state['status'] = 'otherDevice';
           }
-          final row = journal
-              .messages(key)
-              .where((r) => (r['operations'] as List? ?? []).isNotEmpty)
-              .firstOrNull;
+          final row = journal.firstPendingMessage(key);
           if (row != null) {
             final ops = row['operations'] as List;
             ops[0] = {...secretMap(ops.first), 'failed': true};
@@ -488,6 +562,9 @@ class SecretChatEngine {
       _pumping.remove(key);
       _pumpIdle.remove(key);
       idle.complete();
+      if (_rewake.remove(key) && !_stopped && !_deleting.contains(key)) {
+        wake(chatKey: key);
+      }
     }
   }
 
@@ -519,7 +596,8 @@ class SecretChatEngine {
           key,
           state,
           remove: [
-            for (final row in journal.messages(key)) row['local_id'] as String,
+            for (final row in journal.messageViews(key))
+              row['local_id'] as String,
           ],
         );
       });
@@ -529,13 +607,10 @@ class SecretChatEngine {
   }
 
   Future<void> _expire(String key) => _serial.run(key, () async {
-    final expired = journal.messages(key).where((row) {
-      final message = secretMap(row['message']);
-      final expiry = DateTime.tryParse('${message['expires_at']}');
-      return message['is_deleted'] != true &&
-          expiry != null &&
-          expiry.isBefore(DateTime.now());
-    }).toList();
+    final expired = journal
+        .expiredMessageIds(key, DateTime.now())
+        .map((id) => journal.messageViewByLocalId(key, id)!)
+        .toList();
     if (expired.isEmpty) return;
     await _commit(
       key,
@@ -558,7 +633,7 @@ class SecretChatEngine {
   });
 
   Future<void> _resolve(String key) async {
-    var state = journal.state(key);
+    var state = journal.stateView(key);
     if (state['remote_id'] != null) return;
     final response = await transport.request('get_public_key', {
       'user_id': state['peer_id'],
@@ -615,7 +690,7 @@ class SecretChatEngine {
 
   Future<void> _sync(String key) async {
     for (var page = 0; page < 50 && !_stopped; page++) {
-      final state = journal.state(key);
+      final state = journal.stateView(key);
       final response = await transport.request('secret_sync', {
         'chat_id': state['remote_id'],
         'after_event_id': state['cursor'] ?? 0,
@@ -736,25 +811,28 @@ class SecretChatEngine {
     await _commit(key, state);
   });
 
-  Future<void> _sendControls(String key) async {
-    final state = journal.state(key);
+  Future<bool> _sendControls(String key) async {
+    var sent = false;
+    final state = journal.stateView(key);
     if (state['status'] == 'keyChanged' ||
         state['status'] == 'invalidSignature') {
-      return;
+      return false;
     }
     for (final entry in secretMap(state['controls']).entries) {
-      if (_stopped) return;
+      if (_stopped) return sent;
       await transport.request('secret_control', {
         'chat_id': state['remote_id'],
         'client_operation_id': entry.key,
         'control': entry.value,
       });
+      sent = true;
       await _serial.run(key, () async {
         final latest = journal.state(key);
         latest['controls'] = secretMap(latest['controls'])..remove(entry.key);
         await _commit(key, latest);
       });
     }
+    return sent;
   }
 
   Future<void> _receive(String key, SecretJson event) async {
@@ -768,17 +846,18 @@ class SecretChatEngine {
       if (event['sender_id'] != userId) await _receiveControl(state, data);
     } else if (kind == 'read') {
       if (data['user_id'] != userId) {
-        for (final row in journal.messages(key)) {
-          if (secretMap(row['message'])['sender_id'] != userId) continue;
+        for (final view in journal.messageViews(key)) {
+          final message = view['message'] as Map? ?? const {};
+          if (message['sender_id'] != userId || message['is_read'] == true) {
+            continue;
+          }
+          final row = secretCopy(view);
           row['message'] = {...secretMap(row['message']), 'is_read': true};
           updates[row['local_id'] as String] = row;
         }
       }
     } else if (kind == 'reaction') {
-      final row = journal
-          .messages(key)
-          .where((r) => secretMap(r['message'])['id'] == data['message_id'])
-          .firstOrNull;
+      final row = journal.messageById(key, data['message_id'] as int);
       if (row != null) {
         row['message'] = {
           ...secretMap(row['message']),
@@ -913,7 +992,7 @@ class SecretChatEngine {
       if (control.isNotEmpty) await _receiveControl(state, control);
       await _commit(key, state);
     });
-    wake();
+    wake(chatKey: key);
   }
 
   Future<void> verifyIdentity(int uiId) async {
@@ -931,11 +1010,12 @@ class SecretChatEngine {
     if (key == null || _stopped) return;
     await _serial.run(key, () async {
       final updates = <String, SecretJson>{};
-      for (final row in journal.messages(key)) {
-        final message = secretMap(row['message']);
+      for (final view in journal.messageViews(key)) {
+        final message = secretMap(view['message']);
         if (message['sender_id'] == userId || message['is_read'] == true) {
           continue;
         }
+        final row = secretCopy(view);
         row['message'] = {...message, 'is_read': true};
         updates[row['local_id'] as String] = row;
       }
@@ -953,14 +1033,11 @@ class SecretChatEngine {
     int? eventId,
   }) async {
     final clientId = message['client_message_id'];
-    final existing = journal
-        .messages(key)
-        .where(
-          (row) =>
-              (clientId != null && row['local_id'] == clientId) ||
-              secretMap(row['message'])['id'] == message['id'],
-        )
-        .firstOrNull;
+    final existing =
+        (clientId is String ? journal.messageByLocalId(key, clientId) : null) ??
+        (message['id'] is int
+            ? journal.messageById(key, message['id'] as int)
+            : null);
     if (message['is_deleted'] == true) {
       final discarded = message['discard_e2ee_content'];
       if (discarded is String && message['sender_id'] != userId) {
@@ -1140,17 +1217,16 @@ class SecretChatEngine {
   }
 
   Future<void> _retryInbox(String key) async {
-    for (final row
-        in journal
-            .messages(key)
-            .where((row) => row['pending_message'] != null)) {
+    for (final id in journal.pendingInboxIds(key)) {
       await _serial.run(key, () async {
+        final row = journal.messageViewByLocalId(key, id);
+        if (row?['pending_message'] == null) return;
         final state = journal.state(key);
         final updates = <String, SecretJson>{};
         await _receiveMessage(
           key,
           state,
-          secretMap(row['pending_message']),
+          secretMap(row!['pending_message']),
           updates,
         );
         await _commit(key, state, messages: updates);
@@ -1160,16 +1236,13 @@ class SecretChatEngine {
 
   Future<bool> _sendNext(String key) async {
     if (_deleting.contains(key)) return false;
-    var state = journal.state(key);
+    var state = journal.stateView(key);
     if (state['status'] != 'secured' ||
         state['peer_protocol'] != 2 ||
         secretMap(state['controls']).isNotEmpty) {
       return false;
     }
-    final row = journal
-        .messages(key)
-        .where((row) => (row['operations'] as List? ?? []).isNotEmpty)
-        .firstOrNull;
+    final row = journal.firstPendingMessage(key);
     if (row == null) return false;
     var op = secretMap((row['operations'] as List).first);
     if (op['failed'] == true) return false;
@@ -1182,10 +1255,7 @@ class SecretChatEngine {
         file,
       );
       await _serial.run(key, () async {
-        final latest = journal
-            .messages(key)
-            .where((r) => r['local_id'] == row['local_id'])
-            .firstOrNull;
+        final latest = journal.messageByLocalId(key, row['local_id'] as String);
         if (latest == null) return;
         final ops = latest['operations'] as List;
         if (secretMap(ops.first)['id'] != op['id']) return;
@@ -1201,10 +1271,7 @@ class SecretChatEngine {
     await _serial.run(key, () async {
       state = journal.state(key);
       if (state['status'] != 'secured') return;
-      final latest = journal
-          .messages(key)
-          .where((r) => r['local_id'] == row['local_id'])
-          .firstOrNull;
+      final latest = journal.messageByLocalId(key, row['local_id'] as String);
       if (latest == null || (latest['operations'] as List).isEmpty) return;
       final ops = latest['operations'] as List;
       op = secretMap(ops.first);
@@ -1250,10 +1317,7 @@ class SecretChatEngine {
             if (op['upload_id'] != null) payload['upload_id'] = op['upload_id'];
             var reply = message['reply_to_id'];
             if (reply is int && reply < 0) {
-              final original = journal
-                  .messages(key)
-                  .where((r) => r['local_numeric_id'] == reply)
-                  .firstOrNull;
+              final original = journal.messageById(key, reply);
               reply = secretMap(original?['message'])['id'];
               if (reply is! int || reply < 0) return;
               message['reply_to_id'] = reply;
@@ -1293,8 +1357,27 @@ class SecretChatEngine {
 
   Future<void> stop({bool erase = false}) async {
     _stopped = true;
+    await Future.wait(_pumpIdle.values.map((idle) => idle.future).toList());
     await _serial.drain();
     await journal.close(erase: erase);
+    _projections.clear();
     await _changes.close();
   }
+}
+
+class _SecretMessageProjection {
+  const _SecretMessageProjection(
+    this.revision,
+    this.uiId,
+    this.messages,
+    this.rows,
+    this.byId,
+    this.nextExpiry,
+  );
+  final int revision;
+  final int uiId;
+  final List<SecretJson> messages;
+  final Map<String, SecretJson> rows;
+  final Map<String, SecretJson> byId;
+  final DateTime? nextExpiry;
 }

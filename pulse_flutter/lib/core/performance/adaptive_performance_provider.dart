@@ -1,4 +1,5 @@
 import 'dart:ui' show FrameTiming;
+import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -117,7 +118,10 @@ class AdaptivePerformanceState {
 /// Riverpod 3.x Notifier managing adaptive performance state.
 class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
     with WidgetsBindingObserver {
-  late final FrameTimingMonitor _monitor;
+  final FrameTimingMonitor _monitor = FrameTimingMonitor();
+  final FrameTimingMonitor _telemetry = FrameTimingMonitor(capacity: 7200);
+  final Set<Object> _interactionOwners = {};
+  DateTime? _lastTelemetryAt;
   bool _callbackRegistered = false;
   bool _observerRegistered = false;
   double _detectedRefreshRate = 60.0;
@@ -128,10 +132,13 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
 
   @override
   AdaptivePerformanceState build() {
-    _monitor = FrameTimingMonitor();
     _detectedRefreshRate = FrameTimingMonitor.detectRefreshRate();
-    final double budget = FrameTimingMonitor.computeBudgetMs(_detectedRefreshRate);
-    final double fps = FrameTimingMonitor.computeTargetFps(_detectedRefreshRate);
+    final double budget = FrameTimingMonitor.computeBudgetMs(
+      _detectedRefreshRate,
+    );
+    final double fps = FrameTimingMonitor.computeTargetFps(
+      _detectedRefreshRate,
+    );
 
     // Initial tier based on hardware capabilities with Windows warm-up
     PerformanceMode initialMode = PerformanceMode.balanced;
@@ -147,8 +154,9 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
     }
 
     // Check if user has already forced weak device optimization
-    final bool weakDeviceForced =
-        ref.watch(uiSettingsProvider.select((s) => s.optimizeForWeakDevices));
+    final bool weakDeviceForced = ref.watch(
+      uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
+    );
     if (weakDeviceForced) {
       initialMode = PerformanceMode.powerSaver;
     }
@@ -218,8 +226,56 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
       _unregisterTimingsCallback();
       this.state = this.state.copyWith(isPaused: true);
     } else if (state == AppLifecycleState.resumed) {
+      refreshDisplayRate();
       _registerTimingsCallback();
       this.state = this.state.copyWith(isPaused: false);
+    }
+  }
+
+  @override
+  void didChangeMetrics() => refreshDisplayRate();
+
+  void refreshDisplayRate({double? refreshRate}) {
+    final rate = FrameTimingMonitor.computeTargetFps(
+      refreshRate ?? FrameTimingMonitor.detectRefreshRate(),
+    );
+    if (rate == _detectedRefreshRate) return;
+    _detectedRefreshRate = rate;
+    _monitor.reset();
+    _telemetry.reset();
+    _lastTelemetryAt = null;
+    state = state.copyWith(
+      targetFps: rate,
+      targetFrameBudgetMs: FrameTimingMonitor.computeBudgetMs(rate),
+    );
+  }
+
+  /// Decorative tickers do not prevent adaptation; user gestures do.
+  void setInteractionActive(Object owner, bool active) {
+    if (active) {
+      _interactionOwners.add(owner);
+    } else {
+      _interactionOwners.remove(owner);
+    }
+  }
+
+  void _publishTelemetry(DateTime? currentTime) {
+    final now = currentTime ?? DateTime.now();
+    if (_lastTelemetryAt != null &&
+        now.difference(_lastTelemetryAt!) < const Duration(seconds: 1)) {
+      return;
+    }
+    _lastTelemetryAt = now;
+    final snapshot = _telemetry.createSnapshot(
+      refreshRate: _detectedRefreshRate,
+      budgetMs: state.targetFrameBudgetMs,
+    );
+    ref.read(performanceTelemetryProvider.notifier).publish(snapshot);
+    if (const bool.fromEnvironment('PERF_TRACE')) {
+      developer.Timeline.instantSync(
+        'niosmess.frame_metrics',
+        arguments: snapshot.toJson(),
+      );
     }
   }
 
@@ -232,22 +288,29 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
     if (timings.isEmpty) return;
 
     final budget = state.targetFrameBudgetMs;
+    bool severeBurst = false;
     for (final timing in timings) {
       _monitor.recordTiming(timing, budget);
+      _telemetry.recordTiming(timing, budget);
+      severeBurst |= _monitor.consecutiveSevereJankFrames >= 4;
     }
 
-    _evaluateHysteresis(currentTime: currentTime);
+    _evaluateHysteresis(currentTime: currentTime, severeBurst: severeBurst);
+    _publishTelemetry(currentTime);
   }
 
   /// Directly records a single [FrameMetric] (useful for testing).
   void recordMetric(FrameMetric metric, {DateTime? currentTime}) {
     _monitor.recordMetric(metric, state.targetFrameBudgetMs);
+    _telemetry.recordMetric(metric, state.targetFrameBudgetMs);
     _evaluateHysteresis(currentTime: currentTime);
+    _publishTelemetry(currentTime);
   }
 
-  void _evaluateHysteresis({DateTime? currentTime}) {
-    final bool weakDeviceForced =
-        ref.read(uiSettingsProvider.select((s) => s.optimizeForWeakDevices));
+  void _evaluateHysteresis({DateTime? currentTime, bool severeBurst = false}) {
+    final bool weakDeviceForced = ref.read(
+      uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
+    );
 
     if (weakDeviceForced) {
       if (state.mode != PerformanceMode.powerSaver || !state.isDegraded) {
@@ -267,10 +330,11 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
     final now = currentTime ?? DateTime.now();
 
     // Prevent visual stutter during active scroll flings:
-    // Only switch tiers during a "quiet moment" (no active animation tickers),
+    // Only switch tiers during a quiet moment without active user interaction,
     // unless consecutive severe jank frames >= 4 require emergency intervention.
-    final bool isEmergency = _monitor.consecutiveSevereJankFrames >= 4;
-    final bool isQuietMoment = WidgetsBinding.instance.transientCallbackCount == 0;
+    final bool isEmergency =
+        severeBurst || _monitor.consecutiveSevereJankFrames >= 4;
+    final bool isQuietMoment = _interactionOwners.isEmpty;
     if (!isEmergency && !isQuietMoment) {
       return;
     }
@@ -279,7 +343,7 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
     bool isDegraded = state.isDegraded;
 
     // Check degradation
-    if (_monitor.shouldDegrade(budgetMs: budget)) {
+    if (isEmergency || _monitor.shouldDegrade(budgetMs: budget)) {
       if (currentMode == PerformanceMode.flagship) {
         currentMode = PerformanceMode.balanced;
         isDegraded = true;
@@ -296,7 +360,8 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
         currentMode = PerformanceMode.balanced;
         isDegraded = false;
         _monitor.markUpgraded(currentTime: now);
-      } else if (currentMode == PerformanceMode.balanced && _detectedRefreshRate >= 90.0) {
+      } else if (currentMode == PerformanceMode.balanced &&
+          _detectedRefreshRate >= 90.0) {
         if (_warmupUntil == null || !now.isBefore(_warmupUntil!)) {
           currentMode = PerformanceMode.flagship;
           isDegraded = false;
@@ -328,6 +393,8 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
   /// Resets rolling metrics and anti-flapping hysteresis cooldowns.
   void resetMetrics() {
     _monitor.reset();
+    _telemetry.reset();
+    _lastTelemetryAt = null;
     state = state.copyWith(
       recentJankRatio: 0.0,
       consecutiveSmoothFrames: 0,
@@ -337,8 +404,22 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
   }
 }
 
+/// Throttled diagnostics are separate from the tier watched by app surfaces.
+class PerformanceTelemetryNotifier
+    extends Notifier<PerformanceMetricsSnapshot> {
+  @override
+  PerformanceMetricsSnapshot build() => PerformanceMetricsSnapshot.initial;
+
+  void publish(PerformanceMetricsSnapshot snapshot) => state = snapshot;
+}
+
+final performanceTelemetryProvider =
+    NotifierProvider<PerformanceTelemetryNotifier, PerformanceMetricsSnapshot>(
+      PerformanceTelemetryNotifier.new,
+    );
+
 /// Global provider for the adaptive performance engine.
 final adaptivePerformanceProvider =
     NotifierProvider<AdaptivePerformanceNotifier, AdaptivePerformanceState>(
-  AdaptivePerformanceNotifier.new,
-);
+      AdaptivePerformanceNotifier.new,
+    );

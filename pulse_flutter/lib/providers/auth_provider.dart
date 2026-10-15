@@ -9,7 +9,6 @@ import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
@@ -91,6 +90,11 @@ class AuthNotifier extends Notifier<AuthState> {
 
   @override
   AuthState build() {
+    listenSelf((previous, next) {
+      if (previous?.isAuthenticated != next.isAuthenticated && !_loggingOut) {
+        unawaited(BackgroundService.setAuthenticated(next.isAuthenticated));
+      }
+    });
     _loadFuture = _load();
     ref.onDispose(() {
       _fcmTokenRefreshSubscription?.cancel();
@@ -194,7 +198,6 @@ class AuthNotifier extends Notifier<AuthState> {
         debugPrint('[auth_provider] Refresh profile error on load: $e');
       }
       _registerFcmToken();
-      _updateBackgroundService();
     }
   }
 
@@ -269,7 +272,6 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       await refreshProfile();
       _registerFcmToken();
-      _updateBackgroundService();
       return const AuthActionResult(success: true);
     } catch (error) {
       state = state.copyWith(busy: false, error: '$error');
@@ -360,36 +362,31 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   bool _loggingOut = false;
+  bool get isLoggingOut => _loggingOut;
   Future<void> logout({bool eraseSecretData = true}) async {
     if (_loggingOut) return;
     _loggingOut = true;
+    // Revoke service requests before any asynchronous account cleanup. Late
+    // uploads/call updates may still notify widgets while auth state is visible.
+    final backgroundStopped = BackgroundService.stop();
+    final accountId = state.session?.userId;
+    final secretStopped = accountId == null
+        ? Future<List<int>>.value([])
+        : SecretChatCoordinator.shutdownAccount(
+            accountId,
+            erase: eraseSecretData,
+          );
+    final stopped = Future.wait<Object?>([backgroundStopped, secretStopped]);
     try {
-      final accountId = state.session?.userId;
+      final stoppedData = await stopped;
+      final chatIds = stoppedData[1] as List<int>;
       if (accountId != null && eraseSecretData) {
-        SecretChatCoordinator? secret;
-        try {
-          secret = await ref.read(secretChatCoordinatorProvider.future);
-        } catch (_) {}
-        final chatIds = <int>[];
-        final secretEngine = secret?.engine;
-        if (secretEngine != null) {
-          for (final key in secretEngine.journal.conversations) {
-            final id = secretEngine.journal.state(key)['remote_id'];
-            if (id is int) chatIds.add(id);
-          }
-        }
-        await SecretChatCoordinator.eraseAccount(accountId);
         await EncryptedMessageCache.clearAccount(accountId, chatIds);
         await ref.read(e2eeServiceProvider).deleteKeyPair();
         final prefs = await SharedPreferences.getInstance();
         for (final id in chatIds) {
           await prefs.remove('draft.$id');
         }
-      } else if (accountId != null) {
-        try {
-          await ref.read(secretChatCoordinatorProvider.future);
-        } catch (_) {}
-        await SecretChatCoordinator.suspendAccount(accountId);
       }
 
       try {
@@ -413,7 +410,6 @@ class AuthNotifier extends Notifier<AuthState> {
         debugPrint('[auth_provider.dart] Error: $e');
       }
 
-      BackgroundService.stop();
       await _fcmTokenRefreshSubscription?.cancel();
       _fcmTokenRefreshSubscription = null;
       await _wsConnectedSubscription?.cancel();
@@ -511,19 +507,6 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> refreshFcmTokenRegistration() => _registerFcmToken();
-
-  void _updateBackgroundService() {
-    // FlutterForegroundTask is mobile-only. Desktop uses tray and window minimization.
-    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
-    try {
-      final BackgroundMode mode = ref.read(uiSettingsProvider).backgroundMode;
-      if (mode == BackgroundMode.reliable) {
-        BackgroundService.startReliable();
-      }
-    } catch (e) {
-      debugPrint('[auth_provider] _updateBackgroundService error: $e');
-    }
-  }
 }
 
 final NotifierProvider<AuthNotifier, AuthState> authProvider =

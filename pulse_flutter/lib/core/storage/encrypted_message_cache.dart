@@ -5,14 +5,16 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:pulse_flutter/core/storage/hive_bootstrap.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+
+part 'encrypted_history_archive.dart';
 
 class EncryptedMessageCache {
   static const String _boxName = 'enc_messages_v1';
   static const String _senderPlaintextBoxName = 'enc_sender_plaintext_v1';
   static const String _keyAlias = 'niosmess_msg_cache_key_v1';
-  static const FlutterSecureStorage _secureStorage =
-    FlutterSecureStorage();
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   static final AesGcm _aes = AesGcm.with256bits();
 
@@ -20,6 +22,19 @@ class EncryptedMessageCache {
   static Completer<SecretKey>? _keyCompleter;
 
   static final Map<String, String> _memorySenderPlaintexts = <String, String>{};
+  static final Map<int, int> _accountGenerations = <int, int>{};
+  static int _generationCounter = 0;
+  static int _clearEpoch = 0;
+
+  /// A delayed UI flush must not resurrect cache data after account erasure.
+  static int accountGeneration(int userId) => _accountGenerations[userId] ?? 0;
+
+  @visibleForTesting
+  static void resetMemoryForTesting() {
+    _cachedKey = null;
+    _keyCompleter = null;
+    _memorySenderPlaintexts.clear();
+  }
 
   static String _chatKey(int chatId, int? userId) =>
       userId != null ? '${userId}_$chatId' : '$chatId';
@@ -60,12 +75,11 @@ class EncryptedMessageCache {
   }
 
   static Future<void> ensureInitialized() async {
-    try {
-      await Hive.openBox<String>(_boxName);
-      await Hive.openBox<String>(_senderPlaintextBoxName);
-    } catch (e) {
-      debugPrint('[EncryptedMessageCache] Init error: $e');
-    }
+    await HiveBootstrap.ensureInitialized();
+    await Future.wait([
+      Hive.openBox<String>(_boxName),
+      Hive.openBox<String>(_senderPlaintextBoxName),
+    ]);
   }
 
   static Future<T> _runCompute<T>(FutureOr<T> Function() computation) {
@@ -103,7 +117,9 @@ class EncryptedMessageCache {
     if (mem != null && mem.isNotEmpty) return mem;
     try {
       if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
-        final String? stored = Hive.box<String>(_senderPlaintextBoxName).get(key);
+        final String? stored = Hive.box<String>(
+          _senderPlaintextBoxName,
+        ).get(key);
         if (stored != null && stored.isNotEmpty) {
           _memorySenderPlaintexts[key] = stored;
           return stored;
@@ -118,14 +134,22 @@ class EncryptedMessageCache {
     List<ApiMessage> messages, {
     int? userId,
     bool isSecretChat = false,
+    int? expectedAccountGeneration,
   }) async {
     if (!Hive.isBoxOpen(_boxName)) return;
+    final owner = userId ?? 0;
+    final generation = expectedAccountGeneration ?? accountGeneration(owner);
+    final clearEpoch = _clearEpoch;
+    if (generation != accountGeneration(owner)) return;
     try {
       final SecretKey key = await _getOrCreateKey();
       final List<int> keyBytes = await key.extractBytes();
       final int maxLimit = isSecretChat ? 2000 : 100;
       final List<Map<String, dynamic>> messagesJson = messages.length > maxLimit
-          ? messages.sublist(messages.length - maxLimit).map((m) => m.toJson()).toList()
+          ? messages
+                .sublist(messages.length - maxLimit)
+                .map((m) => m.toJson())
+                .toList()
           : messages.map((m) => m.toJson()).toList();
 
       final String encoded = await _runCompute(() async {
@@ -145,6 +169,11 @@ class EncryptedMessageCache {
         return base64.encode(combined);
       });
 
+      if (generation != accountGeneration(owner) ||
+          clearEpoch != _clearEpoch ||
+          !Hive.isBoxOpen(_boxName)) {
+        return;
+      }
       final Box<String> hiveBox = Hive.box<String>(_boxName);
       await hiveBox.put(_chatKey(chatId, userId), encoded);
     } catch (e) {
@@ -152,12 +181,17 @@ class EncryptedMessageCache {
     }
   }
 
-  static Future<List<ApiMessage>> loadMessages(int chatId, {int? userId, bool strict = false}) async {
+  static Future<List<ApiMessage>> loadMessages(
+    int chatId, {
+    int? userId,
+    int? legacyOwnerUserId,
+    bool strict = false,
+  }) async {
     if (!Hive.isBoxOpen(_boxName)) return [];
     try {
       final Box<String> hiveBox = Hive.box<String>(_boxName);
       String? encoded = hiveBox.get(_chatKey(chatId, userId));
-      if (encoded == null && userId != null) {
+      if (encoded == null && userId != null && legacyOwnerUserId == userId) {
         encoded = hiveBox.get(chatId.toString());
       }
       if (encoded == null) return [];
@@ -165,42 +199,46 @@ class EncryptedMessageCache {
       final SecretKey key = await _getOrCreateKey();
       final List<int> keyBytes = await key.extractBytes();
 
-      final List<Map<String, dynamic>>? messagesJson = await _runCompute(() async {
-        final AesGcm isolateAes = AesGcm.with256bits();
-        final SecretKey isolateKey = SecretKey(keyBytes);
-        final List<int> combined = base64.decode(encoded!);
+      final List<Map<String, dynamic>>? messagesJson = await _runCompute(
+        () async {
+          final AesGcm isolateAes = AesGcm.with256bits();
+          final SecretKey isolateKey = SecretKey(keyBytes);
+          final List<int> combined = base64.decode(encoded!);
 
-        const int nonceLen = 12;
-        const int macLen = 16;
-        if (combined.length < nonceLen + macLen) {
+          const int nonceLen = 12;
+          const int macLen = 16;
+          if (combined.length < nonceLen + macLen) {
+            return null;
+          }
+          final List<int> nonce = combined.sublist(0, nonceLen);
+          final List<int> mac = combined.sublist(combined.length - macLen);
+          final List<int> cipherText = combined.sublist(
+            nonceLen,
+            combined.length - macLen,
+          );
+
+          final SecretBox box = SecretBox(
+            cipherText,
+            nonce: nonce,
+            mac: Mac(mac),
+          );
+          final List<int> decrypted = await isolateAes.decrypt(
+            box,
+            secretKey: isolateKey,
+          );
+          final String json = utf8.decode(decrypted);
+          final dynamic decoded = jsonDecode(json);
+          if (decoded is List) {
+            return decoded.cast<Map<String, dynamic>>();
+          }
           return null;
-        }
-        final List<int> nonce = combined.sublist(0, nonceLen);
-        final List<int> mac = combined.sublist(combined.length - macLen);
-        final List<int> cipherText = combined.sublist(
-          nonceLen,
-          combined.length - macLen,
-        );
-
-        final SecretBox box = SecretBox(
-          cipherText,
-          nonce: nonce,
-          mac: Mac(mac),
-        );
-        final List<int> decrypted = await isolateAes.decrypt(
-          box,
-          secretKey: isolateKey,
-        );
-        final String json = utf8.decode(decrypted);
-        final dynamic decoded = jsonDecode(json);
-        if (decoded is List) {
-          return decoded.cast<Map<String, dynamic>>();
-        }
-        return null;
-      });
+        },
+      );
 
       if (messagesJson == null) {
-        if (strict) throw const FormatException('Legacy cache authentication failed');
+        if (strict) {
+          throw const FormatException('Legacy cache authentication failed');
+        }
         debugPrint('[EncryptedMessageCache] Corrupt data: too short');
         return [];
       }
@@ -213,11 +251,15 @@ class EncryptedMessageCache {
     }
   }
 
-  static Future<void> clearChat(int chatId, {int? userId}) async {
+  static Future<void> clearChat(
+    int chatId, {
+    int? userId,
+    int? legacyOwnerUserId,
+  }) async {
     try {
       final Box<String> box = Hive.box<String>(_boxName);
       await box.delete(_chatKey(chatId, userId));
-      if (userId != null) {
+      if (userId != null && legacyOwnerUserId == userId) {
         await box.delete(chatId.toString());
       }
     } catch (e) {
@@ -226,6 +268,7 @@ class EncryptedMessageCache {
   }
 
   static Future<void> clearAll() async {
+    _clearEpoch++;
     try {
       _memorySenderPlaintexts.clear();
       if (Hive.isBoxOpen(_boxName)) {
@@ -240,12 +283,22 @@ class EncryptedMessageCache {
   }
 
   static Future<void> clearAccount(int userId, List<int> secretChatIds) async {
+    _accountGenerations[userId] = ++_generationCounter;
+    await EncryptedHistoryArchive.eraseAccount(userId);
     if (Hive.isBoxOpen(_boxName)) {
       final box = Hive.box<String>(_boxName);
-      await box.deleteAll(box.keys.where((key) => '$key'.startsWith('${userId}_') ||
-        secretChatIds.any((id) => '$key' == '$id')).toList());
+      await box.deleteAll(
+        box.keys
+            .where(
+              (key) =>
+                  '$key'.startsWith('${userId}_') ||
+                  secretChatIds.any((id) => '$key' == '$id'),
+            )
+            .toList(),
+      );
     }
-    bool owned(String key) => key.startsWith('${userId}_') ||
+    bool owned(String key) =>
+        key.startsWith('${userId}_') ||
         secretChatIds.any((id) => key.startsWith('0_${id}_'));
     _memorySenderPlaintexts.removeWhere((key, _) => owned(key));
     if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
@@ -255,9 +308,19 @@ class EncryptedMessageCache {
     }
   }
 
-  static Future<void> clearMigratedSecretChat(int chatId, {required int userId}) async {
-    await clearChat(chatId, userId: userId);
-    bool matches(String key) => key.startsWith('${userId}_${chatId}_') || key.startsWith('0_${chatId}_');
+  static Future<void> clearMigratedSecretChat(
+    int chatId, {
+    required int userId,
+    int? legacyOwnerUserId,
+  }) async {
+    await clearChat(
+      chatId,
+      userId: userId,
+      legacyOwnerUserId: legacyOwnerUserId,
+    );
+    bool matches(String key) =>
+        key.startsWith('${userId}_${chatId}_') ||
+        (legacyOwnerUserId == userId && key.startsWith('0_${chatId}_'));
     _memorySenderPlaintexts.removeWhere((key, _) => matches(key));
     if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
       final box = Hive.box<String>(_senderPlaintextBoxName);
@@ -267,16 +330,29 @@ class EncryptedMessageCache {
     }
   }
 
-  static Map<int, String> senderPlaintextsForMigration(int chatId, int userId) {
+  static Map<int, String> senderPlaintextsForMigration(
+    int chatId,
+    int userId, {
+    int? legacyOwnerUserId,
+  }) {
     final result = <int, String>{};
     if (!Hive.isBoxOpen(_senderPlaintextBoxName)) return result;
     final box = Hive.box<String>(_senderPlaintextBoxName);
     for (final key in box.keys) {
       final value = '$key';
-      if (!value.startsWith('${userId}_${chatId}_') && !value.startsWith('0_${chatId}_')) continue;
+      if (!value.startsWith('${userId}_${chatId}_') &&
+          !(legacyOwnerUserId == userId && value.startsWith('0_${chatId}_'))) {
+        continue;
+      }
       final id = int.tryParse(value.split('_').last);
       final text = box.get(key);
-      if (id != null && text != null && text.isNotEmpty) result[id] = text;
+      if (id != null && text != null && text.isNotEmpty) {
+        if (value.startsWith('${userId}_${chatId}_')) {
+          result[id] = text;
+        } else {
+          result.putIfAbsent(id, () => text);
+        }
+      }
     }
     return result;
   }

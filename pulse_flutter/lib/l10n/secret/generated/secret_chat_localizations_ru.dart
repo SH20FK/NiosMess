@@ -9,6 +9,10 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   SecretChatLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get updateIntegrityFailed =>
+      'Файл обновления повреждён или загружен не полностью. Скачайте его ещё раз.';
+
+  @override
   String get callMediaUnavailable =>
       'Не удалось включить микрофон или камеру. Проверьте разрешения приложения и попробуйте снова.';
 

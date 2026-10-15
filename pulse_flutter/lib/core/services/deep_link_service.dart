@@ -21,6 +21,8 @@ class DeepLinkService {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _handleUri(initialUri);
         });
+        // init may be deferred until after the application's first frame.
+        WidgetsBinding.instance.ensureVisualUpdate();
       }
     } catch (e) {
       debugPrint('[DeepLink] Error reading initial URI: $e');

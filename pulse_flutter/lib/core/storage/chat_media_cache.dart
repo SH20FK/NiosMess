@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:pulse_flutter/core/storage/hive_bootstrap.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 
 /// Persistent local cache for all shared media in a chat (photos, videos,
@@ -60,14 +61,9 @@ class ChatMediaCache {
 
   static Future<void> ensureInitialized() async {
     if (_initialized && Hive.isBoxOpen(_boxName)) return;
-    try {
-      if (!Hive.isBoxOpen(_boxName)) {
-        await Hive.openBox<List<dynamic>>(_boxName);
-      }
-      _initialized = true;
-    } catch (e) {
-      debugPrint('[ChatMediaCache] Initialization error: $e');
-    }
+    await HiveBootstrap.ensureInitialized();
+    await Hive.openBox<List<dynamic>>(_boxName);
+    _initialized = true;
   }
 
   static Box<List<dynamic>>? _getBox() {
@@ -87,11 +83,13 @@ class ChatMediaCache {
 
       return raw
           .whereType<Map>()
-          .map((dynamic item) => ApiMessage.fromJson(
-                (item as Map).map(
-                  (dynamic k, dynamic v) => MapEntry(k.toString(), v),
-                ),
-              ))
+          .map(
+            (dynamic item) => ApiMessage.fromJson(
+              (item as Map).map(
+                (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+              ),
+            ),
+          )
           .where(isMediaMessage)
           .toList(growable: false);
     } catch (e) {
@@ -120,8 +118,9 @@ class ChatMediaCache {
       if (box == null) return;
 
       // Filter only messages containing media
-      final List<ApiMessage> newMedia =
-          messages.where((m) => !m.isE2ee && m.e2eeFileKey == null && isMediaMessage(m)).toList(growable: false);
+      final List<ApiMessage> newMedia = messages
+          .where((m) => !m.isE2ee && m.e2eeFileKey == null && isMediaMessage(m))
+          .toList(growable: false);
       if (newMedia.isEmpty) return;
 
       // Load existing cached media
@@ -151,8 +150,9 @@ class ChatMediaCache {
           ? merged.sublist(0, _maxCachedMedia)
           : merged;
 
-      final List<Map<String, dynamic>> jsonList =
-          capped.map((ApiMessage m) => m.toJson()).toList(growable: false);
+      final List<Map<String, dynamic>> jsonList = capped
+          .map((ApiMessage m) => m.toJson())
+          .toList(growable: false);
 
       await box.put('chat_$chatId', jsonList);
     } catch (e) {
@@ -178,12 +178,14 @@ class ChatMediaCache {
       if (box == null) return;
 
       final List<ApiMessage> existing = getCachedMediaSync(chatId);
-      final List<ApiMessage> updated =
-          existing.where((ApiMessage m) => m.id != messageId).toList(growable: false);
+      final List<ApiMessage> updated = existing
+          .where((ApiMessage m) => m.id != messageId)
+          .toList(growable: false);
 
       if (updated.length != existing.length) {
-        final List<Map<String, dynamic>> jsonList =
-            updated.map((ApiMessage m) => m.toJson()).toList(growable: false);
+        final List<Map<String, dynamic>> jsonList = updated
+            .map((ApiMessage m) => m.toJson())
+            .toList(growable: false);
         await box.put('chat_$chatId', jsonList);
       }
     } catch (e) {

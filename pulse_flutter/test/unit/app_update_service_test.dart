@@ -39,7 +39,10 @@ void main() {
 
     test('handles v-prefix cleanly', () {
       expect(AppUpdateService.isNewerVersion('v3.49.1', '3.47.0'), isTrue);
-      expect(AppUpdateService.isNewerVersion('V3.49.1+102', '3.47.0+98'), isTrue);
+      expect(
+        AppUpdateService.isNewerVersion('V3.49.1+102', '3.47.0+98'),
+        isTrue,
+      );
     });
 
     test('handles build number on latest with no build on current', () {
@@ -60,19 +63,25 @@ void main() {
 ''';
 
     test('extracts specific version cleanly', () {
-      final String notes =
-          AppUpdateService.parseChangelog(sampleChangelog, '3.58.1+122');
+      final String notes = AppUpdateService.parseChangelog(
+        sampleChangelog,
+        '3.58.1+122',
+      );
       expect(notes, contains('Feature A'));
       expect(notes, contains('Feature B'));
       expect(notes, isNot(contains('Older Feature C')));
     });
 
-    test('fallbacks to first section if target version not found', () {
-      final String notes =
-          AppUpdateService.parseChangelog(sampleChangelog, '3.99.0');
-      expect(notes, contains('Feature A'));
-      expect(notes, isNot(contains('Older Feature C')));
-    });
+    test(
+      'does not show another version when requested release notes are absent',
+      () {
+        final String notes = AppUpdateService.parseChangelog(
+          sampleChangelog,
+          '3.99.0',
+        );
+        expect(notes, isEmpty);
+      },
+    );
 
     test('returns empty for blank input', () {
       final String notes = AppUpdateService.parseChangelog('', '3.58.1');

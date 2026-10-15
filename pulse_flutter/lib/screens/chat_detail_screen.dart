@@ -24,6 +24,7 @@ import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -103,7 +104,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   int? get _replyToMessageId => _composerNotifier.value.replyToMessageId;
   String? get _replyPreviewText => _composerNotifier.value.replyPreviewText;
   int? get _editingMessageId => _composerNotifier.value.editingMessageId;
-  String? get _editingOriginalText => _composerNotifier.value.editingOriginalText;
+  String? get _editingOriginalText =>
+      _composerNotifier.value.editingOriginalText;
   bool get _isAiProcessing => _composerNotifier.value.isAiProcessing;
 
   final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
@@ -193,6 +195,32 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _draftStorage = ref.read(draftStorageProvider); // cache before dispose
     _scrollCoordinator = ChatScrollCoordinator(
       onNearTop: _autoLoadOlderMessages,
+      onNearBottom: () {
+        final id = _chatId;
+        if (id != null) {
+          unawaited(
+            ref.read(chatMessagesProvider(id).notifier).loadNewer().catchError((
+              Object error,
+            ) {
+              if (mounted) AppToast.showError(context, error);
+            }),
+          );
+        }
+      },
+      onJumpToLatest: () async {
+        final id = _chatId;
+        if (id != null) {
+          await ref.read(chatMessagesProvider(id).notifier).jumpToLatest();
+        }
+      },
+      onFollowLatestChanged: (atBottom) {
+        final id = _chatId;
+        if (id != null) {
+          ref
+              .read(chatMessagesProvider(id).notifier)
+              .setFollowingLatest(atBottom);
+        }
+      },
       onReachedBottom: () {
         final int? cid = _chatId;
         if (cid != null) {
@@ -202,13 +230,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       },
     );
     _inputController.addListener(_onInputChanged);
-    _inputFocusNode = FocusNode()..addListener(() {
-      if (mounted) setState(() {});
-    });
+    _inputFocusNode = FocusNode()
+      ..addListener(() {
+        if (mounted) setState(() {});
+      });
     final int? cid = _chatId;
     if (cid != null) PushNotificationService.setCurrentChat(cid);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final id = _chatId;
+      if (id != null) {
+        _scrollCoordinator.setHasNewerHistory(
+          ref.read(chatHistoryWindowProvider(id)).hasNewer,
+        );
+      }
       _restoreDraft();
       _applySecureFlag();
       _refreshNow();
@@ -343,9 +378,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     AppBottomSheets.show(
       context: context,
       showDragHandle: false,
-      builder: (_) => E2eeVerificationSheet(
-        chatId: chatId,
-      ),
+      builder: (_) => E2eeVerificationSheet(chatId: chatId),
     );
   }
 
@@ -369,11 +402,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   void _onInputChanged() {
     final bool isEmpty = _inputController.text.trim().isEmpty;
     _scheduleDraftSave();
-    if (_isSecret || ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret != false) return;
-    ref.read(inlineQueryProvider.notifier).onInputChanged(
-      chatId: _chatId,
-      text: _inputController.text,
-    );
+    if (_isSecret ||
+        ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret != false) {
+      return;
+    }
+    ref
+        .read(inlineQueryProvider.notifier)
+        .onInputChanged(chatId: _chatId, text: _inputController.text);
     if (!isEmpty) {
       final int? chatId = _chatId;
       if (chatId != null) {
@@ -387,8 +422,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _draftSaveTimer = Timer(const Duration(milliseconds: 500), _saveDraft);
   }
 
-  Future<void> _processTextWithAi(AiAction action, {String? targetLanguage}) async {
-    if (_isSecret || ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret != false) { AppToast.showInfo(context, context.l10n.secretLocalOnly); return; }
+  Future<void> _processTextWithAi(
+    AiAction action, {
+    String? targetLanguage,
+  }) async {
+    if (_isSecret ||
+        ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret != false) {
+      AppToast.showInfo(context, context.l10n.secretLocalOnly);
+      return;
+    }
     final String currentText = _inputController.text.trim();
     if (currentText.isEmpty) return;
 
@@ -397,7 +439,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final String backupText = _inputController.text;
     bool hasReceivedFirstChunk = false;
 
-    _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: true);
+    _composerNotifier.value = _composerNotifier.value.copyWith(
+      isAiProcessing: true,
+    );
     ref.read(appSoundProvider).playEvent(SoundEvent.aiStart);
 
     _aiTextStreamer = SmoothTextStreamer(
@@ -408,19 +452,25 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           TextPosition(offset: rendered.length),
         );
         if (isFinished) {
-          _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: false);
+          _composerNotifier.value = _composerNotifier.value.copyWith(
+            isAiProcessing: false,
+          );
         }
       },
       onDone: (String fullText) {
         if (!mounted) return;
-        _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: false);
+        _composerNotifier.value = _composerNotifier.value.copyWith(
+          isAiProcessing: false,
+        );
       },
       onError: (dynamic error) {
         if (!mounted) return;
         if (!hasReceivedFirstChunk) {
           _inputController.text = backupText;
         }
-        _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: false);
+        _composerNotifier.value = _composerNotifier.value.copyWith(
+          isAiProcessing: false,
+        );
         ref.read(appSoundProvider).playEvent(SoundEvent.aiError);
         AppToast.showError(context, error);
       },
@@ -433,9 +483,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         targetLanguage: targetLanguage,
       );
 
-      final Stream<String> stream = ref.read(aiRepositoryProvider).streamRewriteText(
-        request: request,
-      );
+      final Stream<String> stream = ref
+          .read(aiRepositoryProvider)
+          .streamRewriteText(request: request);
 
       _aiStreamSubscription = stream.listen(
         (String chunk) {
@@ -477,7 +527,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _aiTextStreamer?.dispose();
     _aiTextStreamer = null;
     if (_isAiProcessing) {
-      _composerNotifier.value = _composerNotifier.value.copyWith(isAiProcessing: false);
+      _composerNotifier.value = _composerNotifier.value.copyWith(
+        isAiProcessing: false,
+      );
     }
   }
 
@@ -497,11 +549,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 // Header
                 Row(
                   children: <Widget>[
-                    Icon(Icons.auto_awesome_rounded, color: scheme.primary, size: 20),
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      color: scheme.primary,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       context.l10n.chatAiAssistant,
-                      style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: tt.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const Spacer(),
                     Consumer(
@@ -514,28 +572,40 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                         }
                         final double remainingPercent = usage.remainingPercent;
                         final String pctStr = remainingPercent.toStringAsFixed(
-                          remainingPercent.truncateToDouble() == remainingPercent ? 0 : 1,
+                          remainingPercent.truncateToDouble() ==
+                                  remainingPercent
+                              ? 0
+                              : 1,
                         );
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: scheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: scheme.outlineVariant.withValues(alpha: 0.2),
+                              color: scheme.outlineVariant.withValues(
+                                alpha: 0.2,
+                              ),
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.bolt_rounded, size: 14, color: scheme.primary),
+                              Icon(
+                                Icons.bolt_rounded,
+                                size: 14,
+                                color: scheme.primary,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 '$pctStr% символов',
                                 style: tt.labelSmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: scheme.onSurface,
-                                  ),
+                                  fontWeight: FontWeight.w600,
+                                  color: scheme.onSurface,
+                                ),
                               ),
                             ],
                           ),
@@ -590,28 +660,40 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                       label: const Text('🇬🇧 English'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processTextWithAi(AiAction.translate, targetLanguage: 'en');
+                        _processTextWithAi(
+                          AiAction.translate,
+                          targetLanguage: 'en',
+                        );
                       },
                     ),
                     ActionChip(
                       label: const Text('🇪🇸 Español'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processTextWithAi(AiAction.translate, targetLanguage: 'es');
+                        _processTextWithAi(
+                          AiAction.translate,
+                          targetLanguage: 'es',
+                        );
                       },
                     ),
                     ActionChip(
                       label: const Text('🇨🇳 中文'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processTextWithAi(AiAction.translate, targetLanguage: 'zh');
+                        _processTextWithAi(
+                          AiAction.translate,
+                          targetLanguage: 'zh',
+                        );
                       },
                     ),
                     ActionChip(
                       label: const Text('🇷🇺 Русский'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _processTextWithAi(AiAction.translate, targetLanguage: 'ru');
+                        _processTextWithAi(
+                          AiAction.translate,
+                          targetLanguage: 'ru',
+                        );
                       },
                     ),
                   ],
@@ -632,10 +714,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       await ref.read(chatMessagesProvider(chatId).notifier).markRead();
       ref.read(chatsProvider.notifier).markChatAsRead(chatId);
       if (_isSecret || chatId < 0) return;
-      final ApiChatSummary? freshChat =
-          await ref.read(chatRepositoryProvider).getChat(chatId);
+      final ApiChatSummary? freshChat = await ref
+          .read(chatRepositoryProvider)
+          .getChat(chatId);
       if (freshChat != null && mounted) {
-        ref.read(chatsProvider.notifier).upsertChat(freshChat.copyWith(unreadCount: 0));
+        ref
+            .read(chatsProvider.notifier)
+            .upsertChat(freshChat.copyWith(unreadCount: 0));
       }
     } catch (e) {
       debugPrint('Failed to refresh: $e');
@@ -649,7 +734,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (metadata == null) return;
     final isSecret = metadata.isSecret;
     _canPersistOrdinaryDraft = !isSecret;
-    if (isSecret) _secretCoordinator = await ref.read(secretChatCoordinatorProvider.future);
+    if (isSecret) {
+      _secretCoordinator = await ref.read(secretChatCoordinatorProvider.future);
+    }
     final String? draft = isSecret
         ? _secretCoordinator?.engine.chat(chatId)['draft'] as String?
         : await ref.read(draftStorageProvider).get(chatId);
@@ -667,7 +754,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (chatId == null) return;
     final String text = _inputController.text.trim();
     if (_isSecret || _secretCoordinator?.engine.findChat(chatId) != null) {
-      unawaited(_secretCoordinator?.engine.saveDraft(chatId, text).catchError((Object _) {}));
+      unawaited(
+        _secretCoordinator?.engine
+            .saveDraft(chatId, text)
+            .catchError((Object _) {}),
+      );
       return;
     }
     if (!_canPersistOrdinaryDraft) return;
@@ -694,7 +785,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     ApiChatSummary? currentChat = ref.read(chatByIdProvider(chatId));
     if (currentChat == null && !_isSecret) {
-      try { await ref.read(chatsProvider.future); } catch (_) {}
+      try {
+        await ref.read(chatsProvider.future);
+      } catch (_) {}
       if (!mounted) return;
       currentChat = ref.read(chatByIdProvider(chatId));
       if (currentChat == null) {
@@ -704,7 +797,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
     if (currentChat != null && currentChat.chatType == 'direct') {
       final int? partnerId = currentChat.partnerUserId;
-      final bool isBlockedByMe = (partnerId != null && ref.read(privacyProvider).isUserBlocked(partnerId)) || currentChat.isBlockedByMe;
+      final bool isBlockedByMe =
+          (partnerId != null &&
+              ref.read(privacyProvider).isUserBlocked(partnerId)) ||
+          currentChat.isBlockedByMe;
       if (isBlockedByMe) {
         AppToast.showError(context, context.l10n.chatUnblockToSend);
         return;
@@ -717,11 +813,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (isSupportChat && text.startsWith('/copyright')) {
       final String body = text.substring('/copyright'.length).trim();
       unawaited(
-        ref.read(supportRepositoryProvider).createTicket(
-          ticketType: 'copyright',
-          subject: 'Авторская жалоба',
-          body: body.isNotEmpty ? body : 'Обращение по авторскому праву',
-        ),
+        ref
+            .read(supportRepositoryProvider)
+            .createTicket(
+              ticketType: 'copyright',
+              subject: 'Авторская жалоба',
+              body: body.isNotEmpty ? body : 'Обращение по авторскому праву',
+            ),
       );
     }
 
@@ -733,7 +831,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (_savingSecretMessage) return;
       _savingSecretMessage = true;
       try {
-        await ref.read(chatMessagesProvider(chatId).notifier).send(text, replyToId: replyId);
+        await ref
+            .read(chatMessagesProvider(chatId).notifier)
+            .send(text, replyToId: replyId);
         if (!mounted) return;
         if (_inputController.text == originalText) _inputController.clear();
         if (_replyToMessageId == replyId) _clearReply();
@@ -755,29 +855,34 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           .read(chatMessagesProvider(chatId).notifier)
           .send(text, replyToId: replyId)
           .catchError((error) {
-        if (!mounted) {
-          return;
-        }
-        _inputController.text = originalText;
-        _inputController.selection = TextSelection.fromPosition(
-          TextPosition(offset: originalText.length),
-        );
-        if (replyId != null && originalReplyPreview != null) {
-          _composerNotifier.value = _composerNotifier.value.copyWith(
-            replyToMessageId: () => replyId,
-            replyPreviewText: () => originalReplyPreview,
-          );
-        }
-        final String errorStr = error.toString().toLowerCase();
-        if (errorStr.contains('not accept direct messages') ||
-            errorStr.contains('unavailable between these users') ||
-            errorStr.contains('restricted by user')) {
-          ref.read(chatsProvider.notifier).setChatBlockedByUser(chatId, true);
-          AppToast.showError(context, context.l10n.chatMessagesRestrictedByUser);
-        } else {
-          AppToast.showError(context, error);
-        }
-      }),
+            if (!mounted) {
+              return;
+            }
+            _inputController.text = originalText;
+            _inputController.selection = TextSelection.fromPosition(
+              TextPosition(offset: originalText.length),
+            );
+            if (replyId != null && originalReplyPreview != null) {
+              _composerNotifier.value = _composerNotifier.value.copyWith(
+                replyToMessageId: () => replyId,
+                replyPreviewText: () => originalReplyPreview,
+              );
+            }
+            final String errorStr = error.toString().toLowerCase();
+            if (errorStr.contains('not accept direct messages') ||
+                errorStr.contains('unavailable between these users') ||
+                errorStr.contains('restricted by user')) {
+              ref
+                  .read(chatsProvider.notifier)
+                  .setChatBlockedByUser(chatId, true);
+              AppToast.showError(
+                context,
+                context.l10n.chatMessagesRestrictedByUser,
+              );
+            } else {
+              AppToast.showError(context, error);
+            }
+          }),
     );
   }
 
@@ -792,7 +897,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     bool showSentSnackBar = false,
   }) async {
     if (ref.read(chatByIdProvider(chatId)) == null && !_isSecret) {
-      try { await ref.read(chatsProvider.future); } catch (_) {}
+      try {
+        await ref.read(chatsProvider.future);
+      } catch (_) {}
       if (!mounted) return;
       if (ref.read(chatByIdProvider(chatId)) == null) {
         AppToast.showError(context, context.l10n.secretAttachmentSaveFailed);
@@ -801,31 +908,59 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
     if (ref.read(chatByIdProvider(chatId))?.isSecret == true || _isSecret) {
       try {
-      final secret = await ref.read(secretChatCoordinatorProvider.future);
-      if (secret == null) throw StateError('Secret storage unavailable');
-      final plain = bytes ?? (filePath == null ? Uint8List(0) : await File(filePath).readAsBytes());
-      if (plain.isEmpty) throw StateError('Empty attachment');
-      await secret.enqueueAttachment(chatId, plain, filename: filename,
-        type: mediaSubtype == 'voice' ? 'voice' : mediaSubtype == 'circle' ? 'circle' : 'media',
-        text: text, replyToId: _replyToMessageId);
-      if (mounted) {
-        if (_inputController.text == text) _inputController.clear();
-        _clearReply();
-        _scrollToBottom();
-      }
-      return;
+        final secret = await ref.read(secretChatCoordinatorProvider.future);
+        if (secret == null) throw StateError('Secret storage unavailable');
+        final type = mediaSubtype == 'voice'
+            ? 'voice'
+            : mediaSubtype == 'circle'
+            ? 'circle'
+            : 'media';
+        if (!kIsWeb && filePath != null && filePath.isNotEmpty) {
+          await secret.enqueueAttachmentFile(
+            chatId,
+            filePath,
+            filename: filename,
+            type: type,
+            text: text,
+            replyToId: _replyToMessageId,
+          );
+        } else {
+          if (bytes == null || bytes.isEmpty) {
+            throw StateError('Empty attachment');
+          }
+          await secret.enqueueAttachment(
+            chatId,
+            bytes,
+            filename: filename,
+            type: type,
+            text: text,
+            replyToId: _replyToMessageId,
+          );
+        }
+        if (mounted) {
+          if (_inputController.text == text) _inputController.clear();
+          _clearReply();
+          _scrollToBottom();
+        }
+        return;
       } catch (_) {
-        if (mounted) AppToast.showError(context, context.l10n.secretAttachmentSaveFailed);
+        if (mounted) {
+          AppToast.showError(context, context.l10n.secretAttachmentSaveFailed);
+        }
         rethrow;
       }
     }
     final String defaultSenderYou = context.l10n.chatSenderYou;
-    final String localId = (-(DateTime.now().millisecondsSinceEpoch + Random().nextInt(1000))).toString();
+    final String localId =
+        (-(DateTime.now().millisecondsSinceEpoch + Random().nextInt(1000)))
+            .toString();
     final int tempIntId = int.parse(localId);
 
     final int? replyToId = _replyToMessageId;
 
-    final Uint8List? effectiveBytes = (bytes != null && bytes.isNotEmpty) ? bytes : null;
+    final Uint8List? effectiveBytes = (bytes != null && bytes.isNotEmpty)
+        ? bytes
+        : null;
     final String effectiveFilePath = filePath ?? '';
 
     final authState = ref.read(authProvider);
@@ -843,8 +978,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       senderDisplayName: effectiveDisplayName,
       senderBadges: const [],
       content: text,
-      msgType: mediaSubtype == 'voice' 
-          ? 'voice' 
+      msgType: mediaSubtype == 'voice'
+          ? 'voice'
           : (mediaSubtype == 'circle' ? 'circle' : 'media'),
       replyToId: replyToId,
       mediaUrl: filePath ?? 'local://$localId',
@@ -861,21 +996,25 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       isFailed: false,
     );
 
-    ref.read(chatMessagesProvider(chatId).notifier).addOptimisticLocalMessage(optimisticMessage);
+    ref
+        .read(chatMessagesProvider(chatId).notifier)
+        .addOptimisticLocalMessage(optimisticMessage);
     _clearReply();
     _scrollToBottom();
 
-    ref.read(uploadQueueProvider.notifier).enqueue(
-      localId: localId,
-      chatId: chatId,
-      filePath: effectiveFilePath,
-      bytes: effectiveBytes,
-      filename: filename,
-      mediaSubtype: mediaSubtype,
-      fileSize: fileSize,
-      text: text,
-      replyToId: replyToId,
-    );
+    ref
+        .read(uploadQueueProvider.notifier)
+        .enqueue(
+          localId: localId,
+          chatId: chatId,
+          filePath: effectiveFilePath,
+          bytes: effectiveBytes,
+          filename: filename,
+          mediaSubtype: mediaSubtype,
+          fileSize: fileSize,
+          text: text,
+          replyToId: replyToId,
+        );
   }
 
   Future<void> _sendVoiceMessage(String filePath) async {
@@ -956,21 +1095,26 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     final String initialText = _inputController.text;
-    if (mounted && ref.read(chatByIdProvider(chatId))?.isSecret != true) _inputController.clear();
+    if (mounted &&
+        !_isSecret &&
+        ref.read(chatByIdProvider(chatId))?.isSecret != true) {
+      _inputController.clear();
+    }
 
     for (int i = 0; i < results.length; i++) {
       final M3FilePickerResult result = results[i];
       final String filename = result.fileName;
-      final String mediaSubtype =
-          result.sendAsDocument ? 'document' : result.mediaSubtype;
+      final String mediaSubtype = result.sendAsDocument
+          ? 'document'
+          : result.mediaSubtype;
 
       final String? uploadFilePath = result.filePath;
       final Uint8List? uploadBytes = result.fileBytes;
       final int uploadFileSize = result.fileSize;
       final String caption =
           (result.caption != null && result.caption!.isNotEmpty)
-              ? result.caption!
-              : (i == 0 ? initialText : '');
+          ? result.caption!
+          : (i == 0 ? initialText : '');
 
       await _uploadAndSend(
         chatId: chatId,
@@ -1069,7 +1213,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     if (chatId == null || filePaths.isEmpty) return;
     final String initialText = _inputController.text;
-    if (mounted && ref.read(chatByIdProvider(chatId))?.isSecret != true) _inputController.clear();
+    if (mounted &&
+        !_isSecret &&
+        ref.read(chatByIdProvider(chatId))?.isSecret != true) {
+      _inputController.clear();
+    }
 
     for (int i = 0; i < filePaths.length; i++) {
       final String filePath = filePaths[i];
@@ -1081,10 +1229,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       final String mediaSubtype = sendAsDocument
           ? 'document'
           : (typeInfo.isImage
-              ? 'image'
-              : (typeInfo.isVideo
-                  ? 'video'
-                  : (typeInfo.isAudio ? 'audio' : 'document')));
+                ? 'image'
+                : (typeInfo.isVideo
+                      ? 'video'
+                      : (typeInfo.isAudio ? 'audio' : 'document')));
 
       await _uploadAndSend(
         chatId: chatId,
@@ -1205,7 +1353,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (target == null || !mounted) return;
 
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final bool hideMyAuthor = message.senderId == myUserId &&
+    final bool hideMyAuthor =
+        message.senderId == myUserId &&
         ref.read(privacyProvider).policyFor('forwards') == PrivacyPolicy.nobody;
     final String forwardText = hideMyAuthor || message.senderDisplayName.isEmpty
         ? '_fwd: ${message.content}'
@@ -1228,14 +1377,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     required bool isChannel,
     required bool amAdminOrOwner,
   }) async {
-    final MessageActionResult? result =
-        await AppBottomSheets.show<MessageActionResult>(
+    final MessageActionResult?
+    result = await AppBottomSheets.show<MessageActionResult>(
       context: context,
       isScrollControlled: true,
       builder: (BuildContext ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-        ),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: MessageContextMenuSheet(
           message: message,
           isMine: isMine,
@@ -1279,7 +1426,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   void _showReportMessageDialog(ApiMessage message) {
     AppBottomSheets.show<void>(
       context: context,
-      
+
       builder: (BuildContext ctx) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
         final TextTheme textTheme = Theme.of(ctx).textTheme;
@@ -1289,14 +1436,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Text(
                   context.l10n.reportSelectReason,
                   style: textTheme.titleMedium,
                 ),
               ),
               ListTile(
-                leading: Icon(Icons.report_gmailerrorred_rounded, color: scheme.error),
+                leading: Icon(
+                  Icons.report_gmailerrorred_rounded,
+                  color: scheme.error,
+                ),
                 title: Text(context.l10n.reportReasonSpam),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -1304,7 +1457,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 },
               ),
               ListTile(
-                leading: Icon(Icons.report_problem_rounded, color: scheme.error),
+                leading: Icon(
+                  Icons.report_problem_rounded,
+                  color: scheme.error,
+                ),
                 title: Text(context.l10n.reportReasonScam),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -1353,12 +1509,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   Future<void> _submitReport(ApiMessage message, String reason) async {
     try {
-      await ref.read(reportRepositoryProvider).report(
-        chatId: message.chatId,
-        reportedUserId: message.senderId,
-        messageIds: <int>[message.id],
-        reason: reason,
-      );
+      await ref
+          .read(reportRepositoryProvider)
+          .report(
+            chatId: message.chatId,
+            reportedUserId: message.senderId,
+            messageIds: <int>[message.id],
+            reason: reason,
+          );
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.reportSent);
     } catch (e) {
@@ -1368,9 +1526,31 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   static const List<String> _allReactionEmojis = <String>[
-    '👍', '👎', '❤️', '🔥', '😂', '🎉', '😮', '😢', '😍', '🤔',
-    '😎', '🫡', '🙏', '👏', '💪', '🤝', '💯', '✨', '⭐', '⚡',
-    '☕', '🍕', '🎮', '❌', '✅',
+    '👍',
+    '👎',
+    '❤️',
+    '🔥',
+    '😂',
+    '🎉',
+    '😮',
+    '😢',
+    '😍',
+    '🤔',
+    '😎',
+    '🫡',
+    '🙏',
+    '👏',
+    '💪',
+    '🤝',
+    '💯',
+    '✨',
+    '⭐',
+    '⚡',
+    '☕',
+    '🍕',
+    '🎮',
+    '❌',
+    '✅',
   ];
 
   Future<void> _showAllReactionsPicker(ApiMessage message) async {
@@ -1449,7 +1629,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (isImg || isVid) {
       final int? chatId = _chatId;
       final List<ApiMessage> allMessages = chatId != null
-          ? (ref.read(chatMessagesProvider(chatId)).value ?? const <ApiMessage>[])
+          ? (ref.read(chatMessagesProvider(chatId)).value ??
+                const <ApiMessage>[])
           : const <ApiMessage>[];
 
       final List<MediaViewerItem> playlist = <MediaViewerItem>[];
@@ -1464,16 +1645,18 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           if (msg.id == message.id) {
             initialIndex = playlist.length;
           }
-          playlist.add(MediaViewerItem(
-            url: u,
-            mediaType: mIsImg ? MediaType.image : MediaType.video,
-            title: (msg.mediaName ?? '').trim().isNotEmpty
-                ? msg.mediaName!.trim()
-                : _mediaLabel(msg, u),
-            e2eeFileKey: msg.e2eeFileKey,
-            filePath: msg.mediaUrl,
-            mediaName: msg.mediaName,
-          ));
+          playlist.add(
+            MediaViewerItem(
+              url: u,
+              mediaType: mIsImg ? MediaType.image : MediaType.video,
+              title: (msg.mediaName ?? '').trim().isNotEmpty
+                  ? msg.mediaName!.trim()
+                  : _mediaLabel(msg, u),
+              e2eeFileKey: msg.e2eeFileKey,
+              filePath: msg.mediaUrl,
+              mediaName: msg.mediaName,
+            ),
+          );
         }
       }
 
@@ -1537,7 +1720,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     await AppBottomSheets.show<void>(
       context: context,
-      
+
       builder: (BuildContext ctx) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
         return SafeArea(
@@ -1697,14 +1880,19 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (mediaUrl != null && mediaUrl.trim().isNotEmpty) {
       final String caption = message.content.trim();
       if (_isImageMedia(message, mediaUrl)) {
-        return caption.isNotEmpty ? '📷 $caption' : context.l10n.chatPreviewPhoto;
+        return caption.isNotEmpty
+            ? '📷 $caption'
+            : context.l10n.chatPreviewPhoto;
       }
       if (_isVideoMedia(message, mediaUrl)) {
-        return caption.isNotEmpty ? '🎥 $caption' : context.l10n.chatPreviewVideo;
+        return caption.isNotEmpty
+            ? '🎥 $caption'
+            : context.l10n.chatPreviewVideo;
       }
       final String name = (message.mediaName ?? '').trim();
-      final String label =
-          name.isNotEmpty ? name : _mediaLabel(message, mediaUrl);
+      final String label = name.isNotEmpty
+          ? name
+          : _mediaLabel(message, mediaUrl);
       return caption.isNotEmpty ? '📎 $label • $caption' : '📎 $label';
     }
 
@@ -1778,14 +1966,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (uploadTasks.containsKey(localId)) {
       // It was an upload task (media/voice/circle/document).
       // Mark local message as sending again and trigger upload retry.
-      ref.read(chatMessagesProvider(chatId).notifier).markLocalMessageSending(message.id);
+      ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .markLocalMessageSending(message.id);
       ref.read(uploadQueueProvider.notifier).retry(localId);
       return;
     }
 
     // Text message retry: remove optimistic message and resend
-    ref.read(chatMessagesProvider(chatId).notifier).removeLocalMessage(message.id);
-    await ref.read(chatMessagesProvider(chatId).notifier).send(message.content, replyToId: message.replyToId);
+    ref
+        .read(chatMessagesProvider(chatId).notifier)
+        .removeLocalMessage(message.id);
+    await ref
+        .read(chatMessagesProvider(chatId).notifier)
+        .send(message.content, replyToId: message.replyToId);
   }
 
   void _startCall({required bool isVideo}) {
@@ -1795,7 +1989,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final ApiChatSummary? currentChat = ref.read(chatByIdProvider(chatId));
     if (currentChat != null && currentChat.chatType == 'direct') {
       final int? partnerId = currentChat.partnerUserId;
-      final bool isBlockedByMe = (partnerId != null && ref.read(privacyProvider).isUserBlocked(partnerId)) || currentChat.isBlockedByMe;
+      final bool isBlockedByMe =
+          (partnerId != null &&
+              ref.read(privacyProvider).isUserBlocked(partnerId)) ||
+          currentChat.isBlockedByMe;
       final bool isBlockedByUser = currentChat.isBlockedByUser;
       if (isBlockedByMe) {
         AppToast.showError(context, context.l10n.chatUnblockToCall);
@@ -1833,14 +2030,28 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  void _handleLongPressMediaFor(ApiMessage message, bool isMine, bool amAdminOrOwner) {
+  void _handleLongPressMediaFor(
+    ApiMessage message,
+    bool isMine,
+    bool amAdminOrOwner,
+  ) {
     if (message.hasMedia) {
       _showMediaActions(message, isMine, amAdminOrOwner: amAdminOrOwner);
     }
   }
 
-  void _handleLongPressFor(ApiMessage message, bool isMine, bool isChannel, bool amAdminOrOwner) {
-    _showMessageActions(message, isMine, isChannel: isChannel, amAdminOrOwner: amAdminOrOwner);
+  void _handleLongPressFor(
+    ApiMessage message,
+    bool isMine,
+    bool isChannel,
+    bool amAdminOrOwner,
+  ) {
+    _showMessageActions(
+      message,
+      isMine,
+      isChannel: isChannel,
+      amAdminOrOwner: amAdminOrOwner,
+    );
   }
 
   @override
@@ -1858,30 +2069,28 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     // React only to secret chat flag changes for security overlay / polling
-    ref.listen<bool?>(
-      chatByIdProvider(chatId).select((c) => c?.isSecret),
-      (previous, isSecret) {
-        if (isSecret == null) return;
-        _canPersistOrdinaryDraft = !isSecret;
-        if (previous == null) unawaited(_restoreDraft());
-        if (isSecret != _isSecret) {
-          _isSecret = isSecret;
-          ScreenSecurityService.setSecureFlag(enabled: isSecret);
-          if (isSecret) {
-            _startSecretPollTimer();
-          } else {
-            _secretPollTimer?.cancel();
-          }
+    ref.listen<bool?>(chatByIdProvider(chatId).select((c) => c?.isSecret), (
+      previous,
+      isSecret,
+    ) {
+      if (isSecret == null) return;
+      _canPersistOrdinaryDraft = !isSecret;
+      if (previous == null) unawaited(_restoreDraft());
+      if (isSecret != _isSecret) {
+        _isSecret = isSecret;
+        ScreenSecurityService.setSecureFlag(enabled: isSecret);
+        if (isSecret) {
+          _startSecretPollTimer();
+        } else {
+          _secretPollTimer?.cancel();
         }
-      },
-    );
+      }
+    });
 
     final (String? chatType, String chatName, bool isSecretChat) = ref.watch(
-      chatByIdProvider(chatId).select((c) => (
-        c?.chatType,
-        c?.name ?? '',
-        c?.isSecret == true,
-      )),
+      chatByIdProvider(
+        chatId,
+      ).select((c) => (c?.chatType, c?.name ?? '', c?.isSecret == true)),
     );
 
     final bool isSecret = isSecretChat || _isSecret;
@@ -1892,13 +2101,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     final ColorScheme baseScheme = Theme.of(context).colorScheme;
-    final bool hasCustomWallpaper = ref.watch(chatWallpaperProvider.select((s) {
-      final cw = s.forChat(chatId.toString());
-      return cw != s.global || cw.imagePath != null;
-    }));
+    final bool hasCustomWallpaper = ref.watch(
+      chatWallpaperProvider.select((s) {
+        final cw = s.forChat(chatId.toString());
+        return cw != s.global || cw.imagePath != null;
+      }),
+    );
 
     final bool isDirect = chatType == 'direct';
-    final ColorScheme scheme = (isDirect && NiosChroma.shouldApply(hasCustomWallpaper: hasCustomWallpaper))
+    final ColorScheme scheme =
+        (isDirect &&
+            NiosChroma.shouldApply(hasCustomWallpaper: hasCustomWallpaper))
         ? NiosChroma.resolveChromaScheme(
             userScheme: baseScheme,
             partnerId: chatName.isNotEmpty ? chatName : chatId.toString(),
@@ -1940,14 +2153,26 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         if (isSecret) ...<ShortcutActivator, VoidCallback>{
           const SingleActivator(LogicalKeyboardKey.printScreen):
               _handleScreenshotAction,
-          const SingleActivator(LogicalKeyboardKey.keyS,
-              shift: true, meta: true): _handleScreenshotAction,
-          const SingleActivator(LogicalKeyboardKey.keyS,
-              shift: true, control: true): _handleScreenshotAction,
-          const SingleActivator(LogicalKeyboardKey.digit3,
-              shift: true, meta: true): _handleScreenshotAction,
-          const SingleActivator(LogicalKeyboardKey.digit4,
-              shift: true, meta: true): _handleScreenshotAction,
+          const SingleActivator(
+            LogicalKeyboardKey.keyS,
+            shift: true,
+            meta: true,
+          ): _handleScreenshotAction,
+          const SingleActivator(
+            LogicalKeyboardKey.keyS,
+            shift: true,
+            control: true,
+          ): _handleScreenshotAction,
+          const SingleActivator(
+            LogicalKeyboardKey.digit3,
+            shift: true,
+            meta: true,
+          ): _handleScreenshotAction,
+          const SingleActivator(
+            LogicalKeyboardKey.digit4,
+            shift: true,
+            meta: true,
+          ): _handleScreenshotAction,
         },
       },
       child: PopScope(
@@ -1962,7 +2187,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             isDesktopSplit: widget.isDesktopSplit,
             isSecret: isSecret,
             onBack: () {
-              if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
+              if (ref.read(uiSettingsProvider).haptics) {
+                HapticService.reaction();
+              }
               _goBack();
             },
             onVoiceCall: _startVoiceCall,
@@ -1984,6 +2211,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               messagesBuilder: (BuildContext context, double composerHeight) {
                 return _ChatMessagesScope(
                   chatId: chatId,
+                  highlightMessageId: widget.highlightMessageId,
                   scrollCoordinator: _scrollCoordinator,
                   inputFocusNode: _inputFocusNode,
                   composerHeight: composerHeight,
@@ -2160,12 +2388,16 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
 
     final bool isChannel = chat?.chatType == 'channel';
     final bool isGroup = chat?.chatType == 'group';
-    final String? directUsername = resolveDirectUsername(chat, members, myUserId);
+    final String? directUsername = resolveDirectUsername(
+      chat,
+      members,
+      myUserId,
+    );
     final String title = chat?.chatType == 'direct'
         ? resolveDirectDisplayName(context, chat, members, myUserId, chatId)
         : ((chat?.name ?? '').trim().isNotEmpty
-            ? chat!.name.trim()
-            : context.l10n.chatTitleFallback(chatId));
+              ? chat!.name.trim()
+              : context.l10n.chatTitleFallback(chatId));
 
     return ChatDetailAppBar(
       chatId: chatId,
@@ -2179,10 +2411,12 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
       isSecret: chat?.isSecret == true || isSecret,
       directUsername: directUsername,
       autoDeleteDuration: chat?.formattedAutoDeleteDuration,
-      isVerified: chat?.isVerified == true ||
+      isVerified:
+          chat?.isVerified == true ||
           chat?.username?.toLowerCase() == 'support' ||
           directUsername?.toLowerCase() == 'support',
-      isBot: chat?.chatType == 'bot' ||
+      isBot:
+          chat?.chatType == 'bot' ||
           BotDetector.isBot(chat?.username) ||
           BotDetector.isBot(directUsername),
       isOnline: chat?.chatType == 'direct' && chat?.isOnline == true,
@@ -2218,6 +2452,7 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
 class _ChatMessagesScope extends ConsumerWidget {
   const _ChatMessagesScope({
     required this.chatId,
+    this.highlightMessageId,
     required this.scrollCoordinator,
     required this.inputFocusNode,
     required this.composerHeight,
@@ -2237,41 +2472,60 @@ class _ChatMessagesScope extends ConsumerWidget {
   });
 
   final int chatId;
+  final int? highlightMessageId;
   final ChatScrollCoordinator scrollCoordinator;
   final FocusNode inputFocusNode;
   final double composerHeight;
   final void Function(ApiMessage) onOpenComments;
   final void Function(ApiMessage, String) onReactionTap;
   final void Function(ApiMessage) onOpenMedia;
-  final void Function(ApiMessage, bool isMine, bool amAdminOrOwner) onLongPressMedia;
-  final void Function(ApiMessage, bool isMine, bool isChannel, bool amAdminOrOwner) onLongPress;
+  final void Function(ApiMessage, bool isMine, bool amAdminOrOwner)
+  onLongPressMedia;
+  final void Function(
+    ApiMessage,
+    bool isMine,
+    bool isChannel,
+    bool amAdminOrOwner,
+  )
+  onLongPress;
   final void Function(ApiMessage) onSwipeToReply;
   final void Function(ApiMessage) onRetrySend;
   final String Function(ApiMessage) displayTextBuilder;
   final String? Function(ApiMessage) mediaUrlBuilder;
   final bool Function(ApiMessage, String url) isImageMediaBuilder;
   final String? Function(ApiMessage, String url) mediaLabelBuilder;
-  final String? Function(ApiMessage, Map<int, ApiMessage> byId) replyPreviewBuilder;
+  final String? Function(ApiMessage, Map<int, ApiMessage> byId)
+  replyPreviewBuilder;
   final Widget Function(DateTime date, DateTime now) dateSeparatorBuilder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen<AsyncValue<List<ApiMessage>>>(chatMessagesProvider(chatId), (previous, next) {
-      final List<ApiMessage>? prevList = previous?.value;
-      final List<ApiMessage>? nextList = next.value;
-      if (prevList != null && nextList != null && nextList.length > prevList.length) {
-        scrollCoordinator.onIncomingMessages(nextList.length - prevList.length);
-      }
+    ref.listen<ChatHistoryWindowState>(chatHistoryWindowProvider(chatId), (
+      previous,
+      next,
+    ) {
+      scrollCoordinator.setHasNewerHistory(next.hasNewer);
+      final incoming =
+          next.incomingRevision -
+          (previous?.incomingRevision ?? next.incomingRevision);
+      if (incoming > 0) scrollCoordinator.onIncomingMessages(incoming);
     });
+    final window = ref.watch(chatHistoryWindowProvider(chatId));
 
-    final AsyncValue<List<ApiMessage>> messagesAsync = ref.watch(chatMessagesProvider(chatId));
-    final int myUserId = ref.watch(authProvider.select((a) => a.session?.userId ?? -1));
+    final AsyncValue<List<ApiMessage>> messagesAsync = ref.watch(
+      chatMessagesProvider(chatId),
+    );
+    final int myUserId = ref.watch(
+      authProvider.select((a) => a.session?.userId ?? -1),
+    );
     final (bool isChannel, bool isGroup, bool isSecret) = ref.watch(
-      chatByIdProvider(chatId).select((c) => (
-        c?.chatType == 'channel',
-        c?.chatType == 'group',
-        c?.isSecret == true,
-      )),
+      chatByIdProvider(chatId).select(
+        (c) => (
+          c?.chatType == 'channel',
+          c?.chatType == 'group',
+          c?.isSecret == true,
+        ),
+      ),
     );
     final String myRole = ref.watch(myChatRoleProvider(chatId));
     final bool amAdminOrOwner = myRole == 'admin' || myRole == 'owner';
@@ -2299,6 +2553,10 @@ class _ChatMessagesScope extends ConsumerWidget {
         return ChatMessageList(
           messages: messages,
           scrollController: scrollCoordinator.scrollController,
+          followingLatest: window.followingLatest,
+          highlightMessageId: highlightMessageId,
+          onRequestMessage: (id) =>
+              ref.read(chatMessagesProvider(chatId).notifier).loadAround(id),
           authUserId: myUserId,
           amAdminOrOwner: amAdminOrOwner,
           isChannel: isChannel,
@@ -2312,7 +2570,9 @@ class _ChatMessagesScope extends ConsumerWidget {
           onLongPress: onLongPress,
           onSwipeToReply: onSwipeToReply,
           onCallbackQuery: (ApiMessage message, String data) {
-            ref.read(chatMessagesProvider(chatId).notifier).sendCallbackQuery(message.id, data);
+            ref
+                .read(chatMessagesProvider(chatId).notifier)
+                .sendCallbackQuery(message.id, data);
           },
           onRetrySend: onRetrySend,
           displayTextBuilder: displayTextBuilder,
@@ -2321,19 +2581,20 @@ class _ChatMessagesScope extends ConsumerWidget {
           mediaLabelBuilder: mediaLabelBuilder,
           replyPreviewBuilder: replyPreviewBuilder,
           dateSeparatorBuilder: dateSeparatorBuilder,
-          animatedMessageBuilder: ({
-            required int messageId,
-            required bool animate,
-            required bool isMine,
-            required Widget child,
-          }) {
-            return _AnimatedMessage(
-              key: ValueKey<int>(messageId),
-              animate: animate,
-              isMine: isMine,
-              child: child,
-            );
-          },
+          animatedMessageBuilder:
+              ({
+                required int messageId,
+                required bool animate,
+                required bool isMine,
+                required Widget child,
+              }) {
+                return _AnimatedMessage(
+                  key: ValueKey<int>(messageId),
+                  animate: animate,
+                  isMine: isMine,
+                  child: child,
+                );
+              },
         );
       },
       loading: () => const MessageListSkeleton(),
@@ -2395,93 +2656,120 @@ class _ChatComposerScope extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (bool isChannel, bool isDirect, int? partnerUserId, bool isBlockedByMeChat, bool isBlockedByUser) = ref.watch(
-      chatByIdProvider(chatId).select((c) => (
-        c?.chatType == 'channel',
-        c?.chatType == 'direct',
-        c?.partnerUserId,
-        c?.isBlockedByMe ?? false,
-        c?.isBlockedByUser ?? false,
-      )),
+    final (
+      bool isChannel,
+      bool isDirect,
+      int? partnerUserId,
+      bool isBlockedByMeChat,
+      bool isBlockedByUser,
+    ) = ref.watch(
+      chatByIdProvider(chatId).select(
+        (c) => (
+          c?.chatType == 'channel',
+          c?.chatType == 'direct',
+          c?.partnerUserId,
+          c?.isBlockedByMe ?? false,
+          c?.isBlockedByUser ?? false,
+        ),
+      ),
     );
 
     final String myRole = ref.watch(myChatRoleProvider(chatId));
-    final bool canPostInChannel = !isChannel || myRole == 'admin' || myRole == 'owner';
+    final bool canPostInChannel =
+        !isChannel || myRole == 'admin' || myRole == 'owner';
 
     final int? partnerId = partnerUserId;
-    final bool isBlockedByMe = isDirect && partnerId != null &&
-        (ref.watch(privacyProvider).isUserBlocked(partnerId) || isBlockedByMeChat);
+    final bool isBlockedByMe =
+        isDirect &&
+        partnerId != null &&
+        (ref.watch(privacyProvider).isUserBlocked(partnerId) ||
+            isBlockedByMeChat);
 
-    final bool hasActiveUploads = ref.watch(hasActiveChatUploadsProvider(chatId));
-    final bool hapticsEnabled = ref.watch(uiSettingsProvider.select((s) => s.haptics));
-    final bool sendOnEnter = ref.watch(uiSettingsProvider.select((s) => s.sendOnEnter));
+    final bool hasActiveUploads = ref.watch(
+      hasActiveChatUploadsProvider(chatId),
+    );
+    final bool hapticsEnabled = ref.watch(
+      uiSettingsProvider.select((s) => s.haptics),
+    );
+    final bool sendOnEnter = ref.watch(
+      uiSettingsProvider.select((s) => s.sendOnEnter),
+    );
 
-    final (bool isSpamBlocked, DateTime? spamBlockUntil, String? spamBlockReason) = ref.watch(
-      authProvider.select((a) => (
-        a.profile?.isRestrictedBySpamBlock ?? false,
-        a.profile?.spamBlockUntil,
-        a.profile?.spamBlockReason,
-      )),
+    final (
+      bool isSpamBlocked,
+      DateTime? spamBlockUntil,
+      String? spamBlockReason,
+    ) = ref.watch(
+      authProvider.select(
+        (a) => (
+          a.profile?.isRestrictedBySpamBlock ?? false,
+          a.profile?.spamBlockUntil,
+          a.profile?.spamBlockReason,
+        ),
+      ),
     );
 
     return ValueListenableBuilder<ChatComposerState>(
       valueListenable: composerNotifier,
-      builder: (BuildContext context, ChatComposerState composerState, Widget? _) {
-        return ChatDetailInputArea(
-          chatId: chatId,
-          isBlockedByMe: isBlockedByMe,
-          isBlockedByUser: isDirect && isBlockedByUser,
-          onUnblockUser: partnerId != null
-              ? () async {
-                  HapticService.confirm();
-                  final bool success = await ref
-                      .read(privacyProvider.notifier)
-                      .unblockUser(partnerId);
-                  if (!context.mounted) return;
-                  if (success) {
-                    AppToast.showSuccess(context, context.l10n.userUnblockedSuccess);
-                  }
-                }
-              : null,
-          onCancelAi: onCancelAi,
-          onSendSticker: onSendSticker,
-          onSendInlineResult: (InlineQueryResult result) {
-            inputController.text = result.messageText;
-            onSend();
+      builder:
+          (BuildContext context, ChatComposerState composerState, Widget? _) {
+            return ChatDetailInputArea(
+              chatId: chatId,
+              isBlockedByMe: isBlockedByMe,
+              isBlockedByUser: isDirect && isBlockedByUser,
+              onUnblockUser: partnerId != null
+                  ? () async {
+                      HapticService.confirm();
+                      final bool success = await ref
+                          .read(privacyProvider.notifier)
+                          .unblockUser(partnerId);
+                      if (!context.mounted) return;
+                      if (success) {
+                        AppToast.showSuccess(
+                          context,
+                          context.l10n.userUnblockedSuccess,
+                        );
+                      }
+                    }
+                  : null,
+              onCancelAi: onCancelAi,
+              onSendSticker: onSendSticker,
+              onSendInlineResult: (InlineQueryResult result) {
+                inputController.text = result.messageText;
+                onSend();
+              },
+              canPostInChannel: canPostInChannel,
+              showDraftRestoredBanner: showDraftRestoredBanner,
+              onClearDraft: onClearDraft,
+              uploadingMedia: hasActiveUploads,
+              inputController: inputController,
+              inputFocusNode: inputFocusNode,
+              isAiProcessing: composerState.isAiProcessing,
+              editingMessageId: composerState.editingMessageId,
+              editingOriginalText: composerState.editingOriginalText,
+              replyToMessageId: composerState.replyToMessageId,
+              replyPreviewText: composerState.replyPreviewText,
+              onSend: onSend,
+              onCommitEdit: onCommitEdit,
+              onCancelEdit: onCancelEdit,
+              onClearReply: onClearReply,
+              onAttachMedia: onAttachMedia,
+              onAiPressed: () => onAiPressed(context, scheme),
+              onVoiceSend: onVoiceSend,
+              onCircleSend: onCircleSend,
+              hapticsEnabled: hapticsEnabled,
+              sendOnEnter: sendOnEnter,
+              isSpamBlocked: isSpamBlocked,
+              spamBlockUntil: spamBlockUntil,
+              spamBlockReason: spamBlockReason,
+              onContactSupport: () => context.push('/chat/support'),
+              onEditLastMessage: onEditLastMessage,
+              onAttachFiles: onAttachFiles,
+            );
           },
-          canPostInChannel: canPostInChannel,
-          showDraftRestoredBanner: showDraftRestoredBanner,
-          onClearDraft: onClearDraft,
-          uploadingMedia: hasActiveUploads,
-          inputController: inputController,
-          inputFocusNode: inputFocusNode,
-          isAiProcessing: composerState.isAiProcessing,
-          editingMessageId: composerState.editingMessageId,
-          editingOriginalText: composerState.editingOriginalText,
-          replyToMessageId: composerState.replyToMessageId,
-          replyPreviewText: composerState.replyPreviewText,
-          onSend: onSend,
-          onCommitEdit: onCommitEdit,
-          onCancelEdit: onCancelEdit,
-          onClearReply: onClearReply,
-          onAttachMedia: onAttachMedia,
-          onAiPressed: () => onAiPressed(context, scheme),
-          onVoiceSend: onVoiceSend,
-          onCircleSend: onCircleSend,
-          hapticsEnabled: hapticsEnabled,
-          sendOnEnter: sendOnEnter,
-          isSpamBlocked: isSpamBlocked,
-          spamBlockUntil: spamBlockUntil,
-          spamBlockReason: spamBlockReason,
-          onContactSupport: () => context.push('/chat/support'),
-          onEditLastMessage: onEditLastMessage,
-          onAttachFiles: onAttachFiles,
-        );
-      },
     );
   }
 }
-
 
 // ── Animated message entrance widget ────────────────────────────────────────
 class _AnimatedMessage extends StatefulWidget {
@@ -2547,8 +2835,9 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
             offset: Offset(0, _slideY!.value),
             child: Transform.scale(
               scale: _scale!.value,
-              alignment:
-                  widget.isMine ? Alignment.bottomRight : Alignment.bottomLeft,
+              alignment: widget.isMine
+                  ? Alignment.bottomRight
+                  : Alignment.bottomLeft,
               child: child,
             ),
           ),
@@ -2673,9 +2962,9 @@ class _AiActionCard extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -2684,4 +2973,3 @@ class _AiActionCard extends StatelessWidget {
     );
   }
 }
-

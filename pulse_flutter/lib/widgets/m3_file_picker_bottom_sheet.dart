@@ -434,9 +434,11 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
       final PlatformFile file = result[i];
       final String? filePath = file.path;
       Uint8List? fileBytes;
-      try {
-        fileBytes = await file.readAsBytes();
-      } catch (_) {}
+      if (kIsWeb || filePath == null || filePath.isEmpty) {
+        try {
+          fileBytes = await file.readAsBytes();
+        } catch (_) {}
+      }
 
       final int fileSize = fileBytes?.length ??
           (filePath != null ? await file.length() : 0);
