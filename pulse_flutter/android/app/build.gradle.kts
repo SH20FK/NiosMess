@@ -78,14 +78,12 @@ flutter {
     source = "../.."
 }
 
-// Flutter's variant callback adds ABI offsets to split APK version codes.
-// Register after plugin application so every package uses the pubspec build.
-afterEvaluate {
-    android.applicationVariants.configureEach {
-        outputs.forEach { output ->
-            @Suppress("DEPRECATION")
-            val apkOutput = output as com.android.build.gradle.api.ApkVariantOutput
-            apkOutput.versionCodeOverride = flutter.versionCode
-        }
+// Flutter registers its ABI-offset callback during plugin application. Register
+// immediately after it: AGP locks output properties before afterEvaluate returns.
+android.applicationVariants.configureEach {
+    outputs.forEach { output ->
+        @Suppress("DEPRECATION")
+        val apkOutput = output as com.android.build.gradle.api.ApkVariantOutput
+        apkOutput.versionCodeOverride = flutter.versionCode
     }
 }
