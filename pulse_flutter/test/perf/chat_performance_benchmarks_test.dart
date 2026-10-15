@@ -1,122 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
-import 'package:pulse_flutter/models/api/message_model.dart';
+import '../widgets/message_layout_delta_test.dart' as layout_algorithm;
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
-import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
 import 'package:pulse_flutter/widgets/wallpaper/wallpaper_image_cache.dart';
 
 void main() {
-  group('Chat Performance & Architecture Benchmarks', () {
-    // ─────────────────────────────────────────────────────────────────────────
-    // 1. Incremental MessageLayoutStore Benchmarks
-    // ─────────────────────────────────────────────────────────────────────────
-    group('MessageLayoutStore Benchmarks', () {
-      ApiMessage makeMessage(int id, int senderId, DateTime time, {String text = 'hello'}) {
-        return ApiMessage(
-          id: id,
-          chatId: 42,
-          senderId: senderId,
-          senderUsername: 'user$senderId',
-          senderDisplayName: 'User $senderId',
-          senderBadges: const [],
-          content: text,
-          msgType: 'text',
-          replyToId: null,
-          mediaUrl: '',
-          mediaType: '',
-          mediaName: '',
-          mediaSize: 0,
-          mediaDuration: 0,
-          commentsCount: 0,
-          reactions: const {},
-          sentAt: time,
-          editedAt: null,
-          isDeleted: false,
-        );
-      }
-
-      test('O(1) append performance across 1000 messages', () {
-        final store = MessageLayoutStore();
-        final baseTime = DateTime(2026, 1, 1, 12, 0, 0);
-
-        // Populate initial 500 messages
-        final initialMessages = List<ApiMessage>.generate(500, (i) {
-          return makeMessage(i + 1, (i % 3) + 1, baseTime.add(Duration(minutes: i)));
-        });
-        store.reset(initialMessages);
-        expect(store.messages.length, 500);
-        expect(store.layout.length, 500);
-        expect(store.idToIndex[1], 499); // reversed indexing
-        expect(store.idToIndex[500], 0);
-
-        // Benchmark appending 500 messages one-by-one (simulating real-time chat stream)
-        final stopwatch = Stopwatch()..start();
-        for (int i = 501; i <= 1000; i++) {
-          final nextList = List<ApiMessage>.from(store.messages)
-            ..add(makeMessage(i, (i % 3) + 1, baseTime.add(Duration(minutes: i))));
-          store.sync(nextList);
-        }
-        stopwatch.stop();
-
-        expect(store.messages.length, 1000);
-        expect(store.layout.length, 1000);
-        expect(store.byId[1000]?.id, 1000);
-        expect(store.idToIndex[1000], 0);
-
-        // 500 appends should execute well under 100ms in debug VM (< 0.2ms per message)
-        expect(stopwatch.elapsedMilliseconds, lessThan(150),
-            reason: '500 incremental appends should execute in sub-millisecond time per append');
-      });
-
-      test('O(1) in-place update for message edit / reaction', () {
-        final store = MessageLayoutStore();
-        final baseTime = DateTime(2026, 1, 1, 12, 0, 0);
-        final initialMessages = List<ApiMessage>.generate(100, (i) {
-          return makeMessage(i + 1, (i % 2) + 1, baseTime.add(Duration(minutes: i)));
-        });
-        store.reset(initialMessages);
-
-        // Edit message #50
-        final updatedMessages = List<ApiMessage>.from(store.messages);
-        final editedMsg = makeMessage(50, 2, baseTime.add(const Duration(minutes: 49)), text: 'edited text');
-        updatedMessages[49] = editedMsg;
-
-        final stopwatch = Stopwatch()..start();
-        store.sync(updatedMessages);
-        stopwatch.stop();
-
-        expect(store.messages[49].content, 'edited text');
-        expect(store.byId[50]?.content, 'edited text');
-        expect(stopwatch.elapsedMicroseconds, lessThan(5000),
-            reason: 'Single message in-place update must complete in < 5ms');
-      });
-
-      test('O(k) prepend for pagination batch', () {
-        final store = MessageLayoutStore();
-        final baseTime = DateTime(2026, 1, 1, 12, 0, 0);
-        final initialMessages = List<ApiMessage>.generate(100, (i) {
-          return makeMessage(i + 50, (i % 2) + 1, baseTime.add(Duration(minutes: i + 50)));
-        });
-        store.reset(initialMessages);
-
-        // Prepend 50 older messages
-        final olderMessages = List<ApiMessage>.generate(50, (i) {
-          return makeMessage(i, (i % 2) + 1, baseTime.add(Duration(minutes: i)));
-        });
-        final combined = [...olderMessages, ...store.messages];
-
-        final stopwatch = Stopwatch()..start();
-        store.sync(combined);
-        stopwatch.stop();
-
-        expect(store.messages.length, 150);
-        expect(store.byId[0]?.id, 0);
-        expect(store.byId[149]?.id, 149);
-        expect(stopwatch.elapsedMilliseconds, lessThan(50));
-      });
-    });
+  group('Chat algorithm and resource regressions', () {
+    layout_algorithm.main();
 
     // ─────────────────────────────────────────────────────────────────────────
     // 2. Upload Progress Throttling & Topology Isolation
@@ -147,11 +39,16 @@ void main() {
         };
 
         String computeKey(Map<String, UploadTask> map) {
-          final pending = map.values
-              .where((t) => t.status == UploadStatus.pending || t.status == UploadStatus.uploading)
-              .map((t) => '${t.localId}:${t.chatId}')
-              .toList()
-            ..sort();
+          final pending =
+              map.values
+                  .where(
+                    (t) =>
+                        t.status == UploadStatus.pending ||
+                        t.status == UploadStatus.uploading,
+                  )
+                  .map((t) => '${t.localId}:${t.chatId}')
+                  .toList()
+                ..sort();
           return pending.join(',');
         }
 
@@ -164,8 +61,11 @@ void main() {
         };
 
         final updatedKey = computeKey(tasksUpdated);
-        expect(updatedKey, equals(initialKey),
-            reason: 'Topology key must NOT change when only progress changes');
+        expect(
+          updatedKey,
+          equals(initialKey),
+          reason: 'Topology key must NOT change when only progress changes',
+        );
 
         // Adding a new task MUST change the topology key
         final tasksWithNew = <String, UploadTask>{
@@ -183,8 +83,11 @@ void main() {
         };
 
         final newKey = computeKey(tasksWithNew);
-        expect(newKey, isNot(equals(initialKey)),
-            reason: 'Topology key must change when task membership changes');
+        expect(
+          newKey,
+          isNot(equals(initialKey)),
+          reason: 'Topology key must change when task membership changes',
+        );
       });
     });
 

@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'dart:async';
+import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/storage/chat_history_retention.dart';
 import 'package:pulse_flutter/core/storage/sorted_history.dart';
+import 'package:pulse_flutter/core/storage/message_history_snapshot.dart';
 import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
@@ -642,6 +644,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   SecretChatCoordinator? _secret;
   bool _secretMarkingRead = false;
   Future<void>? _refreshInFlight;
+  Completer<void>? _buildReady;
   Future<int>? _olderInFlight;
 
   Timer? _cacheFlushTimer;
@@ -669,6 +672,20 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   int _selectionRevision = 0;
   int _incomingRevision = 0;
   Object? _archiveError;
+  ChatHistoryAnchor? _scrollAnchor;
+  ChatHistoryAnchor? get scrollAnchor => _scrollAnchor;
+
+  Future<void> saveScrollAnchor(ChatHistoryAnchor anchor) async {
+    _scrollAnchor = anchor;
+    final archive = _historyArchive;
+    if (archive == null || !archive.valid) return;
+    try {
+      await archive.writeScrollAnchor(anchor);
+    } catch (_) {
+      /* The in-memory bookmark remains usable while disk is unavailable. */
+    }
+  }
+
   final _historyLoads = <Map<int, ApiMessage?>>{};
 
   void _recordHistoryMutation(int id, ApiMessage? message) {
@@ -826,7 +843,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     _windowRevision++;
     _projectingWindow = true;
     try {
-      state = AsyncData(List<ApiMessage>.of(messages));
+      state = AsyncData(
+        messages is MessageHistorySnapshot
+            ? messages
+            : List<ApiMessage>.of(messages),
+      );
     } finally {
       _projectingWindow = false;
     }
@@ -909,6 +930,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       ], changes);
       if (!visible.any((row) => row.id == messageId)) return false;
       _replaceWindow(visible, followingLatest: false);
+      await saveScrollAnchor(
+        ChatHistoryAnchor(messageId: messageId, fraction: 0.7),
+      );
       return true;
     }),
   );
@@ -936,6 +960,15 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         followingLatest: true,
         hasNewer: false,
       );
+      if (latest.isNotEmpty) {
+        await saveScrollAnchor(
+          ChatHistoryAnchor(
+            messageId: latest.last.id,
+            fraction: 0,
+            followingLatest: true,
+          ),
+        );
+      }
     }),
   ).whenComplete(() => _latestInFlight = null);
 
@@ -962,6 +995,17 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   @override
   Future<List<ApiMessage>> build() async {
+    final ready = Completer<void>();
+    _buildReady = ready;
+    try {
+      return await _buildHistory();
+    } finally {
+      ready.complete();
+      if (identical(_buildReady, ready)) _buildReady = null;
+    }
+  }
+
+  Future<List<ApiMessage>> _buildHistory() async {
     final int generation = ++_generation;
     final int? accountId = ref.watch(
       authProvider.select(
@@ -989,6 +1033,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     _archiveRemovals.clear();
     _archiveTask = null;
     _followingLatest = true;
+    _scrollAnchor = null;
     _hasNewerArchived = false;
     _lowerWindowKey = _upperWindowKey = null;
     final retention = ref.read(chatHistoryRetentionProvider);
@@ -1075,7 +1120,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         }
       });
       ref.onDispose(() => unawaited(subscription.cancel()));
-      secret.engine.wake();
+      secret.refreshChat(_chatId);
       return _secretMessages();
     }
 
@@ -1117,9 +1162,38 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       );
       if (!ref.mounted || generation != _generation) return const [];
       _historyArchive = archive;
-      final restored = await archive.read(limit: maxVisibleMessages);
+      final savedAnchor = await archive.readScrollAnchor();
+      List<ApiMessage> restored;
+      final target = savedAnchor != null && !savedAnchor.followingLatest
+          ? await archive.message(savedAnchor.messageId)
+          : null;
+      if (target != null && savedAnchor != null) {
+        final older = await archive.read(
+          before: target,
+          limit: maxVisibleMessages ~/ 2,
+        );
+        final newer = await archive.read(
+          after: target,
+          limit: maxVisibleMessages ~/ 2 - 1,
+        );
+        restored = [...older, target, ...newer];
+        _scrollAnchor = savedAnchor;
+      } else {
+        restored = await archive.read(limit: maxVisibleMessages);
+        _scrollAnchor = savedAnchor?.followingLatest == true
+            ? savedAnchor
+            : null;
+        if (savedAnchor != null && !savedAnchor.followingLatest) {
+          await archive.writeScrollAnchor(null);
+        }
+      }
       if (!ref.mounted || generation != _generation) return const [];
-      if (restored.isNotEmpty) _replaceWindow(restored, followingLatest: true);
+      if (restored.isNotEmpty) {
+        _replaceWindow(
+          restored,
+          followingLatest: _scrollAnchor?.followingLatest ?? true,
+        );
+      }
     } catch (error) {
       _archiveError = error;
     }
@@ -1205,7 +1279,19 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       updated = List<ApiMessage>.from(current);
       insertSorted(updated, next, _compareMessages);
     }
-    state = AsyncData<List<ApiMessage>>(updated);
+    state = AsyncData<List<ApiMessage>>(
+      index != -1
+          ? MessageHistorySnapshot.afterUpdate(
+              previous: current,
+              rows: updated,
+              index: index,
+            )
+          : MessageHistorySnapshot.afterInsert(
+              previous: current,
+              rows: updated,
+              inserted: next,
+            ),
+    );
     await _saveToCache(updated);
   }
 
@@ -1292,7 +1378,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
     final List<ApiMessage> updated = List<ApiMessage>.from(current)
       ..[index] = current[index].copyWith(reactions: reactions);
-    state = AsyncData<List<ApiMessage>>(updated);
+    state = AsyncData<List<ApiMessage>>(
+      MessageHistorySnapshot.afterUpdate(
+        previous: current,
+        rows: updated,
+        index: index,
+      ),
+    );
     _saveToCache(updated);
   }
 
@@ -1303,16 +1395,23 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           Future<void>.value(),
     );
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
-    bool changed = false;
+    final replacements = <int, ApiMessage>{};
+    var index = 0;
     final List<ApiMessage> updated = current.map((ApiMessage m) {
+      final rowIndex = index++;
       if (m.senderId != userId && !m.isRead) {
-        changed = true;
-        return m.copyWith(isRead: true);
+        return replacements[rowIndex] = m.copyWith(isRead: true);
       }
       return m;
     }).toList();
-    if (!changed) return;
-    state = AsyncData<List<ApiMessage>>(updated);
+    if (replacements.isEmpty) return;
+    state = AsyncData<List<ApiMessage>>(
+      MessageHistorySnapshot(
+        previous: current,
+        rows: updated,
+        replacements: replacements,
+      ),
+    );
     _saveToCache(updated);
   }
 
@@ -1340,9 +1439,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final ApiMessage finalMessage = decrypted.first;
     if (!ref.mounted || generation != _generation) return;
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final List<ApiMessage> next = List<ApiMessage>.from(
-      state.value ?? const <ApiMessage>[],
-    );
+    final current = state.value ?? const <ApiMessage>[];
+    final List<ApiMessage> next = List<ApiMessage>.from(current);
     if (next.any((m) => m.id == finalMessage.id)) return;
     if (finalMessage.senderId == myUserId) {
       next.removeWhere((m) => m.id < 0 && m.content == finalMessage.content);
@@ -1350,7 +1448,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     insertSorted(next, finalMessage, _compareMessages);
     if (finalMessage.senderId != myUserId) _incomingRevision++;
 
-    state = AsyncData<List<ApiMessage>>(next);
+    state = AsyncData<List<ApiMessage>>(
+      MessageHistorySnapshot.afterInsert(
+        previous: current,
+        rows: next,
+        inserted: finalMessage,
+      ),
+    );
     await _saveToCache(next);
 
     if (message.senderId != myUserId) {
@@ -1384,7 +1488,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   ) async {
     final generation = _generation;
     if (_secret != null) {
-      _secret!.engine.wake();
+      _secret!.refreshChat(_chatId);
       return _secretMessages();
     }
     final before = <int, ApiMessage>{
@@ -1680,7 +1784,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   /// public key) initiates, the other responds on HELO receipt.
   Future<void> ensureSecretHandshake() async {
     if (_secret != null) {
-      _secret!.engine.wake();
+      _secret!.refreshChat(_chatId);
       return;
     }
     final Future<void>? active = _handshakeFutures[_chatId];
@@ -1850,6 +1954,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<void> _refreshHistory() async {
     final generation = _generation;
+    // Screen resume can request refresh before the encrypted bookmark/window
+    // finishes opening. Complete initialization before choosing a fetch base.
+    await _buildReady?.future;
+    if (!ref.mounted || generation != _generation) return;
     final List<ApiMessage>? previous = state.value;
     final AsyncValue<List<ApiMessage>> next = await AsyncValue.guard(
       () => _fetch(catchUp: true),
@@ -1983,7 +2091,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   ) async {
     final generation = _generation;
     if (_secret != null) {
-      _secret!.engine.wake();
+      // The full secret archive is local. Reaching its beginning must not
+      // trigger a network refresh or wake other conversations.
       return 0;
     }
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
@@ -2239,7 +2348,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     if (!current.any((m) => m.id == tempId)) {
       final next = List<ApiMessage>.from(current);
       insertSorted(next, optimisticMessage, _compareMessages);
-      state = AsyncData<List<ApiMessage>>(next);
+      state = AsyncData<List<ApiMessage>>(
+        MessageHistorySnapshot.afterInsert(
+          previous: current,
+          rows: next,
+          inserted: optimisticMessage,
+        ),
+      );
       unawaited(
         ref
             .read(appSoundProvider)
@@ -2289,7 +2404,14 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         ..removeWhere((ApiMessage message) => message.id == sent.id);
       insertSorted(next, sent, _compareMessages);
 
-      state = AsyncData<List<ApiMessage>>(next);
+      state = AsyncData<List<ApiMessage>>(
+        MessageHistorySnapshot.afterAcknowledgement(
+          previous: current,
+          rows: next,
+          pendingId: tempId,
+          confirmed: sent,
+        ),
+      );
       await _saveToCache(next);
       ref.read(chatsProvider.notifier)._handleNewMessagePush(sent);
       ref.read(chatsProvider.notifier).setChatBlockedByUser(_chatId, false);
@@ -2304,7 +2426,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       );
       if (index != -1) {
         next[index] = failed;
-        state = AsyncData<List<ApiMessage>>(next);
+        state = AsyncData<List<ApiMessage>>(
+          MessageHistorySnapshot.afterUpdate(
+            previous: current,
+            rows: next,
+            index: index,
+          ),
+        );
       } else {
         // The user may have paged away while the account-owned send was active.
         // Persist its final status even though its bubble is outside the window.
@@ -2388,7 +2516,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     List<ApiMessage> current = state.value ?? const <ApiMessage>[];
     List<ApiMessage> next = List<ApiMessage>.from(current);
     insertSorted(next, optimisticMessage, _compareMessages);
-    state = AsyncData<List<ApiMessage>>(next);
+    state = AsyncData<List<ApiMessage>>(
+      MessageHistorySnapshot.afterInsert(
+        previous: current,
+        rows: next,
+        inserted: optimisticMessage,
+      ),
+    );
 
     try {
       ApiMessage sent = await ref
@@ -2403,7 +2537,14 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         ..removeWhere((ApiMessage m) => m.id == tempId || m.id == sent.id);
       insertSorted(next, sent, _compareMessages);
 
-      state = AsyncData<List<ApiMessage>>(next);
+      state = AsyncData<List<ApiMessage>>(
+        MessageHistorySnapshot.afterAcknowledgement(
+          previous: current,
+          rows: next,
+          pendingId: tempId,
+          confirmed: sent,
+        ),
+      );
       await _saveToCache(next);
       ref.read(chatsProvider.notifier)._handleNewMessagePush(sent);
       await _playNotificationSound(volume: 0.65);
@@ -2416,7 +2557,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       if (index != -1) {
         next = List<ApiMessage>.from(current);
         next[index] = next[index].copyWith(isSending: false, isFailed: true);
-        state = AsyncData<List<ApiMessage>>(next);
+        state = AsyncData<List<ApiMessage>>(
+          MessageHistorySnapshot.afterUpdate(
+            previous: current,
+            rows: next,
+            index: index,
+          ),
+        );
       }
       rethrow;
     }

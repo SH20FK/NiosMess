@@ -4,14 +4,12 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class SettingsPreferencesScreen extends ConsumerWidget {
-  const SettingsPreferencesScreen({
-    this.isEmbedded = false,
-    super.key,
-  });
+  const SettingsPreferencesScreen({this.isEmbedded = false, super.key});
 
   final bool isEmbedded;
 
@@ -33,8 +31,8 @@ class SettingsPreferencesScreen extends ConsumerWidget {
               subtitle: context.l10n.settingsPushNotificationsSubtitle,
               iconColor: scheme.primary,
               value: settings.notifications,
-              onChanged: (bool value) {
-                ref.read(uiSettingsProvider.notifier).setNotifications(value);
+              onChanged: (bool value) async {
+                await updateNotificationPreference(ref, value);
               },
             ),
           ],
@@ -64,8 +62,8 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                     Text(
                       context.l10n.settingsVolume,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                     Slider(
                       value: settings.soundVolume,
@@ -74,10 +72,17 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                       divisions: 10,
                       label: '${(settings.soundVolume * 100).round()}%',
                       onChanged: (double value) {
-                        ref.read(uiSettingsProvider.notifier).setSoundVolume(value);
+                        ref
+                            .read(uiSettingsProvider.notifier)
+                            .setSoundVolume(value);
                       },
                       onChangeEnd: (double value) {
-                        ref.read(appSoundProvider).playEvent(SoundEvent.messageReceive, volume: value);
+                        ref
+                            .read(appSoundProvider)
+                            .playEvent(
+                              SoundEvent.messageReceive,
+                              volume: value,
+                            );
                       },
                     ),
                   ],
@@ -132,7 +137,9 @@ class SettingsPreferencesScreen extends ConsumerWidget {
               iconColor: scheme.secondary,
               value: settings.optimizeForWeakDevices,
               onChanged: (bool value) {
-                ref.read(uiSettingsProvider.notifier).setOptimizeForWeakDevices(value);
+                ref
+                    .read(uiSettingsProvider.notifier)
+                    .setOptimizeForWeakDevices(value);
               },
             ),
           ],
@@ -157,7 +164,10 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                 if (confirmed != true) return;
                 await ref.read(uiSettingsProvider.notifier).resetAll();
                 if (context.mounted) {
-                  AppToast.showSuccess(context, context.l10n.preferencesResetConfirm);
+                  AppToast.showSuccess(
+                    context,
+                    context.l10n.preferencesResetConfirm,
+                  );
                 }
               },
             ),

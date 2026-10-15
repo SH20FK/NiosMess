@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
@@ -46,6 +47,8 @@ Widget _historyHarness(
   List<ApiMessage> messages,
   ScrollController scroll, {
   int? highlight,
+  ChatHistoryAnchor? initialAnchor,
+  ValueChanged<ChatHistoryAnchor>? onAnchor,
 }) => ProviderScope(
   overrides: [adaptivePerformanceProvider.overrideWith(_Performance.new)],
   child: MaterialApp(
@@ -57,6 +60,8 @@ Widget _historyHarness(
         scrollController: scroll,
         followingLatest: false,
         highlightMessageId: highlight,
+        initialScrollAnchor: initialAnchor,
+        onScrollAnchorChanged: onAnchor,
         authUserId: 1,
         amAdminOrOwner: false,
         isChannel: false,
@@ -214,6 +219,50 @@ void main() {
       final rect = tester.getRect(_anchor(12));
       expect(rect.top, greaterThanOrEqualTo(0));
       expect(rect.bottom, lessThanOrEqualTo(600));
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'closing and reopening restores an exact measured variable-height row',
+    (tester) async {
+      final first = ScrollController();
+      final second = ScrollController();
+      addTearDown(first.dispose);
+      addTearDown(second.dispose);
+      final rows = [
+        for (var id = 1; id <= 300; id++)
+          _message(id).copyWith(content: '📞 row $id${'\nline' * (id % 4)}'),
+      ];
+      ChatHistoryAnchor? saved;
+      await tester.pumpWidget(
+        _historyHarness(rows, first, onAnchor: (anchor) => saved = anchor),
+      );
+      await tester.pump();
+      first.jumpTo(first.position.maxScrollExtent / 2);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(saved, isNotNull);
+      final anchor = saved!;
+      final before = tester.getRect(_anchor(anchor.messageId));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        _historyHarness(rows, second, initialAnchor: anchor),
+      );
+      await tester.pump();
+      expect(
+        tester.getRect(_anchor(anchor.messageId)).bottom,
+        closeTo(before.bottom, 0.5),
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        _historyHarness(rows, second, initialAnchor: anchor, highlight: 12),
+      );
+      await tester.pumpAndSettle();
+      expect(_anchor(12), findsOneWidget);
+      final highlighted = tester.getRect(_anchor(12));
+      expect(highlighted.top, greaterThanOrEqualTo(0));
+      expect(highlighted.bottom, lessThanOrEqualTo(600));
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );

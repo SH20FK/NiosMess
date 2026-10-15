@@ -6,7 +6,8 @@ import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
-import 'package:pulse_flutter/services/permission_service.dart';
+import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
+import 'package:universal_io/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -135,7 +136,10 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       socket.pauseForBackground();
     }
     if (ref.exists(secretChatCoordinatorProvider)) {
-      ref.read(secretChatCoordinatorProvider).value?.setTransportAllowed(policy.keepSocket);
+      ref
+          .read(secretChatCoordinatorProvider)
+          .value
+          ?.setTransportAllowed(policy.keepSocket);
     }
     unawaited(BackgroundService.applyPolicy(policy));
   }
@@ -159,8 +163,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   }
 
   Future<void> _runStartupSequence() async {
-    PermissionService().requestInitialPermissionsIfNeeded();
-
     // Sequence dialogs and background checks with lifecycle cancellation (АРХ-10)
     _startupTimer?.cancel();
     _startupTimer = Timer(const Duration(milliseconds: 600), () async {
@@ -168,7 +170,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       await _showAlphaDialog();
       if (!mounted) return;
       _checkDailyOtaUpdate();
-      _checkWebPushPrompt();
+      _checkPushPermissionPrompt();
     });
   }
 
@@ -188,22 +190,32 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     await AlphaTestDialog.showIfFirstLaunch(context);
   }
 
-  Future<void> _checkWebPushPrompt() async {
-    if (!kIsWeb) return;
+  Future<void> _checkPushPermissionPrompt() async {
+    if (!kIsWeb && !Platform.isAndroid && !Platform.isIOS) return;
+    final session = ref.read(authProvider).session;
+    bool canPrompt() =>
+        mounted &&
+        identical(ref.read(authProvider).session, session) &&
+        ref.read(uiSettingsProvider).notifications;
     await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
+    if (!canPrompt()) return;
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (!canPrompt()) return;
     final bool isGranted = await PushNotificationService.isPermissionGranted();
+    if (!canPrompt()) return;
     if (isGranted) {
       await ref.read(authProvider.notifier).refreshFcmTokenRegistration();
       return;
     }
 
-    final bool dismissed = prefs.getBool('web_push_prompt_dismissed') ?? false;
+    final promptKey = kIsWeb
+        ? 'web_push_prompt_dismissed'
+        : 'native_push_prompt_dismissed';
+    final bool dismissed = prefs.getBool(promptKey) ?? false;
     if (dismissed) return;
 
-    if (!mounted) return;
+    if (!mounted || !canPrompt()) return;
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final radii = AppRadii.of(context);
@@ -256,21 +268,14 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
           label: context.l10n.shellPushNotificationsEnable,
           textColor: scheme.primary,
           onPressed: () async {
-            await prefs.setBool('web_push_prompt_dismissed', true);
-            final bool granted =
-                await PushNotificationService.requestPermission();
-            if (!mounted) return;
-            if (granted) {
-              await ref
-                  .read(authProvider.notifier)
-                  .refreshFcmTokenRegistration();
-              if (mounted) {
-                AppToast.showSuccess(
-                  context,
-                  context.l10n.shellPushNotificationsSuccess,
-                );
-              }
-            }
+            await prefs.setBool(promptKey, true);
+            if (!canPrompt()) return;
+            final bool granted = await updateNotificationPreference(ref, true);
+            if (!mounted || !granted) return;
+            AppToast.showSuccess(
+              context,
+              context.l10n.shellPushNotificationsSuccess,
+            );
           },
         ),
       ),

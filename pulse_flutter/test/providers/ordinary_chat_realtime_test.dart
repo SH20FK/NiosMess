@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
+import 'package:pulse_flutter/core/storage/message_history_snapshot.dart';
+import 'package:pulse_flutter/widgets/chat/message_layout_store.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -371,6 +374,71 @@ void main() {
     );
 
     test(
+      'production pushes, edits and send acknowledgements carry exact layout deltas',
+      () async {
+        final store = MessageLayoutStore()..reset(messages());
+        final deltas = <MessageHistorySnapshot>[];
+        final subscription = container.listen(chatMessagesProvider(9142001), (
+          _,
+          next,
+        ) {
+          final rows = next.value;
+          if (rows == null) return;
+          if (rows is MessageHistorySnapshot) deltas.add(rows);
+          store.sync(rows);
+          expect(store.messages.map((m) => m.id), rows.map((m) => m.id));
+          for (final row in rows) {
+            expect(store.byId[row.id], same(row));
+          }
+        });
+        addTearDown(subscription.close);
+        socket.push(_message(2));
+        await _waitUntil(() => messages().any((m) => m.id == 2));
+        expect(
+          deltas.any((delta) => delta.appended.any((m) => m.id == 2)),
+          isTrue,
+        );
+        socket.push(
+          _message(1, text: 'Edited by push'),
+          action: 'message_edited',
+        );
+        await _waitUntil(() => messages().first.content == 'Edited by push');
+        expect(
+          deltas.any(
+            (delta) => delta.replacements.values.any(
+              (m) => m.id == 1 && m.content == 'Edited by push',
+            ),
+          ),
+          isTrue,
+        );
+
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        final sending = notifier.send('Known optimistic tail');
+        await _waitUntil(() => socket.sentMessages.isNotEmpty);
+        expect(
+          deltas.any((delta) => delta.appended.any((m) => m.id < 0)),
+          isTrue,
+        );
+        socket.sentMessages.single.complete(
+          _message(
+            3,
+            text: 'Known optimistic tail',
+          ).copyWith(senderId: 1).toJson(),
+        );
+        await sending;
+        await notifier.flushHistoryArchive();
+        expect(
+          deltas.any(
+            (delta) => delta.replacements.values.any((m) => m.id == 3),
+          ),
+          isTrue,
+        );
+        expect(store.byId[3]!.content, 'Known optimistic tail');
+        expect(store.messages.any((m) => m.id < 0), isFalse);
+      },
+    );
+
+    test(
       'reconnection automatically catches up and coalesces repeated signals',
       () async {
         socket.connections.add(null);
@@ -553,6 +621,112 @@ void main() {
         expect(messages().length, 300);
         expect((await archive.message(305))?.content, 'keep on failed disk');
         expect((await archive.message(1))?.content, 'Message 1');
+      },
+    );
+    test(
+      'TTL disposal and reopening restore the archived window and account bookmark',
+      () async {
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        await archive.write([for (var id = 1; id <= 1200; id++) _message(id)]);
+        container.dispose();
+        WebSocketPushDispatcher.dispose();
+        socket.close();
+        socket = _Socket();
+        final retention = ChatHistoryRetention(
+          idleTtl: const Duration(milliseconds: 40),
+        );
+        addTearDown(retention.dispose);
+        container = ProviderContainer(
+          overrides: [
+            authProvider.overrideWith(_Auth.new),
+            chatsProvider.overrideWith(_Chats.new),
+            webSocketClientProvider.overrideWithValue(socket),
+            appSoundProvider.overrideWithValue(_NoopSound()),
+            chatHistoryRetentionProvider.overrideWithValue(retention),
+          ],
+        );
+        var subscription = container.listen(
+          chatMessagesProvider(9142001),
+          (_, _) {},
+        );
+        await _waitUntil(() => socket.histories.length == 1);
+        socket.history(0, [for (var id = 1121; id <= 1200; id++) _message(id)]);
+        await container.read(chatMessagesProvider(9142001).future);
+        var notifier = container.read(chatMessagesProvider(9142001).notifier);
+        await notifier.flushHistoryArchive();
+        await notifier.loadAround(600);
+        const bookmark = ChatHistoryAnchor(messageId: 603, fraction: 0.67);
+        await notifier.saveScrollAnchor(bookmark);
+        subscription.close();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await container.pump();
+        expect(container.exists(chatMessagesProvider(9142001)), isFalse);
+        subscription = container.listen(
+          chatMessagesProvider(9142001),
+          (_, _) {},
+        );
+        await _waitUntil(() => socket.histories.length == 2);
+        socket.history(1, [for (var id = 1121; id <= 1200; id++) _message(id)]);
+        await container.read(chatMessagesProvider(9142001).future);
+        notifier = container.read(chatMessagesProvider(9142001).notifier);
+        await notifier.flushHistoryArchive();
+        expect(notifier.scrollAnchor, bookmark);
+        expect(messages().any((m) => m.id == 603), isTrue);
+        expect(messages().length, lessThanOrEqualTo(300));
+        expect(notifier.window.followingLatest, isFalse);
+        expect(notifier.window.hasNewer, isTrue);
+        (container.read(authProvider.notifier) as _Auth).switchAccount(2);
+        await _waitUntil(() => socket.histories.length == 3);
+        socket.history(2, [_message(9000)]);
+        await _waitUntil(() => messages().any((m) => m.id == 9000));
+        expect(notifier.scrollAnchor, isNull);
+        expect(await archive.readScrollAnchor(), bookmark);
+        subscription.close();
+      },
+    );
+
+    test(
+      'a deleted saved anchor falls back to latest without losing history',
+      () async {
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        await archive.write([for (var id = 1; id <= 600; id++) _message(id)]);
+        await archive.writeScrollAnchor(
+          const ChatHistoryAnchor(messageId: 200, fraction: 0.6),
+        );
+        await archive.write([], remove: {200});
+        container.invalidate(chatMessagesProvider(9142001));
+        await _waitUntil(() => socket.histories.length == 2);
+        socket.history(1, [for (var id = 521; id <= 600; id++) _message(id)]);
+        await _waitUntil(() => messages().any((m) => m.id == 600));
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        await notifier.flushHistoryArchive();
+        expect(notifier.scrollAnchor, isNull);
+        expect(notifier.window.followingLatest, isTrue);
+        expect(await archive.readScrollAnchor(), isNull);
+        expect((await archive.message(199))?.content, 'Message 199');
+      },
+    );
+
+    test(
+      'an early screen refresh waits for saved archive position initialization',
+      () async {
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        await archive.write([for (var id = 1; id <= 600; id++) _message(id)]);
+        const anchor = ChatHistoryAnchor(messageId: 200, fraction: 0.65);
+        await archive.writeScrollAnchor(anchor);
+        container.invalidate(chatMessagesProvider(9142001));
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        final refreshing = notifier.refresh();
+        await _waitUntil(() => socket.histories.length == 2);
+        socket.history(1, [for (var id = 521; id <= 600; id++) _message(id)]);
+        await _waitUntil(() => socket.histories.length == 3);
+        socket.history(2, [for (var id = 521; id <= 600; id++) _message(id)]);
+        await refreshing;
+        await notifier.flushHistoryArchive();
+        expect(notifier.scrollAnchor, anchor);
+        expect(notifier.window.followingLatest, isFalse);
+        expect(messages().any((m) => m.id == 200), isTrue);
+        expect(messages().length, lessThanOrEqualTo(300));
       },
     );
   });

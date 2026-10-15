@@ -210,7 +210,9 @@ class SecretChatCoordinator
       unawaited(coordinator.tick());
     });
     coordinator._push = ws.pushStream.listen((event) {
-      if (event['action'] != 'secret_changed') return;
+      if (event['action'] != 'secret_changed' || !coordinator._canUseTransport) {
+        return;
+      }
       final id = secretMap(event['payload'])['chat_id'] ?? event['chat_id'];
       if (id is int) {
         coordinator.engine.wakeChat(id);
@@ -276,6 +278,12 @@ class SecretChatCoordinator
     }
     _pollSchedule.reset();
     unawaited(tick());
+  }
+
+  /// Opening a history or explicitly refreshing it is a single addressed wake,
+  /// never a screen-owned polling loop or a reset of the account idle backoff.
+  void refreshChat(int uiId) {
+    if (_canUseTransport && ws.isConnected) engine.wakeChat(uiId);
   }
 
   @override
@@ -392,6 +400,7 @@ class SecretChatCoordinator
   }
 
   Future<void> importChats(List<ApiChatSummary> chats) async {
+    final importedIds = <int>{};
     for (final chat in chats.where(
       (c) =>
           c.id > 0 && c.isSecret && !c.keyMismatch && c.partnerUserId != null,
@@ -412,6 +421,7 @@ class SecretChatCoordinator
           'avatar_url': chat.avatarUrl,
         },
       );
+      importedIds.add(uiId);
       if (engine.chat(uiId)['legacy_keys_imported'] != true) {
         final raw = _legacyOwnerUserId == userId
             ? await _secure.read(key: 'e2ee.session.${chat.id}')
@@ -514,7 +524,9 @@ class SecretChatCoordinator
         legacyOwnerUserId: _legacyOwnerUserId,
       );
     }
-    engine.wake();
+    for (final uiId in importedIds) {
+      refreshChat(uiId);
+    }
   }
 
   List<ApiChatSummary> mergeChats(List<ApiChatSummary> remote) {

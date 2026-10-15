@@ -113,7 +113,12 @@ class EncryptedHistoryArchive {
     });
   }
 
-  static Future<List<ApiMessage>> _decode(Map<String, String> rows) async {
+  static Future<List<ApiMessage>> _decode(Map<String, String> rows) async =>
+      (await _decodeJson(rows)).map(ApiMessage.fromJson).toList();
+
+  static Future<List<Map<String, dynamic>>> _decodeJson(
+    Map<String, String> rows,
+  ) async {
     final key = await EncryptedMessageCache._getOrCreateKey();
     final bytes = await key.extractBytes();
     final decoded = await EncryptedMessageCache._runCompute(() async {
@@ -140,8 +145,38 @@ class EncryptedHistoryArchive {
       }
       return result;
     });
-    return decoded.map(ApiMessage.fromJson).toList();
+    return decoded;
   }
+
+  String get _anchorKey => 'a:$accountId:$chatId';
+
+  Future<ChatHistoryAnchor?> readScrollAnchor() async {
+    if (!valid) throw StateError('history_account_erased');
+    final value = await _box.get(_anchorKey);
+    if (value == null) return null;
+    ChatHistoryAnchor? anchor;
+    try {
+      anchor = ChatHistoryAnchor.fromJson(
+        (await _decodeJson({_anchorKey: value})).single,
+      );
+    } catch (_) {
+      // A malformed bookmark must never make otherwise intact history unusable.
+    }
+    if (!valid) throw StateError('history_account_erased');
+    return anchor;
+  }
+
+  Future<void> writeScrollAnchor(ChatHistoryAnchor? anchor) =>
+      _serialized(() async {
+        if (anchor == null) {
+          await _box.delete(_anchorKey);
+        } else {
+          final encoded = await _encode({_anchorKey: anchor.toJson()});
+          if (!valid) throw StateError('history_account_erased');
+          await _box.put(_anchorKey, encoded[_anchorKey]!);
+        }
+        await _box.flush();
+      });
 
   Future<void> write(List<ApiMessage> messages, {Set<int> remove = const {}}) =>
       _serialized(() => _writeRows(messages, remove: remove));
@@ -314,7 +349,7 @@ class EncryptedHistoryArchive {
     final box = await Hive.openLazyBox<String>(_boxName);
     await box.deleteAll(
       box.keys
-          .where((key) => RegExp('^[michr]:$accountId:').hasMatch('$key'))
+          .where((key) => RegExp('^[amichr]:$accountId:').hasMatch('$key'))
           .toList(),
     );
     await box.flush();

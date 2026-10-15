@@ -25,6 +25,7 @@ class ChatScrollCoordinator {
   final ValueChanged<bool>? onFollowLatestChanged;
   bool _hasNewerHistory = false;
   bool _jumping = false;
+  bool get isJumping => _jumping;
   bool _disposed = false;
 
   void setHasNewerHistory(bool value) {

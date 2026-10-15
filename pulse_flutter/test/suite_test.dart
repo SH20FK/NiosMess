@@ -2,6 +2,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'unit/performance_lifecycle_regression_test.dart' as perf_lifecycle;
+import 'unit/permission_service_test.dart' as contextual_permissions;
 import 'unit/background_service_serialization_test.dart'
     as background_service_serialization;
 import 'unit/update_asset_integrity_test.dart' as update_asset_integrity;
@@ -28,6 +29,7 @@ import 'providers/secret_coordinator_lifecycle_test.dart'
     as secret_coordinator_lifecycle;
 import 'unit/frame_timing_monitor_percentiles_test.dart' as frame_percentiles;
 import 'perf/ui_smoothness_regression_guard_test.dart' as perf_logic_guards;
+import 'perf/chat_performance_benchmarks_test.dart' as chat_algorithm_regressions;
 import 'binary_packet_test.dart' as binary_packet;
 import 'bots_inline_query_test.dart' as bots_inline_query;
 import 'calls_gateway_limits_test.dart' as calls_gateway_limits;
@@ -156,6 +158,7 @@ void main() {
 
     // Performance lifecycle, storage and resource regressions. No device FPS assertions.
     group('perf_lifecycle', perf_lifecycle.main);
+    group('contextual_permissions', contextual_permissions.main);
     group(
       'background_service_serialization',
       background_service_serialization.main,
@@ -181,6 +184,7 @@ void main() {
     group('secret_coordinator_lifecycle', secret_coordinator_lifecycle.main);
     group('frame_percentiles', frame_percentiles.main);
     group('perf_logic_guards', perf_logic_guards.main);
+    group('chat_algorithm_regressions', chat_algorithm_regressions.main);
 
     // Protocol & Logic Suites
     group('Call connection regression', call_signaling_connection.main);

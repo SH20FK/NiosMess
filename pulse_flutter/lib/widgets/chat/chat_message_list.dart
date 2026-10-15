@@ -1,5 +1,7 @@
 import 'dart:async';
-import 'dart:collection';
+import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
+import 'package:pulse_flutter/widgets/chat/message_layout_store.dart';
+export 'package:pulse_flutter/widgets/chat/message_layout_store.dart';
 import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -21,163 +23,6 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
-class MessageLayoutData {
-  const MessageLayoutData({
-    required this.showDateSep,
-    required this.isPrevSame,
-    required this.isNextSame,
-  });
-
-  final bool showDateSep;
-  final bool isPrevSame;
-  final bool isNextSame;
-}
-
-/// Maintains layout only for changed rows and their neighbours. Stable logical
-/// positions make reverse-index lookup O(1), without rewriting every map entry
-/// when a new message arrives or an older page is prepended.
-class MessageLayoutStore {
-  final List<ApiMessage> messages = <ApiMessage>[];
-  final List<MessageLayoutData> layout = <MessageLayoutData>[];
-  final Map<int, ApiMessage> byId = <int, ApiMessage>{};
-  final Map<int, int> _positions = <int, int>{};
-  int _origin = 0;
-  late final Map<int, int> idToIndex = _ReverseMessageIndex(this);
-
-  static bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
-  MessageLayoutData _computeSingle(int i) {
-    final msg = messages[i];
-    final showDateSep =
-        i == 0 ||
-        !_isSameDay(msg.resolvedSentAt, messages[i - 1].resolvedSentAt);
-    return MessageLayoutData(
-      showDateSep: showDateSep,
-      isPrevSame:
-          i > 0 &&
-          !showDateSep &&
-          messages[i - 1].senderId == msg.senderId &&
-          !messages[i - 1].isDeleted,
-      isNextSame:
-          i < messages.length - 1 &&
-          _isSameDay(messages[i + 1].resolvedSentAt, msg.resolvedSentAt) &&
-          messages[i + 1].senderId == msg.senderId &&
-          !messages[i + 1].isDeleted,
-    );
-  }
-
-  void reset(List<ApiMessage> next) {
-    messages.clear();
-    layout.clear();
-    byId.clear();
-    _positions.clear();
-    _origin = 0;
-    messages.addAll(next);
-    for (var i = 0; i < next.length; i++) {
-      layout.add(_computeSingle(i));
-      byId[next[i].id] = next[i];
-      _positions[next[i].id] = i;
-    }
-  }
-
-  void sync(List<ApiMessage> next) {
-    final oldLength = messages.length;
-    if (oldLength == 0 || next.isEmpty || next.length < oldLength) {
-      reset(next);
-      return;
-    }
-    final added = next.length - oldLength;
-    int offset = 0;
-    if (added > 0 && next.first.id != messages.first.id) {
-      if (next[added].id != messages.first.id) {
-        reset(next);
-        return;
-      }
-      offset = added;
-    }
-    // Verify all retained identities. A concurrent edit plus append must not
-    // silently discard the edit just because the first/last IDs still match.
-    for (var i = 0; i < oldLength; i++) {
-      if (next[i + offset].id != messages[i].id) {
-        reset(next);
-        return;
-      }
-    }
-    final dirty = <int>{};
-    if (offset > 0) {
-      _origin -= offset;
-      messages.insertAll(0, next.take(offset));
-      layout.insertAll(
-        0,
-        List.generate(
-          offset,
-          (_) => const MessageLayoutData(
-            showDateSep: false,
-            isPrevSame: false,
-            isNextSame: false,
-          ),
-        ),
-      );
-      for (var i = 0; i < offset; i++) {
-        final message = next[i];
-        byId[message.id] = message;
-        _positions[message.id] = _origin + i;
-        dirty.add(i);
-      }
-      dirty.add(offset);
-    } else if (added > 0) {
-      for (var i = oldLength; i < next.length; i++) {
-        final message = next[i];
-        messages.add(message);
-        layout.add(
-          const MessageLayoutData(
-            showDateSep: false,
-            isPrevSame: false,
-            isNextSame: false,
-          ),
-        );
-        byId[message.id] = message;
-        _positions[message.id] = _origin + i;
-        dirty.add(i);
-      }
-      dirty.add(oldLength - 1);
-    }
-    for (var i = offset; i < oldLength + offset; i++) {
-      if (!identical(messages[i], next[i])) {
-        messages[i] = next[i];
-        byId[next[i].id] = next[i];
-        dirty.addAll([i - 1, i, i + 1]);
-      }
-    }
-    for (final i in dirty) {
-      if (i >= 0 && i < messages.length) layout[i] = _computeSingle(i);
-    }
-  }
-}
-
-class _ReverseMessageIndex extends MapBase<int, int> {
-  _ReverseMessageIndex(this.store);
-  final MessageLayoutStore store;
-  @override
-  int? operator [](Object? key) {
-    final position = store._positions[key];
-    return position == null
-        ? null
-        : store.messages.length - 1 - (position - store._origin);
-  }
-
-  @override
-  Iterable<int> get keys => store._positions.keys;
-  @override
-  void operator []=(int key, int value) =>
-      throw UnsupportedError('Read-only message index');
-  @override
-  void clear() => throw UnsupportedError('Read-only message index');
-  @override
-  int? remove(Object? key) => throw UnsupportedError('Read-only message index');
-}
-
 class ChatMessageList extends ConsumerStatefulWidget {
   const ChatMessageList({
     required this.messages,
@@ -189,6 +34,9 @@ class ChatMessageList extends ConsumerStatefulWidget {
     this.followingLatest = true,
     this.onRequestMessage,
     this.highlightMessageId,
+    this.initialScrollAnchor,
+    this.onScrollAnchorChanged,
+    this.canSaveScrollAnchor,
     this.bottomPadding = 56.0,
     this.topPadding = 48.0,
     this.onOpenComments,
@@ -218,6 +66,9 @@ class ChatMessageList extends ConsumerStatefulWidget {
   final bool followingLatest;
   final Future<bool> Function(int)? onRequestMessage;
   final int? highlightMessageId;
+  final ChatHistoryAnchor? initialScrollAnchor;
+  final ValueChanged<ChatHistoryAnchor>? onScrollAnchorChanged;
+  final bool Function()? canSaveScrollAnchor;
   final double bottomPadding;
   final double topPadding;
   final void Function(ApiMessage message, String emoji)? onReactionTap;
@@ -254,12 +105,139 @@ class ChatMessageList extends ConsumerStatefulWidget {
   ConsumerState<ChatMessageList> createState() => _ChatMessageListState();
 }
 
-class _ChatMessageListState extends ConsumerState<ChatMessageList> {
+class _ChatMessageListState extends ConsumerState<ChatMessageList>
+    with WidgetsBindingObserver {
   late final AdaptivePerformanceNotifier _performance;
   final Map<int, _HistoryAnchorBox> _anchors = {};
   final Key _centerSliverKey = UniqueKey();
   int? _centerMessageId;
   double? _anchorFraction;
+
+  Timer? _anchorCaptureTimer;
+  ChatHistoryAnchor? _lastMeasuredAnchor;
+  ChatHistoryAnchor? _lastPublishedAnchor;
+  bool _explicitTarget = false;
+  bool _restoringAnchor = false;
+  double? _measuredViewportHeight;
+
+  ChatHistoryAnchor? _measureScrollAnchor() {
+    final scroll = widget.scrollController;
+    final viewport = context.findRenderObject();
+    if (!scroll.hasClients ||
+        viewport is! RenderBox ||
+        !viewport.attached ||
+        !viewport.hasSize) {
+      return null;
+    }
+    _measuredViewportHeight = viewport.size.height;
+    final latest =
+        widget.followingLatest &&
+        scroll.position.pixels - scroll.position.minScrollExtent <= 60;
+    if (latest && _store.messages.isNotEmpty) {
+      return ChatHistoryAnchor(
+        messageId: _store.messages.last.id,
+        fraction: 0,
+        followingLatest: true,
+      );
+    }
+    final bounds = viewport.localToGlobal(Offset.zero) & viewport.size;
+    _HistoryAnchorBox? chosen;
+    double? closest;
+    for (final row in _anchors.values) {
+      if (!row.attached || !row.hasSize) continue;
+      final rect = row.localToGlobal(Offset.zero) & row.size;
+      if (rect.bottom <= bounds.top ||
+          rect.top >= bounds.bottom - widget.bottomPadding) {
+        continue;
+      }
+      final distance = (rect.top - bounds.top).abs();
+      if (closest == null || distance < closest) {
+        closest = distance;
+        chosen = row;
+      }
+    }
+    if (chosen == null || bounds.height <= 0) return null;
+    final bottom = chosen.localToGlobal(Offset.zero).dy + chosen.size.height;
+    return ChatHistoryAnchor(
+      messageId: chosen.messageId,
+      fraction: (bounds.bottom - bottom) / bounds.height,
+    );
+  }
+
+  void _captureScrollAnchor({bool explicit = false}) {
+    if (widget.onScrollAnchorChanged == null) return;
+    if (_restoringAnchor ||
+        (!explicit && _explicitTarget) ||
+        widget.canSaveScrollAnchor?.call() == false) {
+      return;
+    }
+    final anchor = _measureScrollAnchor();
+    if (anchor == null) return;
+    _lastMeasuredAnchor = anchor;
+    if (anchor == _lastPublishedAnchor) return;
+    _lastPublishedAnchor = anchor;
+    widget.onScrollAnchorChanged?.call(anchor);
+  }
+
+  void _publishLastMeasuredAnchor() {
+    final anchor = _lastMeasuredAnchor;
+    if (anchor == null ||
+        _restoringAnchor ||
+        _explicitTarget ||
+        widget.canSaveScrollAnchor?.call() == false ||
+        anchor == _lastPublishedAnchor) {
+      return;
+    }
+    _lastPublishedAnchor = anchor;
+    widget.onScrollAnchorChanged?.call(anchor);
+  }
+
+  void _trackScrollGeometry(double? delta) {
+    final anchor = _lastMeasuredAnchor;
+    final height = _measuredViewportHeight;
+    if (anchor == null ||
+        delta == null ||
+        height == null ||
+        height <= 0 ||
+        _restoringAnchor ||
+        _explicitTarget ||
+        widget.canSaveScrollAnchor?.call() == false) {
+      return;
+    }
+    // Reversed scrolling translates every retained row by the exact same delta.
+    // Keep close/background snapshots current without measuring rows per frame.
+    final fraction = anchor.followingLatest
+        ? widget.bottomPadding / height
+        : anchor.fraction;
+    _lastMeasuredAnchor = ChatHistoryAnchor(
+      messageId: anchor.messageId,
+      fraction: fraction - delta / height,
+    );
+  }
+
+  void _scheduleAnchorCapture() {
+    if (widget.onScrollAnchorChanged == null) return;
+    _anchorCaptureTimer ??= Timer(const Duration(milliseconds: 180), () {
+      _anchorCaptureTimer = null;
+      if (mounted) _captureScrollAnchor();
+    });
+  }
+
+  @override
+  void deactivate() {
+    _captureScrollAnchor();
+    _publishLastMeasuredAnchor();
+    super.deactivate();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _captureScrollAnchor();
+    }
+  }
 
   void _rebaseAnchor(List<ApiMessage> next) {
     if (next.isEmpty) return;
@@ -331,6 +309,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   bool _onScrollNotification(ScrollNotification notification) {
     if (notification.depth != 0) return false;
     if (notification is ScrollUpdateNotification) {
+      _trackScrollGeometry(notification.scrollDelta);
+      _scheduleAnchorCapture();
       final now = _scrollClock.elapsed;
       final previous = _previousScrollTime;
       _previousScrollTime = now;
@@ -350,10 +330,16 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
         }
       }
     } else if (notification is ScrollEndNotification) {
+      _anchorCaptureTimer?.cancel();
+      _anchorCaptureTimer = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _captureScrollAnchor();
+      });
       _performance.setInteractionActive(this, false);
       _previousScrollTime = null;
       _scheduleScrollIdle();
     } else if (notification is ScrollStartNotification) {
+      if (notification.dragDetails != null) _explicitTarget = false;
       _performance.setInteractionActive(this, true);
       _previousScrollTime = _scrollClock.elapsed;
     }
@@ -372,9 +358,55 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _performance = ref.read(adaptivePerformanceProvider.notifier);
     _centerMessageId = widget.messages.isEmpty ? null : widget.messages.last.id;
     _store.reset(widget.messages);
+    final saved = widget.highlightMessageId == null
+        ? widget.initialScrollAnchor
+        : null;
+    if (saved != null &&
+        !saved.followingLatest &&
+        _store.byId.containsKey(saved.messageId)) {
+      _centerMessageId = saved.messageId;
+      _anchorFraction = saved.fraction.clamp(0.0, 1.0);
+      _restoringAnchor = true;
+      _lastMeasuredAnchor = saved;
+      _lastPublishedAnchor = saved;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.highlightMessageId != null) return;
+      if (_restoringAnchor && saved != null) {
+        final viewport = context.findRenderObject();
+        final row = _anchors[saved.messageId];
+        if (viewport is RenderBox &&
+            viewport.attached &&
+            viewport.hasSize &&
+            row != null &&
+            row.attached &&
+            row.hasSize &&
+            widget.scrollController.hasClients) {
+          final bounds = viewport.localToGlobal(Offset.zero) & viewport.size;
+          final actualBottom =
+              row.localToGlobal(Offset.zero).dy + row.size.height;
+          final desiredBottom = bounds.bottom - saved.fraction * bounds.height;
+          final position = widget.scrollController.position;
+          final target = (position.pixels + desiredBottom - actualBottom).clamp(
+            position.minScrollExtent,
+            position.maxScrollExtent,
+          );
+          if ((target - position.pixels).abs() > 0.01) {
+            widget.scrollController.jumpTo(target);
+          }
+        }
+        _restoringAnchor = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _captureScrollAnchor();
+        });
+      } else {
+        _captureScrollAnchor();
+      }
+    });
     _animatedMessageIds.addAll(widget.messages.map((ApiMessage m) => m.id));
     if (widget.highlightMessageId case final id?) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -396,11 +428,17 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
       _rebaseAnchor(widget.messages);
       _store.sync(widget.messages);
       _animatedMessageIds.retainAll(widget.messages.map((m) => m.id));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _captureScrollAnchor();
+      });
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _anchorCaptureTimer?.cancel();
+    _publishLastMeasuredAnchor();
     _highlightTimer?.cancel();
     _scrollIdleTimer?.cancel();
     _scrollClock.stop();
@@ -411,6 +449,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
   }
 
   Future<void> _scrollToMessage(int messageId) async {
+    _explicitTarget = true;
     if (!_store.byId.containsKey(messageId) &&
         widget.onRequestMessage != null) {
       if (!await widget.onRequestMessage!(messageId) || !mounted) return;
@@ -445,8 +484,12 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList> {
             alignment: 0.3,
             duration: M3Durations.medium2,
             curve: M3SpringCurves.expressiveDecel,
-          ),
+          ).then((_) {
+            if (mounted) _captureScrollAnchor(explicit: true);
+          }),
         );
+      } else {
+        _captureScrollAnchor(explicit: true);
       }
     });
 

@@ -113,9 +113,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   SmoothTextStreamer? _aiTextStreamer;
   StreamSubscription<String>? _aiStreamSubscription;
 
-  // Secret chat polling
-  Timer? _secretPollTimer;
-
   // Screenshot protection overlay
   OverlayEntry? _screenshotOverlay;
 
@@ -262,23 +259,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       _isSecret = true;
       _secretCoordinator = ref.read(secretChatCoordinatorProvider).value;
       ScreenSecurityService.setSecureFlag(enabled: true);
-      _startSecretPollTimer();
     }
-  }
-
-  void _startSecretPollTimer() {
-    _secretPollTimer?.cancel();
-    _secretPollTimer = Timer.periodic(const Duration(seconds: 20), (_) {
-      _pollSecretChat();
-    });
-  }
-
-  Future<void> _pollSecretChat() async {
-    final int? chatId = _chatId;
-    if (chatId == null || !mounted) return;
-    try {
-      await ref.read(chatMessagesProvider(chatId).notifier).refresh();
-    } catch (_) {}
   }
 
   DateTime? _lastScreenshotAlertTime;
@@ -334,7 +315,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
     PushNotificationService.setCurrentChat(null);
     WidgetsBinding.instance.removeObserver(this);
-    _secretPollTimer?.cancel();
     _aiStreamSubscription?.cancel();
     _aiTextStreamer?.dispose();
     _removeScreenshotOverlay();
@@ -711,8 +691,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (chatId == null) return;
     try {
       await ref.read(chatMessagesProvider(chatId).notifier).refresh();
-      await ref.read(chatMessagesProvider(chatId).notifier).markRead();
-      ref.read(chatsProvider.notifier).markChatAsRead(chatId);
+      final followingLatest = ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .window
+          .followingLatest;
+      if (_isSecret || followingLatest) {
+        await ref.read(chatMessagesProvider(chatId).notifier).markRead();
+        ref.read(chatsProvider.notifier).markChatAsRead(chatId);
+      }
       if (_isSecret || chatId < 0) return;
       final ApiChatSummary? freshChat = await ref
           .read(chatRepositoryProvider)
@@ -720,7 +706,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (freshChat != null && mounted) {
         ref
             .read(chatsProvider.notifier)
-            .upsertChat(freshChat.copyWith(unreadCount: 0));
+            .upsertChat(
+              freshChat.copyWith(
+                unreadCount: followingLatest ? 0 : freshChat.unreadCount,
+              ),
+            );
       }
     } catch (e) {
       debugPrint('Failed to refresh: $e');
@@ -2068,7 +2058,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       );
     }
 
-    // React only to secret chat flag changes for security overlay / polling
+    // Secret delivery belongs to the account coordinator, including while this
+    // screen is mounted. Metadata changes only update local screen protection.
     ref.listen<bool?>(chatByIdProvider(chatId).select((c) => c?.isSecret), (
       previous,
       isSecret,
@@ -2079,11 +2070,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (isSecret != _isSecret) {
         _isSecret = isSecret;
         ScreenSecurityService.setSecureFlag(enabled: isSecret);
-        if (isSecret) {
-          _startSecretPollTimer();
-        } else {
-          _secretPollTimer?.cancel();
-        }
       }
     });
 
@@ -2097,7 +2083,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (isSecret && !_isSecret) {
       _isSecret = true;
       ScreenSecurityService.setSecureFlag(enabled: true);
-      _startSecretPollTimer();
     }
 
     final ColorScheme baseScheme = Theme.of(context).colorScheme;
@@ -2555,6 +2540,13 @@ class _ChatMessagesScope extends ConsumerWidget {
           scrollController: scrollCoordinator.scrollController,
           followingLatest: window.followingLatest,
           highlightMessageId: highlightMessageId,
+          initialScrollAnchor: ref
+              .read(chatMessagesProvider(chatId).notifier)
+              .scrollAnchor,
+          canSaveScrollAnchor: () => !scrollCoordinator.isJumping,
+          onScrollAnchorChanged: ref
+              .read(chatMessagesProvider(chatId).notifier)
+              .saveScrollAnchor,
           onRequestMessage: (id) =>
               ref.read(chatMessagesProvider(chatId).notifier).loadAround(id),
           authUserId: myUserId,

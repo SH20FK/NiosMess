@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
@@ -142,5 +143,59 @@ void main() {
         expect((await other.read()).single.content, 'other account');
       },
     );
+    test(
+      'scroll bookmarks survive reload encrypted and stay isolated by account',
+      () async {
+        const anchor = ChatHistoryAnchor(messageId: 754, fraction: 0.623);
+        await archive.writeScrollAnchor(anchor);
+        final raw = await Hive.lazyBox<String>(
+          'enc_history_archive_v1',
+        ).get('a:71218:71219');
+        expect(raw, isNotNull);
+        expect(raw, isNot(contains('message_id')));
+        expect(raw, isNot(contains('0.623')));
+        await Hive.close();
+        Hive.init(directory.path);
+        archive = await EncryptedHistoryArchive.open(71218, 71219);
+        expect(await archive.readScrollAnchor(), anchor);
+        final other = await EncryptedHistoryArchive.open(71220, 71219);
+        expect(await other.readScrollAnchor(), isNull);
+        await other.writeScrollAnchor(
+          const ChatHistoryAnchor(messageId: 123, fraction: 0.1),
+        );
+        await EncryptedMessageCache.clearAccount(71218, []);
+        final fresh = await EncryptedHistoryArchive.open(71218, 71219);
+        expect(await fresh.readScrollAnchor(), isNull);
+        expect((await other.readScrollAnchor())?.messageId, 123);
+        final rejected = fresh.writeScrollAnchor(anchor);
+        final check = expectLater(rejected, throwsStateError);
+        await EncryptedMessageCache.clearAccount(71218, []);
+        await check;
+        expect(
+          await (await EncryptedHistoryArchive.open(
+            71218,
+            71219,
+          )).readScrollAnchor(),
+          isNull,
+        );
+      },
+    );
+
+    test('invalid scroll bookmark cannot hide valid message history', () async {
+      await archive.write([_message(5)]);
+      await Hive.lazyBox<String>(
+        'enc_history_archive_v1',
+      ).put('a:71218:71219', 'broken');
+      expect(await archive.readScrollAnchor(), isNull);
+      expect((await archive.read()).single.id, 5);
+      expect(
+        ChatHistoryAnchor.fromJson({
+          'version': 1,
+          'message_id': 5,
+          'fraction': double.nan,
+        }),
+        isNull,
+      );
+    });
   });
 }

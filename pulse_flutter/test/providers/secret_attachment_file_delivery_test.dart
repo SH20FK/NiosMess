@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -15,6 +16,11 @@ import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/utils/cancellation_token.dart';
 import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/models/api/auth_models.dart';
+import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 
 import '../services/secret_chat_delivery_test.dart' show Hub;
@@ -22,6 +28,47 @@ import '../services/secret_chat_delivery_test.dart' show Hub;
 class _Cache extends Fake implements BaseCacheManager {
   @override
   Future<void> emptyCache() async {}
+}
+
+class _Auth extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(
+    hydrated: true,
+    busy: false,
+    pendingIdentifier: null,
+    error: null,
+    profile: null,
+    session: AuthSession(
+      accessToken: 'fixture',
+      userId: 1,
+      username: 'A',
+      displayName: 'A',
+    ),
+  );
+}
+
+class _Chats extends ChatsNotifier {
+  @override
+  Future<List<ApiChatSummary>> build() async => const [
+    ApiChatSummary(
+      id: 42,
+      chatType: 'direct',
+      name: 'B',
+      unreadCount: 0,
+      membersCount: 2,
+      isSecret: true,
+      partnerUserId: 2,
+    ),
+    ApiChatSummary(
+      id: 99,
+      chatType: 'direct',
+      name: 'C',
+      unreadCount: 0,
+      membersCount: 2,
+      isSecret: true,
+      partnerUserId: 3,
+    ),
+  ];
 }
 
 class _Repository extends Fake implements ChatRepository {
@@ -73,6 +120,7 @@ class _Socket extends WebSocketClient {
   final connectedEvents = StreamController<void>.broadcast();
   final pushes = StreamController<Map<String, dynamic>>.broadcast();
   final actions = <String>[];
+  final requests = <Map<String, dynamic>>[];
   @override
   bool get isConnected => true;
   @override
@@ -89,6 +137,7 @@ class _Socket extends WebSocketClient {
     int maxRetries = 2,
   }) async {
     actions.add(action);
+    requests.add({'action': action, ...?payload});
     if (paused) throw StateError('Background transport must remain idle');
     if (action == 'set_public_key') return <String, dynamic>{};
     return hub.request(user, peerKey, action, payload!);
@@ -179,6 +228,115 @@ void main() {
     a.setTransportAllowed(true);
     b.setTransportAllowed(true);
   }
+
+  ProviderContainer histories() => ProviderContainer(
+    overrides: [
+      authProvider.overrideWith(_Auth.new),
+      chatsProvider.overrideWith(_Chats.new),
+      secretChatCoordinatorProvider.overrideWith((ref) async => a),
+      webSocketClientProvider.overrideWithValue(socketA),
+    ],
+  );
+
+  test(
+    'mounted secret histories use addressed refresh and local paging while paused',
+    () async {
+      await a.engine.open(
+        peerId: 3,
+        peerName: 'C',
+        remoteId: 99,
+        peerKey: socketA.peerKey,
+      );
+      await a.engine.enqueue(42, {'type': 'text', 'text': 'snapshot B'});
+      await a.engine.enqueue(99, {'type': 'text', 'text': 'snapshot C'});
+      final container = histories();
+      addTearDown(container.dispose);
+      final first = container.listen(chatMessagesProvider(42), (_, _) {});
+      final second = container.listen(chatMessagesProvider(99), (_, _) {});
+      addTearDown(first.close);
+      addTearDown(second.close);
+      expect(
+        (await container.read(chatMessagesProvider(42).future)).single.content,
+        'snapshot B',
+      );
+      expect(
+        (await container.read(chatMessagesProvider(99).future)).single.content,
+        'snapshot C',
+      );
+      expect(socketA.requests, isEmpty);
+      final otherSnapshot = container.read(chatMessagesProvider(99)).value;
+      await a.engine.enqueue(42, {'type': 'text', 'text': 'live update B'});
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(
+        container.read(chatMessagesProvider(42)).value!.last.content,
+        'live update B',
+      );
+      expect(
+        container.read(chatMessagesProvider(99)).value,
+        same(otherSnapshot),
+      );
+      final provider = container.read(chatMessagesProvider(42).notifier);
+      expect(await provider.loadOlder(), 0);
+      await provider.refresh();
+      await provider.ensureSecretHandshake();
+      expect(socketA.requests, isEmpty);
+      expect(a.debugPollingScheduled, isFalse);
+
+      // A user refresh can wake this chat, without restarting a screen timer or
+      // touching the other mounted history. Do not enable the account-wide tick.
+      socketA.paused = false;
+      await provider.refresh();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(socketA.requests, isNotEmpty);
+      expect(
+        socketA.requests.every((request) => request['chat_id'] == 42),
+        isTrue,
+      );
+      a.setTransportAllowed(false);
+      socketA.requests.clear();
+      await provider.refresh();
+      await provider.ensureSecretHandshake();
+      expect(await provider.loadOlder(), 0);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(socketA.requests, isEmpty);
+      expect(a.debugPollingScheduled, isFalse);
+    },
+  );
+
+  test(
+    'mounted secret snapshot receives incoming engine events with idle polling stopped',
+    () async {
+      allowTransport();
+      await settle();
+      final container = histories();
+      addTearDown(container.dispose);
+      final subscription = container.listen(
+        chatMessagesProvider(42),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      expect(await container.read(chatMessagesProvider(42).future), isEmpty);
+      await b.engine.enqueue(42, {
+        'type': 'text',
+        'text': 'incoming through account events',
+      });
+      await settle();
+      expect(
+        container.read(chatMessagesProvider(42)).value!.single.content,
+        'incoming through account events',
+      );
+      expect(a.debugPollingScheduled, isFalse);
+      expect(b.debugPollingScheduled, isFalse);
+      expect(
+        await container.read(chatMessagesProvider(42).notifier).loadOlder(),
+        0,
+      );
+      expect(
+        container.read(chatMessagesProvider(42)).value!.single.content,
+        'incoming through account events',
+      );
+    },
+  );
 
   test(
     'paused pending file survives source removal and restart, then delivers automatically',

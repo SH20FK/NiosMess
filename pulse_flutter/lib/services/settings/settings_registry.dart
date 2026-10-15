@@ -5,6 +5,7 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/settings/settings_node.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
 
 /// Search match result with full breadcrumb path and navigation target.
 class SettingsSearchResult {
@@ -274,7 +275,8 @@ class SettingsRegistry {
     SettingsNavNode(
       id: 'plus',
       title: (AppLocalizations l) => 'Nios Plus & AI',
-      subtitle: (AppLocalizations l) => 'Подписка, расширенные лимиты ИИ и файлы до 100 МБ',
+      subtitle: (AppLocalizations l) =>
+          'Подписка, расширенные лимиты ИИ и файлы до 100 МБ',
       icon: Icons.stars_rounded,
       group: SettingsGroup.plus,
       route: '/settings/plus',
@@ -376,7 +378,8 @@ class SettingsRegistry {
       icon: Icons.format_size_rounded,
       group: SettingsGroup.appearance,
       options: AppFontScale.values,
-      optionLabel: (AppFontScale scale, AppLocalizations l) => '${(scale.scale * 100).toInt()}%',
+      optionLabel: (AppFontScale scale, AppLocalizations l) =>
+          '${(scale.scale * 100).toInt()}%',
       valueSelector: (UiSettingsState s) => s.fontScale,
       onChanged: (WidgetRef ref, AppFontScale scale) =>
           ref.read(uiSettingsProvider.notifier).setFontScale(scale),
@@ -522,12 +525,14 @@ class SettingsRegistry {
       id: 'push_notifications',
       parentNavId: 'notifications',
       title: (AppLocalizations l) => 'Push-уведомления',
-      subtitle: (AppLocalizations l) => 'Всплывающие оповещения о новых сообщениях',
+      subtitle: (AppLocalizations l) =>
+          'Всплывающие оповещения о новых сообщениях',
       icon: Icons.notifications_active_rounded,
       group: SettingsGroup.notifications,
       valueSelector: (UiSettingsState s) => s.notifications,
-      onChanged: (WidgetRef ref, bool v) =>
-          ref.read(uiSettingsProvider.notifier).setNotifications(v),
+      onChanged: (WidgetRef ref, bool v) async {
+        await updateNotificationPreference(ref, v);
+      },
       keywords: const <String>[
         'уведомления',
         'пуши',
@@ -540,7 +545,8 @@ class SettingsRegistry {
       id: 'sound_volume',
       parentNavId: 'notifications',
       title: (AppLocalizations l) => 'Громкость звуков',
-      subtitle: (AppLocalizations l) => 'Уровень громкости уведомлений и эффектов',
+      subtitle: (AppLocalizations l) =>
+          'Уровень громкости уведомлений и эффектов',
       icon: Icons.volume_up_rounded,
       group: SettingsGroup.notifications,
       min: 0.0,
@@ -564,7 +570,8 @@ class SettingsRegistry {
       id: 'hide_online',
       parentNavId: 'privacy',
       title: (AppLocalizations l) => 'Скрывать статус онлайн',
-      subtitle: (AppLocalizations l) => 'Не показывать собеседникам ваше присутствие в сети',
+      subtitle: (AppLocalizations l) =>
+          'Не показывать собеседникам ваше присутствие в сети',
       icon: Icons.visibility_off_rounded,
       group: SettingsGroup.privacy,
       valueSelector: (UiSettingsState s) => s.hideOnline,
@@ -617,7 +624,8 @@ class SettingsRegistry {
       id: 'sessions_management',
       parentNavId: 'privacy',
       title: (AppLocalizations l) => 'Активные сессии',
-      subtitle: (AppLocalizations l) => 'Устройства и браузеры с доступом к аккаунту',
+      subtitle: (AppLocalizations l) =>
+          'Устройства и браузеры с доступом к аккаунту',
       icon: Icons.devices_rounded,
       group: SettingsGroup.privacy,
       route: '/settings/sessions',
@@ -637,7 +645,8 @@ class SettingsRegistry {
       id: 'cache_cleaning',
       parentNavId: 'storage',
       title: (AppLocalizations l) => 'Очистить кэш медиа',
-      subtitle: (AppLocalizations l) => 'Очистка загруженных фото, аудио и превью',
+      subtitle: (AppLocalizations l) =>
+          'Очистка загруженных фото, аудио и превью',
       icon: Icons.cleaning_services_rounded,
       group: SettingsGroup.storage,
       route: '/settings/storage',
@@ -655,7 +664,9 @@ class SettingsRegistry {
 
   /// Returns all top-level sections that are available in current runtime environment.
   static List<SettingsNavNode> getTopLevelSections() {
-    return _topLevelSections.where((SettingsNavNode node) => node.isAvailable()).toList();
+    return _topLevelSections
+        .where((SettingsNavNode node) => node.isAvailable())
+        .toList();
   }
 
   /// Returns all registered nodes (sections and child items).
@@ -672,7 +683,10 @@ class SettingsRegistry {
   }
 
   /// Performs fast, localized, tokenized search across all sections and child items.
-  static List<SettingsSearchResult> search(String query, AppLocalizations l10n) {
+  static List<SettingsSearchResult> search(
+    String query,
+    AppLocalizations l10n,
+  ) {
     final String cleanQuery = query.trim().toLowerCase();
     if (cleanQuery.isEmpty) return const <SettingsSearchResult>[];
 
@@ -724,13 +738,17 @@ class SettingsRegistry {
         final SettingsNavNode? parent = childNode.parentNavId != null
             ? getParentSection(childNode.parentNavId!)
             : null;
-        final String route = (childNode is SettingsNavNode && childNode.route.isNotEmpty)
+        final String route =
+            (childNode is SettingsNavNode && childNode.route.isNotEmpty)
             ? childNode.route
             : (parent?.route ?? '/settings');
-        final SettingsSectionId? sectionId = (childNode is SettingsNavNode && childNode.sectionId != null)
+        final SettingsSectionId? sectionId =
+            (childNode is SettingsNavNode && childNode.sectionId != null)
             ? childNode.sectionId
             : parent?.sectionId;
-        final String parentTitle = parent != null ? parent.title(l10n) : childNode.group.localizedTitle(l10n);
+        final String parentTitle = parent != null
+            ? parent.title(l10n)
+            : childNode.group.localizedTitle(l10n);
 
         results.add(
           SettingsSearchResult(
@@ -747,7 +765,10 @@ class SettingsRegistry {
       }
     }
 
-    results.sort((SettingsSearchResult a, SettingsSearchResult b) => b.score.compareTo(a.score));
+    results.sort(
+      (SettingsSearchResult a, SettingsSearchResult b) =>
+          b.score.compareTo(a.score),
+    );
     return results;
   }
 
