@@ -19,7 +19,7 @@ def add_windows_asset(folder):
         'url': result['windows_download_url'],
         'size': file.stat().st_size, 'sha256': digest,
     }
-    manifest.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+    manifest.write_text(json.dumps(result, ensure_ascii=True, indent=2), encoding='utf-8')
 
 
 def main():
@@ -48,7 +48,7 @@ def main():
               'windows_download_url': url + 'niosmess-windows-setup.exe',
               'android_assets': assets,
               'published_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
-    (root / 'version.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+    (root / 'version.json').write_text(json.dumps(result, ensure_ascii=True, indent=2), encoding='utf-8')
     (root / 'changelog_release.txt').write_text(result['changelog'], encoding='utf-8')
     print(f'app_version={version}')
 

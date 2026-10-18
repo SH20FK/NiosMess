@@ -130,12 +130,13 @@ class AppUrlLauncher {
 
   /// Handles an incoming deep link URI from OS (e.g. via [DeepLinkService]).
   static Future<bool> handleDeepLink(Uri uri) async {
+    if (!isInternalNiosLink(uri)) return false;
     debugPrint('[AppUrlLauncher] Handling deep link path: ${uri.path}');
 
     final String? internalRoute = resolveInternalAppRoute(uri);
     if (internalRoute != null) {
-      final BuildContext? ctx = AppRouter.navigatorKey.currentContext;
-      return _routeInternally(ctx, internalRoute);
+      AppRouter.incomingRoute.enqueue(internalRoute);
+      return true;
     }
 
     return false;

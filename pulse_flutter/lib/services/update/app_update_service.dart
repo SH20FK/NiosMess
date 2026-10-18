@@ -262,7 +262,7 @@ class AppUpdateService {
             )
             .timeout(const Duration(seconds: 8));
         if (response.statusCode != 200) return null;
-        final body = jsonDecode(response.body);
+        final body = jsonDecode(utf8.decode(response.bodyBytes));
         return body is Map<String, dynamic> ? body : null;
       } catch (_) {
         return null;

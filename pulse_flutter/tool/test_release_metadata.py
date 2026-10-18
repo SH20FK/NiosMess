@@ -16,7 +16,7 @@ class ReleaseMetadataTest(unittest.TestCase):
             (project / 'tool').mkdir(parents=True)
             (project / 'dist/android').mkdir(parents=True)
             (project / 'pubspec.yaml').write_text('version: 3.100.0+229\n')
-            (project.parent / 'CHANGELOG.md').write_text('## [3.100.0]\n\nLatest only\n\n## [3.99.2]\n\nOld notes\n')
+            (project.parent / 'CHANGELOG.md').write_text('## [3.100.0]\n\nАктивация NiosPlus\n\n## [3.99.2]\n\nOld notes\n', encoding='utf-8')
             for abi in ('universal', 'arm64-v8a', 'armeabi-v7a', 'x86_64'):
                 name = 'niosmess.apk' if abi == 'universal' else f'niosmess-{abi}.apk'
                 (project / 'dist/android' / name).write_bytes(abi.encode())
@@ -29,8 +29,9 @@ class ReleaseMetadataTest(unittest.TestCase):
                     release_metadata.main()
             finally:
                 release_metadata.__file__ = previous
+            self.assertTrue((project / 'version.json').read_bytes().isascii())
             data = json.loads((project / 'version.json').read_text())
-            self.assertEqual(data['changelog'], 'Latest only')
+            self.assertEqual(data['changelog'], 'Активация NiosPlus')
             self.assertIn('build_commit', data)
             self.assertEqual(data['tag_name'], 'v3.100.0+229')
             self.assertIn('/v3.100.0%2B229/', data['download_url'])

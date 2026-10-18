@@ -166,6 +166,7 @@ void main() {
     String hash = 'a',
     int size = 20,
     bool missing = false,
+    String changelog = "Published notes",
   }) async {
     PackageInfo.setMockInitialValues(
       appName: 'fixture',
@@ -193,18 +194,22 @@ void main() {
         );
       }
       if (missing) return http.Response('unavailable', 503);
-      return http.Response(
-        jsonEncode({
-          'version': version,
-          'android_assets': {
-            'arm64-v8a': {
-              'url': 'https://github.com/fixture/arm.apk',
-              'size': size,
-              'sha256': hash * 64,
+      return http.Response.bytes(
+        utf8.encode(
+          jsonEncode({
+            'version': version,
+            'changelog': changelog,
+            'android_assets': {
+              'arm64-v8a': {
+                'url': 'https://github.com/fixture/arm.apk',
+                'size': size,
+                'sha256': hash * 64,
+              },
             },
-          },
-        }),
+          }),
+        ),
         200,
+        headers: {'content-type': 'application/octet-stream'},
       );
     });
     addTearDown(client.close);
@@ -213,6 +218,11 @@ void main() {
       androidAbi: 'arm64-v8a',
     ).checkForUpdate();
   }
+
+  test('Russian notes decode as UTF-8 with binary download headers', () async {
+    const notes = '• Исправлена активация NiosPlus';
+    expect((await checkSnapshot(changelog: notes)).changelog, notes);
+  });
 
   test(
     'mixed release name and old manifest do not advertise an old APK as new',

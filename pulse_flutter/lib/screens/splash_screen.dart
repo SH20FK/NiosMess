@@ -37,8 +37,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     });
 
     try {
-      final Future<void> minDisplayDelay =
-          Future<void>.delayed(const Duration(milliseconds: 350));
+      final Future<void> minDisplayDelay = Future<void>.delayed(
+        const Duration(milliseconds: 350),
+      );
       final Future<void> initialization = Future.wait(<Future<void>>[
         ref.read(sessionProvider.notifier).ensureLoaded(),
         ref.read(authProvider.notifier).ensureLoaded(),
@@ -46,6 +47,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
       await Future.wait(<Future<void>>[minDisplayDelay, initialization]);
       if (!mounted) return;
+
+      // A deep-link redirect may already have replaced the startup route.
+      if (GoRouter.of(context).routeInformationProvider.value.uri.path != '/') {
+        return;
+      }
 
       // 1. Authenticated users always proceed directly to main chats (zero onboarding flash)
       final AuthState auth = ref.read(authProvider);
@@ -87,10 +93,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               // Hero Brand Logo with unified tag and M3 spring motion
-              Hero(
-                tag: 'app_brand_logo',
-                child: const AppLogoMark(size: 96),
-              )
+              Hero(tag: 'app_brand_logo', child: const AppLogoMark(size: 96))
                   .animate()
                   .scale(
                     begin: const Offset(0.82, 0.82),
@@ -108,9 +111,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   letterSpacing: -0.5,
                 ),
               ).animate().fade(
-                    delay: const Duration(milliseconds: 80),
-                    duration: const Duration(milliseconds: 280),
-                  ),
+                delay: const Duration(milliseconds: 80),
+                duration: const Duration(milliseconds: 280),
+              ),
               const SizedBox(height: 8),
 
               Text(
@@ -120,9 +123,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 ),
                 textAlign: TextAlign.center,
               ).animate().fade(
-                    delay: const Duration(milliseconds: 140),
-                    duration: const Duration(milliseconds: 280),
-                  ),
+                delay: const Duration(milliseconds: 140),
+                duration: const Duration(milliseconds: 280),
+              ),
               const SizedBox(height: 36),
 
               // Dynamic State: Error with Retry, or subtle M3 indicator if delayed
@@ -139,7 +142,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.error_outline_rounded, color: scheme.error, size: 28),
+                      Icon(
+                        Icons.error_outline_rounded,
+                        color: scheme.error,
+                        size: 28,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         context.l10n.splashInitError,
@@ -153,7 +160,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                       Text(
                         context.l10n.splashInitErrorSubtitle,
                         style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onErrorContainer.withValues(alpha: 0.85),
+                          color: scheme.onErrorContainer.withValues(
+                            alpha: 0.85,
+                          ),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -177,12 +186,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   ),
                 ).animate().fade(duration: const Duration(milliseconds: 250)),
               ] else if (_isRetrying) ...[
-                AppLoadingIndicator(size: 28, color: scheme.primary)
-                    .animate()
-                    .fade(
-                      delay: const Duration(milliseconds: 500),
-                      duration: const Duration(milliseconds: 300),
-                    ),
+                AppLoadingIndicator(
+                  size: 28,
+                  color: scheme.primary,
+                ).animate().fade(
+                  delay: const Duration(milliseconds: 500),
+                  duration: const Duration(milliseconds: 300),
+                ),
               ],
             ],
           ),

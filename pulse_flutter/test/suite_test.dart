@@ -1,3 +1,5 @@
+import 'unit/incoming_app_route_test.dart' as incoming_app_route;
+import 'plus_activation_screen_test.dart' as plus_activation_screen;
 // Unified test suite aggregator for rapid single-pass compilation in CI.
 import 'package:flutter_test/flutter_test.dart';
 
@@ -211,6 +213,9 @@ void main() {
     profile_schedule_badges.main();
     reports_support_spamblock.main();
     stickers.main();
+
+    incoming_app_route.main();
+    plus_activation_screen.main();
 
     // Screen & UI Widget Tests
     group('Incoming call regression', incoming_call_delivery.main);

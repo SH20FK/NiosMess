@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/services/incoming_app_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +53,7 @@ import 'package:pulse_flutter/features/chats/presentation/create_channel_screen.
 import 'package:pulse_flutter/features/chats/presentation/inbox_search_screen.dart';
 
 class AppRouter {
+  static final incomingRoute = IncomingAppRoute();
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 }
@@ -133,6 +135,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
     }
   });
 
+  void refreshIncomingRoute() => refreshListenable.value++;
+  AppRouter.incomingRoute.addListener(refreshIncomingRoute);
+  ref.onDispose(() => AppRouter.incomingRoute.removeListener(refreshIncomingRoute));
+
   String? savedDeepLink;
 
   return GoRouter(
@@ -144,6 +150,16 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       if (!authState.hydrated) return null;
       final bool isAuth = authState.isAuthenticated;
       final Uri uri = state.uri;
+      final incoming = AppRouter.incomingRoute.take(hydrated: authState.hydrated);
+      if (incoming != null) {
+        if (!isAuth) {
+          savedDeepLink = incoming;
+          return state.uri.path == '/login' ? null : '/login';
+        }
+        savedDeepLink = null;
+        if (incoming != state.uri.toString()) return incoming;
+      }
+
 
       // Handle custom scheme (niosmess://...) or absolute web URLs (https://ni-os.ru/...)
       if (uri.scheme == 'niosmess' ||
