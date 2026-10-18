@@ -1,4 +1,6 @@
-import 'unit/report_evidence_submission_test.dart' as report_evidence_submission;
+import 'widgets/message_bold_text_test.dart' as message_bold_text;
+import 'unit/report_evidence_submission_test.dart'
+    as report_evidence_submission;
 import 'settings_plus_navigation_test.dart' as settings_plus_navigation;
 import 'unit/incoming_app_route_test.dart' as incoming_app_route;
 import 'plus_activation_screen_test.dart' as plus_activation_screen;
@@ -33,7 +35,8 @@ import 'providers/secret_coordinator_lifecycle_test.dart'
     as secret_coordinator_lifecycle;
 import 'unit/frame_timing_monitor_percentiles_test.dart' as frame_percentiles;
 import 'perf/ui_smoothness_regression_guard_test.dart' as perf_logic_guards;
-import 'perf/chat_performance_benchmarks_test.dart' as chat_algorithm_regressions;
+import 'perf/chat_performance_benchmarks_test.dart'
+    as chat_algorithm_regressions;
 import 'binary_packet_test.dart' as binary_packet;
 import 'bots_inline_query_test.dart' as bots_inline_query;
 import 'calls_gateway_limits_test.dart' as calls_gateway_limits;
@@ -128,6 +131,7 @@ import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 
 void main() {
+  message_bold_text.main();
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Aggregated Test Suite', () {

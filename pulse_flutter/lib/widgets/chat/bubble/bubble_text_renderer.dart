@@ -10,6 +10,7 @@ final RegExp _interactiveTokenRegExp = RegExp(
 class ParsedTextToken {
   const ParsedTextToken({
     required this.prefix,
+    required this.bold,
     required this.token,
     required this.trailing,
     required this.isMention,
@@ -18,6 +19,7 @@ class ParsedTextToken {
   });
 
   final String prefix;
+  final bool bold;
   final String token;
   final String trailing;
   final bool isMention;
@@ -46,7 +48,6 @@ class InteractiveMessageText extends StatefulWidget {
 class InteractiveMessageTextState extends State<InteractiveMessageText> {
   final List<TapGestureRecognizer> _recognizers = <TapGestureRecognizer>[];
   final List<ParsedTextToken> _tokens = <ParsedTextToken>[];
-  String _trailingText = '';
   late TextSpan _cachedSpan;
 
   @override
@@ -83,55 +84,86 @@ class InteractiveMessageTextState extends State<InteractiveMessageText> {
     _recognizers.clear();
   }
 
+  bool _escaped(String text, int index) {
+    int slashes = 0;
+    while (index > 0 && text[--index] == r'\') {
+      slashes++;
+    }
+    return slashes.isOdd;
+  }
+
+  String _unescape(String text) =>
+      text.replaceAllMapped(RegExp(r'\\([\\*_`\[\]])'), (match) => match[1]!);
+
   void _parseTokens() {
     _tokens.clear();
-    final String text = widget.text;
-    final int lastMatch = text.length;
+    final text = widget.text;
+    int start = 0;
+    int search = 0;
+    while (true) {
+      final open = text.indexOf('**', search);
+      if (open < 0) break;
+      if (_escaped(text, open)) {
+        search = open + 1;
+        continue;
+      }
+      int close = text.indexOf('**', open + 2);
+      while (close >= 0 && _escaped(text, close)) {
+        close = text.indexOf('**', close + 1);
+      }
+      if (close < 0) break;
+      _parseRun(_unescape(text.substring(start, open)), false);
+      _parseRun(_unescape(text.substring(open + 2, close)), true);
+      start = close + 2;
+      search = start;
+    }
+    _parseRun(_unescape(text.substring(start)), false);
+  }
+
+  void _parseRun(String text, bool bold) {
     int lastEnd = 0;
-
-    for (final RegExpMatch match in _interactiveTokenRegExp.allMatches(text)) {
-      final String prefix = match.start > lastEnd ? text.substring(lastEnd, match.start) : '';
-      final String rawToken = match.group(0)!;
-      String token = rawToken;
-      String trailingPunctuation = '';
-
-      while (token.isNotEmpty &&
-          (token.endsWith('.') ||
-              token.endsWith(',') ||
-              token.endsWith('!') ||
-              token.endsWith('?') ||
-              token.endsWith(';') ||
-              token.endsWith(':') ||
-              token.endsWith(')') ||
-              token.endsWith(']'))) {
-        trailingPunctuation = token[token.length - 1] + trailingPunctuation;
+    for (final match in _interactiveTokenRegExp.allMatches(text)) {
+      final prefix = text.substring(lastEnd, match.start);
+      String token = match.group(0)!;
+      String trailing = '';
+      while (token.isNotEmpty && '.,!?;:)]'.contains(token[token.length - 1])) {
+        trailing = token[token.length - 1] + trailing;
         token = token.substring(0, token.length - 1);
       }
-
-      final bool isMention = token.startsWith('@');
-      final String target = isMention ? token.substring(1) : token;
-
-      final TapGestureRecognizer recognizer = TapGestureRecognizer()
+      final isMention = token.startsWith('@');
+      final target = isMention ? token.substring(1) : token;
+      final recognizer = TapGestureRecognizer()
         ..onTap = () {
           if (mounted) {
             AppUrlLauncher.openUrl(context, isMention ? '/g/$target' : target);
           }
         };
       _recognizers.add(recognizer);
-
-      _tokens.add(ParsedTextToken(
-        prefix: prefix,
-        token: token,
-        trailing: trailingPunctuation,
-        isMention: isMention,
-        isLink: !isMention,
-        target: target,
-      ));
-
+      _tokens.add(
+        ParsedTextToken(
+          prefix: prefix,
+          bold: bold,
+          token: token,
+          trailing: trailing,
+          isMention: isMention,
+          isLink: !isMention,
+          target: target,
+        ),
+      );
       lastEnd = match.end;
     }
-
-    _trailingText = lastEnd < lastMatch ? text.substring(lastEnd) : '';
+    // A plain sentinel keeps run ordering, including runs without links.
+    _tokens.add(
+      ParsedTextToken(
+        prefix: text.substring(lastEnd),
+        bold: bold,
+        token: '',
+        trailing: '',
+        isMention: false,
+        isLink: false,
+        target: '',
+      ),
+    );
   }
 
   void _updateSpans() {
@@ -141,46 +173,55 @@ class InteractiveMessageTextState extends State<InteractiveMessageText> {
 
     final List<TextSpan> spans = <TextSpan>[];
 
+    int recognizerIndex = 0;
     for (int i = 0; i < _tokens.length; i++) {
       final ParsedTextToken t = _tokens[i];
       if (t.prefix.isNotEmpty) {
-        spans.add(TextSpan(text: t.prefix));
+        spans.add(
+          TextSpan(
+            text: t.prefix,
+            style: t.bold ? const TextStyle(fontWeight: FontWeight.w700) : null,
+          ),
+        );
       }
-      final TapGestureRecognizer recognizer = _recognizers[i];
+      if (t.token.isEmpty) continue;
+      final TapGestureRecognizer recognizer = _recognizers[recognizerIndex++];
       if (t.isMention) {
-        spans.add(TextSpan(
-          text: t.token,
-          style: widget.baseStyle.copyWith(
-            color: linkColor,
-            fontWeight: FontWeight.w600,
+        spans.add(
+          TextSpan(
+            text: t.token,
+            style: widget.baseStyle.copyWith(
+              color: linkColor,
+              fontWeight: t.bold ? FontWeight.w700 : FontWeight.w600,
+            ),
+            recognizer: recognizer,
           ),
-          recognizer: recognizer,
-        ));
+        );
       } else {
-        spans.add(TextSpan(
-          text: t.token,
-          style: widget.baseStyle.copyWith(
-            color: linkColor,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.underline,
-            decorationColor: linkColor.withValues(alpha: 0.4),
+        spans.add(
+          TextSpan(
+            text: t.token,
+            style: widget.baseStyle.copyWith(
+              color: linkColor,
+              fontWeight: t.bold ? FontWeight.w700 : FontWeight.w600,
+              decoration: TextDecoration.underline,
+              decorationColor: linkColor.withValues(alpha: 0.4),
+            ),
+            recognizer: recognizer,
           ),
-          recognizer: recognizer,
-        ));
+        );
       }
       if (t.trailing.isNotEmpty) {
-        spans.add(TextSpan(text: t.trailing));
+        spans.add(
+          TextSpan(
+            text: t.trailing,
+            style: t.bold ? const TextStyle(fontWeight: FontWeight.w700) : null,
+          ),
+        );
       }
     }
 
-    if (_trailingText.isNotEmpty) {
-      spans.add(TextSpan(text: _trailingText));
-    }
-
-    _cachedSpan = TextSpan(
-      style: widget.baseStyle,
-      children: spans,
-    );
+    _cachedSpan = TextSpan(style: widget.baseStyle, children: spans);
   }
 
   @override
@@ -188,4 +229,3 @@ class InteractiveMessageTextState extends State<InteractiveMessageText> {
     return Text.rich(_cachedSpan);
   }
 }
-
