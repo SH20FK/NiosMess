@@ -41,6 +41,18 @@ class MainActivity : FlutterFragmentActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SYSTEM_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "getPurchaseDeviceHash" -> {
+                    val id = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                    if (id.isNullOrBlank()) {
+                        result.error("DEVICE_ID_UNAVAILABLE", "Device identifier unavailable", null)
+                    } else {
+                        val raw = "niosmess-purchase-v1\u0000android\u0000$id"
+                        val hash = java.security.MessageDigest.getInstance("SHA-256")
+                            .digest(raw.toByteArray(Charsets.UTF_8))
+                            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+                        result.success(hash)
+                    }
+                }
                 "minimizeApp" -> {
                     moveTaskToBack(true)
                     result.success(null)

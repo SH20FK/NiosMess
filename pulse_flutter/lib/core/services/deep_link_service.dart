@@ -17,7 +17,7 @@ class DeepLinkService {
     try {
       final Uri? initialUri = await appLinks.getInitialLink();
       if (initialUri != null) {
-        debugPrint('[DeepLink] Cold start link detected: $initialUri');
+        debugPrint('[DeepLink] Cold start path: ${initialUri.path}');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _handleUri(initialUri);
         });
@@ -25,7 +25,7 @@ class DeepLinkService {
         WidgetsBinding.instance.ensureVisualUpdate();
       }
     } catch (e) {
-      debugPrint('[DeepLink] Error reading initial URI: $e');
+      debugPrint('[DeepLink] Error reading initial URI');
     }
 
     // 2. Runtime stream listening
@@ -39,7 +39,7 @@ class DeepLinkService {
   }
 
   static void _handleUri(Uri uri) {
-    debugPrint('[DeepLink] Received runtime link: $uri');
+    debugPrint('[DeepLink] Received runtime path: ${uri.path}');
     AppUrlLauncher.handleDeepLink(uri);
   }
 }

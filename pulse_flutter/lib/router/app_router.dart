@@ -20,6 +20,7 @@ import 'package:pulse_flutter/screens/sticker_set_screen.dart';
 import 'package:pulse_flutter/screens/contacts_screen.dart';
 import 'package:pulse_flutter/screens/settings_energy_saving_screen.dart';
 import 'package:pulse_flutter/screens/settings_plus_screen.dart';
+import 'package:pulse_flutter/screens/plus_activation_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
@@ -191,6 +192,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       return null;
     },
     routes: <RouteBase>[
+      GoRoute(
+        path: '/plus/activate',
+        builder: (context, state) => PlusActivationScreen(code: state.uri.fragment),
+      ),
       GoRoute(
         path: '/',
         pageBuilder: (context, state) => _m3eEntryPage(state, const SplashScreen()),

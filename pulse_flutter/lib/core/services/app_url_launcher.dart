@@ -102,7 +102,7 @@ class AppUrlLauncher {
     try {
       parsedUri = Uri.parse(trimmed);
     } catch (e) {
-      debugPrint('[AppUrlLauncher] Malformed URL: $trimmed ($e)');
+      debugPrint('[AppUrlLauncher] Malformed URL');
       return false;
     }
 
@@ -130,7 +130,7 @@ class AppUrlLauncher {
 
   /// Handles an incoming deep link URI from OS (e.g. via [DeepLinkService]).
   static Future<bool> handleDeepLink(Uri uri) async {
-    debugPrint('[AppUrlLauncher] Handling deep link: $uri');
+    debugPrint('[AppUrlLauncher] Handling deep link path: ${uri.path}');
 
     final String? internalRoute = resolveInternalAppRoute(uri);
     if (internalRoute != null) {
@@ -204,6 +204,9 @@ class AppUrlLauncher {
     }
 
     // 1. /join/slug or /join?slug=...
+    if (path == '/plus/activate') {
+      return Uri(path: path, fragment: uri.fragment).toString();
+    }
     if (path.startsWith('/join/')) {
       final String slug = path.substring(6);
       if (slug.isNotEmpty) return '/join?slug=$slug';
@@ -332,7 +335,7 @@ class AppUrlLauncher {
   static bool _routeInternally(BuildContext? context, String route) {
     final BuildContext? targetContext = context ?? AppRouter.navigatorKey.currentContext;
     if (targetContext == null || !targetContext.mounted) {
-      debugPrint('[AppUrlLauncher] Cannot route internally: no active BuildContext for $route');
+      debugPrint('[AppUrlLauncher] Cannot route internally: no active BuildContext');
       return false;
     }
 
@@ -340,12 +343,12 @@ class AppUrlLauncher {
       targetContext.push(route);
       return true;
     } catch (e) {
-      debugPrint('[AppUrlLauncher] context.push failed for $route, trying context.go: $e');
+      debugPrint('[AppUrlLauncher] context.push failed, trying context.go');
       try {
         targetContext.go(route);
         return true;
       } catch (e2) {
-        debugPrint('[AppUrlLauncher] context.go also failed for $route: $e2');
+        debugPrint('[AppUrlLauncher] context.go also failed');
         return false;
       }
     }
@@ -383,7 +386,7 @@ class AppUrlLauncher {
         return await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
       }
     } catch (e) {
-      debugPrint('[AppUrlLauncher] Error launching external URL: $uri ($e)');
+      debugPrint('[AppUrlLauncher] Error launching external URL');
     }
     return false;
   }

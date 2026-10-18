@@ -2,6 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 void main() {
+  test('activation bearer code stays in fragment for native app navigation', () {
+    final uri = Uri.parse('https://ni-os.ru/plus/activate#abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG');
+    final resolved = AppUrlLauncher.resolveInternalAppRoute(uri);
+    expect(resolved, '/plus/activate#abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG');
+    expect(Uri.parse(resolved!).query, isEmpty);
+    expect(AppUrlLauncher.resolveInternalAppRoute(Uri.parse('niosmess://plus/activate#abc')), '/plus/activate#abc');
+  });
   group('AppUrlLauncher Internal Link Resolution', () {
     test('Identifies NiosMess ecosystem domains correctly', () {
       expect(AppUrlLauncher.isInternalNiosLink(Uri.parse('https://ni-os.ru/u/alice')), isTrue);
