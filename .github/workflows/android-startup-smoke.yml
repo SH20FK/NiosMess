@@ -1,0 +1,78 @@
+name: Android cold-start smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Build workflow run containing android-apk-release
+        required: true
+        type: string
+        default: '39140894261'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: android-startup-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  cold-start:
+    name: Start existing release APK on Android 29
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install screenshot inspection dependency
+        run: python -m pip install 'Pillow==11.3.0'
+
+      - name: Download existing release APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk-release
+          path: smoke-apk
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Collect release cold-start evidence
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        with:
+          api-level: 29
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          ram-size: 2048M
+          emulator-boot-timeout: 300
+          disable-animations: false
+          disable-linux-hw-accel: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -wipe-data -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: python pulse_flutter/tool/android_startup_smoke.py collect --apk-dir smoke-apk --output output/android-startup-smoke --serial emulator-5554 --timeout 90
+
+      # Evidence survives a failed launch, and the assertion runs after upload.
+      - name: Upload screenshots and startup diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-startup-smoke-${{ inputs.source_run_id }}
+          path: output/android-startup-smoke
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Assert live process and visible first frame
+        if: always()
+        run: python pulse_flutter/tool/android_startup_smoke.py assert --output output/android-startup-smoke
