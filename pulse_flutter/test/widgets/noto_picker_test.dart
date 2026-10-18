@@ -88,6 +88,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('🐈'), findsOneWidget, reason: query);
     }
+    await tester.tap(find.byTooltip('Назад'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Эмодзи'));
+    // Sample the closing transition, including the spring's settling phase.
+    for (var frame = 0; frame < 45; frame++) {
+      await tester.pump(const Duration(milliseconds: 10));
+      expect(tester.takeException(), isNull);
+    }
+    expect(find.byType(EmojiPicker), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

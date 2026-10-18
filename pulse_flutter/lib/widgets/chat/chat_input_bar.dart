@@ -909,7 +909,8 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             duration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : M3Durations.medium1,
-            curve: M3SpringCurves.spatial,
+            // Height must stay non-negative while the panel settles at zero.
+            curve: M3SpringCurves.gentle,
             height: effectivePanelHeight,
             clipBehavior: Clip.hardEdge,
             decoration: BoxDecoration(
