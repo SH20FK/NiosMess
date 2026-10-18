@@ -66,6 +66,7 @@ import 'widgets/m3_route_tab_switcher_test.dart' as route_tab_switcher;
 import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
 import 'widgets/appearance_palette_test.dart' as appearance_palette;
 import 'widgets/app_modals_test.dart' as app_modals;
+import 'widgets/app_startup_gate_test.dart' as app_startup_gate;
 import 'formatter_and_detector_test.dart' as formatter_and_detector;
 import 'global_search_deep_links_test.dart' as global_search_deep_links;
 import 'group_moderation_test.dart' as group_moderation;
@@ -148,6 +149,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Aggregated Test Suite', () {
+    group('app_startup_gate', app_startup_gate.main);
     group('protocol_accounts', protocol_accounts.main);
     group('protocol_enrollment', protocol_enrollment.main);
     group('background_stream_crypto', background_stream_crypto.main);

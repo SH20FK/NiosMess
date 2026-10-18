@@ -26,6 +26,14 @@ ACTIVITY = f"{PACKAGE}/.MainActivity"
 LOG_LINE = re.compile(
     r"^\d\d-\d\d\s+\S+\s+(\d+)\s+\d+\s+([VDIWEF])\s+([^:]+):\s?(.*)$"
 )
+# EGL_SUCCESS is a successful driver probe despite its E/flutter log level.
+# Preserve it as evidence and still require an actual visible Flutter frame.
+# Every other EGL/Impeller error remains fatal to this smoke check.
+EGL_SUCCESS_PROBE = re.compile(
+    r"\[ERROR:flutter/impeller/toolkit/egl/egl\.cc\(\d+\)\] "
+    r"EGL Error: Success \(12288\) in "
+    r"(?:\.\./)*flutter/impeller/toolkit/egl/display\.cc:\d+"
+)
 
 
 def screenshot_content(path: Path) -> dict:
@@ -70,6 +78,9 @@ def startup_errors(log: str, pids: set[str]) -> list[str]:
         match = LOG_LINE.match(line)
         if match:
             pid, level, tag, message = match.groups()
+            if (level == "E" and tag.strip() == "flutter"
+                    and EGL_SUCCESS_PROBE.fullmatch(message)):
+                continue
             if pid in pids and (
                 (tag.strip() == "flutter" and level in {"E", "F"})
                 or (level == "F")
@@ -85,6 +96,18 @@ def startup_errors(log: str, pids: set[str]) -> list[str]:
         )):
             errors.append(line)
     return list(dict.fromkeys(errors))
+
+
+def renderer_diagnostics(log: str, pids: set[str]) -> list[str]:
+    diagnostics = []
+    for line in log.splitlines():
+        match = LOG_LINE.match(line)
+        if match:
+            pid, level, tag, message = match.groups()
+            if (pid in pids and level == "E" and tag.strip() == "flutter"
+                    and EGL_SUCCESS_PROBE.fullmatch(message)):
+                diagnostics.append(line)
+    return list(dict.fromkeys(diagnostics))
 
 
 def first_frame_evidence(log: str, gfx: str, surface_latency: str,
@@ -176,6 +199,7 @@ class Collector:
             "first_frame": first_frame_evidence(log, gfx, latency, app_semantics(xml)),
             "screenshot": screenshot_content(screenshot),
             "errors": startup_errors(log, self.pids),
+            "renderer_diagnostics": renderer_diagnostics(log, self.pids),
         }
 
     def run(self) -> None:

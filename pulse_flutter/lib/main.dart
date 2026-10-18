@@ -40,6 +40,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
+import 'package:pulse_flutter/widgets/app_startup_gate.dart';
 import 'package:pulse_flutter/features/security/application/app_lock_controller.dart';
 import 'package:pulse_flutter/features/security/presentation/app_lock_gate.dart';
 
@@ -61,38 +62,58 @@ Future<void> main() async {
         return true;
       };
 
-      // Register the native background entry point before yielding bootstrap.
-      // Plugin initialization and permission UX run after the first screen.
-      if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
-        PushNotificationService.prepareDeferredFirebase();
-      }
-      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-        PushNotificationService.registerBackgroundHandler();
-      }
-      late final SharedPreferences sharedPrefs;
-      await Future.wait(<Future<void>>[
-        (() async {
-          await HiveBootstrap.ensureInitialized();
-          await Future.wait(<Future<void>>[
-            const CacheService().ensureInitialized(),
-            EncryptedMessageCache.ensureInitialized(),
-            ChatMediaCache.ensureInitialized(),
-          ]);
-        })(),
-        SharedPreferences.getInstance().then((SharedPreferences p) {
-          sharedPrefs = p;
-        }),
-      ]);
-      UiSettingsNotifier.cachedPrefs = sharedPrefs;
-      AppTimeSettings.initialize();
-      if (!kIsWeb) BackgroundService.init();
-      logger.info('Application started', source: 'bootstrap');
-      runApp(const ProviderScope(child: PulseApp()));
+      runApp(
+        AppStartupGate(
+          initialize: _initializeLocalState,
+          onError: (error, stack) => logger.error(
+            StateError('local_bootstrap_failed:${error.runtimeType}'),
+            stack,
+            source: 'bootstrap',
+          ),
+          child: const ProviderScope(child: PulseApp()),
+        ),
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        logger.info('BOOTSTRAP_FIRST_FRAME', source: 'bootstrap');
+      });
     },
     (Object error, StackTrace stack) {
       AppLogger.instance.error(error, stack, source: 'zone');
     },
   );
+}
+
+Future<void> _initializeLocalState() async {
+  final logger = AppLogger.instance;
+  // The startup gate has already painted before any platform/storage request.
+  if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
+    PushNotificationService.prepareDeferredFirebase();
+  }
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    PushNotificationService.registerBackgroundHandler();
+  }
+  late final SharedPreferences sharedPrefs;
+  logger.info('Local storage initialization started', source: 'bootstrap');
+  await Future.wait(<Future<void>>[
+    (() async {
+      await HiveBootstrap.ensureInitialized();
+      logger.info('Hive initialized', source: 'bootstrap');
+      await Future.wait(<Future<void>>[
+        const CacheService().ensureInitialized(),
+        EncryptedMessageCache.ensureInitialized(),
+        ChatMediaCache.ensureInitialized(),
+      ]);
+      logger.info('Local caches opened', source: 'bootstrap');
+    })(),
+    SharedPreferences.getInstance().then((SharedPreferences p) {
+      sharedPrefs = p;
+      logger.info('Preferences loaded', source: 'bootstrap');
+    }),
+  ]);
+  UiSettingsNotifier.cachedPrefs = sharedPrefs;
+  AppTimeSettings.initialize();
+  if (!kIsWeb) BackgroundService.init();
+  logger.info('Application started', source: 'bootstrap');
 }
 
 class PulseApp extends ConsumerStatefulWidget {

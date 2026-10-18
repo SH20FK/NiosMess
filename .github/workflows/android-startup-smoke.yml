@@ -1,6 +1,12 @@
 name: Android cold-start smoke
 
 on:
+  workflow_call:
+    inputs:
+      source_run_id:
+        description: Build workflow run containing android-apk-release
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       source_run_id:

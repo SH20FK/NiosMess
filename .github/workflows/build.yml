@@ -222,6 +222,17 @@ jobs:
             pulse_flutter/changelog_release.txt
           retention-days: 7
 
+  android-startup-smoke:
+    name: Android release startup gate
+    needs: build-android
+    if: needs.build-android.result == 'success'
+    uses: ./.github/workflows/android-startup-smoke.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      source_run_id: ${{ format('{0}', github.run_id) }}
+
   # ──────────────────────────────────────────────────────────────────────────
   # 3. Build Windows Installer (.exe via Inno Setup)
   # ──────────────────────────────────────────────────────────────────────────
@@ -327,8 +338,11 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   publish-release:
     name: Publish GitHub Release
-    needs: [build-android, build-windows]
-    if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
+    needs: [build-android, build-windows, android-startup-smoke]
+    if: >-
+      needs.android-startup-smoke.result == 'success' &&
+      (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') &&
+      github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
