@@ -19,7 +19,7 @@ jobs:
   native:
     name: Native protocols (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -68,7 +68,9 @@ jobs:
 
       - name: Test durable delivery, stream, transparency and distributed storage
         working-directory: packages/nios_sdk
-        timeout-minutes: 6
+        # The 10k crash/replay case performs actual fsyncs. Allow its explicit
+        # ten-minute test budget on slower hosted Windows disks as well.
+        timeout-minutes: 12
         run: dart test --reporter expanded --timeout 90s
 
       # openmls 3.2.1's build hook downloads the platform library and verifies

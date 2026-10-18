@@ -180,39 +180,62 @@ final class HttpCiphertextBlobStore {
   }) async {
     final client = http.Client();
     final abort = Completer<void>();
+    StreamIterator<List<int>>? producer;
+    Future<void>? producerClosing;
+    Object? producerFailure;
+    StackTrace? producerStack;
     void cancel() {
       if (!abort.isCompleted) abort.complete();
       client.close();
+    }
+
+    void failProducer(Object error, StackTrace stack) {
+      producerFailure ??= error;
+      producerStack ??= stack;
+      cancel();
+    }
+
+    Future<void> closeProducer() => producerClosing ??= () async {
+      try {
+        await producer?.cancel();
+      } catch (error, stack) {
+        // Cleanup errors belong to this operation as well, never to the HTTP
+        // body stream or an unobserved sibling future.
+        failProducer(error, stack);
+      }
+    }();
+
+    Stream<List<int>> safeBody() async* {
+      if (body == null || abort.isCompleted) return;
+      final iterator = StreamIterator(body);
+      producer = iterator;
+      try {
+        while (await iterator.moveNext()) {
+          cancellation?.throwIfCancelled();
+          if (abort.isCompleted) return;
+          // Yielding directly preserves HTTP backpressure: only one verified
+          // segment is live. Unlike StreamedRequest.sink.addStream, producer
+          // errors are caught here before they can enter IOClient's body pipe.
+          yield iterator.current;
+        }
+      } catch (error, stack) {
+        failProducer(error, stack);
+      } finally {
+        await closeProducer();
+      }
     }
 
     final unregister = cancellation?.onCancel(cancel);
     final deadline = Timer(timeout, cancel);
     try {
       cancellation?.throwIfCancelled();
-      final request = _AbortableBlobRequest(method, uri, abort.future)
-        ..followRedirects = false
-        ..headers['authorization'] = 'Bearer $bearerToken'
-        ..headers['content-type'] = 'application/octet-stream'
-        ..contentLength = contentLength;
-      final responseFuture = client.send(request);
-      // Observe both futures immediately: a connection/authentication failure
-      // must not leave an unhandled producer exception or an open file stream.
-      final writing = () async {
-        if (body != null) {
-          await request.sink.addStream(
-            body.map((chunk) {
-              cancellation?.throwIfCancelled();
-              return chunk;
-            }),
-          );
-        }
-        await request.sink.close();
-      }();
-      final results = await Future.wait<Object?>([
-        responseFuture,
-        writing,
-      ], eagerError: true).timeout(timeout);
-      final response = results.first! as http.StreamedResponse;
+      final request =
+          _AbortableBlobRequest(method, uri, abort.future, safeBody())
+            ..followRedirects = false
+            ..headers['authorization'] = 'Bearer $bearerToken'
+            ..headers['content-type'] = 'application/octet-stream'
+            ..contentLength = contentLength;
+      final response = await client.send(request).timeout(timeout);
       var received = 0;
       await for (final chunk in response.stream.timeout(timeout)) {
         cancellation?.throwIfCancelled();
@@ -221,24 +244,41 @@ final class HttpCiphertextBlobStore {
           throw const FormatException('Oversized blob receipt');
         }
       }
+      cancellation?.throwIfCancelled();
+      if (producerFailure != null) {
+        Error.throwWithStackTrace(producerFailure!, producerStack!);
+      }
       return _BlobResponse(response.statusCode, response.headers);
     } catch (_) {
       cancellation?.throwIfCancelled();
+      if (producerFailure != null) {
+        Error.throwWithStackTrace(producerFailure!, producerStack!);
+      }
       rethrow;
     } finally {
       deadline.cancel();
       unregister?.call();
       cancel();
+      // A cancelled async generator can still be finishing a disk read. Wait
+      // for its single shared cleanup before account deletion may remove files.
+      await closeProducer();
     }
   }
 }
 
-final class _AbortableBlobRequest extends http.StreamedRequest
-    with http.Abortable {
-  _AbortableBlobRequest(super.method, super.url, this.abortTrigger);
+final class _AbortableBlobRequest extends http.BaseRequest with http.Abortable {
+  final Stream<List<int>> _body;
+
+  _AbortableBlobRequest(super.method, super.url, this.abortTrigger, this._body);
 
   @override
   final Future<void> abortTrigger;
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return http.ByteStream(_body);
+  }
 }
 
 final class _BlobResponse {

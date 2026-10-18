@@ -496,6 +496,67 @@ void main() {
   });
 
   test(
+    'repeated cancellation after body bytes owns producer errors and teardown',
+    () async {
+      final object = await prepare(length: 2 * 1024 * 1024);
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      late StreamCancellation activeCancellation;
+      late Completer<void> activeStarted;
+      server.listen((request) async {
+        if (request.method == 'HEAD') {
+          request.response.statusCode = 404;
+          await request.response.close();
+        } else if (request.uri.path.contains('/manifests/')) {
+          await request.drain<void>();
+          request.response.statusCode = 201;
+          await request.response.close();
+        } else {
+          final cancellation = activeCancellation;
+          final started = activeStarted;
+          request.listen((_) {
+            if (!started.isCompleted) {
+              started.complete();
+              // Cancel while later verified segments can still be in disk
+              // IO. On Linux this used to inject a second unhandled error
+              // through StreamedRequest.sink.addStream into IOClient.pipe.
+              cancellation.cancel();
+            }
+          }, onError: (Object _) {});
+        }
+      });
+      try {
+        final publisher = HttpCiphertextBlobStore(
+          baseUri: Uri.parse('http://127.0.0.1:${server.port}/'),
+          bearerToken: _token,
+          allowInsecureLoopback: true,
+        );
+        for (var attempt = 0; attempt < 10; attempt++) {
+          activeCancellation = StreamCancellation();
+          activeStarted = Completer<void>();
+          final cancelled = expectLater(
+            publisher.ensurePublished(
+              manifest: object.manifest,
+              ciphertextPath: object.ciphertextPath,
+              cancellation: activeCancellation,
+            ),
+            throwsA(isA<StreamCancelledException>()),
+          );
+          await activeStarted.future.timeout(const Duration(seconds: 5));
+          await cancelled.timeout(const Duration(seconds: 2));
+          // Completion must include producer cleanup, allowing immediate file
+          // ownership changes rather than leaving a detached reader behind.
+          final moved = await File(
+            object.ciphertextPath,
+          ).rename(p.join(object.directory, 'cancelled-$attempt.nsc'));
+          await moved.rename(object.ciphertextPath);
+        }
+      } finally {
+        await server.close(force: true);
+      }
+    },
+  );
+
+  test(
     'directory ownership and stale staging recovery never promote partial data',
     () async {
       final object = await prepare();
