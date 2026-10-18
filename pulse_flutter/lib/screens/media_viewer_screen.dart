@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show DeviceOrientation;
@@ -14,6 +15,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/media/media_playback_source.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
@@ -76,6 +78,7 @@ class MediaViewerScreen extends ConsumerStatefulWidget {
 
 class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   VideoPlayerController? _videoController;
+  MediaPlaybackSource? _playbackSource;
   ChewieController? _chewieController;
   bool _initialized = false;
 
@@ -129,6 +132,20 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
     }
     try {
       final String fileName = _sanitizeFileName(current.mediaName ?? current.title ?? 'shared_media');
+      if (current.url.startsWith('nios-stream://')) {
+        final key = _fileKey(current.e2eeFileKey);
+        if (key == null) throw StateError('Secret file key missing');
+        await WsMediaFetcher.withSecretStreamExport(
+          filePath: current.url,
+          e2eeFileKey: key,
+          consume: (path) async {
+            await SharePlus.instance.share(ShareParams(
+              files: <XFile>[XFile(path)], text: current.title,
+            ));
+          },
+        );
+        return;
+      }
       final List<int> bytes;
       if (current.filePath != null && current.filePath!.isNotEmpty) {
         bytes = await ref.read(chatRepositoryProvider).downloadMedia(current.filePath!);
@@ -172,12 +189,19 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   Future<void> _initMedia() async {
     if (widget.mediaType == MediaType.video) {
       try {
-        final String localPath = await WsMediaFetcher.fetchToLocalFile(
+        final source = await WsMediaFetcher.acquirePlaybackSource(
           filePath: widget.url,
           wsClient: ref.read(webSocketClientProvider),
           e2eeFileKey: _fileKey(),
         );
-        _videoController = VideoPlayerController.file(File(localPath));
+        if (!mounted) {
+          await source.close();
+          return;
+        }
+        _playbackSource = source;
+        _videoController = source.uri != null
+            ? VideoPlayerController.networkUrl(source.uri!)
+            : VideoPlayerController.file(File(source.filePath!));
         await _videoController!.initialize();
         _chewieController = ChewieController(
           videoPlayerController: _videoController!,
@@ -200,7 +224,12 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   void dispose() {
     _pageController.dispose();
     _chewieController?.dispose();
-    _videoController?.dispose();
+    final controller = _videoController;
+    final source = _playbackSource;
+    unawaited(() async {
+      await controller?.dispose();
+      await source?.close();
+    }());
     super.dispose();
   }
 
@@ -460,6 +489,25 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
     }
     try {
       final String fileName = _sanitizeFileName(current.mediaName ?? current.title ?? 'download');
+      if (current.url.startsWith('nios-stream://')) {
+        final key = _fileKey(current.e2eeFileKey);
+        if (key == null) throw StateError('Secret file key missing');
+        await WsMediaFetcher.withSecretStreamExport(
+          filePath: current.url,
+          e2eeFileKey: key,
+          consume: (path) async {
+            if (Platform.isAndroid || Platform.isIOS) {
+              await FlutterFileDialog.saveFile(params:
+                  SaveFileDialogParams(sourceFilePath: path, fileName: fileName));
+            } else {
+              final dir = await getApplicationDocumentsDirectory();
+              await File(path).copy('${dir.path}/$fileName');
+            }
+          },
+        );
+        if (context.mounted) AppToast.showSuccess(context, context.l10n.mediaSavedTo(fileName));
+        return;
+      }
       final List<int> bytes;
       if (current.filePath != null && current.filePath!.isNotEmpty) {
         bytes = await ref
@@ -513,6 +561,7 @@ class _InlineVideoPlayer extends ConsumerStatefulWidget {
 
 class _InlineVideoPlayerState extends ConsumerState<_InlineVideoPlayer> {
   VideoPlayerController? _videoController;
+  MediaPlaybackSource? _playbackSource;
   ChewieController? _chewieController;
   bool _initialized = false;
 
@@ -536,12 +585,19 @@ class _InlineVideoPlayerState extends ConsumerState<_InlineVideoPlayer> {
 
   Future<void> _init() async {
     try {
-      final String localPath = await WsMediaFetcher.fetchToLocalFile(
+      final source = await WsMediaFetcher.acquirePlaybackSource(
         filePath: widget.url,
         wsClient: ref.read(webSocketClientProvider),
         e2eeFileKey: widget.e2eeFileKey,
       );
-      _videoController = VideoPlayerController.file(File(localPath));
+      if (!mounted) {
+        await source.close();
+        return;
+      }
+      _playbackSource = source;
+      _videoController = source.uri != null
+          ? VideoPlayerController.networkUrl(source.uri!)
+          : VideoPlayerController.file(File(source.filePath!));
       await _videoController!.initialize();
       _chewieController = ChewieController(
         videoPlayerController: _videoController!,
@@ -557,7 +613,12 @@ class _InlineVideoPlayerState extends ConsumerState<_InlineVideoPlayer> {
   @override
   void dispose() {
     _chewieController?.dispose();
-    _videoController?.dispose();
+    final controller = _videoController;
+    final source = _playbackSource;
+    unawaited(() async {
+      await controller?.dispose();
+      await source?.close();
+    }());
     super.dispose();
   }
 

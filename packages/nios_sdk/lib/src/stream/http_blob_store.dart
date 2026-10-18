@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:universal_io/io.dart';
 
 import 'cancellation.dart';
+import 'crypto_executor.dart';
 import 'manifest.dart';
 import 'source.dart';
 
@@ -32,12 +33,14 @@ final class HttpCiphertextBlobStore {
   final String bearerToken;
   final Duration timeout;
   final bool _allowInsecureLoopback;
+  final StreamCryptoExecutor cryptoExecutor;
 
   HttpCiphertextBlobStore({
     required this.baseUri,
     required this.bearerToken,
     this.timeout = const Duration(minutes: 5),
     bool allowInsecureLoopback = false,
+    this.cryptoExecutor = executeStreamCrypto,
   }) : _allowInsecureLoopback = allowInsecureLoopback {
     final loopback = const {
       'localhost',
@@ -138,7 +141,12 @@ final class HttpCiphertextBlobStore {
           }
           position += read;
         }
-        if (digest.sha256.convert(segment).toString() !=
+        if ((await cryptoExecutor(
+              StreamCryptoRequest(
+                operation: StreamCryptoOperation.hash,
+                bytes: segment,
+              ),
+            )).hash !=
             manifest.segmentHashes[index]) {
           throw const FormatException('Prepared ciphertext integrity failure');
         }

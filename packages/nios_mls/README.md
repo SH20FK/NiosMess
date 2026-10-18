@@ -60,6 +60,102 @@ await client.close();
 commit delivery; concurrent changes need application-level conflict sequencing
 or rebasing and must not silently overwrite another commit.
 
+### Ordered server delivery and recovery
+
+`NiosMlsDeliveryCoordinator` persists intents, reservation responses and
+recipient snapshots in the **same encrypted MLS journal** before invoking the
+native engine. `enqueueAdd`, `enqueueRemove` and `enqueueApplication` finish
+after local durable storage; `pump` performs network work separately. Offline
+or rejected operations remain saved with an error code. There is no TTL.
+
+```dart
+final api = HttpMlsDeliveryApi(
+  baseUri: approvedHttpsOrigin,
+  deviceId: client.deviceId,
+  bearerToken: alreadyEnrolledDeviceSessionToken,
+  enqueueApplication: (delivery) async {
+    // Save once in the durable host Link outbox using delivery.deliveryId,
+    // delivery.linkSessionId and delivery.payload. At actual network send,
+    // repeat api.ensureApplicationDeliveryAllowed for group/epoch/recipient.
+    // Apply that gate to direct Iroh transports too.
+    await hostOutbox.save(delivery);
+  },
+);
+final coordinator = NiosMlsDeliveryCoordinator.attach(client: client, api: api);
+await coordinator.enqueueAdd(
+  operationId: permanentOperationId,
+  groupId: groupId,
+  deviceIds: [alreadyAuthorizedPeerDeviceId],
+);
+await coordinator.pump();
+await api.synchronizeControls(coordinator);
+// Shutdown order: stop producers, close coordinator/API, then close client.
+await coordinator.close();
+await api.close();
+```
+
+The HTTP adapter also provides `createGroup`, `publishKeyPackage`, `controlPage`
+and the per-event confirmation API. Public KeyPackage publication metadata is
+signed with the account-authorized **Link Ed25519 key**. The MLS private key
+stays in OpenMLS. The server authenticates the publishing device and metadata;
+OpenMLS verifies the actual MLS KeyPackage and resulting credentials. Passing
+`expectedDeviceIds` to `addDevices` checks the resulting device set before
+publishing the new native generation, preventing a server response from silently
+substituting a different, otherwise authorized device.
+
+The implementation uses one fixed coordinator per group and a durable,
+**non-expiring reservation before generating a membership commit**. Recovery
+reuses the same operation ID, package claim and exact native bytes. The server
+atomically publishes the new epoch/head, membership changes, ordered per-device
+commit/Welcome events and wakeup outbox entries. A stale coordinator cannot take
+over a reservation after a timeout. Transfer, abandonment and rebase are not
+implemented; an unrecoverable coordinator requires explicit future recovery
+work rather than an automatic conflicting commit.
+
+Outbound records now persist `baseEpoch` and `epoch` with their ciphertext.
+Older journal records remain readable but have nullable epoch metadata and are
+not automatically bridged using the current group's epoch. `outboundOperation`
+includes acknowledged tombstones so interruption after MLS acknowledgement but
+before the bridge's own completion record can be recovered. Welcome joins and
+incoming commits support context checks and durable replay before control ACKs.
+
+Application delivery IDs bind logical operation, device and epoch. Changing
+membership pauses already prepared old-epoch intents without deleting their
+plaintext or changing their bytes. A future explicit migration protocol is
+required to readdress them. The server also checks MLS Link session routing
+inside the mailbox insertion transaction; an earlier HTTP gate response alone
+does not authorize a later queued send. Bytes already received under an old
+epoch cannot be retroactively revoked.
+
+This is a reusable coordinator and authenticated adapter, not an activation of
+the application's group UI. The host still owns enrollment/trust UX, polling
+lifecycle, native packaging and the actual durable application outbox. It must
+not advertise MLS support before those integrations are enabled and qualified.
+
+The additive server implementation and its isolated tests are in
+[`backend_changes/protocol_v1`](../../backend_changes/protocol_v1/).
+Its first profile accepts at most 256 group devices, 64 additions/removals per
+commit, and reserves control-history space before admitting a new reservation.
+Control bytes are stored once per commit rather than copied for each recipient.
+Capacity refusal preserves accepted controls and local queues.
+
+### Cross-language integration test
+
+With a Python environment containing the protocol server dependencies:
+
+```powershell
+$env:NIOS_PROTOCOL_TEST_PYTHON = 'absolute/path/to/python.exe'
+$env:NIOS_PROTOCOL_BACKEND_PATH = 'absolute/path/to/backend_changes/protocol_v1'
+dart test test/http_backend_integration_test.dart
+```
+
+The loopback fixture uses actual FastAPI/SQLite handlers and native OpenMLS. It
+interrupts the response after a committed invitation, restarts the backend and
+client, recovers identical commit bytes, processes Welcome, decrypts an
+application payload and removes the recipient. Without these environment
+variables this particular cross-language test is explicitly skipped; native
+lifecycle, journal-boundary and real-socket HTTP safety tests still run.
+
 Every new member's credential and signing key is passed to `authorizeDevice`,
 including the Welcome's creator. A credential declares account/device identifiers;
 it does not prove a human identity by itself. Revoked members can be removed even

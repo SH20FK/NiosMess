@@ -7,6 +7,7 @@ environment:
 dependencies:
   crypto: ^3.0.6
   cryptography: ^2.9.0
+  http: ^1.5.0
   iroh_quic: 1.1.0
   nios_sdk:
     path: ../nios_sdk

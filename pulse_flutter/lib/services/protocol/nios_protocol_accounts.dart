@@ -218,11 +218,58 @@ final class NiosProtocolAccount {
   final _cancellation = StreamCancellation();
   final Set<NiosStreamDownload> _downloads = {};
   final Set<AuthenticatedMediaGateway> _gateways = {};
+  final Set<Future<void> Function()> _resources = {};
   Future<void> _tail = Future<void>.value();
   Future<void>? _closing;
 
   DurableSession? get delivery => _delivery;
   KeyTransparencyClient? get transparency => _trust;
+
+  /// Bind consumers of this directory so logout releases every file/socket
+  /// lease before erasing the account, including concurrent owner shutdowns.
+  VoidCallback bindResource(Future<void> Function() close) {
+    _checkOpen();
+    _resources.add(close);
+    return () => _resources.remove(close);
+  }
+
+  /// Enrollment can sign device statements without exposing the wrapping key
+  /// or raw derived seeds to the HTTP/bootstrap layer.
+  Future<Uint8List> protocolPublicKey({required String purpose}) =>
+      _serial(() async {
+        return _withProtocolSigningPair(
+          purpose,
+          (pair) async =>
+              Uint8List.fromList((await pair.extractPublicKey()).bytes),
+        );
+      });
+
+  Future<Uint8List> signProtocol(
+    List<int> message, {
+    required String purpose,
+  }) => _serial(() async {
+    return _withProtocolSigningPair(
+      purpose,
+      (pair) async => Uint8List.fromList(
+        (await Ed25519().sign(message, keyPair: pair)).bytes,
+      ),
+    );
+  });
+
+  Future<T> _withProtocolSigningPair<T>(
+    String purpose,
+    Future<T> Function(SimpleKeyPair) action,
+  ) async {
+    if (purpose != 'account-identity' && purpose != 'link-signing') {
+      throw ArgumentError.value(purpose, 'purpose');
+    }
+    final seed = await _key('enrollment-$purpose');
+    try {
+      return await action(await Ed25519().newKeyPairFromSeed(seed));
+    } finally {
+      seed.fillRange(0, seed.length, 0);
+    }
+  }
 
   void _checkOpen() {
     if (_closing != null) throw StateError('protocol_account_stopped');
@@ -484,6 +531,14 @@ final class NiosProtocolAccount {
     final completion = Completer<void>();
     _closing = completion.future;
     _cancellation.cancel();
+    final resourcesStopped = _resources
+        .map((stop) => Future<void>.sync(stop))
+        .toList();
+    for (final stopped in resourcesStopped) {
+      unawaited(
+        stopped.then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+      );
+    }
     final deliveryStopped = _delivery?.close();
     if (deliveryStopped != null) {
       unawaited(
@@ -496,12 +551,16 @@ final class NiosProtocolAccount {
     unawaited(
       _close(
         deliveryStopped,
+        resourcesStopped,
       ).then(completion.complete, onError: completion.completeError),
     );
     return completion.future;
   }
 
-  Future<void> _close(Future<void>? deliveryStopped) async {
+  Future<void> _close(
+    Future<void>? deliveryStopped,
+    List<Future<void>> resourcesStopped,
+  ) async {
     await _tail;
     Object? firstError;
     StackTrace? firstStack;
@@ -515,6 +574,10 @@ final class NiosProtocolAccount {
     }
 
     try {
+      await Future.wait(
+        resourcesStopped.map((stopped) => attempt(() => stopped)),
+      );
+      _resources.clear();
       // Gateways release their range reads before download locks and journals.
       await Future.wait(_gateways.map((gateway) => attempt(gateway.close)));
       await Future.wait(_downloads.map((download) => attempt(download.close)));

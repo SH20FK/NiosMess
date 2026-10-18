@@ -13,6 +13,10 @@ on:
         description: Build an additional Android profile APK for DevTools
         type: boolean
         default: false
+      preview_apk:
+        description: Build Android APK artifacts from this branch without publishing a release
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -52,11 +56,25 @@ jobs:
 
       - run: flutter pub get
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install isolated streaming backend fixture
+        run: python -m pip install -r ../backend_changes/protocol_v1/requirements-test.txt
+
+      - name: Enable real Flutter and Python HTTP integration
+        run: |
+          python -c "import os,sys; from pathlib import Path; p=Path(os.environ['GITHUB_ENV']); p.open('a').write('NIOS_PROTOCOL_TEST_PYTHON='+sys.executable+'\nNIOS_PROTOCOL_BACKEND_PATH='+str(Path('../backend_changes/protocol_v1').resolve())+'\n')"
+
       - name: Static Analysis
         run: flutter analyze --fatal-infos
 
       - name: Run Test Suite
         run: flutter test test/suite_test.dart --timeout 90s
+
+      - name: Test encrypted streaming against the real Python API
+        run: flutter test test/services/secret_stream_python_integration_test.dart --timeout 90s
 
       - name: Verify release metadata tooling
         run: python3 -m unittest discover -s tool -p 'test_*.py'
@@ -67,7 +85,10 @@ jobs:
   build-android:
     name: Build Android APK
     needs: [test, protocol-sdk]
-    if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && github.event_name != 'pull_request'
+    if: >-
+      github.event_name != 'pull_request' &&
+      (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ||
+       (github.event_name == 'workflow_dispatch' && inputs.preview_apk))
     runs-on: ubuntu-latest
     outputs:
       app_version: ${{ steps.version_meta.outputs.app_version }}

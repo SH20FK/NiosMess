@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
 import 'package:pulse_flutter/core/media/media_playback_visibility.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/media/media_playback_source.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_footer.dart';
 
@@ -62,6 +63,7 @@ class CircleVideoInlinePlayerState extends State<CircleVideoInlinePlayer> {
   int _generation = 0;
   bool _disposing = false;
   VideoPlayerController? _videoController;
+  MediaPlaybackSource? _playbackSource;
   bool _initialized = false;
   bool _playing = false;
   bool _showThumbnail = true;
@@ -77,6 +79,8 @@ class CircleVideoInlinePlayerState extends State<CircleVideoInlinePlayer> {
   Future<void> _releaseController() async {
     _generation++;
     final controller = _videoController;
+    final source = _playbackSource;
+    _playbackSource = null;
     _videoController = null;
     controller?.removeListener(_onVideoStateChange);
     if (mounted && !_disposing) {
@@ -87,6 +91,7 @@ class CircleVideoInlinePlayerState extends State<CircleVideoInlinePlayer> {
       });
     }
     await controller?.dispose();
+    await source?.close();
   }
 
   void _playWithPool() {
@@ -133,13 +138,19 @@ class CircleVideoInlinePlayerState extends State<CircleVideoInlinePlayer> {
       if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
         fileKey = base64Decode(widget.e2eeFileKey!);
       }
-      final localPath = await WsMediaFetcher.fetchToLocalFile(
+      final source = await WsMediaFetcher.acquirePlaybackSource(
         filePath: widget.videoUrl,
         wsClient: widget.wsClient,
         e2eeFileKey: fileKey,
       );
-      if (!mounted || !_visible || generation != _generation) return;
-      _videoController = VideoPlayerController.file(File(localPath));
+      if (!mounted || !_visible || generation != _generation) {
+        await source.close();
+        return;
+      }
+      _playbackSource = source;
+      _videoController = source.uri != null
+          ? VideoPlayerController.networkUrl(source.uri!)
+          : VideoPlayerController.file(File(source.filePath!));
       await _videoController!.initialize();
       await _videoController!.setLooping(true);
       _videoController!.addListener(_onVideoStateChange);

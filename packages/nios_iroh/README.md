@@ -85,3 +85,53 @@ a concurrently supplied wrong wrapping key is still rejected. The local test
 uses no public relay. It does not establish Android
 background behavior or interoperability with another implementation of this
 application protocol.
+
+## Signed address rendezvous
+
+`IrohRendezvousClient` exchanges real native `EndpointAddr.encode()` Postcard
+bytes through the additive backend's HTTPS `/v1/iroh/address` directory. This is
+signaling, not a relay. Publishing requires both the registered endpoint secret
+and the separate registered Link signing key. The address expires within five
+minutes and every update has a caller-persisted increasing revision.
+
+```dart
+final directory = IrohRendezvousClient(
+  baseUri: protocolOrigin,
+  accountId: accountId,
+  deviceId: deviceId,
+  bearerToken: existingAuthenticatedSession,
+);
+await directory.publish(
+  address: transport.address,
+  endpointIdentity: identity,
+  linkSigningKey: accountAuthorizedLinkSigningKey,
+  revision: nextPersistedAddressRevision,
+);
+final publication = await directory.lookup(
+  peerAccountId: enrolledPeerAccount,
+  peerDeviceId: enrolledPeerDevice,
+  pinnedEndpointId: enrolledEndpointId,
+  pinnedLinkSigningKey: enrolledLinkKey,
+  chatId: authorizedChatId,
+  minimumRevision: lastPersistedPeerAddressRevision,
+);
+transport.setPeer(publication.peer);
+```
+
+Lookup checks both signatures, account/device, freshness and monotonic revision,
+then calls the native Postcard decoder and verifies its actual endpoint ID against
+the supplied pin. A discovery response cannot replace an identity. Relay URLs
+are refused unless explicitly listed in `allowedRelayUrls`; its default is empty.
+The backend applies chat/device ACLs, and never dials a supplied address.
+
+The account owner must close the directory on logout, persist revisions and
+coordinate `watchAddress` updates. Native enrollment and a tested application
+opt-in remain necessary; adding this helper does not activate mobile P2P flows.
+The HTTP adapter uses platform TLS validation, refuses redirects, bounds replies,
+and aborts pending requests on close. HTTP loopback is an explicit test option.
+
+The test suite includes native Postcard + real QUIC exchange through a Python
+backend process. Set `NIOS_PROTOCOL_TEST_PYTHON` to a Python environment containing
+`backend_changes/protocol_v1/requirements-test.txt`; CI sets it and runs the test
+without skipping. Without that variable only this cross-language test is skipped;
+the independent native transport and signed socket-directory tests still run.

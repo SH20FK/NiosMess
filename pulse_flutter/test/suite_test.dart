@@ -16,8 +16,12 @@ import 'widgets/message_layout_store_test.dart' as message_layout_store;
 import 'core/animated_media_budget_test.dart' as animated_media_budget;
 import 'core/e2ee_file_pipeline_test.dart' as e2ee_file_pipeline;
 import 'core/media_file_cache_pipeline_test.dart' as media_file_cache_pipeline;
+import 'core/background_stream_crypto_test.dart' as background_stream_crypto;
 import 'services/blob_upload_resources_test.dart' as blob_upload_resources;
 import 'services/nios_protocol_accounts_test.dart' as protocol_accounts;
+import 'services/nios_protocol_enrollment_test.dart' as protocol_enrollment;
+import 'services/secret_stream_service_test.dart' as secret_stream_service;
+import 'services/secret_stream_chat_delivery_test.dart' as secret_stream_delivery;
 import 'services/secret_storage_performance_test.dart'
     as secret_storage_performance;
 import 'services/secret_attachment_file_store_test.dart'
@@ -130,6 +134,10 @@ void main() {
 
   group('Aggregated Test Suite', () {
     group('protocol_accounts', protocol_accounts.main);
+    group('protocol_enrollment', protocol_enrollment.main);
+    group('background_stream_crypto', background_stream_crypto.main);
+    group('secret_stream_service', secret_stream_service.main);
+    group('secret_stream_delivery', secret_stream_delivery.main);
     // Core & Models
     core_m3_spring_constants.main();
     models_chat_wallpaper_config.main();

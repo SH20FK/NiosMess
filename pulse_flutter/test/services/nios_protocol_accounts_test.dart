@@ -7,6 +7,7 @@ import 'package:nios_sdk/link.dart';
 import 'package:nios_sdk/stream.dart';
 import 'package:path/path.dart' as p;
 import 'package:pulse_flutter/services/protocol/nios_protocol_accounts.dart';
+import 'package:pulse_flutter/services/secret_chat/secret_stream_service.dart';
 import 'package:universal_io/io.dart';
 
 class _Secrets implements ProtocolSecretStore {
@@ -71,6 +72,66 @@ void main() {
   tearDown(() {
     HttpOverrides.global = previousHttp;
   });
+
+  test(
+    'bound streaming owner drains gateway and pending export before account erasure',
+    () async {
+      final root = await Directory.systemTemp.createTemp('nios-bound-stream-');
+      final secrets = _Secrets();
+      final accounts = NiosProtocolAccounts(
+        secrets: secrets,
+        directory: () async => root,
+      );
+      final account = await accounts.openAccount('alice');
+      await accounts.openAccount('bob');
+      final service = SecretStreamService(
+        accountId: 1,
+        origin: Uri.parse('https://fixture.invalid'),
+        token: () => 'fixture',
+        directory: () async => account.directory,
+        ensureRegistered: () async {},
+      );
+      account.bindResource(service.close);
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      String? exportPath;
+      try {
+        final input = await File(
+          p.join(root.path, 'video'),
+        ).writeAsBytes(List.filled(1024 * 1024 + 9, 19));
+        final file = await service.prepareFile(
+          inputPath: input.path,
+          filename: 'video.mp4',
+          mimeType: 'video/mp4',
+          subtype: 'media',
+        );
+        final player = await service.openPlayback(file);
+        final exporting = service.withExport(file, (path) async {
+          exportPath = path;
+          entered.complete();
+          await release.future;
+        });
+        final rejected = expectLater(
+          exporting,
+          throwsA(isA<StreamCancelledException>()),
+        );
+        await entered.future;
+        await accounts
+            .shutdownAccount('alice', erase: true)
+            .timeout(const Duration(seconds: 5));
+        await rejected;
+        expect(await File(exportPath!).exists(), isFalse);
+        expect(await account.directory.exists(), isFalse);
+        expect(secrets.values.length, 1);
+        await player.close();
+      } finally {
+        release.complete();
+        await service.close();
+        await accounts.close();
+        await root.delete(recursive: true);
+      }
+    },
+  );
 
   test(
     'account manager is lazy and logout fences an unfinished key-store read',

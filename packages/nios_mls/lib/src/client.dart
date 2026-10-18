@@ -6,8 +6,12 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart' as hashing;
 import 'package:cryptography/cryptography.dart';
 import 'package:hive/hive.dart';
+import 'package:http/http.dart' as http;
 import 'package:openmls/openmls.dart';
 import 'package:universal_io/io.dart';
+
+part 'delivery_coordinator.dart';
+part 'http_delivery_api.dart';
 
 final class NiosMlsException implements Exception {
   const NiosMlsException(this.code);
@@ -64,12 +68,23 @@ final class NiosMlsOutbound {
       welcome = value['welcome'] == null
           ? null
           : _copy(base64Decode(value['welcome'] as String)),
+      baseEpoch = value['baseEpoch'] == null
+          ? null
+          : BigInt.parse(value['baseEpoch'] as String),
+      epoch = value['epoch'] == null
+          ? null
+          : BigInt.parse(value['epoch'] as String),
       acknowledged = value['acknowledged'] as bool;
   final String operationId;
   final Uint8List groupId;
   final String kind;
   final Uint8List message;
   final Uint8List? welcome;
+
+  /// Old v1 journal records lack epoch metadata and must be explicitly recovered
+  /// rather than inferred from a later native group generation.
+  final BigInt? baseEpoch;
+  final BigInt? epoch;
   final bool acknowledged;
 }
 
@@ -315,6 +330,16 @@ final class NiosMlsClient {
     );
   }
 
+  /// Includes acknowledged tombstones so a recovering application bridge can
+  /// finish its own journal after an interrupted acknowledgement.
+  NiosMlsOutbound? outboundOperation(String operationId) {
+    _checkOpen();
+    final value = (_state['outbound'] as Map)[operationId];
+    return value == null
+        ? null
+        : NiosMlsOutbound._(operationId, value as Map<String, dynamic>);
+  }
+
   Uint8List get _credential => Uint8List.fromList(
     utf8.encode(jsonEncode(['nios-device', 1, accountId, deviceId])),
   );
@@ -540,26 +565,60 @@ final class NiosMlsClient {
     }),
   );
 
-  Future<Uint8List> join({required List<int> welcome}) => _serial(
-    () => _transaction((engine, state) async {
-      if (welcome.isEmpty || welcome.length > 4 * 1024 * 1024) {
+  Future<Uint8List> join({
+    required List<int> welcome,
+    List<int>? expectedGroupId,
+    BigInt? expectedEpoch,
+  }) {
+    final stableWelcome = _copy(welcome);
+    final expectedGroup = expectedGroupId == null
+        ? null
+        : _copy(expectedGroupId);
+    return _serial(() async {
+      if (stableWelcome.isEmpty || stableWelcome.length > 4 * 1024 * 1024) {
         throw ArgumentError('Invalid Welcome size');
       }
-      final signer = _signer(state);
-      try {
-        final result = await engine.joinGroupFromWelcome(
-          config: _config,
-          welcomeBytes: welcome,
-          signerBytes: signer,
-        );
-        await _verifyMembers(engine, result.groupId);
-        (state['groups'] as Map)[base64Encode(result.groupId)] = true;
-        return _copy(result.groupId);
-      } finally {
-        signer.fillRange(0, signer.length, 0);
+      final digest = _hash(stableWelcome);
+      final previous = (_state['welcomes'] as Map?)?[digest] as Map?;
+      if (previous != null) {
+        final group = base64Decode(previous['group'] as String);
+        if ((expectedGroup != null &&
+                base64Encode(expectedGroup) != previous['group']) ||
+            (expectedEpoch != null &&
+                expectedEpoch.toString() != previous['epoch'])) {
+          throw const NiosMlsException('welcome_context_mismatch');
+        }
+        return _copy(group);
       }
-    }),
-  );
+      return _transaction((engine, state) async {
+        final signer = _signer(state);
+        try {
+          final result = await engine.joinGroupFromWelcome(
+            config: _config,
+            welcomeBytes: stableWelcome,
+            signerBytes: signer,
+          );
+          await _verifyMembers(engine, result.groupId);
+          final epoch = await engine.groupEpoch(groupIdBytes: result.groupId);
+          if ((expectedGroup != null &&
+                  base64Encode(result.groupId) !=
+                      base64Encode(expectedGroup)) ||
+              (expectedEpoch != null && epoch != expectedEpoch)) {
+            throw const NiosMlsException('welcome_context_mismatch');
+          }
+          (state['groups'] as Map)[base64Encode(result.groupId)] = true;
+          (state.putIfAbsent('welcomes', () => <String, dynamic>{})
+              as Map)[digest] = {
+            'group': base64Encode(result.groupId),
+            'epoch': epoch.toString(),
+          };
+          return _copy(result.groupId);
+        } finally {
+          signer.fillRange(0, signer.length, 0);
+        }
+      });
+    });
+  }
 
   Future<NiosMlsOutbound> _outbound(
     String operationId,
@@ -591,6 +650,7 @@ final class NiosMlsClient {
     }
     return _transaction((engine, state) async {
       if (verifyBefore) await _verifyMembers(engine, groupId);
+      final baseEpoch = await engine.groupEpoch(groupIdBytes: groupId);
       final signer = _signer(state);
       try {
         final result = await produce(engine, signer);
@@ -600,6 +660,8 @@ final class NiosMlsClient {
           'kind': kind,
           'message': base64Encode(result.$1),
           'welcome': result.$2 == null ? null : base64Encode(result.$2!),
+          'baseEpoch': baseEpoch.toString(),
+          'epoch': (await engine.groupEpoch(groupIdBytes: groupId)).toString(),
           'acknowledged': false,
           'fingerprint': fingerprint,
         };
@@ -615,6 +677,7 @@ final class NiosMlsClient {
     required String operationId,
     required List<int> groupId,
     required List<Uint8List> keyPackages,
+    List<String>? expectedDeviceIds,
   }) {
     if (keyPackages.isEmpty ||
         keyPackages.length > 64 ||
@@ -623,19 +686,52 @@ final class NiosMlsClient {
     }
     final stableGroup = _copy(groupId);
     final stablePackages = keyPackages.map(_copy).toList(growable: false);
+    final expected = expectedDeviceIds == null
+        ? null
+        : Set<String>.from(expectedDeviceIds.map(_id));
+    if (expected != null &&
+        (expected.length != keyPackages.length ||
+            expected.length != expectedDeviceIds!.length)) {
+      throw ArgumentError('One expected device per key package is required');
+    }
     final request = utf8.encode(
-      jsonEncode(stablePackages.map(base64Encode).toList()),
+      jsonEncode(
+        expected == null
+            ? stablePackages.map(base64Encode).toList()
+            : {
+                'packages': stablePackages.map(base64Encode).toList(),
+                'expectedDevices': expected.toList()..sort(),
+              },
+      ),
     );
     return _outbound(operationId, stableGroup, 'commit', request, (
       engine,
       signer,
     ) async {
+      final before = expected == null
+          ? null
+          : (await _verifyMembers(
+              engine,
+              stableGroup,
+            )).map((m) => m.deviceId).toSet();
       final result = await engine.addMembers(
         groupIdBytes: stableGroup,
         signerBytes: signer,
         keyPackagesBytes: stablePackages,
       );
       await engine.mergePendingCommit(groupIdBytes: stableGroup);
+      if (expected != null) {
+        final members = await _verifyMembers(engine, stableGroup);
+        final after = members.map((m) => m.deviceId).toSet();
+        final added = after.difference(before!);
+        if (after.length != members.length ||
+            before.intersection(expected).isNotEmpty ||
+            !after.containsAll(before) ||
+            added.length != expected.length ||
+            !added.containsAll(expected)) {
+          throw const NiosMlsException('keypackage_device_binding_mismatch');
+        }
+      }
       return (result.commit, result.welcome);
     });
   }
@@ -696,15 +792,17 @@ final class NiosMlsClient {
   Future<NiosMlsIncoming> receive({
     required List<int> groupId,
     required List<int> message,
+    BigInt? expectedEpoch,
   }) {
     final stableGroup = _copy(groupId);
     final stableMessage = _copy(message);
-    return _receive(stableGroup, stableMessage);
+    return _receive(stableGroup, stableMessage, expectedEpoch);
   }
 
   Future<NiosMlsIncoming> _receive(
     List<int> groupId,
     List<int> message,
+    BigInt? expectedEpoch,
   ) => _serial(() async {
     if (message.isEmpty || message.length > 4 * 1024 * 1024) {
       throw ArgumentError('Invalid message size');
@@ -713,7 +811,13 @@ final class NiosMlsClient {
       utf8.encode(jsonEncode([base64Encode(groupId), base64Encode(message)])),
     );
     final old = (_state['inbound'] as Map)[id] as Map<String, dynamic>?;
-    if (old != null) return NiosMlsIncoming._(old);
+    if (old != null) {
+      if (expectedEpoch != null &&
+          old['groupEpoch'] != expectedEpoch.toString()) {
+        throw const NiosMlsException('incoming_epoch_context_mismatch');
+      }
+      return NiosMlsIncoming._(old);
+    }
     return _transaction((engine, state) async {
       // A catalog revocation can arrive before the corresponding removal
       // commit. Read the old credentials without trusting revoked members;
@@ -756,9 +860,14 @@ final class NiosMlsClient {
       if (await engine.groupIsActive(groupIdBytes: groupId)) {
         await _verifyMembers(engine, groupId);
       }
+      final resultingEpoch = await engine.groupEpoch(groupIdBytes: groupId);
+      if (expectedEpoch != null && expectedEpoch != resultingEpoch) {
+        throw const NiosMlsException('incoming_epoch_context_mismatch');
+      }
       final value = <String, dynamic>{
         'kind': result.messageType.name,
         'epoch': result.epoch.toString(),
+        'groupEpoch': resultingEpoch.toString(),
         'sender': result.senderIndex,
         'plaintext': result.applicationMessage == null
             ? null
@@ -771,6 +880,15 @@ final class NiosMlsClient {
 
   Future<List<NiosMlsDevice>> members(List<int> groupId) =>
       _serial(() => _query((engine) => _verifyMembers(engine, groupId)));
+
+  /// Native-authenticated old credentials for selecting leaves to REMOVE.
+  /// This does not authorize those devices for sending or joining. Revocation
+  /// must not make it impossible to find the revoked leaf's removal index.
+  Future<List<NiosMlsDevice>> membersForRemoval(List<int> groupId) => _serial(
+    () => _query(
+      (engine) => _verifyMembers(engine, groupId, requireAuthorization: false),
+    ),
+  );
   Future<BigInt> epoch(List<int> groupId) => _serial(
     () => _query((engine) => engine.groupEpoch(groupIdBytes: groupId)),
   );

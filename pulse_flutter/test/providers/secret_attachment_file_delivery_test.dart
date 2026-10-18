@@ -22,6 +22,7 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/services/secret_chat/secret_stream_service.dart';
 
 import '../services/secret_chat_delivery_test.dart' show Hub;
 
@@ -116,6 +117,7 @@ class _Socket extends WebSocketClient {
   final Hub hub;
   final int user;
   String peerKey = '';
+  List<int> streamVersions = const [];
   bool paused = true;
   final connectedEvents = StreamController<void>.broadcast();
   final pushes = StreamController<Map<String, dynamic>>.broadcast();
@@ -140,7 +142,11 @@ class _Socket extends WebSocketClient {
     requests.add({'action': action, ...?payload});
     if (paused) throw StateError('Background transport must remain idle');
     if (action == 'set_public_key') return <String, dynamic>{};
-    return hub.request(user, peerKey, action, payload!);
+    final result = await hub.request(user, peerKey, action, payload!);
+    if (action == 'secret_sync') {
+      return {...result, 'peer_stream_protocol_versions': streamVersions};
+    }
+    return result;
   }
 
   Future<void> disposeFixture() async {
@@ -237,6 +243,46 @@ void main() {
       webSocketClientProvider.overrideWithValue(socketA),
     ],
   );
+
+  test('stream capability follows enrollment and queued native attachment survives restart', () async {
+    await a.close();
+    var registrations = 0;
+    final streamClient = MockClient((request) async => http.Response('{"stream":[1]}', 200));
+    SecretStreamService factory(SecretChatCoordinator owner) => SecretStreamService(
+      accountId: 1, origin: Uri.parse('https://fixture.invalid'), token: () => 'fixture',
+      directory: () async => Directory('${directory.path}/stream-account-1'),
+      ensureRegistered: () async {
+        final registrationsBeforeEnrollment = socketA.requests.where((r) => r['action'] == 'set_public_key');
+        expect(registrationsBeforeEnrollment, isNotEmpty);
+        expect(registrationsBeforeEnrollment.last.containsKey('stream_protocol_versions'), isFalse);
+        registrations++;
+      }, client: streamClient);
+    a = await SecretChatCoordinator.open(1, 'A', socketA, repository, streamFactory: factory);
+    socketA.streamVersions = [1];
+    allowTransport();
+    await settle();
+    expect(registrations, 1);
+    final registrationPackets = socketA.requests.where((r) => r['action'] == 'set_public_key').toList();
+    expect(registrationPackets.last['stream_protocol_versions'], [1]);
+    socketA.paused = true;
+    a.setTransportAllowed(false);
+    final bytes = Uint8List.fromList(List.generate(1024 * 1024 + 33, (i) => i & 255));
+    final input = await File('${directory.path}/queued-video.mp4').writeAsBytes(bytes);
+    await a.enqueueAttachmentFile(42, input.path, filename: 'queued-video.mp4', type: 'media', text: 'keep this caption');
+    await input.delete();
+    final message = a.engine.messages(42).single;
+    final uri = message['media_url'] as String;
+    final key = base64Decode(message['e2ee_file_key'] as String);
+    expect(uri, startsWith('nios-stream://'));
+    expect(await a.readStream(uri, key), bytes);
+    expect(repository.paths, isEmpty);
+    await a.close();
+    a = await SecretChatCoordinator.open(1, 'A', socketA, repository, streamFactory: factory);
+    expect(a.engine.messages(42).single['content'], 'keep this caption');
+    expect(a.engine.messages(42).single['is_sending'], isTrue);
+    expect(await a.readStream(uri, key), bytes);
+    await a.close(); streamClient.close();
+  });
 
   test(
     'mounted secret histories use addressed refresh and local paging while paused',

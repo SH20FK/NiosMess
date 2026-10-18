@@ -5,3 +5,4 @@ export 'package:iroh_quic/iroh_quic.dart'
     show EndpointAddr, EndpointId, Iroh, PublicKey, RelayUrl, SecretKey;
 export 'src/identity.dart';
 export 'src/transport.dart';
+export 'src/rendezvous.dart';

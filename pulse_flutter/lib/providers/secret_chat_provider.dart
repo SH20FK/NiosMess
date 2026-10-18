@@ -29,6 +29,11 @@ import 'package:pulse_flutter/services/secret_chat/secret_chat_engine.dart';
 import 'package:pulse_flutter/services/secret_chat/secret_attachment_store.dart';
 import 'package:pulse_flutter/services/secret_chat/secret_poll_schedule.dart';
 import 'package:pulse_flutter/services/secret_chat/secret_journal.dart';
+import 'package:pulse_flutter/services/secret_chat/secret_stream_service.dart';
+import 'package:pulse_flutter/core/media/media_playback_source.dart';
+import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/services/protocol/nios_protocol_accounts.dart';
+import 'package:pulse_flutter/services/protocol/nios_protocol_enrollment.dart';
 
 export 'package:pulse_flutter/services/secret_chat/secret_journal.dart'
     show SecretJson, secretMap;
@@ -60,6 +65,8 @@ class SecretChatCoordinator
   StreamSubscription<String>? _engineChanges;
   bool _closed = false;
   bool _registered = false;
+  bool _streamRegistered = false;
+  DateTime? _nextStreamRegistration;
   int? _legacyOwnerUserId;
   Future<void>? _registering;
   final _pollSchedule = SecretPollSchedule();
@@ -71,6 +78,8 @@ class SecretChatCoordinator
       !_closed && _transportAllowed && !ws.isBackgroundPaused;
   DateTime? _lastAttachmentCollection;
   final Set<String> _savingAttachments = {};
+  SecretStreamService? _streams;
+  final Map<String, (String, String)> _streamRows = {};
 
   @visibleForTesting
   bool get debugPollingScheduled => _timer?.isActive ?? false;
@@ -81,8 +90,9 @@ class SecretChatCoordinator
     int userId,
     String username,
     WebSocketClient ws,
-    ChatRepository repository,
-  ) {
+    ChatRepository repository, {
+    SecretStreamService Function(SecretChatCoordinator)? streamFactory,
+  }) {
     final epoch = _accountEpochs[userId] ?? 0;
     return _accountOperation(userId, () async {
       if (epoch != (_accountEpochs[userId] ?? 0)) {
@@ -93,7 +103,7 @@ class SecretChatCoordinator
       // A provider may be replaced while the previous instance is draining.
       // Never open its Hive boxes until that instance has released ownership.
       await active?._closing;
-      return _open(userId, username, ws, repository, epoch);
+      return _open(userId, username, ws, repository, epoch, streamFactory);
     });
   }
 
@@ -123,6 +133,7 @@ class SecretChatCoordinator
     WebSocketClient ws,
     ChatRepository repository,
     int epoch,
+    SecretStreamService Function(SecretChatCoordinator)? streamFactory,
   ) async {
     final coordinator = SecretChatCoordinator._(
       userId,
@@ -188,6 +199,7 @@ class SecretChatCoordinator
       identitySeed: await identity('ed', 'e2ee.ed25519_private', null),
     );
     await coordinator.engine.initialize();
+    if (!kIsWeb) coordinator._streams = streamFactory?.call(coordinator);
     await WsMediaFetcher.clearPrivateCache();
     if (epoch != (_accountEpochs[userId] ?? 0)) {
       _retiredRemoteIds
@@ -204,13 +216,19 @@ class SecretChatCoordinator
     WsMediaFetcher.secretLocalFileLoader = kIsWeb
         ? null
         : coordinator.readAttachmentFile;
+    WsMediaFetcher.secretStreamLoader = coordinator.readStream;
+    WsMediaFetcher.secretStreamPlaybackLoader = coordinator.openStreamPlayback;
+    WsMediaFetcher.secretStreamExportLoader = coordinator.exportStream;
     coordinator._connected = ws.onConnected.listen((_) {
       coordinator._registered = false;
+      coordinator._streamRegistered = false;
+      coordinator._nextStreamRegistration = null;
       coordinator._pollSchedule.reset();
       unawaited(coordinator.tick());
     });
     coordinator._push = ws.pushStream.listen((event) {
-      if (event['action'] != 'secret_changed' || !coordinator._canUseTransport) {
+      if (event['action'] != 'secret_changed' ||
+          !coordinator._canUseTransport) {
         return;
       }
       final id = secretMap(event['payload'])['chat_id'] ?? event['chat_id'];
@@ -240,15 +258,46 @@ class SecretChatCoordinator
   }
 
   Future<void> register() async {
-    if (_closed || _registered) return;
+    if (_closed || (_registered && (_streams == null || _streamRegistered))) {
+      return;
+    }
     if (_registering != null) return _registering;
-    final future =
-        request('set_public_key', {
+    final future = () async {
+      if (!_registered) {
+        await request('set_public_key', {
           'public_key': engine.publicKey,
           'secret_protocol_version': 2,
-        }).then<void>((_) {
-          _registered = true;
         });
+        _registered = true;
+      }
+      final streams = _streams;
+      final retry = _nextStreamRegistration;
+      if (streams == null || (retry != null && DateTime.now().isBefore(retry))) {
+        return;
+      }
+      try {
+        if (!await streams.isSupported()) {
+          _nextStreamRegistration = DateTime.now().add(
+            const Duration(minutes: 5),
+          );
+          return;
+        }
+        // Enroll the exact session/device before a peer can negotiate stream1;
+        // otherwise its first attachment could have no eligible grant target.
+        await streams.registerDevice();
+        await request('set_public_key', {
+          'public_key': engine.publicKey,
+          'secret_protocol_version': 2,
+          'stream_protocol_versions': [1],
+        });
+        _streamRegistered = true;
+      } catch (_) {
+        // Existing chats keep working if the additive service is unavailable.
+        _nextStreamRegistration = DateTime.now().add(
+          const Duration(minutes: 1),
+        );
+      }
+    }();
     _registering = future;
     try {
       await future;
@@ -373,6 +422,7 @@ class SecretChatCoordinator
   Future<void> _collectAttachments() async {
     if (_closed) return;
     final retained = {..._savingAttachments, ...engine.journal.attachmentIds};
+    await _streams?.retainOutgoing(retained);
     if (await _attachments.retain(retained)) {
       await WsMediaFetcher.clearPrivateCache();
     }
@@ -646,6 +696,27 @@ class SecretChatCoordinator
     }
     final size = await File(plainPath).length();
     if (size == 0) throw StateError('Empty attachment');
+    final streams = _streams;
+    final peerVersions = engine.chat(chatId)['peer_stream_protocol_versions'];
+    if (streams != null &&
+        peerVersions is List &&
+        peerVersions.contains(1) &&
+        await streams.isSupported()) {
+      final file = await streams.prepareFile(
+        inputPath: plainPath,
+        filename: filename,
+        mimeType: _attachmentMime(filename),
+        subtype: type,
+      );
+      if (_closed) throw StateError('Secret account is closed');
+      await engine.enqueue(chatId, {
+        'text': text,
+        'type': type,
+        'file': file,
+      }, replyToId: replyToId);
+      streams.markJournaled(file);
+      return;
+    }
     final id = const Uuid().v4();
     final fileKey = E2eeFileCrypto.generateFileKey();
     _savingAttachments.add(id);
@@ -685,18 +756,7 @@ class SecretChatCoordinator
     int? replyToId,
   }) async {
     if (_closed) throw StateError('Secret account is closed');
-    final extension = filename.split('.').last.toLowerCase();
-    final mime = switch (extension) {
-      'jpg' || 'jpeg' => 'image/jpeg',
-      'png' => 'image/png',
-      'webp' => 'image/webp',
-      'gif' => 'image/gif',
-      'mp4' => 'video/mp4',
-      'ogg' => 'audio/ogg',
-      'm4a' => 'audio/mp4',
-      'mp3' => 'audio/mpeg',
-      _ => 'application/octet-stream',
-    };
+    final mime = _attachmentMime(filename);
     await engine.enqueue(chatId, {
       'text': text,
       'type': type,
@@ -709,6 +769,93 @@ class SecretChatCoordinator
         'subtype': type,
       },
     }, replyToId: replyToId);
+  }
+
+  static String _attachmentMime(String filename) =>
+      switch (filename.split('.').last.toLowerCase()) {
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+        'mp4' => 'video/mp4',
+        'ogg' => 'audio/ogg',
+        'm4a' => 'audio/mp4',
+        'mp3' => 'audio/mpeg',
+        'webm' => 'video/webm',
+        'mov' => 'video/quicktime',
+        _ => 'application/octet-stream',
+      };
+
+  Map<String, dynamic> _streamFile(String uri, Uint8List key) {
+    if (_closed) throw StateError('Secret account is closed');
+    var located = _streamRows[uri];
+    if (located == null) {
+      // Resolve once outside build/layout; future reads use the journal's O(1)
+      // row index and recheck deletion/expiry before granting a playback lease.
+      for (final chat in engine.journal.conversations) {
+        for (final row in engine.journal.messageViews(chat)) {
+          final file = secretMap(secretMap(row['body'])['file']);
+          if (file['stream'] is! Map) continue;
+          final stream = file['stream'] as Map;
+          if (!uri.endsWith('/${stream['manifest_hash']}')) continue;
+          final descriptor = SecretStreamDescriptor.fromFile(file);
+          final matches = descriptor.localUri == uri;
+          descriptor.dispose();
+          if (matches) {
+            located = (chat, row['local_id'] as String);
+            _streamRows[uri] = located;
+            break;
+          }
+        }
+        if (located != null) break;
+      }
+    }
+    final row = located == null
+        ? null
+        : engine.journal.messageViewByLocalId(located.$1, located.$2);
+    final message = secretMap(row?['message']);
+    final expires = DateTime.tryParse('${message['expires_at']}');
+    if (row == null ||
+        message['is_deleted'] == true ||
+        (expires != null && !expires.isAfter(DateTime.now()))) {
+      throw StateError('Secret attachment unavailable');
+    }
+    final file = secretMap(secretMap(row['body'])['file']);
+    final descriptor = SecretStreamDescriptor.fromFile(file);
+    try {
+      var mismatch = descriptor.key.length ^ key.length;
+      for (var i = 0; i < key.length && i < descriptor.key.length; i++) {
+        mismatch |= key[i] ^ descriptor.key[i];
+      }
+      if (mismatch != 0 || descriptor.localUri != uri) {
+        throw const FormatException('Secret attachment identity mismatch');
+      }
+    } finally {
+      descriptor.dispose();
+    }
+    return file;
+  }
+
+  Future<Uint8List> readStream(String uri, Uint8List key) {
+    final streams = _streams;
+    if (streams == null) throw StateError('Secret streaming unavailable');
+    return streams.readBytes(_streamFile(uri, key));
+  }
+
+  Future<MediaPlaybackSource> openStreamPlayback(String uri, Uint8List key) {
+    final streams = _streams;
+    if (streams == null) throw StateError('Secret streaming unavailable');
+    return streams.openPlayback(_streamFile(uri, key));
+  }
+
+  Future<void> exportStream(
+    String uri,
+    Uint8List key,
+    Future<void> Function(String) consume,
+  ) {
+    final streams = _streams;
+    if (streams == null) throw StateError('Secret streaming unavailable');
+    return streams.withExport(_streamFile(uri, key), consume);
   }
 
   Future<Uint8List> readAttachment(String id) async {
@@ -724,6 +871,16 @@ class SecretChatCoordinator
   @override
   Future<String> upload(String attachmentId, SecretJson file) async {
     if (!_canUseTransport) throw StateError('Secret transport is paused');
+    if (file['stream'] != null) {
+      final streams = _streams;
+      if (streams == null) throw StateError('Secret streaming unavailable');
+      final releaseWork = BackgroundService.retainWork();
+      try {
+        return await streams.upload(file, chatId: file['chat_id'] as int);
+      } finally {
+        releaseWork();
+      }
+    }
     final releaseWork = BackgroundService.retainWork();
     final cancellation = CancellationToken();
     _uploads.add(cancellation);
@@ -758,6 +915,10 @@ class SecretChatCoordinator
       return erase ? closing.then((_) => _eraseClosedAccount(userId)) : closing;
     }
     _closed = true;
+    final streamsStopped = _streams?.close();
+    if (streamsStopped != null) {
+      unawaited(streamsStopped.then<void>((_) {}, onError: (Object _, StackTrace _) {}));
+    }
     for (final cancellation in _uploads) {
       cancellation.cancel();
     }
@@ -777,8 +938,12 @@ class SecretChatCoordinator
       _mediaLoaderOwner = null;
       WsMediaFetcher.secretLocalLoader = null;
       WsMediaFetcher.secretLocalFileLoader = null;
+      WsMediaFetcher.secretStreamLoader = null;
+      WsMediaFetcher.secretStreamPlaybackLoader = null;
+      WsMediaFetcher.secretStreamExportLoader = null;
     }
     await Future.wait(_attachmentJobs.toList());
+    await _streams?.close();
     await engine.stop(erase: erase);
     await _attachments.close(erase: erase);
     if (identical(_active[userId], this)) _active.remove(userId);
@@ -860,6 +1025,33 @@ final secretChatCoordinatorProvider = FutureProvider<SecretChatCoordinator?>((
     username,
     ws,
     repository,
+    streamFactory: (owner) {
+      late final SecretStreamService service;
+      NiosProtocolAccount? boundAccount;
+      service = SecretStreamService(
+        accountId: account,
+        origin: Uri.parse(ApiConstants.origin),
+        token: ws.readToken,
+        directory: () async {
+          final runtime = await ref
+              .read(niosProtocolAccountsProvider)
+              .openAccount('$account');
+          if (!identical(boundAccount, runtime)) {
+            runtime.bindResource(service.close);
+            boundAccount = runtime;
+          }
+          return runtime.directory;
+        },
+        ensureRegistered: () => ref
+            .read(niosProtocolEnrollmentProvider)
+            .ensureRegistered(
+              accountId: account,
+              legacyPublicKey: owner.engine.publicKey,
+              bearerToken: ws.readToken() ?? (throw StateError('No session')),
+            ),
+      );
+      return service;
+    },
   );
   if (disposed) {
     await coordinator.close();

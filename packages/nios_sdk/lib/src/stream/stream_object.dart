@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart' as digest;
 import 'package:cryptography/cryptography.dart';
 import 'package:path/path.dart' as p;
 import 'package:universal_io/io.dart';
 
 import 'cancellation.dart';
+import 'crypto_executor.dart';
 import 'manifest.dart';
 import 'source.dart';
 
@@ -39,6 +39,7 @@ abstract final class NiosStream {
     required String outputDirectory,
     int segmentSize = NiosStreamManifest.maximumSegmentSize,
     StreamCancellation? cancellation,
+    StreamCryptoExecutor cryptoExecutor = executeStreamCrypto,
   }) async {
     if (segmentSize <= 0 ||
         segmentSize > NiosStreamManifest.maximumSegmentSize) {
@@ -80,21 +81,24 @@ abstract final class NiosStream {
         final plain = Uint8List(provisional.segmentPlaintextLength(index));
         try {
           await _readExactly(input, plain, cancellation);
-          final box = await _cipher.encrypt(
-            plain,
-            secretKey: key,
-            nonce: provisional.segmentNonce(index),
-            aad: provisional.segmentAssociatedData(index),
-          );
-          cancellation?.throwIfCancelled();
-          final bytes = Uint8List(box.cipherText.length + box.mac.bytes.length)
-            ..setRange(0, box.cipherText.length, box.cipherText)
-            ..setRange(
-              box.cipherText.length,
-              box.cipherText.length + 16,
-              box.mac.bytes,
+          final cryptoKey = Uint8List.fromList(await key.extractBytes());
+          StreamCryptoResult encrypted;
+          try {
+            encrypted = await cryptoExecutor(
+              StreamCryptoRequest(
+                operation: StreamCryptoOperation.encrypt,
+                bytes: plain,
+                key: cryptoKey,
+                nonce: provisional.segmentNonce(index),
+                associatedData: provisional.segmentAssociatedData(index),
+              ),
             );
-          hashes.add(digest.sha256.convert(bytes).toString());
+          } finally {
+            cryptoKey.fillRange(0, cryptoKey.length, 0);
+          }
+          cancellation?.throwIfCancelled();
+          final bytes = encrypted.bytes;
+          hashes.add(encrypted.hash);
           await _writeChunks(output, bytes, cancellation);
         } finally {
           plain.fillRange(0, plain.length, 0);
@@ -143,23 +147,26 @@ abstract final class NiosStream {
     required SecretKey key,
     required int index,
     required List<int> ciphertext,
+    StreamCryptoExecutor cryptoExecutor = executeStreamCrypto,
   }) async {
-    if (ciphertext.length != manifest.segmentCiphertextLength(index) ||
-        digest.sha256.convert(ciphertext).toString() !=
-            manifest.segmentHashes[index]) {
+    if (ciphertext.length != manifest.segmentCiphertextLength(index)) {
       throw const FormatException('Ciphertext segment integrity failure');
     }
-    final split = ciphertext.length - NiosStreamManifest.tagLength;
-    final plain = await _cipher.decrypt(
-      SecretBox(
-        ciphertext.sublist(0, split),
-        nonce: manifest.segmentNonce(index),
-        mac: Mac(ciphertext.sublist(split)),
-      ),
-      secretKey: key,
-      aad: manifest.segmentAssociatedData(index),
-    );
-    return Uint8List.fromList(plain);
+    final cryptoKey = Uint8List.fromList(await key.extractBytes());
+    try {
+      return (await cryptoExecutor(
+        StreamCryptoRequest(
+          operation: StreamCryptoOperation.decrypt,
+          bytes: Uint8List.fromList(ciphertext),
+          key: cryptoKey,
+          nonce: manifest.segmentNonce(index),
+          associatedData: manifest.segmentAssociatedData(index),
+          expectedHash: manifest.segmentHashes[index],
+        ),
+      )).bytes;
+    } finally {
+      cryptoKey.fillRange(0, cryptoKey.length, 0);
+    }
   }
 }
 
@@ -176,6 +183,7 @@ final class NiosStreamDownload {
   final String directory;
   final NiosStreamManifest manifest;
   final SecretKey _key;
+  final StreamCryptoExecutor cryptoExecutor;
   final List<StreamCiphertextSource> sources;
   final Uint8List _bitmap;
   final RandomAccessFile _content;
@@ -193,6 +201,7 @@ final class NiosStreamDownload {
     required this.manifest,
     required SecretKey key,
     required this.sources,
+    required this.cryptoExecutor,
     required Uint8List bitmap,
     required RandomAccessFile content,
     required RandomAccessFile lock,
@@ -212,6 +221,7 @@ final class NiosStreamDownload {
     required SecretKey key,
     required List<StreamCiphertextSource> sources,
     StreamCancellation? cancellation,
+    StreamCryptoExecutor cryptoExecutor = executeStreamCrypto,
   }) async {
     cancellation?.throwIfCancelled();
     await Directory(directory).create(recursive: true);
@@ -277,6 +287,7 @@ final class NiosStreamDownload {
         manifest: manifest,
         key: key,
         sources: List.unmodifiable(sources),
+        cryptoExecutor: cryptoExecutor,
         bitmap: bitmap,
         content: content,
         lock: lock,
@@ -304,6 +315,7 @@ final class NiosStreamDownload {
             key: key,
             index: index,
             ciphertext: cipher,
+            cryptoExecutor: cryptoExecutor,
           );
           plain.fillRange(0, plain.length, 0);
           download._setVerified(index, true);
@@ -443,6 +455,7 @@ final class NiosStreamDownload {
           key: _key,
           index: index,
           ciphertext: await _readCached(index, cancellation),
+          cryptoExecutor: cryptoExecutor,
         );
         if (cancellation?.isCancelled ?? false) {
           plaintext.fillRange(0, plaintext.length, 0);
@@ -470,6 +483,7 @@ final class NiosStreamDownload {
           key: _key,
           index: index,
           ciphertext: ciphertext,
+          cryptoExecutor: cryptoExecutor,
         );
         cancellation?.throwIfCancelled();
         await _content.setPosition(start);

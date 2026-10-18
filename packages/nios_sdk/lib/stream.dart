@@ -2,6 +2,7 @@
 library;
 
 export 'src/stream/cancellation.dart';
+export 'src/stream/crypto_executor.dart';
 export 'src/stream/http_blob_store.dart';
 export 'src/stream/manifest.dart';
 export 'src/stream/source.dart';

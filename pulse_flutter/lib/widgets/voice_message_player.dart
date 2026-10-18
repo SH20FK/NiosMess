@@ -9,6 +9,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/media/media_playback_source.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/services/global_voice_playback_service.dart';
@@ -58,6 +59,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   Duration _duration = Duration.zero;
   late final List<double> _waveformBars;
   bool _seeking = false;
+  MediaPlaybackSource? _playbackSource;
+  int _sourceGeneration = 0;
 
   @override
   void initState() {
@@ -125,6 +128,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   }
 
   Future<void> _setupPlayer() async {
+    final generation = ++_sourceGeneration;
     _cancelSubscriptions();
     if (widget.audioUrl.startsWith('local://')) {
       return;
@@ -134,14 +138,27 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
         fileKey = base64Decode(widget.e2eeFileKey!);
       }
-      final localPath = await WsMediaFetcher.fetchToLocalFile(
+      final source = await WsMediaFetcher.acquirePlaybackSource(
         filePath: widget.audioUrl,
         wsClient: widget.wsClient,
         e2eeFileKey: fileKey,
       );
-      await _player.setAudioSource(
-        AudioSource.file(localPath),
-      );
+      if (!mounted || generation != _sourceGeneration) {
+        await source.close();
+        return;
+      }
+      final oldSource = _playbackSource;
+      _playbackSource = source;
+      try {
+        await _player.setAudioSource(
+          source.uri != null
+              ? AudioSource.uri(source.uri!)
+              : AudioSource.file(source.filePath!),
+        );
+      } finally {
+        await oldSource?.close();
+      }
+      if (!mounted || generation != _sourceGeneration) return;
       _duration = Duration(seconds: widget.durationSeconds);
       _posSub = _player.positionStream.listen((p) {
         if (mounted && !_seeking) {
@@ -150,7 +167,9 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       });
       _stateSub = _player.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
-          GlobalVoicePlaybackService.instance.unregisterPlaying(widget.audioUrl);
+          GlobalVoicePlaybackService.instance.unregisterPlaying(
+            widget.audioUrl,
+          );
           _positionNotifier.value = Duration.zero;
         }
         if (mounted) setState(() {});
@@ -163,9 +182,14 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   @override
   void dispose() {
+    _sourceGeneration++;
     GlobalVoicePlaybackService.instance.unregisterPlaying(widget.audioUrl);
     _cancelSubscriptions();
-    _player.dispose();
+    final source = _playbackSource;
+    unawaited(() async {
+      await _player.dispose();
+      await source?.close();
+    }());
     _positionNotifier.dispose();
     super.dispose();
   }
