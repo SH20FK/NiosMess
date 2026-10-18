@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
+import 'package:pulse_flutter/widgets/chat/m3_emoji_search_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -73,6 +74,20 @@ void main() {
     expect(config.locale.languageCode, 'ru');
     expect(config.emojiTextStyle?.fontFamily, AppFonts.emoji);
     expect(input.text, '😀');
+    await tester.tap(find.descendant(
+      of: find.byType(EmojiPicker),
+      matching: find.byIcon(Icons.search),
+    ));
+    await tester.pumpAndSettle();
+    final search = find.descendant(
+      of: find.byType(M3EmojiSearchView),
+      matching: find.byType(TextField),
+    );
+    for (final query in ['cat', 'кот']) {
+      await tester.enterText(search, query);
+      await tester.pumpAndSettle();
+      expect(find.text('🐈'), findsOneWidget, reason: query);
+    }
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

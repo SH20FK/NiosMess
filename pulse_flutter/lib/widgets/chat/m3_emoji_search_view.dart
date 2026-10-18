@@ -168,6 +168,13 @@ const Map<String, List<String>> _ruEmojiKeywords = {
   'крест': ['cross', 'x'],
 };
 
+// Search both keyword sets even when the app uses Russian. The short Russian
+// aliases above also expand to English names (e.g. "кот" -> "cat").
+final List<CategoryEmoji> _notoSearchIndex = <CategoryEmoji>[
+  ...emojiSetEnglish,
+  ...emojiSetRussian,
+];
+
 /// Custom Material 3 Russian & English Emoji Search View
 class M3EmojiSearchView extends SearchView {
   const M3EmojiSearchView(
@@ -220,7 +227,11 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
 
     // 2. Parallelize with Future.wait, discard stale requests, and deduplicate
     final List<Future<List<Emoji>>> futures = searchTerms
-        .map((String term) => utils.searchEmoji(term, widget.state.categoryEmoji))
+        .map((String term) => utils.searchEmoji(
+          term,
+          _notoSearchIndex,
+          checkPlatformCompatibility: false,
+        ))
         .toList();
 
     Future.wait(futures).then((List<List<Emoji>> allFound) {
