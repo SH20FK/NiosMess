@@ -1435,6 +1435,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   style: textTheme.titleMedium,
                 ),
               ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text('Выбранное сообщение и его текст будут переданы модераторам вместе с жалобой.'),
+              ),
               ListTile(
                 leading: Icon(
                   Icons.report_gmailerrorred_rounded,
@@ -1505,6 +1509,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             chatId: message.chatId,
             reportedUserId: message.senderId,
             messageIds: <int>[message.id],
+            selectedMessage: message,
             reason: reason,
           );
       if (!mounted) return;

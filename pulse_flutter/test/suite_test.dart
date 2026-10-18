@@ -1,3 +1,5 @@
+import 'unit/report_evidence_submission_test.dart' as report_evidence_submission;
+import 'settings_plus_navigation_test.dart' as settings_plus_navigation;
 import 'unit/incoming_app_route_test.dart' as incoming_app_route;
 import 'plus_activation_screen_test.dart' as plus_activation_screen;
 // Unified test suite aggregator for rapid single-pass compilation in CI.
@@ -216,6 +218,8 @@ void main() {
 
     incoming_app_route.main();
     plus_activation_screen.main();
+    settings_plus_navigation.main();
+    report_evidence_submission.main();
 
     // Screen & UI Widget Tests
     group('Incoming call regression', incoming_call_delivery.main);

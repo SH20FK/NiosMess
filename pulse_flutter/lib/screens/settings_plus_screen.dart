@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -84,6 +85,14 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
   DateTime? _parseDate(Object? raw) =>
       raw == null ? null : DateTime.tryParse(raw.toString());
 
+  void _close() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/main/chats');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final AuthState auth = ref.watch(authProvider);
@@ -104,6 +113,13 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
     return SettingsShell(
       title: 'NiosPlus',
       isEmbedded: widget.isEmbedded,
+      leading: widget.isEmbedded
+          ? null
+          : TextButton(
+              onPressed: _close,
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+              child: const Text('Назад'),
+            ),
       children: <Widget>[
         if (_loadingStatus)
           const AppLoadingIndicator(size: 24)
