@@ -325,6 +325,111 @@ void main() {
     },
   );
 
+  for (final stopAccount in [false, true]) {
+    for (final enrollmentFails in [false, true]) {
+      test(
+        '${stopAccount ? 'logout' : 'player close'} cancels paused enrollment '
+        'and ignores its late ${enrollmentFails ? 'failure' : 'success'}',
+        () async {
+          final root = await Directory.systemTemp.createTemp(
+            'nios-stream-enrollment-cancel-',
+          );
+          final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+          var blobRequests = 0;
+          server.listen((request) {
+            blobRequests++;
+            request.response.statusCode = HttpStatus.notFound;
+            unawaited(request.response.close());
+          });
+          final origin = Uri.parse('http://127.0.0.1:${server.port}');
+          final entered = Completer<void>();
+          final enrollment = Completer<void>();
+          final enrollmentSettled = Completer<void>();
+          var tokenReads = 0;
+          final sender = SecretStreamService(
+            accountId: 1,
+            origin: origin,
+            token: () => 'fixture-token',
+            directory: () async => Directory(p.join(root.path, 'alice')),
+            ensureRegistered: () async {},
+            allowInsecureLoopback: true,
+          );
+          final receiver = SecretStreamService(
+            accountId: 2,
+            origin: origin,
+            token: () {
+              tokenReads++;
+              return 'fixture-token';
+            },
+            directory: () async => Directory(p.join(root.path, 'bob')),
+            ensureRegistered: () async {
+              entered.complete();
+              try {
+                await enrollment.future;
+              } finally {
+                enrollmentSettled.complete();
+              }
+            },
+            allowInsecureLoopback: true,
+          );
+          final player = http.Client();
+          Future<void> Function()? closePlayback;
+          try {
+            final input = await File(
+              p.join(root.path, 'source.mp4'),
+            ).writeAsBytes(List.generate(128, (i) => i));
+            final file = await sender.prepareFile(
+              inputPath: input.path,
+              filename: 'video.mp4',
+              mimeType: 'video/mp4',
+              subtype: 'media',
+            );
+            final playback = await receiver.openPlayback(file);
+            closePlayback = playback.close;
+            final pending = player
+                .get(playback.uri!, headers: {'range': 'bytes=0-99'})
+                .then<Object>((response) => response, onError: (Object e) => e);
+            await entered.future.timeout(const Duration(seconds: 2));
+            await (stopAccount ? receiver.close() : playback.close()).timeout(
+              const Duration(seconds: 2),
+            );
+            expect(
+              enrollment.isCompleted,
+              isFalse,
+              reason: 'Disposal must not wait for enrollment to finish',
+            );
+            final result = await pending.timeout(const Duration(seconds: 2));
+            if (result is http.Response) {
+              expect(result.bodyBytes, isEmpty);
+            } else {
+              expect(result, isA<Exception>());
+            }
+
+            if (enrollmentFails) {
+              enrollment.completeError(StateError('late_enrollment_failure'));
+            } else {
+              enrollment.complete();
+            }
+            await enrollmentSettled.future;
+            // Let the abandoned enrollment continuation settle too. A late
+            // error must be consumed, and success must not open a blob source.
+            await Future<void>(() {});
+            expect(tokenReads, 0);
+            expect(blobRequests, 0);
+          } finally {
+            if (!enrollment.isCompleted) enrollment.complete();
+            player.close();
+            await closePlayback?.call();
+            await receiver.close();
+            await sender.close();
+            await server.close(force: true);
+            await root.delete(recursive: true);
+          }
+        },
+      );
+    }
+  }
+
   test(
     'explicit export stays bounded and logout cancels a pending consumer and removes plaintext',
     () async {

@@ -51,8 +51,13 @@ final class NiosProtocolEnrollment {
         bearerToken.length > 4096) {
       return Future.error(const ProtocolEnrollmentException('invalid_session'));
     }
+    // Capture the account owner's epoch now, before waiting behind an earlier
+    // enrollment. A queued request must never reopen an erased account later.
+    final opening = _accounts.openAccount('$accountId');
+    unawaited(opening.then<void>((_) {}, onError: (Object _, StackTrace _) {}));
     final result = (_tails[accountId] ?? Future<void>.value()).then(
-      (_) => _enroll(accountId, legacyPublicKey, bearerToken),
+      (_) async =>
+          _enroll(await opening, accountId, legacyPublicKey, bearerToken),
     );
     final settled = result.then<void>(
       (_) {},
@@ -67,14 +72,32 @@ final class NiosProtocolEnrollment {
     return result;
   }
 
-  Future<void> _enroll(int id, String legacy, String token) async {
-    final account = await _accounts.openAccount('$id');
-    final cacheKey = hashing.sha256
-        .convert(utf8.encode(jsonEncode([account.deviceId, legacy, token])))
-        .toString();
-    if (_registered[id] == cacheKey) return;
-    final client = _clientFactory();
+  Future<void> _enroll(
+    NiosProtocolAccount account,
+    int id,
+    String legacy,
+    String token,
+  ) async {
+    http.Client? client;
+    var stopped = false;
+    final stopping = Completer<void>();
+    final unbind = account.bindResource(() async {
+      stopped = true;
+      _registered.remove(id);
+      if (!stopping.isCompleted) stopping.complete();
+      client?.close();
+    });
+    void checkActive() {
+      if (stopped) throw StateError('protocol_account_stopped');
+    }
+
     try {
+      checkActive();
+      final cacheKey = hashing.sha256
+          .convert(utf8.encode(jsonEncode([account.deviceId, legacy, token])))
+          .toString();
+      if (_registered[id] == cacheKey) return;
+      client = _clientFactory();
       final devicePath = '/v1/devices/${account.deviceId}';
       final challenge = await _request(
         client,
@@ -82,6 +105,8 @@ final class NiosProtocolEnrollment {
         '$devicePath/challenge',
         token,
         {},
+        checkActive: checkActive,
+        stopping: stopping.future,
       );
       final challengeId = challenge['challenge'];
       final session = challenge['session'];
@@ -135,23 +160,34 @@ final class NiosProtocolEnrollment {
         proof,
         purpose: 'link-signing',
       );
-      await _request(client, 'PUT', devicePath, token, {
-        'challenge': challengeId,
-        'identity_key': identity,
-        'link_key': link,
-        'mls_key': null,
-        'endpoint_key': null,
-        'protocols': streamCapabilities,
-        'legacy_key': legacy,
-        'identity_signature': base64Encode(identitySignature),
-        'device_proof': base64Encode(deviceSignature),
-      });
+      await _request(
+        client,
+        'PUT',
+        devicePath,
+        token,
+        {
+          'challenge': challengeId,
+          'identity_key': identity,
+          'link_key': link,
+          'mls_key': null,
+          'endpoint_key': null,
+          'protocols': streamCapabilities,
+          'legacy_key': legacy,
+          'identity_signature': base64Encode(identitySignature),
+          'device_proof': base64Encode(deviceSignature),
+        },
+        checkActive: checkActive,
+        stopping: stopping.future,
+      );
       // Sign through the owner once more so logout during the HTTP request
       // cannot leave a successful enrollment cached for a stopped account.
       await account.signProtocol(const [], purpose: 'link-signing');
+      checkActive();
       _registered[id] = cacheKey;
     } finally {
-      client.close();
+      unbind();
+      client?.close();
+      if (!stopping.isCompleted) stopping.complete();
     }
   }
 
@@ -160,8 +196,26 @@ final class NiosProtocolEnrollment {
     String method,
     String path,
     String token,
+    Map<String, Object?> body, {
+    required void Function() checkActive,
+    required Future<void> stopping,
+  }) async {
+    checkActive();
+    return Future.any<Map<String, dynamic>>([
+      _readResponse(client, method, path, token, body, checkActive),
+      stopping.then((_) => throw StateError('protocol_account_stopped')),
+    ]);
+  }
+
+  Future<Map<String, dynamic>> _readResponse(
+    http.Client client,
+    String method,
+    String path,
+    String token,
     Map<String, Object?> body,
+    void Function() checkActive,
   ) async {
+    checkActive();
     final request = http.Request(method, _origin.resolve(path))
       ..followRedirects = false
       ..headers['authorization'] = 'Bearer $token'
@@ -170,15 +224,18 @@ final class NiosProtocolEnrollment {
     final response = await client
         .send(request)
         .timeout(const Duration(seconds: 20));
+    checkActive();
     final bytes = <int>[];
     await for (final chunk in response.stream.timeout(
       const Duration(seconds: 20),
     )) {
+      checkActive();
       if (bytes.length + chunk.length > 65536) {
         throw const ProtocolEnrollmentException('invalid_response');
       }
       bytes.addAll(chunk);
     }
+    checkActive();
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ProtocolEnrollmentException('http_${response.statusCode}');
     }

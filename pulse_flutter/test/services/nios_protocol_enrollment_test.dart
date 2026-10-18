@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:crypto/crypto.dart' as hashing;
 import 'package:cryptography/cryptography.dart';
@@ -17,6 +18,60 @@ final class _Secrets implements ProtocolSecretStore {
   Future<void> write(String name, String value) async => values[name] = value;
   @override
   Future<void> delete(String name) async => values.remove(name);
+}
+
+http.StreamedResponse _fixtureResponse(http.BaseRequest request) =>
+    http.StreamedResponse(
+      Stream.value(
+        utf8.encode(
+          jsonEncode(
+            request.method == 'POST'
+                ? {
+                    'account': '7',
+                    'device': request.url.pathSegments[2],
+                    'session': 31,
+                    'challenge': '12' * 32,
+                  }
+                : {'registered': true},
+          ),
+        ),
+      ),
+      200,
+    );
+
+/// Deliberately ignores close for the pending response, modelling a transport
+/// completion which arrives after logout already erased the local account.
+final class _LateClient extends http.BaseClient {
+  _LateClient(this.delayedMethod);
+  final String delayedMethod;
+  final requests = <http.BaseRequest>[];
+  final entered = Completer<void>();
+  final pending = Completer<http.StreamedResponse>();
+  http.BaseRequest? _delayed;
+  int closeCalls = 0;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requests.add(request);
+    if (request.method == delayedMethod) {
+      _delayed = request;
+      if (!entered.isCompleted) entered.complete();
+      return pending.future;
+    }
+    return _fixtureResponse(request);
+  }
+
+  void completeLate() {
+    final request = _delayed;
+    if (!pending.isCompleted && request != null) {
+      pending.complete(_fixtureResponse(request));
+    }
+  }
+
+  @override
+  void close() {
+    closeCalls++;
+  }
 }
 
 void main() {
@@ -185,6 +240,154 @@ void main() {
         }
         expect(calls, 2);
       } finally {
+        await accounts.close();
+        await directory.delete(recursive: true);
+      }
+    },
+  );
+
+  test(
+    'queued bootstrap captures logout epoch and late challenge cannot resurrect an erased account',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'nios-enrollment-logout-',
+      );
+      final secrets = _Secrets();
+      final accounts = NiosProtocolAccounts(
+        secrets: secrets,
+        directory: () async => directory,
+      );
+      final late = _LateClient('POST');
+      final freshRequests = <http.BaseRequest>[];
+      var clientCreations = 0;
+      final bootstrap = NiosProtocolEnrollment(
+        accounts: accounts,
+        origin: Uri.parse('https://fixture.invalid'),
+        clientFactory: () {
+          clientCreations++;
+          if (clientCreations == 1) return late;
+          return MockClient.streaming((request, _) async {
+            freshRequests.add(request);
+            return _fixtureResponse(request);
+          });
+        },
+      );
+      Future<void> enroll() => bootstrap.ensureRegistered(
+        accountId: 7,
+        legacyPublicKey: 'legacy-fixture',
+        bearerToken: 'fixture-token',
+      );
+      try {
+        final first = enroll();
+        final firstRejected = expectLater(first, throwsStateError);
+        await late.entered.future;
+        final oldDevice = late.requests.single.url.pathSegments[2];
+        final queued = enroll();
+        final queuedRejected = expectLater(queued, throwsStateError);
+        await accounts
+            .shutdownAccount('7', erase: true)
+            .timeout(const Duration(seconds: 5));
+        await Future.wait([
+          firstRejected,
+          queuedRejected,
+        ]).timeout(const Duration(seconds: 5));
+        expect(late.closeCalls, greaterThanOrEqualTo(1));
+        expect(clientCreations, 1);
+        expect(secrets.values, isEmpty);
+        expect(
+          await Directory(
+            '${directory.path}/nios_protocol',
+          ).list().where((entity) => entity is Directory).isEmpty,
+          isTrue,
+        );
+
+        late.completeLate();
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(
+          late.requests.length,
+          1,
+          reason: 'A late challenge must never trigger proof publication',
+        );
+        expect(clientCreations, 1);
+        expect(secrets.values, isEmpty);
+        expect(
+          await Directory(
+            '${directory.path}/nios_protocol',
+          ).list().where((entity) => entity is Directory).isEmpty,
+          isTrue,
+        );
+
+        // A new explicit login is allowed, but must create a fresh device and
+        // perform a fresh challenge instead of inheriting an old queued request.
+        await enroll();
+        expect(freshRequests.length, 2);
+        expect(freshRequests.first.url.pathSegments[2], isNot(oldDevice));
+        expect(secrets.values.length, 1);
+      } finally {
+        late.completeLate();
+        await accounts.close();
+        await directory.delete(recursive: true);
+      }
+    },
+  );
+
+  test(
+    'late successful PUT cannot cache registration for a stopped runtime',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'nios-enrollment-late-put-',
+      );
+      final secrets = _Secrets();
+      final accounts = NiosProtocolAccounts(
+        secrets: secrets,
+        directory: () async => directory,
+      );
+      final late = _LateClient('PUT');
+      final freshRequests = <http.BaseRequest>[];
+      var clientCreations = 0;
+      final bootstrap = NiosProtocolEnrollment(
+        accounts: accounts,
+        origin: Uri.parse('https://fixture.invalid'),
+        clientFactory: () {
+          clientCreations++;
+          if (clientCreations == 1) return late;
+          return MockClient.streaming((request, _) async {
+            freshRequests.add(request);
+            return _fixtureResponse(request);
+          });
+        },
+      );
+      Future<void> enroll() => bootstrap.ensureRegistered(
+        accountId: 7,
+        legacyPublicKey: 'legacy-fixture',
+        bearerToken: 'fixture-token',
+      );
+      try {
+        final pending = enroll();
+        final rejected = expectLater(pending, throwsStateError);
+        await late.entered.future;
+        final device = late.requests.first.url.pathSegments[2];
+        // Keep the wrapping key to test the same device/token cache identity on
+        // reopen. The independently tested erase path removes it on real logout.
+        await accounts
+            .shutdownAccount('7', erase: false)
+            .timeout(const Duration(seconds: 5));
+        await rejected.timeout(const Duration(seconds: 5));
+        expect(late.closeCalls, greaterThanOrEqualTo(1));
+        late.completeLate();
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(clientCreations, 1);
+        expect(late.requests.length, 2);
+        await enroll();
+        expect(clientCreations, 2);
+        expect(
+          freshRequests.length,
+          2,
+          reason: 'A late PUT must not make the new runtime skip enrollment',
+        );
+        expect(freshRequests.first.url.pathSegments[2], device);
+      } finally {
+        late.completeLate();
         await accounts.close();
         await directory.delete(recursive: true);
       }

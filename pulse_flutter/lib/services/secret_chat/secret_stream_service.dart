@@ -600,7 +600,24 @@ final class _EnrolledCiphertextSource implements StreamCiphertextSource {
     StreamCancellation? cancellation,
   }) async {
     cancellation?.throwIfCancelled();
-    await ensureRegistered();
+    if (cancellation == null) {
+      await ensureRegistered();
+    } else {
+      final stopped = Completer<void>();
+      final unregister = cancellation.onCancel(() {
+        if (!stopped.isCompleted) stopped.complete();
+      });
+      try {
+        // Enrollment may be shared by other consumers. Stop waiting without
+        // cancelling their work; Future.any also consumes a late failure.
+        await Future.any<void>([
+          Future<void>.sync(ensureRegistered),
+          stopped.future.then((_) => cancellation.throwIfCancelled()),
+        ]);
+      } finally {
+        unregister();
+      }
+    }
     cancellation?.throwIfCancelled();
     return source().readRange(start, endExclusive, cancellation: cancellation);
   }
