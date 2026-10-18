@@ -62,7 +62,8 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
 
   bool get canOpenNow => hasRemoteUrl || hasLocalPath;
   bool get canDownloadNow => hasRemoteUrl || hasBytes;
-  bool get canCopyReference => hasRemoteUrl || hasLocalPath;
+  bool get canCopyReference =>
+      !(mediaUrl?.startsWith('nios-stream://') ?? false) && (hasRemoteUrl || hasLocalPath);
 
   @override
   Widget build(BuildContext context) {
@@ -288,6 +289,10 @@ class M3FilePreviewBottomSheet extends StatelessWidget {
   }
 
   Future<void> _openFile(BuildContext context) async {
+    if (mediaUrl?.startsWith('nios-stream://') ?? false) {
+      await _saveFile(context);
+      return;
+    }
     Navigator.of(context).pop();
     if (hasRemoteUrl) {
       await FileOpener.openUrl(context, mediaUrl!);
@@ -368,6 +373,20 @@ Future<void> saveM3File({
   final bool hasRemoteUrl = (mediaUrl ?? '').trim().isNotEmpty;
 
   try {
+    if (hasRemoteUrl && mediaUrl!.startsWith('nios-stream://')) {
+      if (e2eeFileKey == null) throw StateError('Secret file key missing');
+      await WsMediaFetcher.withSecretStreamExport(
+        filePath: mediaUrl,
+        e2eeFileKey: base64Decode(e2eeFileKey),
+        consume: (path) async {
+          await FlutterFileDialog.saveFile(
+            params: SaveFileDialogParams(sourceFilePath: path, fileName: fileName),
+          );
+        },
+      );
+      if (context.mounted) AppToast.showSuccess(context, context.l10n.filePreviewSaved);
+      return;
+    }
     if (kIsWeb && hasRemoteUrl) {
       final Uri? uri = Uri.tryParse(mediaUrl!);
       if (uri == null) throw Exception('Invalid download URL');

@@ -335,6 +335,7 @@ class SecretChatEngine {
         'media_type': file['mime'],
         if (file['attachment_id'] != null)
           'media_url': 'secret-local://${file['attachment_id']}',
+        if (file['stream'] != null) 'media_url': _streamUri(file),
       },
     });
   }
@@ -344,6 +345,19 @@ class SecretChatEngine {
     if (message['is_deleted'] == true) return false;
     final expiry = DateTime.tryParse('${message['expires_at']}');
     return expiry == null || expiry.isAfter(now);
+  }
+
+  String _streamUri(Map file) {
+    final descriptor = file['stream'];
+    final manifest = descriptor is Map ? descriptor['manifest'] : null;
+    final object = manifest is Map ? manifest['objectId'] : null;
+    final hash = descriptor is Map ? descriptor['manifest_hash'] : null;
+    if (object is String && hash is String &&
+        RegExp(r'^[a-f0-9]{32}$').hasMatch(object) &&
+        RegExp(r'^[a-f0-9]{64}$').hasMatch(hash)) {
+      return 'nios-stream://$object/$hash';
+    }
+    return 'nios-stream://unavailable';
   }
 
   List<SecretJson> messages(int uiId) {
@@ -699,6 +713,8 @@ class SecretChatEngine {
       await _serial.run(key, () async {
         final current = journal.state(key);
         current['peer_protocol'] = response['peer_protocol_version'] ?? 0;
+        current['peer_stream_protocol_versions'] =
+            response['peer_stream_protocol_versions'] ?? const <int>[];
         final peerKey = response['peer_public_key'];
         if (current['peer_key'] != null && peerKey != current['peer_key']) {
           current['status'] = 'keyChanged';
@@ -1250,10 +1266,10 @@ class SecretChatEngine {
     if (file['attachment_id'] != null &&
         op['upload_id'] == null &&
         op['action'] == 'send_message') {
-      final uploadId = await transport.upload(
-        file['attachment_id'] as String,
-        file,
-      );
+      final uploadId = await transport.upload(file['attachment_id'] as String, {
+        ...file,
+        'chat_id': state['remote_id'],
+      });
       await _serial.run(key, () async {
         final latest = journal.messageByLocalId(key, row['local_id'] as String);
         if (latest == null) return;
@@ -1315,6 +1331,9 @@ class SecretChatEngine {
           state['ratchet'] = await session.toJson();
           if (action == 'send_message') {
             if (op['upload_id'] != null) payload['upload_id'] = op['upload_id'];
+            if (file['stream'] != null) {
+              payload['media_subtype'] = file['subtype'] ?? 'media';
+            }
             var reply = message['reply_to_id'];
             if (reply is int && reply < 0) {
               final original = journal.messageById(key, reply);

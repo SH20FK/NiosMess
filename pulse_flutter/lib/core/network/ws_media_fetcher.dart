@@ -11,6 +11,7 @@ import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
+import 'package:pulse_flutter/core/media/media_playback_source.dart';
 
 /// Downloads chat media over the authenticated `/api/files/download`
 /// endpoint and caches it locally.
@@ -22,6 +23,25 @@ import 'package:pulse_flutter/core/services/background_service.dart';
 class WsMediaFetcher {
   static Future<Uint8List> Function(String)? secretLocalLoader;
   static Future<String> Function(String)? secretLocalFileLoader;
+  static Future<Uint8List> Function(String, Uint8List)? secretStreamLoader;
+  static Future<MediaPlaybackSource> Function(String, Uint8List)?
+  secretStreamPlaybackLoader;
+  static Future<void> Function(String, Uint8List, Future<void> Function(String))?
+      secretStreamExportLoader;
+
+  /// Explicit save/share only. The account owner removes its temporary export
+  /// after the platform has copied it; ordinary playback never takes this path.
+  static Future<void> withSecretStreamExport({
+    required String filePath,
+    required Uint8List e2eeFileKey,
+    required Future<void> Function(String) consume,
+  }) {
+    final loader = secretStreamExportLoader;
+    if (!filePath.startsWith('nios-stream://') || loader == null) {
+      throw StateError('Secret stream unavailable');
+    }
+    return loader(filePath, e2eeFileKey, consume);
+  }
   static int _accountGeneration = 0;
   static Future<void>? _cacheClear;
   static final String _stagingSession = List.generate(
@@ -257,6 +277,13 @@ class WsMediaFetcher {
     required WebSocketClient wsClient,
     Uint8List? e2eeFileKey,
   }) async {
+    if (cleanPath.startsWith('nios-stream://')) {
+      final loader = secretStreamLoader;
+      if (loader == null || e2eeFileKey == null) {
+        throw StateError('Secret stream unavailable');
+      }
+      return loader(cleanPath, e2eeFileKey);
+    }
     if (cleanPath.startsWith('secret-local://')) {
       final loader = secretLocalLoader;
       if (loader == null || e2eeFileKey == null) {
@@ -341,6 +368,9 @@ class WsMediaFetcher {
   }) async {
     final cleanPath = _cleanFilePath(filePath);
     if (cleanPath.isEmpty) throw ArgumentError('Empty file path');
+    if (cleanPath.startsWith('nios-stream://')) {
+      throw UnsupportedError('Secret streams require a playback lease');
+    }
     final generation = _accountGeneration;
     await _waitForPrivateCacheClear(generation);
     final cacheKey = e2eeFileKey == null
@@ -372,6 +402,37 @@ class WsMediaFetcher {
         _inFlightFiles.remove(cacheKey);
       }
     }
+  }
+
+  /// New secret streams use a loopback Range lease; old files retain their
+  /// compatible file-backed player path. The caller closes the returned lease.
+  static Future<MediaPlaybackSource> acquirePlaybackSource({
+    required String filePath,
+    required WebSocketClient wsClient,
+    Uint8List? e2eeFileKey,
+  }) async {
+    final cleanPath = _cleanFilePath(filePath);
+    final generation = _accountGeneration;
+    await _waitForPrivateCacheClear(generation);
+    if (cleanPath.startsWith('nios-stream://')) {
+      final loader = secretStreamPlaybackLoader;
+      if (loader == null || e2eeFileKey == null) {
+        throw StateError('Secret stream unavailable');
+      }
+      final source = await loader(cleanPath, e2eeFileKey);
+      if (generation != _accountGeneration) {
+        await source.close();
+        _checkAccount(generation);
+      }
+      return source;
+    }
+    return MediaPlaybackSource.file(
+      await fetchToLocalFile(
+        filePath: filePath,
+        wsClient: wsClient,
+        e2eeFileKey: e2eeFileKey,
+      ),
+    );
   }
 
   static Future<String> _localFile(

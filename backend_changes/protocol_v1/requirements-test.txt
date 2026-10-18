@@ -1,0 +1,8 @@
+# Match the verified production API runtime; test tools stay in a separate venv.
+fastapi==0.141.1
+starlette==1.6.0
+httpx==0.28.1
+pytest==8.4.2
+pytest-asyncio==1.4.0
+cryptography==50.0.1
+uvicorn==0.52.4

@@ -24,6 +24,7 @@ import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
+import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 
 class ProfileSharedMediaTabView extends ConsumerStatefulWidget {
   const ProfileSharedMediaTabView({
@@ -1225,6 +1226,14 @@ class _SharedFileTileState extends ConsumerState<_SharedFileTile> {
       if (widget.message.e2eeFileKey != null &&
           widget.message.e2eeFileKey!.isNotEmpty) {
         fileKey = base64Decode(widget.message.e2eeFileKey!);
+      }
+
+      if (url.startsWith('nios-stream://')) {
+        await saveM3File(context: context, fileName: fileName,
+          fileSize: widget.message.mediaSize ?? 0, mediaUrl: url,
+          e2eeFileKey: widget.message.e2eeFileKey, wsClient: wsClient);
+        if (mounted) setState(() => _isDownloading = false);
+        return;
       }
 
       final localPath = await WsMediaFetcher.fetchToLocalFile(

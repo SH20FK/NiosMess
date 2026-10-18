@@ -15,6 +15,7 @@ import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/services/oauth_service.dart';
+import 'package:pulse_flutter/services/protocol/nios_protocol_accounts.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -376,7 +377,16 @@ class AuthNotifier extends Notifier<AuthState> {
             accountId,
             erase: eraseSecretData,
           );
-    final stopped = Future.wait<Object?>([backgroundStopped, secretStopped]);
+    final protocolStopped = accountId == null
+        ? Future<void>.value()
+        : ref
+              .read(niosProtocolAccountsProvider)
+              .shutdownAccount(accountId.toString(), erase: eraseSecretData);
+    final stopped = Future.wait<Object?>([
+      backgroundStopped,
+      secretStopped,
+      protocolStopped,
+    ]);
     try {
       final stoppedData = await stopped;
       final chatIds = stoppedData[1] as List<int>;

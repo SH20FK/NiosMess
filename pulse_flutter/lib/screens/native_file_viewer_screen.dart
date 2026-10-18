@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,8 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/media/media_playback_source.dart';
+import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/docx_parser.dart';
@@ -56,6 +59,10 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
   Object? _fetchError;
   bool _fetching = false;
   bool _showMarkdownRaw = false;
+  MediaPlaybackSource? _streamPlayback;
+  String? _streamPdfPath;
+  Completer<void> _previewLifetime = Completer<void>();
+  int _sourceGeneration = 0;
 
   bool get _isE2ee =>
       widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty;
@@ -71,6 +78,12 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url ||
         oldWidget.e2eeFileKey != widget.e2eeFileKey) {
+      _sourceGeneration++;
+      unawaited(_streamPlayback?.close());
+      _streamPlayback = null;
+      _streamPdfPath = null;
+      if (!_previewLifetime.isCompleted) _previewLifetime.complete();
+      _previewLifetime = Completer<void>();
       _fetchedBytes = null;
       _fetchError = null;
       _maybeFetch();
@@ -78,6 +91,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
   }
 
   Future<void> _maybeFetch() async {
+    final generation = ++_sourceGeneration;
     // Only fetch over the network when we only have a remote URL and no
     // local bytes/path (the local optimistically-sent messages already have
     // their bytes in hand).
@@ -99,6 +113,30 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
           fileKey = base64Decode(widget.e2eeFileKey!);
         } catch (_) {}
       }
+      if (widget.url!.startsWith('nios-stream://') && fileKey != null) {
+        if (widget.fileType.isVideo || widget.fileType.isAudio) {
+          final source = await WsMediaFetcher.acquirePlaybackSource(
+            filePath: widget.url!, wsClient: ref.read(webSocketClientProvider),
+            e2eeFileKey: fileKey,
+          );
+          if (!mounted || generation != _sourceGeneration) {
+            await source.close(); return;
+          }
+          _streamPlayback = source;
+          setState(() => _fetching = false);
+          return;
+        }
+        if (widget.fileType.isPdf) {
+          final lifetime = _previewLifetime;
+          await WsMediaFetcher.withSecretStreamExport(filePath: widget.url!,
+            e2eeFileKey: fileKey, consume: (path) async {
+              if (!mounted || generation != _sourceGeneration) return;
+              setState(() { _streamPdfPath = path; _fetching = false; });
+              await lifetime.future;
+            });
+          return;
+        }
+      }
       final Uint8List bytes = await WsMediaFetcher.fetchAndDecryptMedia(
         filePath: widget.url!,
         wsClient: ref.read(webSocketClientProvider),
@@ -119,6 +157,15 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
   }
 
   Future<void> _shareFile() async {
+    if (widget.url?.startsWith('nios-stream://') ?? false) {
+      try {
+        await WsMediaFetcher.withSecretStreamExport(filePath: widget.url!,
+          e2eeFileKey: base64Decode(widget.e2eeFileKey!), consume: (path) async {
+            await SharePlus.instance.share(ShareParams(files: <XFile>[XFile(path)], text: widget.fileName));
+          });
+      } catch (error) { if (mounted) AppToast.showError(context, error); }
+      return;
+    }
     final Uint8List? data = _fetchedBytes ?? widget.bytes;
     if (data != null) {
       final String tempDir = (await getTemporaryDirectory()).path;
@@ -149,6 +196,12 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
   }
 
   Future<void> _downloadFile() async {
+    if (widget.url?.startsWith('nios-stream://') ?? false) {
+      await saveM3File(context: context, fileName: widget.fileName,
+        fileSize: 0, mediaUrl: widget.url, e2eeFileKey: widget.e2eeFileKey,
+        wsClient: ref.read(webSocketClientProvider));
+      return;
+    }
     final Uint8List? data = _fetchedBytes ?? widget.bytes;
     if (kIsWeb) {
       AppToast.showInfo(context, 'В веб-версии файл скачивается через браузер');
@@ -178,6 +231,14 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
         AppToast.showError(context, 'Не удалось сохранить файл');
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _sourceGeneration++;
+    if (!_previewLifetime.isCompleted) _previewLifetime.complete();
+    unawaited(_streamPlayback?.close());
+    super.dispose();
   }
 
   @override
@@ -268,7 +329,8 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
     }
 
     final Uint8List? resolvedBytes = _fetchedBytes ?? widget.bytes;
-    final String? resolvedLocalPath = widget.localPath;
+    final String? resolvedLocalPath = _streamPdfPath ?? widget.localPath;
+    final String? resolvedUrl = _streamPlayback?.uri?.toString() ?? widget.url;
     final ft = widget.fileType;
 
     final String ext = widget.fileName.contains('.')
@@ -321,7 +383,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
 
     if (ft.isImage) {
       return _ImageViewer(
-        url: resolvedBytes == null ? widget.url : null,
+        url: resolvedBytes == null ? resolvedUrl : null,
         bytes: resolvedBytes,
         isSvg: widget.fileName.toLowerCase().endsWith('.svg'),
       );
@@ -329,7 +391,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
 
     if (ft.isVideo) {
       return _VideoViewer(
-        url: resolvedBytes == null ? widget.url : null,
+        url: resolvedBytes == null ? resolvedUrl : null,
         localPath: resolvedLocalPath,
       );
     }
@@ -337,7 +399,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
     if (ft.isAudio) {
       return _MusicPlayer(
         fileName: widget.fileName,
-        url: resolvedBytes == null ? widget.url : null,
+        url: resolvedBytes == null ? resolvedUrl : null,
         localPath: resolvedLocalPath,
         bytes: resolvedBytes,
       );
@@ -345,7 +407,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
 
     if (ft.isPdf) {
       return _PdfViewer(
-        url: resolvedBytes == null ? widget.url : null,
+        url: resolvedBytes == null ? resolvedUrl : null,
         localPath: resolvedLocalPath,
         bytes: resolvedBytes,
       );

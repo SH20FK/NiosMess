@@ -1,0 +1,129 @@
+name: Protocol SDK
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A called workflow sees the caller's github.workflow. Keep a distinct prefix
+# so this concurrency group cannot cancel the Build workflow waiting on it.
+concurrency:
+  group: protocol-sdk-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Native protocols (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pinned Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.12.2'
+
+      - name: Set up the production Python version for protocol interoperability
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install isolated backend test dependencies
+        run: python -m pip install -r backend_changes/protocol_v1/requirements-test.txt
+
+      - name: Enable real Python and Dart HTTP interoperability tests
+        run: |
+          python -c "import os,sys; from pathlib import Path; p=Path(os.environ['GITHUB_ENV']); p.open('a').write('NIOS_PROTOCOL_TEST_PYTHON='+sys.executable+'\nNIOS_PROTOCOL_BACKEND_PATH='+str(Path('backend_changes/protocol_v1').resolve())+'\n')"
+
+      - name: Test the production protocol APIs on isolated databases
+        working-directory: backend_changes/protocol_v1
+        run: python -m pytest tests -q --asyncio-mode=auto
+
+      # Consumer builds use the upstream prebuilt GNU Linux libraries, not
+      # Rust source compilation. SQLCipher/OpenSSL are bundled by openmls;
+      # Iroh's published GNU Linux binary targets glibc 2.17+. Runtime C/C++
+      # libraries and HTTPS roots are sufficient on the Ubuntu hosted image.
+      # Sources: openmls_dart v3.2.1 README / CONTRIBUTING; iroh_dart publish.yml.
+      - name: Install Linux native runtime prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ca-certificates libgcc-s1 libstdc++6
+
+      - name: Use an isolated native library cache
+        run: printf 'IROHDART_CACHE_DIR=%s\n' "$RUNNER_TEMP/nios-native" >> "$GITHUB_ENV"
+
+      - name: Resolve all locked standalone packages
+        timeout-minutes: 5
+        run: |
+          for package in nios_sdk nios_mls nios_iroh nios_lab; do
+            (cd "packages/$package" && dart pub get --enforce-lockfile)
+          done
+
+      - name: Check standalone Dart formatting
+        run: dart format --output=none --set-exit-if-changed packages/nios_sdk/lib packages/nios_sdk/test packages/nios_mls/lib packages/nios_mls/test packages/nios_iroh/lib packages/nios_iroh/test packages/nios_lab/lib packages/nios_lab/bin packages/nios_lab/test
+
+      - name: Analyze all protocol packages
+        run: |
+          for package in nios_sdk nios_mls nios_iroh nios_lab; do
+            (cd "packages/$package" && dart analyze --fatal-infos)
+          done
+
+      - name: Test durable delivery, stream, transparency and media
+        working-directory: packages/nios_sdk
+        # The 10k crash/replay case performs actual fsyncs. Allow its explicit
+        # ten-minute test budget on slower hosted Windows disks as well.
+        timeout-minutes: 12
+        run: dart test --reporter expanded --timeout 90s
+
+      # openmls 3.2.1's build hook downloads the platform library and verifies
+      # its SHA-256. Failure to load the real SQLCipher/OpenMLS engine fails
+      # native_probe_test; no fallback cipher or test exclusion is permitted.
+      - name: Test real native OpenMLS group lifecycle and crash recovery
+        working-directory: packages/nios_mls
+        timeout-minutes: 6
+        run: dart test --reporter expanded --timeout 90s
+
+      - name: Download and verify the signed Iroh native library
+        working-directory: packages/nios_iroh
+        timeout-minutes: 5
+        run: dart run iroh_quic:setup --force
+
+      - name: Test actual pinned-peer QUIC delivery
+        working-directory: packages/nios_iroh
+        timeout-minutes: 6
+        run: dart test --reporter expanded --timeout 90s
+
+      - name: Test the real four-module integration lab
+        working-directory: packages/nios_lab
+        timeout-minutes: 6
+        run: dart test --reporter expanded --timeout 120s
+
+      # The process-owned CLI flushes its report and explicitly exits after
+      # cleanup; upstream FRB receive ports must not leave this gate hanging.
+      # Bash pipefail preserves a nonzero Dart exit through tee on both OSes.
+      - name: Run the standalone end-to-end protocol executable
+        working-directory: packages/nios_lab
+        timeout-minutes: 3
+        run: dart run bin/nios_lab.dart | tee protocol-lab.json
+
+      - name: Retain the synthetic protocol verification report
+        uses: actions/upload-artifact@v4
+        with:
+          name: protocol-lab-${{ matrix.os }}
+          path: packages/nios_lab/protocol-lab.json
+          if-no-files-found: error
+          retention-days: 7
