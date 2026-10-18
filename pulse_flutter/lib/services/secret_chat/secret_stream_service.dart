@@ -308,10 +308,19 @@ final class SecretStreamService {
         );
         final sources = <StreamCiphertextSource>[];
         if (await local.exists()) sources.add(FileCiphertextSource(local.path));
-        // The server authenticates the enrolled device and checks its grant.
-        // A local authored copy can be played even while enrollment is offline.
-        if (sources.isEmpty) await ensureRegistered();
-        sources.add(_store().sourceFor(descriptor.manifest));
+        // Restoring a verified cache must not need the network or an enrollment
+        // request. Authenticate lazily only when a missing segment is fetched;
+        // build its HTTP source afterwards so token refreshes are observed.
+        sources.add(
+          _EnrolledCiphertextSource(
+            ensureRegistered: () async {
+              _checkOpen();
+              await ensureRegistered();
+              _checkOpen();
+            },
+            source: () => _store().sourceFor(descriptor.manifest),
+          ),
+        );
         final downloadKey = Uint8List.fromList(descriptor.key);
         NiosStreamDownload? download;
         try {
@@ -574,6 +583,27 @@ final class _Download {
   final NiosStreamDownload download;
   final Uint8List key;
   int references = 1;
+}
+
+final class _EnrolledCiphertextSource implements StreamCiphertextSource {
+  _EnrolledCiphertextSource({
+    required this.ensureRegistered,
+    required this.source,
+  });
+  final Future<void> Function() ensureRegistered;
+  final StreamCiphertextSource Function() source;
+
+  @override
+  Future<Uint8List> readRange(
+    int start,
+    int endExclusive, {
+    StreamCancellation? cancellation,
+  }) async {
+    cancellation?.throwIfCancelled();
+    await ensureRegistered();
+    cancellation?.throwIfCancelled();
+    return source().readRange(start, endExclusive, cancellation: cancellation);
+  }
 }
 
 bool _sameBytes(List<int> a, List<int> b) {

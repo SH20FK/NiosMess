@@ -204,35 +204,175 @@ void main() {
     },
   );
 
-  test('explicit export stays bounded and logout cancels a pending consumer and removes plaintext', () async {
-    final root = await Directory.systemTemp.createTemp('nios-stream-export-');
-    final service = SecretStreamService(accountId: 1,
-      origin: Uri.parse('https://fixture.invalid'), token: () => 'fixture',
-      directory: () async => root, ensureRegistered: () async {});
-    final input = await File(p.join(root.path, 'input')).writeAsBytes(
-        List.generate(1024 * 1024 + 29, (i) => i & 255));
-    final entered = Completer<void>();
-    final release = Completer<void>();
-    String? temporary;
-    try {
-      final file = await service.prepareFile(inputPath: input.path,
-        filename: 'report.bin', mimeType: 'application/octet-stream', subtype: 'media');
-      await expectLater(service.readBytes(file, maximumBytes: 32), throwsStateError);
-      final exporting = service.withExport(file, (path) async {
-        temporary = path;
-        expect(await File(path).length(), await input.length());
-        expect(await File(path).readAsBytes(), await input.readAsBytes());
-        entered.complete();
-        await release.future;
-      });
-      final rejected = expectLater(exporting, throwsA(isA<StreamCancelledException>()));
-      await entered.future;
-      await service.close().timeout(const Duration(seconds: 5));
-      await rejected;
-      expect(await File(temporary!).exists(), isFalse);
-    } finally {
-      if (!release.isCompleted) release.complete();
-      await service.close(); await root.delete(recursive: true);
-    }
-  });
+  test(
+    'cold offline receiver plays verified cache without enrollment and retries missing ranges after reconnect',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'nios-stream-offline-receiver-',
+      );
+      final server = await CiphertextBlobServer.bind(
+        directory: p.join(root.path, 'server'),
+        bearerToken: 'fixture-token',
+      );
+      final grantClient = MockClient((_) async => http.Response('{}', 200));
+      final sender = SecretStreamService(
+        accountId: 1,
+        origin: server.baseUri,
+        token: () => 'fixture-token',
+        directory: () async => Directory(p.join(root.path, 'alice')),
+        ensureRegistered: () async {},
+        allowInsecureLoopback: true,
+        client: grantClient,
+      );
+      var enrollmentAttempts = 0;
+      var offline = false;
+      SecretStreamService newReceiver() => SecretStreamService(
+        accountId: 2,
+        origin: server.baseUri,
+        token: () => 'fixture-token',
+        directory: () async => Directory(p.join(root.path, 'bob')),
+        ensureRegistered: () async {
+          enrollmentAttempts++;
+          if (offline) throw const SocketException('offline');
+        },
+        allowInsecureLoopback: true,
+      );
+      var receiver = newReceiver();
+      final player = http.Client();
+      try {
+        final bytes = Uint8List.fromList(
+          List.generate(2 * 1024 * 1024 + 31, (i) => (i * 19 + 3) & 255),
+        );
+        final input = await File(
+          p.join(root.path, 'source.mp4'),
+        ).writeAsBytes(bytes);
+        final file = await sender.prepareFile(
+          inputPath: input.path,
+          filename: 'video.mp4',
+          mimeType: 'video/mp4',
+          subtype: 'media',
+        );
+        await sender.upload(file, chatId: 42);
+        final first = await receiver.openPlayback(file);
+        expect(enrollmentAttempts, 0);
+        expect(
+          (await player.get(
+            first.uri!,
+            headers: {'range': 'bytes=10-99'},
+          )).bodyBytes,
+          bytes.sublist(10, 100),
+        );
+        expect(enrollmentAttempts, 1);
+        await first.close();
+        await receiver.close();
+
+        // Recreate the service: a real enrollment helper has no in-memory
+        // registration cache after process restart and would now fail offline.
+        offline = true;
+        enrollmentAttempts = 0;
+        receiver = newReceiver();
+        final resumed = await receiver.openPlayback(file);
+        expect(enrollmentAttempts, 0);
+        expect(
+          (await player.get(
+            resumed.uri!,
+            headers: {'range': 'bytes=10-99'},
+          )).bodyBytes,
+          bytes.sublist(10, 100),
+        );
+        expect(enrollmentAttempts, 0);
+        await expectLater(
+          receiver.readBytes(file),
+          throwsA(isA<StreamSourceException>()),
+        );
+        expect(enrollmentAttempts, 1);
+        expect(
+          (await player.get(
+            resumed.uri!,
+            headers: {'range': 'bytes=10-99'},
+          )).bodyBytes,
+          bytes.sublist(10, 100),
+        );
+        expect(
+          enrollmentAttempts,
+          1,
+          reason:
+              'An unavailable missing segment cannot invalidate verified data',
+        );
+
+        offline = false;
+        expect(
+          (await player.get(
+            resumed.uri!,
+            headers: {'range': 'bytes=-20'},
+          )).bodyBytes,
+          bytes.sublist(bytes.length - 20),
+        );
+        expect(
+          enrollmentAttempts,
+          2,
+          reason: 'Failed enrollment must be retried after reconnect',
+        );
+        await resumed.close();
+      } finally {
+        player.close();
+        await sender.close();
+        await receiver.close();
+        await server.close();
+        grantClient.close();
+        await root.delete(recursive: true);
+      }
+    },
+  );
+
+  test(
+    'explicit export stays bounded and logout cancels a pending consumer and removes plaintext',
+    () async {
+      final root = await Directory.systemTemp.createTemp('nios-stream-export-');
+      final service = SecretStreamService(
+        accountId: 1,
+        origin: Uri.parse('https://fixture.invalid'),
+        token: () => 'fixture',
+        directory: () async => root,
+        ensureRegistered: () async {},
+      );
+      final input = await File(
+        p.join(root.path, 'input'),
+      ).writeAsBytes(List.generate(1024 * 1024 + 29, (i) => i & 255));
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      String? temporary;
+      try {
+        final file = await service.prepareFile(
+          inputPath: input.path,
+          filename: 'report.bin',
+          mimeType: 'application/octet-stream',
+          subtype: 'media',
+        );
+        await expectLater(
+          service.readBytes(file, maximumBytes: 32),
+          throwsStateError,
+        );
+        final exporting = service.withExport(file, (path) async {
+          temporary = path;
+          expect(await File(path).length(), await input.length());
+          expect(await File(path).readAsBytes(), await input.readAsBytes());
+          entered.complete();
+          await release.future;
+        });
+        final rejected = expectLater(
+          exporting,
+          throwsA(isA<StreamCancelledException>()),
+        );
+        await entered.future;
+        await service.close().timeout(const Duration(seconds: 5));
+        await rejected;
+        expect(await File(temporary!).exists(), isFalse);
+      } finally {
+        if (!release.isCompleted) release.complete();
+        await service.close();
+        await root.delete(recursive: true);
+      }
+    },
+  );
 }
