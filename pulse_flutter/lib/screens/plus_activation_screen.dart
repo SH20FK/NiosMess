@@ -84,8 +84,9 @@ class _PlusActivationState extends ConsumerState<PlusActivationScreen> {
     if (!consent ||
         busy ||
         !PurchaseDeviceIdentity.isSupported ||
-        offer == null)
+        offer == null) {
       return;
+    }
     setState(() {
       busy = true;
       error = null;
