@@ -12,6 +12,9 @@ class AppFonts {
   /// Comfortable reading font for chat messages, descriptions, long paragraphs, and bios.
   static const String body = 'GolosText';
 
+  /// Bundled Google color emoji; identical glyphs without platform downloads.
+  static const String emoji = 'NotoColorEmoji';
+
   /// Fallbacks
   static const String fallbackDisplay = 'PlusJakartaSans';
   static const String fallbackBody = 'Inter';
@@ -38,7 +41,7 @@ class AppTypography {
       // Display: Bricolage Grotesque (Expressive hero headlines)
       displayLarge: TextStyle(
         fontFamily: AppFonts.headline,
-        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body, AppFonts.emoji],
         fontSize: 57,
         height: 64 / 57,
         fontWeight: FontWeight.w800,
@@ -51,7 +54,7 @@ class AppTypography {
       ),
       displayMedium: TextStyle(
         fontFamily: AppFonts.headline,
-        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body, AppFonts.emoji],
         fontSize: 45,
         height: 52 / 45,
         fontWeight: FontWeight.w700,
@@ -64,7 +67,7 @@ class AppTypography {
       ),
       displaySmall: TextStyle(
         fontFamily: AppFonts.headline,
-        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body, AppFonts.emoji],
         fontSize: 36,
         height: 44 / 36,
         fontWeight: FontWeight.w700,
@@ -79,7 +82,7 @@ class AppTypography {
       // Headlines: Bricolage Grotesque (Section and page headers)
       headlineLarge: TextStyle(
         fontFamily: AppFonts.headline,
-        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body, AppFonts.emoji],
         fontSize: 32,
         height: 40 / 32,
         fontWeight: FontWeight.w700,
@@ -92,7 +95,7 @@ class AppTypography {
       ),
       headlineMedium: TextStyle(
         fontFamily: AppFonts.headline,
-        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body, AppFonts.emoji],
         fontSize: 28,
         height: 36 / 28,
         fontWeight: FontWeight.w700,
@@ -105,7 +108,7 @@ class AppTypography {
       ),
       headlineSmall: TextStyle(
         fontFamily: AppFonts.headline,
-        fontFamilyFallback: const [AppFonts.ui, AppFonts.body],
+        fontFamilyFallback: const [AppFonts.ui, AppFonts.body, AppFonts.emoji],
         fontSize: 24,
         height: 32 / 24,
         fontWeight: FontWeight.w600,
@@ -120,76 +123,71 @@ class AppTypography {
       // Titles: Onest (Universal UI grotesque for cards, lists, and dialogs)
       titleLarge: TextStyle(
         fontFamily: AppFonts.ui,
+        fontFamilyFallback: const [AppFonts.emoji],
         fontSize: 22,
         height: 28 / 22,
         fontWeight: FontWeight.w700,
         letterSpacing: 0,
         color: scheme.onSurface,
-        fontVariations: const <FontVariation>[
-          FontVariation('wght', 700),
-        ],
+        fontVariations: const <FontVariation>[FontVariation('wght', 700)],
       ),
       titleMedium: TextStyle(
         fontFamily: AppFonts.ui,
+        fontFamilyFallback: const [AppFonts.emoji],
         fontSize: 16,
         height: 24 / 16,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.15,
         color: scheme.onSurface,
-        fontVariations: const <FontVariation>[
-          FontVariation('wght', 600),
-        ],
+        fontVariations: const <FontVariation>[FontVariation('wght', 600)],
       ),
       titleSmall: TextStyle(
         fontFamily: AppFonts.ui,
+        fontFamilyFallback: const [AppFonts.emoji],
         fontSize: 14,
         height: 20 / 14,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.1,
         color: scheme.onSurface,
-        fontVariations: const <FontVariation>[
-          FontVariation('wght', 600),
-        ],
+        fontVariations: const <FontVariation>[FontVariation('wght', 600)],
       ),
 
       // Labels: Onest (Buttons, chips, badges, and tabs - colors decoupled for surfaces)
       labelLarge: TextStyle(
         fontFamily: AppFonts.ui,
+        fontFamilyFallback: const [AppFonts.emoji],
         fontSize: 14,
         height: 20 / 14,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.1,
         color: scheme.onSurface,
-        fontVariations: const <FontVariation>[
-          FontVariation('wght', 600),
-        ],
+        fontVariations: const <FontVariation>[FontVariation('wght', 600)],
       ),
       labelMedium: TextStyle(
         fontFamily: AppFonts.ui,
+        fontFamilyFallback: const [AppFonts.emoji],
         fontSize: 12,
         height: 16 / 12,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
         color: scheme.onSurface,
-        fontVariations: const <FontVariation>[
-          FontVariation('wght', 600),
-        ],
+        fontVariations: const <FontVariation>[FontVariation('wght', 600)],
       ),
       labelSmall: TextStyle(
         fontFamily: AppFonts.ui,
+        fontFamilyFallback: const [AppFonts.emoji],
         fontSize: 11,
         height: 16 / 11,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.5,
         color: scheme.onSurface,
-        fontVariations: const <FontVariation>[
-          FontVariation('wght', 500),
-        ],
+        fontVariations: const <FontVariation>[FontVariation('wght', 500)],
       ),
 
       // Body: Golos Text (ParaType reading comfort)
       bodyLarge: TextStyle(
         fontFamily: AppFonts.body,
+        fontFamilyFallback: const [AppFonts.emoji],
         fontSize: 16,
         height: 24 / 16,
         fontWeight: FontWeight.w400,
@@ -198,6 +196,7 @@ class AppTypography {
       ),
       bodyMedium: TextStyle(
         fontFamily: AppFonts.body,
+        fontFamilyFallback: const [AppFonts.emoji],
         fontSize: 14,
         height: 20 / 14,
         fontWeight: FontWeight.w400,
@@ -206,6 +205,7 @@ class AppTypography {
       ),
       bodySmall: TextStyle(
         fontFamily: AppFonts.body,
+        fontFamilyFallback: const [AppFonts.emoji],
         fontSize: 12,
         height: 16 / 12,
         fontWeight: FontWeight.w500,

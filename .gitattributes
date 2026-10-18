@@ -1,0 +1,5 @@
+# Vendored Noto checksums must survive Windows/Linux checkouts byte-for-byte.
+pulse_flutter/assets/emoji/** -text
+pulse_flutter/assets/fonts/noto_color_emoji/** -text
+pulse_flutter/assets/licenses/noto-emoji-*.txt -text
+pulse_flutter/lib/core/utils/noto_emoji_catalog.dart text eol=lf

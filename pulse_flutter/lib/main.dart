@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/diagnostics/app_logger.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
+import 'package:pulse_flutter/core/utils/noto_emoji_licenses.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -49,6 +50,7 @@ Future<void> main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       registerNiosProtocolLicenses();
+      registerNotoEmojiLicenses();
       final AppLogger logger = AppLogger.instance;
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);

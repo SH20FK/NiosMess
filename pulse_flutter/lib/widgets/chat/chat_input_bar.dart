@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/services/desktop_pasteboard_service.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
@@ -106,6 +107,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
 
   Config? _cachedEmojiConfig;
   ColorScheme? _cachedEmojiConfigScheme;
+  Locale? _cachedEmojiLocale;
 
   @override
   void initState() {
@@ -658,8 +660,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 12, vertical: 12),
                                       child: AnimatedSwitcher(
-                                        duration:
-                                            const Duration(milliseconds: 220),
+                                        duration: MediaQuery.disableAnimationsOf(context)
+                                            ? Duration.zero
+                                            : M3Durations.medium1,
                                         switchInCurve: M3SpringCurves.snappy,
                                         switchOutCurve: M3SpringCurves.snappy,
                                         transitionBuilder: (Widget child,
@@ -903,7 +906,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
 
           // ── Edge-to-Edge Material 3 Expressive Emoji & Sticker Hub ──
           AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : M3Durations.medium1,
             curve: M3SpringCurves.spatial,
             height: effectivePanelHeight,
             clipBehavior: Clip.hardEdge,
@@ -1070,6 +1075,10 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
         if (widget.hapticsEnabled) HapticService.tap();
         setState(() => _pickerTabIndex = index);
         if (_pickerPageController.hasClients) {
+          if (MediaQuery.disableAnimationsOf(context)) {
+            _pickerPageController.jumpToPage(index);
+            return;
+          }
           _pickerPageController.animateToPage(
             index,
             duration: const Duration(milliseconds: 260),
@@ -1079,7 +1088,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
       },
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : M3Durations.short4,
         curve: M3SpringCurves.snappy,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
@@ -1091,12 +1102,19 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected
-                  ? scheme.onSecondaryContainer
-                  : scheme.onSurfaceVariant,
+            AnimatedScale(
+              scale: isSelected ? 1.12 : 1,
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : M3Durations.medium1,
+              curve: M3SpringCurves.snappy,
+              child: Icon(
+                icon,
+                size: 16,
+                color: isSelected
+                    ? scheme.onSecondaryContainer
+                    : scheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(width: 6),
             Text(
@@ -1117,12 +1135,20 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   }
 
   Config _getEmojiConfig(ColorScheme scheme) {
-    if (_cachedEmojiConfig != null && _cachedEmojiConfigScheme == scheme) {
+    final locale = Localizations.localeOf(context);
+    if (_cachedEmojiConfig != null &&
+        _cachedEmojiConfigScheme == scheme &&
+        _cachedEmojiLocale == locale) {
       return _cachedEmojiConfig!;
     }
     _cachedEmojiConfigScheme = scheme;
+    _cachedEmojiLocale = locale;
     return _cachedEmojiConfig = Config(
-      checkPlatformCompatibility: true,
+      // The bundled font covers the grid; OS glyph filtering would hide newer
+      // emoji on older Android versions and make opening the picker slower.
+      checkPlatformCompatibility: false,
+      locale: locale,
+      emojiTextStyle: const TextStyle(fontFamily: AppFonts.emoji),
       emojiViewConfig: const EmojiViewConfig(
         backgroundColor: Colors.transparent,
         columns: 8,

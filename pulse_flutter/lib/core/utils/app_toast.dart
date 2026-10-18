@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -10,6 +11,33 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 class AppToast {
   AppToast._();
+
+  // A floating snackbar follows the FAB's top edge, so a tall/animated FAB
+  // can lift a short status message into the middle of the screen. The fixed
+  // Material snackbar stays at the bottom, above navigation and the keyboard;
+  // Scaffold moves the FAB out of its way instead.
+  static const SnackBarBehavior _behavior = SnackBarBehavior.fixed;
+  static const ShapeBorder _shape = RoundedSuperellipseBorder(
+    borderRadius: BorderRadius.all(Radius.circular(16)),
+  );
+
+  static void _present(
+    BuildContext context,
+    ScaffoldMessengerState messenger,
+    SnackBar snackBar,
+  ) {
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      snackBar,
+      snackBarAnimationStyle:
+          MediaQuery.maybeDisableAnimationsOf(context) == true
+          ? AnimationStyle.noAnimation
+          : const AnimationStyle(
+              duration: M3Durations.medium1,
+              reverseDuration: M3Durations.short3,
+            ),
+    );
+  }
 
   static void showError(
     BuildContext context,
@@ -22,18 +50,21 @@ class AppToast {
         : AppErrorFormatter.format(error, l10n: context.l10n);
 
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final ScaffoldMessengerState? scaffoldMessenger =
-        ScaffoldMessenger.maybeOf(context);
+    final ScaffoldMessengerState? scaffoldMessenger = ScaffoldMessenger.maybeOf(
+      context,
+    );
     if (scaffoldMessenger == null) return;
 
     try {
-      ProviderScope.containerOf(context, listen: false)
-          .read(appSoundProvider)
-          .playEvent(SoundEvent.error);
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(appSoundProvider).playEvent(SoundEvent.error);
     } catch (_) {}
 
-    scaffoldMessenger.hideCurrentSnackBar();
-    scaffoldMessenger.showSnackBar(
+    _present(
+      context,
+      scaffoldMessenger,
       SnackBar(
         content: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -100,12 +131,9 @@ class AppToast {
               )
             : null,
         backgroundColor: scheme.errorContainer,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        elevation: 3,
+        behavior: _behavior,
+        shape: _shape,
+        elevation: 0,
         duration: duration ?? const Duration(seconds: 4),
       ),
     );
@@ -113,9 +141,10 @@ class AppToast {
 
   static void showSuccess(BuildContext context, String message) {
     try {
-      ProviderScope.containerOf(context, listen: false)
-          .read(appSoundProvider)
-          .playEvent(SoundEvent.success);
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(appSoundProvider).playEvent(SoundEvent.success);
     } catch (_) {}
     _show(
       context,
@@ -145,12 +174,14 @@ class AppToast {
     Duration duration = const Duration(seconds: 4),
   }) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final ScaffoldMessengerState? scaffoldMessenger =
-        ScaffoldMessenger.maybeOf(context);
+    final ScaffoldMessengerState? scaffoldMessenger = ScaffoldMessenger.maybeOf(
+      context,
+    );
     if (scaffoldMessenger == null) return;
 
-    scaffoldMessenger.hideCurrentSnackBar();
-    scaffoldMessenger.showSnackBar(
+    _present(
+      context,
+      scaffoldMessenger,
       SnackBar(
         content: Row(
           children: [
@@ -175,12 +206,9 @@ class AppToast {
           onPressed: onAction,
         ),
         backgroundColor: scheme.surfaceContainerHighest,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        elevation: 3,
+        behavior: _behavior,
+        shape: _shape,
+        elevation: 0,
         duration: duration,
       ),
     );
@@ -193,12 +221,14 @@ class AppToast {
     required Color textColor,
     required IconData icon,
   }) {
-    final ScaffoldMessengerState? scaffoldMessenger =
-        ScaffoldMessenger.maybeOf(context);
+    final ScaffoldMessengerState? scaffoldMessenger = ScaffoldMessenger.maybeOf(
+      context,
+    );
     if (scaffoldMessenger == null) return;
 
-    scaffoldMessenger.hideCurrentSnackBar();
-    scaffoldMessenger.showSnackBar(
+    _present(
+      context,
+      scaffoldMessenger,
       SnackBar(
         content: Row(
           children: [
@@ -208,20 +238,17 @@ class AppToast {
               child: Text(
                 message,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: textColor,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  color: textColor,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
         ),
         backgroundColor: backgroundColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        elevation: 2,
+        behavior: _behavior,
+        shape: _shape,
+        elevation: 0,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -278,7 +305,8 @@ class AppToast {
                   borderRadius: AppRadii.smRadius,
                 ),
                 child: SelectableText(
-                  formatted.technicalDetails ?? dialogContext.l10n.errorNoAdditionalData,
+                  formatted.technicalDetails ??
+                      dialogContext.l10n.errorNoAdditionalData,
                   style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
                 ),
               ),

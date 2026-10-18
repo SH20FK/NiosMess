@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/message_formatter.dart';
+import 'package:pulse_flutter/core/utils/noto_emoji.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -29,6 +30,7 @@ import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_upload_overlay.dart';
 import 'package:pulse_flutter/widgets/chat/inline_keyboard_view.dart';
+import 'package:pulse_flutter/widgets/chat/noto_message_emoji.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_details_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
@@ -218,6 +220,9 @@ class MessageBubble extends ConsumerWidget {
     final bool hasMedia = (mediaUrl ?? '').trim().isNotEmpty;
     final String displayText = forwarded != null ? forwarded.body : text;
     final bool hasText = displayText.trim().isNotEmpty;
+    final NotoEmoji? standaloneEmoji = !isDeleted && !hasMedia
+        ? NotoEmoji.fromMessage(displayText)
+        : null;
 
     final Map<String, String> headers = cachedAuthHeaders();
 
@@ -447,6 +452,7 @@ class MessageBubble extends ConsumerWidget {
                         _buildMessageTextAndFooter(
                           context: context,
                           text: displayText,
+                          emoji: standaloneEmoji,
                           textColor: textColor,
                           isDeleted: isDeleted,
                           isMine: isMine,
@@ -1314,7 +1320,19 @@ class MessageBubble extends ConsumerWidget {
     required TextTheme textTheme,
     required bool hideFooter,
     required Widget footer,
+    NotoEmoji? emoji,
   }) {
+    if (emoji != null) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          NotoMessageEmoji(emoji: emoji),
+          if (!hideFooter)
+            Padding(padding: const EdgeInsets.only(top: 3), child: footer),
+        ],
+      );
+    }
     final Widget textWidget = InteractiveMessageText(
       text: text,
       baseStyle: textTheme.bodyMedium?.copyWith(

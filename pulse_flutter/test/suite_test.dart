@@ -67,6 +67,11 @@ import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
 import 'widgets/appearance_palette_test.dart' as appearance_palette;
 import 'widgets/app_modals_test.dart' as app_modals;
 import 'widgets/app_startup_gate_test.dart' as app_startup_gate;
+import 'widgets/app_toast_test.dart' as app_toast;
+import 'unit/noto_emoji_test.dart' as noto_emoji;
+import 'widgets/noto_message_emoji_test.dart' as noto_message_emoji;
+import 'widgets/noto_picker_test.dart' as noto_picker;
+import 'widgets/noto_visual_test.dart' as noto_visual;
 import 'formatter_and_detector_test.dart' as formatter_and_detector;
 import 'global_search_deep_links_test.dart' as global_search_deep_links;
 import 'group_moderation_test.dart' as group_moderation;
@@ -150,6 +155,11 @@ void main() {
 
   group('Aggregated Test Suite', () {
     group('app_startup_gate', app_startup_gate.main);
+    group('app_toast', app_toast.main);
+    group('noto_emoji', noto_emoji.main);
+    group('noto_message_emoji', noto_message_emoji.main);
+    group('noto_picker', noto_picker.main);
+    group('noto_visual', noto_visual.main);
     group('protocol_accounts', protocol_accounts.main);
     group('protocol_enrollment', protocol_enrollment.main);
     group('background_stream_crypto', background_stream_crypto.main);

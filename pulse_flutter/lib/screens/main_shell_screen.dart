@@ -376,15 +376,19 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     final bool isVisible = ref.watch(chatListFabVisibleProvider);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final bool reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final Duration motionDuration = reducedMotion
+        ? Duration.zero
+        : M3Durations.short4;
 
     return AnimatedSlide(
       offset: isVisible ? Offset.zero : const Offset(0, 0.35),
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
+      duration: motionDuration,
+      curve: M3SpringCurves.gentle,
       child: AnimatedOpacity(
         opacity: isVisible ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
+        duration: motionDuration,
+        curve: M3SpringCurves.expressiveDecel,
         child: IgnorePointer(
           ignoring: !isVisible,
           child: FloatingActionButton(
