@@ -1,11 +1,10 @@
 name: nios_lab
-description: Executable five-module Nios protocol integration lab with real native crypto and loopback networking.
+description: Executable four-module Nios protocol integration lab with real native crypto and loopback networking.
 version: 0.1.0
 publish_to: none
 environment:
   sdk: ^3.12.0
 dependencies:
-  crypto: ^3.0.7
   cryptography: ^2.9.0
   iroh_quic: 1.1.0
   nios_sdk:

@@ -1,6 +1,6 @@
-# Nios five-module protocol lab
+# Nios four-module protocol lab
 
-An executable integration of the five proposed technical modules, using real
+An executable integration of the four technical modules, using real
 native OpenMLS and Iroh QUIC plus loopback HTTP services. It creates synthetic
 accounts and content in a temporary directory. It never contacts the NiosMess
 backend, uses a production account, or changes installed application data.
@@ -9,8 +9,7 @@ backend, uses a production account, or changes installed application data.
 
 Requires Dart 3.12 or newer and a platform supported by both pinned native
 dependencies. The Windows x64 native path has been executed. Android/iOS device
-qualification, public-network NAT traversal and physical multi-host failures
-are separate deployment checks.
+qualification and public-network NAT traversal are separate deployment checks.
 
 ```sh
 dart pub get
@@ -37,7 +36,7 @@ individual invariant's symbolic error code.
    same machine is not administrative or physical independence.
 2. **MLS.** Alice creates a genuine RFC 9420 group, adds Bob's real KeyPackage,
    and Bob processes the Welcome. MLS encrypts the file's stream manifest,
-   distribution manifest, their hashes and the decryption key. Restart returns
+   its hash and the decryption key. Restart returns
    the identical outbound ciphertext and saved inbound plaintext. Removing Bob
    advances the epoch; Bob cannot read the new application message.
 3. **Durable Link over Iroh.** A real QUIC operation is durably applied by Bob,
@@ -49,12 +48,9 @@ individual invariant's symbolic error code.
 4. **NiosStream over HTTP Range.** Bob authenticates the received manifest and
    reads an arbitrary plaintext range through bearer-authenticated HTTP 206
    responses. Each ciphertext segment is authenticated before plaintext release.
-   Restart reuses verified segments instead of downloading them again.
-5. **Three-of-five storage.** Five actual loopback HTTP shard servers acknowledge
-   stored ciphertext shares. Two servers are stopped. The remaining three
-   restore the ciphertext; a replacement node receives a repaired share without
-   a file decryption key. NiosStream then authenticates and restores the exact
-   original synthetic plaintext.
+   Restart reuses verified segments instead of downloading them again. After
+   completing the download from the original prepared ciphertext, NiosStream
+   authenticates and verifies the exact original synthetic plaintext.
 
 The exporter derives an epoch-bound encryption key. All group members can know
 that key; it is never treated as proof of a unique sender or ACK origin. Device

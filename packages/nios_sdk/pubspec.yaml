@@ -1,5 +1,5 @@
 name: nios_sdk
-description: Durable encrypted operations, resumable encrypted content, device trust and redundant storage for NiosMess and other applications.
+description: Durable encrypted operations, resumable encrypted content and device trust for NiosMess and other applications.
 version: 0.1.0
 publish_to: none
 environment:

@@ -9,7 +9,7 @@ SDK, локальные reference-сервисы и адаптер владен�
 
 Предлагается добавить отдельный versioned service origin с mailbox, blob и
 служебными API, сохранив существующий протокол до завершения миграции.
-Iroh relay, журнал прозрачности, независимые свидетели и пять хранилищ имеют
+Iroh relay, журнал прозрачности и независимые свидетели имеют
 разные функции и владельцев. Замена или размещение всего на одном процессе
 не даёт описанных ниже свойств независимости.
 
@@ -17,15 +17,14 @@ Iroh relay, журнал прозрачности, независимые сви
 
 | Изменение | Предлагаемая граница | Условие включения |
 | --- | --- | --- |
-| Device registration и capabilities | Дополнение существующей авторизации; отдельные версии Link/Stream/MLS/KT/storage | Проверенная привязка аккаунт → устройство → ключи; старые клиенты не получают новый формат |
+| Device registration и capabilities | Дополнение существующей авторизации; отдельные версии Link/Stream/MLS/KT | Проверенная привязка аккаунт → устройство → ключи; старые клиенты не получают новый формат |
 | Mailbox и blob | Новый HTTPS origin, новые таблицы/объекты и маршруты `/v1/...` | Device-scoped ACL, транзакционная фиксация, квоты, проверки повтора/отказа |
 | MLS delivery service | Отдельный упорядоченный служебный поток, KeyPackage directory и fanout | Durable reservation перед созданием commit, восстановление координатора, подтверждения каждого устройства |
 | Key transparency | Постоянный append-only log и отдельный log signing key | Независимые witness operators/keys, pinning, мониторинг и политика свежести |
-| Distributed storage | Пять согласованных failure domains; по одному share index на домен | Все пять receipts при начальном размещении, восстановление с любых трёх, repair/deletion tests |
 | Iroh relay и signaling | Отдельно согласованные relay URLs и канал обновления адресов | Проверенная endpoint identity; реальные NAT/mobile проверки |
 
 До изменений на сервере владелец утверждает реальные hostname/host placement,
-операторов свидетелей и хранилищ, бюджет, размеры/квоты, срок хранения завершённых
+операторов свидетелей, бюджет, размеры/квоты, срок хранения завершённых
 записей и способ выдачи device credentials. Секреты в документ не помещаются.
 Миграция существующих пользователей и изменение текущих серверных обработчиков
 тоже требуют согласования; локальный lab этим разрешением не является.
@@ -41,7 +40,6 @@ Iroh relay, журнал прозрачности, независимые сви
     |                               |
     +── HTTPS mailbox для офлайна ──+
     +── immutable ciphertext blob ──+
-    +── 5 storage domains: ciphertext shares, восстановление из 3
 
 Key log ── consistency proofs ── независимые witnesses ── pinned clients
 MLS coordinator ── ordered control events / Welcome ── device inboxes
@@ -56,7 +54,7 @@ QUIC write/stream completion не означает сохранение или �
 
 HTTPS bearer credentials должны иметь audience сервиса, account/device binding,
 ограниченные права, отзыв и обновление. Reference mailbox использует фиксированную
-карту device → token, blob/shard helpers — token одного владельца. Это тестовая
+карту device → token, blob helper — token одного владельца. Это тестовая
 авторизация, а не готовый multi-tenant issuer. Production должен проверять
 получателя/owner namespace и право доступа на каждом HTTP-запросе; знание hash
 объекта или device ID не является разрешением. После регистрации/отзыва ключа
@@ -79,7 +77,7 @@ Iroh endpoint key подписью account identity. Новый адрес Iroh 
 
 - `PUT /v1/devices/{device}/protocols`: device-authenticated регистрация
   `link:[1]`, `stream:[1]`, `mls:{versions:["1.0"],suites:["0x0001"]}`,
-  `ktStatements:[1,2]`, `distributed:[1]`, `irohAlpn:["nios.link/1"]`,
+  `ktStatements:[1,2]`, `irohAlpn:["nios.link/1"]`,
   проверенных лимитов размеров и доступных native modules.
 - `GET /v1/protocols`: версии сервисов, лимиты, canonical origins, relay policy,
   log ID и идентификаторы утверждённого trust configuration. Ответ не может
@@ -301,48 +299,10 @@ account heads, либо протокол проверки полноты све�
 proof текущий SDK не предоставляет. При подозрении очередь приостанавливается,
 checkpoint/pins не стираются. Старые ключи/отзывы остаются tombstones.
 
-## 8. Пять shard domains: существующие API и размещение
-
-[HttpShardNode](lib/src/distributed/http_shard_node.dart) обращается к origin
-каждого узла; [DistributedStore](lib/src/distributed/distributed_store.dart)
-сначала получает пять receipts. Начальная запись с тремя успешными узлами сейчас
-не считается завершённым `putCiphertext`. После записи достаточно любых трёх
-**разных проверенных share indices**, а не трёх копий одного share.
-
-| Метод и путь на каждом node | Контракт |
-| --- | --- |
-| `PUT /v1/shards/{objectId}/{index}` | `index:0..4`, exact shard body/length, `X-Nios-Manifest` = base64url canonical manifest JSON, `X-Nios-Manifest-Hash`; ответ `node_id,failure_domain,index,manifest_hash` |
-| `GET /v1/shards/{objectId}/{index}?stripe=N` | Bearer + manifest hash header; ответ `index,stripe,data` (base64), `proof:[{hash,left}]`; клиент проверяет pinned Merkle root |
-| `DELETE /v1/objects/{objectId}` | Owner-authenticated idempotent deletion; ответ `{"deleted":true}`; persistent tombstone предотвращает resurrection от старого PUT |
-
-Public manifest содержит object ID, ciphertext hash/length, block size и пять
-roots. В нём нет file key или имени файла. Max block — 256 KiB, stripes — 4096:
-предел формата около 3 GiB ciphertext, с padding и metadata. Default deadline
-`HttpShardNode` — 20 seconds на запрос, включая PUT; крупные mobile uploads
-нельзя рекламировать без согласования timeout/size profile и замеров.
-
-Имена domains должны соответствовать реальным независимым отказам: разные
-storage machines/disks, затем согласованные regions/providers/administrators
-под целевую модель. Пять каталогов на текущем сервере дают тестирование codec,
-но не отказоустойчивое внешнее размещение. HTTPS receipt не доказывает физическую
-независимость или долговременное наличие bytes у нечестного провайдера.
-
-План размещения фиксирует для indices 0..4 node ID, owner, origin, failure domain,
-storage credentials scope, лимит и стоимость. `repairShare` восстанавливает
-ciphertext share без file key, проверяя manifest; замена должна сохранять
-независимость от четырёх оставшихся domains. Удаление на offline node требует
-центрального durable deletion job и повторов до tombstone на каждом node.
-
-Сохранить отдельно и надёжно оба authenticated manifests: Stream и Distributed,
-а также file key и карту locations/receipts. Потеря этих данных не исправляется
-наличием любых трёх shares. App adapter пока не направляет attachment uploads
-в `DistributedStore` и не строит автоматический source из recovered ciphertext:
-этот bridge, repair scheduler и recovery UI ещё нужны.
-
-## 9. HTTPS proxy и absolute paths
+## 8. HTTPS proxy и absolute paths
 
 Все текущие HTTP adapters используют root-relative `/v1/...`: mailbox/blob —
-`baseUri.resolve('/v1/...')`, shard — `origin.replace(path:'/v1/...')`.
+`baseUri.resolve('/v1/...')`.
 Следовательно `https://host.example/nios/` **не** создаёт
 `https://host.example/nios/v1/...`; запрос уйдёт на `https://host.example/v1/...`.
 Требуется отдельный origin с `/v1` на корне или proxy routing по root paths.
@@ -358,12 +318,12 @@ TLS завершается на утверждённом proxy; helpers слуш
 Proxy сохраняет Authorization, Range, Content-Range, Content-Length и X-Nios
 headers, отключает трансформацию/compression ciphertext representation и
 общий cache для private responses. Request/body/header budgets задаются отдельно
-для mailbox, MLS control, manifests и больших blob/shard PUT. Настройка одного
+для mailbox, MLS control, manifests и больших blob PUT. Настройка одного
 глобального «безлимитного upload» недопустима. Absolute timeouts/abort/connection
 limits должны работать и на proxy, и на service; access logs не содержат token,
 request body, file keys или query credentials.
 
-## 10. Durability, retention и rollback
+## 9. Durability, retention и rollback
 
 Текущие тесты проверяют process termination, flush и atomic publication.
 Portable Dart APIs не предоставляют parent-directory fsync: внезапное отключение
@@ -380,7 +340,7 @@ Reference mailbox останавливает приём при 100,000 records /
 Клиент при `507`, `429` или временной недоступности сохраняет payload/ciphertext.
 После исправления auth/permanent error нужен явный retry/wake, а не потеря записи.
 
-Completed envelopes/ACKs, dedup tombstones, blobs/shares и KT log имеют разные
+Completed envelopes/ACKs, dedup tombstones, blobs и KT log имеют разные
 retention policies. Удаление finished bytes не должно позволять повторно
 применить старую операцию; protocol v1 не объявляет deadline операции, поэтому
 ограниченный срок dedup требует отдельного epoch/checkpoint/retirement agreement.
@@ -403,7 +363,7 @@ auth logout вызывает adapter. Обычный logout не являетс�
 истории собеседника. File deletion не гарантирует физическое стирание SSD,
 backups и уже полученных копий.
 
-## 11. Порядок работ и обязательные проверки
+## 10. Порядок работ и обязательные проверки
 
 1. **Согласование.** Утвердить изменения из раздела 1, device/auth model,
    независимых владельцев, quotas/retention и rollback. SSH/deploy до этого
@@ -416,15 +376,15 @@ backups и уже полученных копий.
    один объект; concurrent duplicate/collision; cross-account sender/read/confirm;
    отозванный token; 101+ inbox records и cursor replay; oversized/slow body,
    redirect, timeout/abort; exact Range без compression; interrupted PUT и restart.
-4. **MLS/KT и storage tests.** Два concurrent membership changes, coordinator
+4. **MLS/KT и file tests.** Два concurrent membership changes, coordinator
    death до/после server commit, delayed Welcome, commit-before-application,
    недействительная device signature; log/witness restart/backup/fork/withholding,
-   stale checkpoint; все 10 сочетаний потери любых двух из пяти shard nodes,
-   tampering, repair, deletion при offline node и восстановление key/manifest backup.
+   stale checkpoint; authenticated file ranges, tampering, interrupted download,
+   restart и восстановление key/manifest backup.
 5. **Client wiring.** Capability registration/discovery, durable gate до
    negotiation, trust pin/enrollment UX, authorized cipher/transport factory,
-   MLS reservation bridge и epoch queue policy, attachment grants и distributed
-   source/repair. Детерминированный reducer не делает внешние side effects:
+   MLS reservation bridge и epoch queue policy, attachment grants и range sources.
+   Детерминированный reducer не делает внешние side effects:
    chat DB, notifications и read models требуют своей транзакции/idempotency.
 6. **Устройства.** Native packaging/CI checks и два Android с реальными Wi-Fi,
    mobile/NAT, background/Doze, offline restart, process kill и account logout.
@@ -436,8 +396,8 @@ backups и уже полученных копий.
    сохранением очереди. После этого отдельно согласовать production rollout.
 
 Наблюдаемость: queue depth/age, retry error codes, mailbox capacity, publication
-latency, MLS reservation/epoch lag, witness freshness/quorum и degraded shard
-count. Тексты, envelope bodies, file keys, identity secrets и credentials в
+latency, MLS reservation/epoch lag и witness freshness/quorum.
+Тексты, envelope bodies, file keys, identity secrets и credentials в
 telemetry/logs не входят.
 
 ## Исходники для проверки решения
@@ -445,7 +405,6 @@ telemetry/logs не входят.
 - [SDK scope и ограничения](README.md).
 - [Durable Link](lib/src/link/durable_session.dart) и [reference mailbox](example/mailbox_server.dart).
 - [Stream format / HTTP publication](lib/src/stream/FORMAT.md).
-- [Shard HTTP service](lib/src/distributed/http_shard_node.dart).
 - [MLS semantics и durability](../nios_mls/README.md).
 - [Iroh deployment boundaries](../nios_iroh/README.md).
 - [Transparency verification и persistent witness](lib/src/trust/transparency.dart).

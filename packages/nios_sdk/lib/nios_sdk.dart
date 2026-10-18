@@ -2,7 +2,6 @@
 /// are separate packages so clients can choose their transport and group stack.
 library;
 
-export 'distributed.dart';
 export 'link.dart';
 export 'media.dart';
 export 'stream.dart';

@@ -1,6 +1,6 @@
 # Nios protocol packages
 
-These standalone packages implement the five selected technical directions.
+These standalone packages implement the four selected technical directions.
 NiosMess supplies the Flutter account owner; other native Dart applications can
 embed the packages through their public APIs.
 
@@ -11,8 +11,7 @@ embed the packages through their public APIs.
 | [nios_sdk](nios_sdk/README.md#2--niosstream-and-native-media) | #2 | Segmented AES-GCM files, resume, authenticated HTTP Range, blob publication, native media gateway |
 | [nios_mls](nios_mls/README.md) | #5 | Real RFC 9420 groups through native OpenMLS, authorized device membership and crash-consistent state/result publication |
 | [nios_sdk](nios_sdk/README.md#6--key-transparency) | #6 | Account-signed device/transport key bundles, append-only Merkle proofs, checkpoint verification and witness monitor |
-| [nios_sdk](nios_sdk/README.md#12--distributed-ciphertext-storage) | #12 | Verified Reed–Solomon 3-of-5 ciphertext shares, restore, repair and deletion tombstones |
-| [nios_lab](nios_lab/README.md) | All five | Executable native end-to-end integration with synthetic accounts and loopback services |
+| [nios_lab](nios_lab/README.md) | All four | Executable native end-to-end integration with synthetic accounts and loopback services |
 
 ## Quick verification
 
@@ -46,8 +45,7 @@ Success prints one JSON report with `status: passed`; the CLI then exits with
 code zero. Report fields are booleans/counts/states without content, tokens or
 keys. It uses actual native cryptography and QUIC, discards an ACK before sender
 restart, rejects a forged device ACK from an attacker given the encryption
-secret, resumes authenticated file ranges, stops two of five HTTP shard nodes,
-repairs a share without the file key, and restores the original bytes. It also
+secret, resumes authenticated file ranges and verifies the original bytes. It also
 checks that an excluded MLS member cannot decrypt the next epoch.
 
 ## Current integration boundary
@@ -69,18 +67,17 @@ and copies O(database size) per mutation. Browser durability is a separate
 adapter. Reducers cover journal-local application-once effects; external side
 effects require their own transactions or idempotency.
 
-The five shard servers and witness in the lab run on one machine. Independent
-production failure domains and independent witness operators remain deployment
-requirements. Keys/manifests must be backed up or recovered deliberately;
-erasure coding cannot recover a lost encryption key. Process-crash flush tests
+The witness in the lab runs on the same machine. Independent witness operators
+remain a production requirement for the transparency trust model. Keys and
+manifests must be backed up or recovered deliberately. Process-crash flush tests
 do not establish persistence after sudden power loss without directory fsync.
 
 ## Backend approval
 
-The local loopback mailbox/blob/shard services and lab do not modify
+The local loopback mailbox/blob services and lab do not modify
 `/opt/niosmess/current` or the production backend. Public endpoint deployment,
 account/device enrollment, supported-protocol advertisement, TLS, quotas,
-independent key witnesses, relays and storage provisioning still need backend
+independent key witnesses, relays and blob storage provisioning still need backend
 integration. **Ask the user before changing/deploying the existing backend.**
 
 See each package README for exact APIs, protocol formats, authorization rules,

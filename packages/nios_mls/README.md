@@ -77,7 +77,7 @@ of that epoch. Use separate account-authorized device signatures or genuinely
 pairwise keys to authenticate Link operations and ACKs. A group exporter alone
 does not identify a particular member. Session IDs and retained queue keys must
 include the epoch; changing membership must not reinterpret old queued bytes
-under a different key. The five-module `../nios_lab` executable demonstrates
+under a different key. The four-module `../nios_lab` executable demonstrates
 verified key bundles, SignedEnvelopeCipher and real Iroh transport together.
 
 ## Durability

@@ -1,9 +1,9 @@
 # Nios SDK
 
 Flutter-independent Dart building blocks for durable encrypted operations,
-authenticated file ranges, device-key history and three-of-five storage.
+authenticated file ranges and device-key history.
 The native OpenMLS and Iroh adapters live in separate packages. These packages
-implement the five proposed technical directions **#1, #2, #5, #6 and #12**.
+implement the four proposed technical directions **#1, #2, #5 and #6**.
 
 ## Packages and imports
 
@@ -14,7 +14,6 @@ implement the five proposed technical directions **#1, #2, #5, #6 and #12**.
 | #2 media | `package:nios_sdk/media.dart` | Loopback capability URL for a native range-capable player; plaintext is authenticated in RAM |
 | #5 | `package:nios_mls/nios_mls.dart` | Genuine RFC 9420 group membership, epochs and encrypted messages through native OpenMLS |
 | #6 | `package:nios_sdk/trust.dart` | Account-authorized device bundles, RFC 6962 proofs, signed checkpoints and persistent witnesses |
-| #12 | `package:nios_sdk/distributed.dart` | Systematic 3+2 Reed–Solomon coding, verified shares, recovery and keyless repair |
 | #1 native | `package:nios_iroh/nios_iroh.dart` | Pinned-identity Iroh QUIC transport and encrypted persistent endpoint identity |
 
 `package:nios_sdk/nios_sdk.dart` exports the Dart modules together. Dart sources
@@ -50,9 +49,9 @@ an APK. Both native adapters have been exercised on Windows x64; the CI matrix
 and real mobile/device scenarios remain separate verification surfaces.
 
 The lab uses genuine native cryptography, QUIC endpoints, bearer-authenticated
-HTTP ranges and five loopback shard servers. It discards an ACK, reopens the
+HTTP ranges. It discards an ACK, reopens the
 sender, rejects a forged device ACK despite possession of a group encryption
-key, stops two shard servers, repairs a share and verifies the restored bytes.
+key and verifies the restored bytes.
 See [the lab contract](../nios_lab/README.md) for exact checks and diagnostics.
 
 ## #1 — Durable Link
@@ -224,29 +223,6 @@ must use exclusive boxes. Call `await client.close()` to fence new mutations and
 drain admitted calls, then close its externally owned store. Wrong storage keys
 are rejected before Hive recovery can modify a journal.
 
-## #12 — Distributed ciphertext storage
-
-`DistributedStore(nodes:, spoolDirectory:)` requires five distinct configured
-failure-domain labels. `putCiphertext` creates a `DistributedManifest` and five
-`ShareReceipt`s; `recoverCiphertext` needs any three verified share indices.
-`repairShare(manifest, index, replacement)` rebuilds a share without the file key.
-`delete` writes node deletion tombstones. Authentication covers object identity,
-share index and stripe position through manifest-pinned Merkle roots.
-
-The codec is systematic Vandermonde Reed–Solomon, GF(256), polynomial 0x11d,
-three data and two parity shares. Storage is roughly 5/3 of ciphertext plus
-padding and metadata. It is erasure coding, so callers must encrypt before
-distribution and retain the encryption key and authenticated manifest separately.
-The key and manifest are themselves critical recovery material.
-
-`DirectoryShardNode` provides flushed disk storage; `HttpShardNode` accesses
-bearer-authenticated HTTPS nodes. `ShardNodeServer.bind` is the loopback reference
-server. Deploy storage domains independently: labels cannot prove physical
-separation or prevent a node from falsely claiming disk possession. The v1
-manifest bounds stripe count to 4096 and blocks to 256 KiB, limiting one object
-to approximately 3 GiB. Recovery/repair stage ciphertext on disk and validate
-the final hash before publication.
-
 ## Deployment and durability boundaries
 
 The packages and local reference services are executable implementations. Their
@@ -256,7 +232,7 @@ account and remains explicitly configured/negotiated. Existing chat protocols
 continue through their current paths.
 
 Production mailbox/blob endpoints, independent witnesses, public Iroh relays,
-five storage domains, account/device enrollment, quotas, monitoring and mobile
+account/device enrollment, quotas, monitoring and mobile
 background behavior need deployment integration and qualification. **Changing
 the existing NiosMess backend or deploying these services still requires the
 user's approval. No production backend modification is part of the local lab.**

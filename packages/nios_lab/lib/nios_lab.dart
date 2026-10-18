@@ -2,12 +2,10 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart' as digest;
 import 'package:cryptography/cryptography.dart';
 import 'package:iroh_quic/iroh_quic.dart' as iroh;
 import 'package:nios_iroh/nios_iroh.dart' hide SecretKey;
 import 'package:nios_mls/nios_mls.dart';
-import 'package:nios_sdk/distributed.dart';
 import 'package:nios_sdk/link.dart';
 import 'package:nios_sdk/stream.dart';
 import 'package:nios_sdk/trust.dart';
@@ -22,16 +20,14 @@ void _require(bool condition, String code) {
   if (!condition) throw StateError(code);
 }
 
-/// Runs five modules together against synthetic data. Everything is loopback,
+/// Runs four modules together against synthetic data. Everything is loopback,
 /// temporary and owner-scoped; no production service/account is contacted.
 /// The returned report contains states/counts only, never secrets or payloads.
 Future<Map<String, Object>> runNiosProtocolLab() async {
-  final temp = await Directory.systemTemp.createTemp('nios-five-module-lab-');
+  final temp = await Directory.systemTemp.createTemp('nios-four-module-lab-');
   final mlsClients = <NiosMlsClient>[];
   final sessions = <DurableSession>[];
   final ktStores = <HiveTransparencyStateStore>[];
-  final shardServers = <ShardNodeServer>[];
-  final shardClients = <HttpShardNode>[];
   final downloads = <NiosStreamDownload>[];
   final transports = <IrohLinkTransport>[];
   HttpServer? rangeServer;
@@ -205,42 +201,10 @@ Future<Map<String, Object>> runNiosProtocolLab() async {
       outputDirectory: '${temp.path}/prepared',
       segmentSize: 32 * 1024,
     );
-    for (var i = 0; i < 5; i++) {
-      final server = await ShardNodeServer.bind(
-        node: DirectoryShardNode(
-          id: 'node-$i',
-          failureDomain: 'host-$i',
-          directory: '${temp.path}/node-$i',
-        ),
-        token: 'ephemeral-lab-node-token-$i',
-      );
-      shardServers.add(server);
-      shardClients.add(
-        HttpShardNode(
-          id: 'node-$i',
-          failureDomain: 'host-$i',
-          origin: server.origin,
-          token: 'ephemeral-lab-node-token-$i',
-          timeout: const Duration(seconds: 2),
-        ),
-      );
-    }
-    var distributed = DistributedStore(
-      nodes: shardClients,
-      spoolDirectory: '${temp.path}/spool',
-    );
-    final stored = await distributed.putCiphertext(
-      prepared.ciphertextPath,
-      blockSize: 16 * 1024,
-    );
-    _require(stored.receipts.length == 5, 'five_shares_not_durable');
-
-    // Both manifest hashes and the decryption key are authenticated inside MLS.
+    // The manifest hash and decryption key are authenticated inside MLS.
     final metadata = <String, Object>{
       'stream': prepared.manifest.toJson(),
       'streamHash': prepared.manifest.hash,
-      'distributed': stored.manifest.toJson(),
-      'distributedHash': stored.manifest.hash,
       'fileKey': base64Encode(await prepared.key.extractBytes()),
     };
     final mlsOperation = await alice.encrypt(
@@ -440,10 +404,6 @@ Future<Map<String, Object>> runNiosProtocolLab() async {
       received['stream'] as Map<String, dynamic>,
       expectedHash: received['streamHash'] as String,
     );
-    final distribution = DistributedManifest.fromJson(
-      received['distributed'] as Map<String, dynamic>,
-      expectedHash: received['distributedHash'] as String,
-    );
     final fileKey = SecretKey(base64Decode(received['fileKey'] as String));
 
     var rangeRequests = 0;
@@ -524,53 +484,8 @@ Future<Map<String, Object>> runNiosProtocolLab() async {
     await download.downloadAll();
     _require(download.isComplete, 'http_download_incomplete');
 
-    // Actually stop two HTTP servers, retaining three of five indices.
-    await shardServers[0].close();
-    await shardServers[1].close();
-    distributed = DistributedStore(
-      nodes: shardClients,
-      spoolDirectory: '${temp.path}/spool',
-    );
-    final recovered = await distributed.recoverCiphertext(
-      distribution,
-      '${temp.path}/recovered.nsc',
-    );
-    _require(
-      (await digest.sha256.bind(recovered.openRead()).first).toString() ==
-          distribution.ciphertextHash,
-      'three_of_five_recovery_mismatch',
-    );
-    final replacementServer = await ShardNodeServer.bind(
-      node: DirectoryShardNode(
-        id: 'replacement',
-        failureDomain: 'replacement-host',
-        directory: '${temp.path}/replacement',
-      ),
-      token: 'ephemeral-replacement-token',
-    );
-    shardServers.add(replacementServer);
-    final replacement = HttpShardNode(
-      id: 'replacement',
-      failureDomain: 'replacement-host',
-      origin: replacementServer.origin,
-      token: 'ephemeral-replacement-token',
-    );
-    shardClients.add(replacement);
-    // Repair receives no file decryption key.
-    await distributed.repairShare(distribution, 0, replacement);
-    _require(
-      distribution.verifies(await replacement.get(distribution, 0, 0)),
-      'repaired_share_invalid',
-    );
-    final restoredDownload = await NiosStreamDownload.open(
-      directory: '${temp.path}/restored-download',
-      manifest: manifest,
-      key: fileKey,
-      sources: [FileCiphertextSource(recovered.path)],
-    );
-    downloads.add(restoredDownload);
-    final restored = await restoredDownload.readRange(0, original.length);
-    _require(sameDigest(restored, original), 'restored_plaintext_mismatch');
+    final plaintext = await download.readRange(0, original.length);
+    _require(sameDigest(plaintext, original), 'downloaded_plaintext_mismatch');
 
     // Exclude Bob and prove that the new MLS epoch cannot be read by his state.
     final bobIndex = (await alice.members(
@@ -598,7 +513,7 @@ Future<Map<String, Object>> runNiosProtocolLab() async {
 
     return {
       'status': 'passed',
-      'modules': 5,
+      'modules': 4,
       'transport': 'native_iroh_quic',
       'trusted_devices': 2,
       'witness_quorum': 1,
@@ -614,10 +529,7 @@ Future<Map<String, Object>> runNiosProtocolLab() async {
       'segments': manifest.segmentCount,
       'http_range_requests': rangeRequests,
       'cache_reused_after_restart': true,
-      'shards_durable': 5,
-      'shard_servers_stopped': 2,
-      'keyless_repair': true,
-      'restored_plaintext_verified': true,
+      'plaintext_verified': true,
       'removed_member_rejected': true,
     };
   } finally {
@@ -632,12 +544,6 @@ Future<Map<String, Object>> runNiosProtocolLab() async {
     }
     for (final client in mlsClients) {
       await client.close();
-    }
-    for (final node in shardClients) {
-      node.close();
-    }
-    for (final server in shardServers) {
-      await server.close();
     }
     for (final store in ktStores) {
       await store.close();
