@@ -255,29 +255,44 @@ void main() {
               trickle?.cancel();
             }
           });
-          // Cancelling HttpRequest's subscription may close the underlying
-          // connection before an HTTP 408 can be written (platform dependent).
+          // Cancelling an unread HttpRequest body at its deadline can end TCP
+          // with EOF or ECONNRESET before an HTTP 408 is written. Accept only
+          // that specific socket error; the deadline and recovery checks below
+          // still reject premature disconnects and a blocked mailbox queue.
           final result = await status.then(
             (line) => line,
-            onError: (Object error) {
+            onError: (Object error, StackTrace stack) {
               if (error is StateError && error.message == 'No element') {
                 return 'body_connection_closed';
               }
-              throw error;
+              if (error is SocketException &&
+                  const {104, 54, 10054}.contains(error.osError?.errorCode)) {
+                // Linux, macOS/BSD, and Windows ECONNRESET, respectively.
+                return 'body_connection_reset';
+              }
+              Error.throwWithStackTrace(error, stack);
             },
           );
           expect(
             result,
-            anyOf(startsWith('HTTP/1.1 408'), 'body_connection_closed'),
+            anyOf(
+              startsWith('HTTP/1.1 408'),
+              'body_connection_closed',
+              'body_connection_reset',
+            ),
           );
           expect(
             deadlineClock.elapsed,
             greaterThan(const Duration(seconds: 8)),
           );
-          final recovered = await adminClient.get(
-            endpoint.resolve('/v1/inbox'),
-            headers: {'authorization': 'Bearer $_tokenB'},
-          );
+          expect(deadlineClock.elapsed, lessThan(const Duration(seconds: 15)));
+          trickle.cancel();
+          final recovered = await adminClient
+              .get(
+                endpoint.resolve('/v1/inbox'),
+                headers: {'authorization': 'Bearer $_tokenB'},
+              )
+              .timeout(const Duration(seconds: 3));
           expect(recovered.statusCode, 200);
         } finally {
           trickle?.cancel();
