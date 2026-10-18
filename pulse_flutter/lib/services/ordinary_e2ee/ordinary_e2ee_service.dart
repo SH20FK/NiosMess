@@ -10,6 +10,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'ordinary_e2ee_codec.dart';
+import 'automatic_enrollment.dart';
 
 typedef E2eRequest =
     Future<dynamic> Function(String action, {Map<String, dynamic>? payload});
@@ -19,10 +20,18 @@ class OrdinaryE2eeService extends ChangeNotifier {
     this.userId,
     this.request, {
     FlutterSecureStorage? storage,
-  }) : storage = storage ?? const FlutterSecureStorage();
+    EnrollmentVerifier? enrollmentVerifier,
+  }) : storage = storage ?? const FlutterSecureStorage(),
+       enrollmentVerifier = enrollmentVerifier ?? EnrollmentVerifier();
   final int userId;
   final E2eRequest request;
   final FlutterSecureStorage storage;
+  final EnrollmentVerifier enrollmentVerifier;
+  EnrollmentStore get _enrollmentStore => EnrollmentStore(storage: storage);
+  EnrollmentOffer? _autoOffer;
+  Future<void>? _automaticSync;
+  String? _autoStarted;
+  bool get autoWaiting => locked && _autoOffer != null;
   OrdinaryKeys? _keys;
   List<int>? _recovery;
   bool enabled = true, locked = false, initialised = false;
@@ -30,6 +39,7 @@ class OrdinaryE2eeService extends ChangeNotifier {
   E2eJson? _status;
   Future<void>? _opening;
   bool _disposed = false;
+  int _identityGeneration = 0;
   String? get identityEpoch => locked ? null : _keys?.epoch;
   String _namespace = '';
   String get _prefix => _namespace.isEmpty
@@ -53,6 +63,7 @@ class OrdinaryE2eeService extends ChangeNotifier {
     _identities.clear();
     _pairKey = null;
     _pairSecret = null;
+    _autoOffer = null;
     super.dispose();
   }
 
@@ -69,12 +80,11 @@ class OrdinaryE2eeService extends ChangeNotifier {
   Future<void> open() =>
       _opening ??= _open().whenComplete(() => _opening = null);
   Future<void> _open() async {
+    _identityGeneration++;
     final remote = await _call('status');
     if (!remote.containsKey('identity') || !remote.containsKey('enabled')) {
       throw StateError('Сервер не поддерживает эту версию шифрования');
     }
-    backupAcknowledged =
-        await storage.read(key: '$_prefix.backup_saved') == 'yes';
     final namespace = remote['account_subject'] as String? ?? '';
     if (_namespace != namespace) {
       _keys = null;
@@ -85,8 +95,12 @@ class OrdinaryE2eeService extends ChangeNotifier {
       _pairKey = null;
       _pairId = null;
       _pairSecret = null;
+      _autoOffer = null;
+      _autoStarted = null;
       _namespace = namespace;
     }
+    backupAcknowledged =
+        await storage.read(key: '$_prefix.backup_saved') == 'yes';
     _status = remote;
     enabled = remote['enabled'] != false;
     final saved = await storage.read(key: '$_prefix.keys');
@@ -163,6 +177,7 @@ class OrdinaryE2eeService extends ChangeNotifier {
       if (op == 'reset') 'confirm': 'RESET_ENCRYPTED_HISTORY',
     });
     _status = {
+      ...?_status,
       'identity': result['identity'],
       'backup': backup,
       'enabled': enabled,
@@ -372,6 +387,180 @@ class OrdinaryE2eeService extends ChangeNotifier {
     _changed();
   }
 
+  Future<void> syncAutomatic() => _automaticSync ??= _syncAutomatic()
+      .whenComplete(() => _automaticSync = null);
+
+  Future<void> _syncAutomatic() async {
+    if (!initialised) await open();
+    if (_status?['auto_enrollment'] != 1 || _namespace.isEmpty) return;
+    // The namespace that located this device's saved keys pins the own NiosID
+    // subject. Never use a subject supplied inside a relay's enrollment request.
+    final subject = _namespace.split(':').first;
+    final namespace = _namespace, generation = _identityGeneration;
+    void requireCurrentSession() {
+      if (_disposed ||
+          _namespace != namespace ||
+          _identityGeneration != generation) {
+        throw StateError('Сеанс шифрования изменился');
+      }
+    }
+
+    _autoOffer ??= await _enrollmentStore.read();
+    if (_autoOffer != null) {
+      final offer = _autoOffer!;
+      EnrollmentProof? proof;
+      try {
+        proof = await enrollmentVerifier.verify(offer.proof, subject);
+      } on FormatException {
+        await _enrollmentStore.clear(offer);
+        _autoOffer = null;
+        _autoStarted = null;
+        _changed();
+        if (locked) return;
+      }
+      if (proof != null) {
+        final localTarget = base64Encode(
+          (await offer.keyPair.extractPublicKey()).bytes,
+        );
+        if (proof.requestId != offer.requestId || proof.target != localTarget) {
+          throw const FormatException('Mismatched device login');
+        }
+        if (!locked) {
+          await _enrollmentStore.clear(offer);
+          _autoOffer = null;
+        } else {
+          if (_autoStarted != proof.requestId) {
+            await _call('auto_start', {'proof': offer.proof});
+            _autoStarted = proof.requestId;
+            _changed();
+          }
+          final delivery = await _call('auto_get', {
+            'request_id': proof.requestId,
+          });
+          if (delivery['packet'] == null) return;
+          final current = await _call('status');
+          final identity = current['identity'] as E2eJson?;
+          final packet = delivery['packet'] as String;
+          if (current['account_subject'] != _namespace ||
+              identity == null ||
+              delivery['epoch'] != identity['epoch'] ||
+              !await OrdinaryCodec.verify(
+                await proof.approvalText(userId, packet),
+                delivery['signature'] as String,
+                identity['ed'] as String,
+              )) {
+            throw const FormatException('Invalid encrypted key delivery');
+          }
+          final bundle = await OrdinaryCodec.unpair(
+            offer.keyPair,
+            userId,
+            proof.requestId,
+            packet,
+            await proof.wrappingSalt(),
+            domain: 'niosmess-auto-pair-v1',
+          );
+          final received = OrdinaryKeys.fromJson(bundle['keys'] as E2eJson);
+          final recovery = bundle['recovery'] as String;
+          final restored = await OrdinaryCodec.restore(
+            identity,
+            current['backup'] as String,
+            recovery,
+          );
+          if (received.userId != userId ||
+              jsonEncode(await received.public()) !=
+                  jsonEncode(await restored.public())) {
+            throw const FormatException(
+              'Key backup does not match the enrolled device',
+            );
+          }
+          final old = bundle['old'] as List? ?? const [];
+          if (old.length > 256) {
+            throw const FormatException('Too many identity epochs');
+          }
+          final imported = <String, OrdinaryKeys>{};
+          for (final record in old) {
+            final key = OrdinaryKeys.fromJson(record as E2eJson);
+            if (key.userId != userId ||
+                key.epoch == received.epoch ||
+                imported.containsKey(key.epoch)) {
+              throw const FormatException('Invalid previous identity');
+            }
+            imported[key.epoch] = key;
+          }
+          final previousKeys = _keys, previousRecovery = _recovery;
+          final previousRing = Map<String, OrdinaryKeys>.from(_keyring);
+          requireCurrentSession();
+          try {
+            _keys = received;
+            _recovery = OrdinaryCodec.recoveryBytes(recovery);
+            _keyring.addAll(imported);
+            await _save();
+          } catch (_) {
+            _keys = previousKeys;
+            _recovery = previousRecovery;
+            _keyring
+              ..clear()
+              ..addAll(previousRing);
+            rethrow;
+          }
+          requireCurrentSession();
+          _status = current;
+          _opened.clear();
+          _identities.clear();
+          locked = false;
+          await _enrollmentStore.clear(offer);
+          _autoOffer = null;
+          _changed();
+        }
+      }
+    }
+    if (locked || _keys == null || _recovery == null) return;
+    final nonce = const Uuid().v4();
+    final requests = await _call('auto_list', {
+      'request_nonce': nonce,
+      'signature': await _keys!.sign('niosmess-auto-list-v1:$userId:$nonce'),
+    });
+    for (final value in requests['requests'] as List? ?? const []) {
+      if (_disposed) return;
+      final row = value as E2eJson;
+      if (row['proof'] is! String) continue;
+      EnrollmentProof proof;
+      try {
+        proof = await enrollmentVerifier.verify(
+          row['proof'] as String,
+          subject,
+        );
+      } on FormatException {
+        continue; // A relay's invalid entry must not prevent other devices syncing.
+      }
+      requireCurrentSession();
+      if (row['request_id'] != proof.requestId ||
+          row['epoch'] != _keys!.epoch) {
+        throw const FormatException('Invalid device request');
+      }
+      final packet = await OrdinaryCodec.pair(
+        _keys!,
+        _recovery!,
+        proof.target,
+        proof.requestId,
+        await proof.wrappingSalt(),
+        domain: 'niosmess-auto-pair-v1',
+        old: _keyring.values
+            .where((key) => key.epoch != _keys!.epoch)
+            .map((key) => key.secret())
+            .toList(),
+      );
+      requireCurrentSession();
+      await _call('auto_approve', {
+        'request_id': proof.requestId,
+        'packet': packet,
+        'signature': await _keys!.sign(
+          await proof.approvalText(userId, packet),
+        ),
+      });
+    }
+  }
+
   Future<String> askAi(int chatId, int sourceId, String question) async {
     final result = await _call('ask_ai', {
       'chat_id': chatId,
@@ -390,6 +579,8 @@ class OrdinaryE2eeService extends ChangeNotifier {
   }
 
   Future<void> restore(String code) async {
+    await _automaticSync;
+    _identityGeneration++;
     final state = await _call('status');
     final pub = state['identity'] as E2eJson?;
     if (pub == null) throw StateError('Нет зашифрованной резервной копии');
@@ -416,6 +607,8 @@ class OrdinaryE2eeService extends ChangeNotifier {
   }
 
   Future<void> resetAfterLoss() async {
+    await _automaticSync;
+    _identityGeneration++;
     final previousKeys = _keys, previousRecovery = _recovery;
     _keys = OrdinaryKeys.create(userId);
     _recovery = randomE2eBytes();
@@ -568,6 +761,28 @@ final ordinaryE2eeProvider = Provider<OrdinaryE2eeService?>((ref) {
       maxRetries: payload?['op'] == 'ask_ai' ? 0 : 2,
     ),
   );
-  ref.onDispose(service.dispose);
+  var lastPoll = DateTime.fromMillisecondsSinceEpoch(0);
+  void sync({bool forced = false}) {
+    if (!ws.isConnected ||
+        (!forced &&
+            !service.locked &&
+            DateTime.now().difference(lastPoll).inSeconds < 30)) {
+      return;
+    }
+    lastPoll = DateTime.now();
+    unawaited(service.syncAutomatic().catchError((Object _) {}));
+  }
+
+  final timer = Timer.periodic(const Duration(seconds: 5), (_) => sync());
+  final connected = ws.onConnected.listen((_) => sync(forced: true));
+  final push = ws.pushStream.listen((event) {
+    if (event['action'] == 'ordinary_auto_enrollment') sync(forced: true);
+  });
+  ref.onDispose(() {
+    timer.cancel();
+    unawaited(connected.cancel());
+    unawaited(push.cancel());
+    service.dispose();
+  });
   return service;
 });

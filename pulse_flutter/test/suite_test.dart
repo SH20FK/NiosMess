@@ -1,3 +1,4 @@
+import 'services/automatic_enrollment_test.dart' as automatic_enrollment;
 import 'widgets/ordinary_e2ee_settings_test.dart' as ordinary_e2ee_settings;
 import 'services/ordinary_e2ee_test.dart' as ordinary_e2ee;
 import 'widgets/message_bold_text_test.dart' as message_bold_text;
@@ -150,6 +151,7 @@ import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 void main() {
   ordinary_e2ee_settings.main();
   ordinary_e2ee.main();
+  automatic_enrollment.main();
   message_bold_text.main();
   TestWidgetsFlutterBinding.ensureInitialized();
 

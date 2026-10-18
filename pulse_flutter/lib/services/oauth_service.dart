@@ -112,7 +112,7 @@ class OAuthService {
   }
 
   /// Requests a device authorization grant via RFC 8628 `POST /oauth/device/code`.
-  Future<NiosDeviceCodeResponse> requestDeviceCode({http.Client? client}) async {
+  Future<NiosDeviceCodeResponse> requestDeviceCode({http.Client? client, String? nonce}) async {
     final http.Client httpClient = client ?? http.Client();
     try {
       final http.Response response = await httpClient.post(
@@ -124,6 +124,7 @@ class OAuthService {
         body: <String, String>{
           'client_id': ApiConstants.clientId,
           'scope': ApiConstants.scopes,
+          'nonce': ?nonce,
         },
       );
 

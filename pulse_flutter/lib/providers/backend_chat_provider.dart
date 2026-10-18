@@ -127,6 +127,16 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
     final ordinary = ref.read(ordinaryE2eeProvider);
     if (ordinary != null) {
+      var previousEpoch = ordinary.identityEpoch;
+      void onKeysChanged() {
+        final current = ordinary.identityEpoch;
+        if (current != null && current != previousEpoch && ref.mounted) {
+          previousEpoch = current;
+          ref.invalidate(chatMessagesProvider);
+        }
+      }
+      ordinary.addListener(onKeysChanged);
+      ref.onDispose(() => ordinary.removeListener(onKeysChanged));
       unawaited(ordinary.open().catchError((Object _) {}));
     }
     ref.read(webSocketDispatcherProvider);

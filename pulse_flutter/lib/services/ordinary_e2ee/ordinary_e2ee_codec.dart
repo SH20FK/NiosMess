@@ -291,10 +291,12 @@ class OrdinaryCodec {
     List<int> recovery,
     String target,
     String request,
-    List<int> pairingSecret,
-  ) async {
+    List<int> pairingSecret, {
+    String domain = 'niosmess-pair-v1',
+    List<E2eJson> old = const [],
+  }) async {
     final ephemeral = await X25519().newKeyPair();
-    final aad = 'niosmess-pair-v1:${own.userId}:$request:$target';
+    final aad = '$domain:${own.userId}:$request:$target';
     return base64Encode(
       utf8.encode(
         jsonEncode({
@@ -304,6 +306,7 @@ class OrdinaryCodec {
               jsonEncode({
                 'keys': own.secret(),
                 'recovery': recoveryCode(recovery),
+                if (old.isNotEmpty) 'old': old,
               }),
             ),
             await _wrap(ephemeral, target, aad, pairingSecret: pairingSecret),
@@ -319,11 +322,12 @@ class OrdinaryCodec {
     int user,
     String request,
     String encoded,
-    List<int> pairingSecret,
-  ) async {
+    List<int> pairingSecret, {
+    String domain = 'niosmess-pair-v1',
+  }) async {
     final target = base64Encode((await device.extractPublicKey()).bytes),
         p = packet(encoded);
-    final aad = 'niosmess-pair-v1:$user:$request:$target';
+    final aad = '$domain:$user:$request:$target';
     return jsonDecode(
           utf8.decode(
             await open(

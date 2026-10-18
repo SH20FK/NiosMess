@@ -23,7 +23,9 @@ class OrdinaryE2eeNotice extends ConsumerWidget {
               Expanded(
                 child: Text(
                   service.locked
-                      ? 'Подключите устройство для чтения защищённых чатов'
+                      ? service.autoWaiting
+                            ? 'Получаем ключи от активного устройства'
+                            : 'Подключите устройство для чтения защищённых чатов'
                       : 'Сохраните ключ восстановления переписки',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),

@@ -19,6 +19,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/oauth_service.dart';
+import 'package:pulse_flutter/services/ordinary_e2ee/automatic_enrollment.dart';
 import 'package:pulse_flutter/widgets/app_logo_mark.dart';
 import 'package:pulse_flutter/widgets/auth/auth_scaffold.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -224,8 +225,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final OAuthService oauthService = ref.read(oauthServiceProvider);
+      final enrollmentNonce = await const EnrollmentStore().prepare();
       final NiosDeviceCodeResponse deviceResp =
-          await oauthService.requestDeviceCode();
+          await oauthService.requestDeviceCode(nonce: enrollmentNonce);
 
       if (!mounted) return;
 
@@ -306,6 +308,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _isExchanging = true;
       });
 
+      await const EnrollmentStore().attach(tokenResp.idToken);
       await _completeLoginWithToken(tokenResp.accessToken!);
     } catch (e) {
       if (_isDevicePollingCancelled || !mounted) return;
