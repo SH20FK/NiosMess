@@ -1,4 +1,5 @@
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
+import 'package:pulse_flutter/services/protocol/nios_protocol_licenses.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:ui';
@@ -46,6 +47,7 @@ Future<void> main() async {
   await runZonedGuarded<Future<void>>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      registerNiosProtocolLicenses();
       final AppLogger logger = AppLogger.instance;
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);

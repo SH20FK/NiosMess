@@ -43,6 +43,9 @@ Desktop.ini
 .env.*
 *.key
 *.pem
+# Public self-signed localhost fixtures only; never production credentials.
+!packages/nios_sdk/test/stream/support/localhost-test-cert.pem
+!packages/nios_sdk/test/stream/support/localhost-test-key.pem
 credentials.json
 
 # === Server Core ===

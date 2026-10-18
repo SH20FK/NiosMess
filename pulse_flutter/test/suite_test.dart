@@ -17,6 +17,7 @@ import 'core/animated_media_budget_test.dart' as animated_media_budget;
 import 'core/e2ee_file_pipeline_test.dart' as e2ee_file_pipeline;
 import 'core/media_file_cache_pipeline_test.dart' as media_file_cache_pipeline;
 import 'services/blob_upload_resources_test.dart' as blob_upload_resources;
+import 'services/nios_protocol_accounts_test.dart' as protocol_accounts;
 import 'services/secret_storage_performance_test.dart'
     as secret_storage_performance;
 import 'services/secret_attachment_file_store_test.dart'
@@ -29,7 +30,8 @@ import 'providers/secret_coordinator_lifecycle_test.dart'
     as secret_coordinator_lifecycle;
 import 'unit/frame_timing_monitor_percentiles_test.dart' as frame_percentiles;
 import 'perf/ui_smoothness_regression_guard_test.dart' as perf_logic_guards;
-import 'perf/chat_performance_benchmarks_test.dart' as chat_algorithm_regressions;
+import 'perf/chat_performance_benchmarks_test.dart'
+    as chat_algorithm_regressions;
 import 'binary_packet_test.dart' as binary_packet;
 import 'bots_inline_query_test.dart' as bots_inline_query;
 import 'calls_gateway_limits_test.dart' as calls_gateway_limits;
@@ -127,6 +129,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Aggregated Test Suite', () {
+    group('protocol_accounts', protocol_accounts.main);
     // Core & Models
     core_m3_spring_constants.main();
     models_chat_wallpaper_config.main();
