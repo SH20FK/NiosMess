@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -189,7 +190,7 @@ class _PlusActivationState extends ConsumerState<PlusActivationScreen> {
                 if (busy)
                   const Padding(
                     padding: EdgeInsets.all(16),
-                    child: LinearProgressIndicator(),
+                    child: AppLoadingIndicator(size: 24),
                   ),
               ],
             ],

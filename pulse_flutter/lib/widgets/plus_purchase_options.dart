@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -213,7 +214,7 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
       children: [
         Text('Покупка и продление', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
-        if (loading) const LinearProgressIndicator(),
+        if (loading) const AppLoadingIndicator(size: 24),
         for (final plan in plans)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
@@ -105,7 +106,7 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
       isEmbedded: widget.isEmbedded,
       children: <Widget>[
         if (_loadingStatus)
-          const LinearProgressIndicator()
+          const AppLoadingIndicator(size: 24)
         else if (isPlus)
           Text(
             expiresAt == null
