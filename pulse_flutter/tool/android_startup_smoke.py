@@ -110,6 +110,17 @@ def renderer_diagnostics(log: str, pids: set[str]) -> list[str]:
     return list(dict.fromkeys(diagnostics))
 
 
+def bootstrap_completed(log: str, pids: set[str]) -> bool:
+    for line in log.splitlines():
+        match = LOG_LINE.match(line)
+        if match:
+            pid, level, tag, message = match.groups()
+            if (pid in pids and level == "I" and tag.strip() == "flutter"
+                    and re.search(r"\[INFO\] bootstrap: Application started$", message)):
+                return True
+    return False
+
+
 def first_frame_evidence(log: str, gfx: str, surface_latency: str,
                          semantics: list[str]) -> dict:
     displayed = bool(re.search(r"Displayed\s+" + re.escape(ACTIVITY), log))
@@ -196,6 +207,7 @@ class Collector:
             "pid": pid,
             "focus": focus,
             "foreground": PACKAGE in focus,
+            "bootstrap_completed": bootstrap_completed(log, set(pid.split())),
             "first_frame": first_frame_evidence(log, gfx, latency, app_semantics(xml)),
             "screenshot": screenshot_content(screenshot),
             "errors": startup_errors(log, self.pids),
@@ -235,6 +247,7 @@ class Collector:
                 sample["elapsed_seconds"] = round(time.monotonic() - start, 2)
                 self.report["samples"].append(sample)
                 visible = (bool(sample["pid"]) and sample["foreground"]
+                           and sample["bootstrap_completed"]
                            and sample["first_frame"]["rendered"]
                            and sample["screenshot"]["nonblank"] and not sample["errors"])
                 print(json.dumps(sample, ensure_ascii=False), flush=True)
