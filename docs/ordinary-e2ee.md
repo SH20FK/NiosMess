@@ -34,11 +34,35 @@ that would break E2E downloads. Caption edits retain the encrypted file key.
 ## Device connection and loss
 
 The server stores a recovery backup encrypted with an independently generated
-256-bit recovery secret. The recovery secret is never included in server requests.
+256-bit recovery secret. The recovery secret is never sent to the server in plaintext.
 The app prompts users to save it in their password manager. Restoring validates
 AES-GCM and reconstructed public keys before persisting private material.
 
-An existing device can transfer keys to a new device via a 10-minute connection
+From 3.103.1 an active device automatically transfers keys after a fresh confirmed
+NiosID login. Before the login starts, the new device stores an ephemeral X25519
+private key locally and binds its public key, random salt and request UUID in the
+OIDC nonce. NiosID signs that exact nonce into its RS256 ID token only after the
+existing email/CAPTCHA/consent checks. The messenger relay cannot substitute an
+arbitrary new target key using an existing messenger access token.
+
+The source independently verifies the ID token against the fixed NiosID JWKS
+endpoint, own pinned subject, first-party client ID, target binding and ten-minute
+freshness window. Keys, recovery secret and retained older epochs travel only in
+an authenticated encrypted packet for the target device, signed by the current
+account identity. The recipient verifies the signature and encrypted recovery
+backup before saving anything. Delivery is tied to the requesting session;
+revocation/reset/expiry prevent retrieval, and the first valid source response
+wins. Push events contain no key packet; reconnect/polling recover lost wakeups.
+
+This explicitly trusts NiosID to authorize device enrollment. A compromised
+NiosID authority or account login can authorize a foreign device while an active
+source is online. The owner accepted this tradeoff for unattended synchronization.
+Both devices need an updated client; background/suspended/offline clients cannot
+serve keys. After successful transfer, history remains readable with the source
+offline. Without an available source, use the saved recovery secret or a fresh
+login when a source becomes active; login by itself cannot decrypt history.
+
+As a fallback, an existing device can transfer keys via a 10-minute connection
 code. The code contains an ephemeral target key and an independent 256-bit
 out-of-band secret. The server sees only the public target key and request UUID.
 The transfer uses authenticated encryption whose derivation also requires the
@@ -79,6 +103,9 @@ Python `cryptography` vectors are consumed by Dart tests; all fixed fixture keys
 are explicitly synthetic. Tests cover both message directions, offline devices,
 recovery, corrupt packets, account/chat/reply/edit binding, fresh nonces, pairing
 secrets, registry authorization, reset, encrypted attachments and retry dedup.
+Automatic enrollment tests also exercise the actual Dart RS256 verifier against
+Python-signed synthetic fixtures, cross-account/expired/tampered logins, encrypted
+transfer between separate device stores, source-offline history and logout races.
 The ordinary realtime provider is tested with real encryption on its send, own
 acknowledgement and incoming push paths. Legacy realtime tests isolate encryption
 to retain their original history/lifecycle scope.
