@@ -1,3 +1,5 @@
+import 'widgets/ordinary_e2ee_settings_test.dart' as ordinary_e2ee_settings;
+import 'services/ordinary_e2ee_test.dart' as ordinary_e2ee;
 import 'widgets/message_bold_text_test.dart' as message_bold_text;
 import 'unit/report_evidence_submission_test.dart'
     as report_evidence_submission;
@@ -140,6 +142,8 @@ import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 
 void main() {
+  ordinary_e2ee_settings.main();
+  ordinary_e2ee.main();
   message_bold_text.main();
   TestWidgetsFlutterBinding.ensureInitialized();
 

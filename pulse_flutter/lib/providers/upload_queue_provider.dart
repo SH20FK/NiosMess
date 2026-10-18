@@ -1,3 +1,8 @@
+import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
+import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:universal_io/io.dart';
+import 'package:uuid/uuid.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -191,17 +196,44 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
       ),
     };
 
+    String? encryptedTemporaryPath;
+    Uint8List? ordinaryFileKey;
     try {
+      var wirePath = task.filePath.isNotEmpty ? task.filePath : null;
+      var wireBytes = task.bytes;
+      var wireSize = task.fileSize;
+      final ordinary = ref.read(ordinaryE2eeProvider);
+      final chat = ref.read(chatByIdProvider(task.chatId));
+      if (task.e2eeFileKey == null &&
+          chat?.isSecret != true &&
+          ordinary != null &&
+          await ordinary.prepare(task.chatId) != null) {
+        ordinaryFileKey = E2eeFileCrypto.generateFileKey();
+        if (wireBytes != null && wireBytes.isNotEmpty) {
+          wireBytes = await E2eeFileCrypto.encrypt(wireBytes, ordinaryFileKey);
+          wirePath = null;
+          wireSize = wireBytes.length;
+        } else {
+          final temp = await getTemporaryDirectory();
+          encryptedTemporaryPath =
+              '${temp.path}/nios-e2e-${const Uuid().v4()}.bin';
+          await E2eeFileCrypto.encryptFile(
+            plainPath: wirePath!,
+            outputPath: encryptedTemporaryPath,
+            key: ordinaryFileKey,
+          );
+          wirePath = encryptedTemporaryPath;
+          wireSize = await File(wirePath).length();
+        }
+      }
       final uploadId = await ref
           .read(chatRepositoryProvider)
           .uploadStreamInChunks(
-            filePath: task.filePath.isNotEmpty ? task.filePath : null,
-            bytes: (task.bytes != null && task.bytes!.isNotEmpty)
-                ? task.bytes
-                : null,
+            filePath: wirePath,
+            bytes: wireBytes,
             filename: task.filename,
             mediaSubtype: task.mediaSubtype,
-            fileSize: task.fileSize,
+            fileSize: wireSize,
             cancellationToken: cancelToken,
             localId: localId,
             onProgress: (sent, total) {
@@ -217,10 +249,13 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
 
                 final DateTime now = DateTime.now();
                 final DateTime? lastUpdate = _lastUiUpdates[localId];
-                final double lastProgress = _lastReportedProgress[localId] ?? 0.0;
-                final double progressDelta = (cappedProgress - lastProgress).abs();
+                final double lastProgress =
+                    _lastReportedProgress[localId] ?? 0.0;
+                final double progressDelta = (cappedProgress - lastProgress)
+                    .abs();
 
-                final bool shouldPublish = lastUpdate == null ||
+                final bool shouldPublish =
+                    lastUpdate == null ||
                     now.difference(lastUpdate) >= _uiProgressInterval ||
                     progressDelta >= 0.01 ||
                     cappedProgress >= 0.99;
@@ -276,8 +311,9 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
         };
 
         String? e2eePlaintext;
-        if (task.e2eeFileKey != null) {
-          final String keyB64 = base64Encode(task.e2eeFileKey!);
+        final effectiveKey = ordinaryFileKey ?? task.e2eeFileKey;
+        if (effectiveKey != null) {
+          final String keyB64 = base64Encode(effectiveKey);
           e2eePlaintext = jsonEncode(<String, dynamic>{
             'type': 'nios_file_key',
             'keyB64': keyB64,
@@ -287,19 +323,21 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
             'size': task.fileSize,
           });
         }
-        await ref.read(chatMessagesProvider(task.chatId).notifier).send(
-          task.text,
-          replyToId: task.replyToId,
-          uploadId: uploadId,
-          msgType: task.mediaSubtype == 'voice'
-              ? 'voice'
-              : (task.mediaSubtype == 'circle' ? 'circle' : 'media'),
-          localId: localId,
-          e2eePlaintext: e2eePlaintext,
-          e2eeFileKey: task.e2eeFileKey != null
-              ? base64Encode(task.e2eeFileKey!)
-              : null,
-        );
+        await ref
+            .read(chatMessagesProvider(task.chatId).notifier)
+            .send(
+              task.text,
+              replyToId: task.replyToId,
+              uploadId: uploadId,
+              msgType: task.mediaSubtype == 'voice'
+                  ? 'voice'
+                  : (task.mediaSubtype == 'circle' ? 'circle' : 'media'),
+              localId: localId,
+              e2eePlaintext: e2eePlaintext,
+              e2eeFileKey: effectiveKey != null
+                  ? base64Encode(effectiveKey)
+                  : null,
+            );
 
         _cancellationTokens.remove(localId);
         _speedTrackers.remove(localId);
@@ -341,6 +379,11 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
             .read(chatMessagesProvider(task.chatId).notifier)
             .markLocalMessageFailed(localId);
         _pump();
+      }
+    } finally {
+      if (encryptedTemporaryPath != null) {
+        final encrypted = File(encryptedTemporaryPath);
+        if (await encrypted.exists()) await encrypted.delete();
       }
     }
   }
@@ -426,17 +469,19 @@ final uploadTaskProvider = Provider.family<UploadTask?, String>((ref, localId) {
 /// String value changes ONLY when tasks enter or exit pending/queued state.
 /// Riverpod will NOT notify subscribers on intermediate progress updates!
 final uploadQueueTopologyKeyProvider = Provider<String>((ref) {
-  return ref.watch(uploadQueueProvider.select((queue) {
-    final StringBuffer buffer = StringBuffer();
-    for (final MapEntry<String, UploadTask> entry in queue.entries) {
-      if (entry.value.status == UploadStatus.pending ||
-          entry.value.stage == UploadStage.queued) {
-        buffer.write(entry.key);
-        buffer.write(',');
+  return ref.watch(
+    uploadQueueProvider.select((queue) {
+      final StringBuffer buffer = StringBuffer();
+      for (final MapEntry<String, UploadTask> entry in queue.entries) {
+        if (entry.value.status == UploadStatus.pending ||
+            entry.value.stage == UploadStage.queued) {
+          buffer.write(entry.key);
+          buffer.write(',');
+        }
       }
-    }
-    return buffer.toString();
-  }));
+      return buffer.toString();
+    }),
+  );
 });
 
 /// 1-based position in queue for pending uploads. Returns 0 if active or not in queue.
@@ -454,9 +499,13 @@ final uploadQueuePositionProvider = Provider.family<int, String>((
 /// Whether the chat has any pending or transferring upload tasks.
 /// Returns a primitive bool so consumers (like Composer) don't rebuild on progress updates!
 final hasActiveChatUploadsProvider = Provider.family<bool, int>((ref, chatId) {
-  return ref.watch(uploadQueueProvider.select((queue) {
-    return queue.values.any((UploadTask t) => t.chatId == chatId && !_isTerminal(t));
-  }));
+  return ref.watch(
+    uploadQueueProvider.select((queue) {
+      return queue.values.any(
+        (UploadTask t) => t.chatId == chatId && !_isTerminal(t),
+      );
+    }),
+  );
 });
 
 /// Tasks of one chat that are still pending or transferring.

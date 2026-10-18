@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
+import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'dart:async';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
@@ -123,6 +125,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       return const <ApiChatSummary>[];
     }
 
+    final ordinary = ref.read(ordinaryE2eeProvider);
+    if (ordinary != null) {
+      unawaited(ordinary.open().catchError((Object _) {}));
+    }
     ref.read(webSocketDispatcherProvider);
     WebSocketPushDispatcher.registerGlobal(_handlePushEvent);
     final connected = ref.read(webSocketClientProvider).onConnected.listen((_) {
@@ -405,7 +411,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
       if (message.senderId != myUserId) {
         final String chatName = chat.name.isNotEmpty ? chat.name : 'NiosMess';
-        final String body = message.content.isNotEmpty
+        final String body = message.e2eeContent != null || message.isE2ee
+            ? 'Зашифрованное сообщение'
+            : message.content.isNotEmpty
             ? message.content
             : (message.msgType == 'media' ? '📎 Media' : '...');
         NotificationStorage.createAndSave(
@@ -435,7 +443,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     } else {
       refresh();
       if (message.senderId != myUserId && !isCurrentChatOpen) {
-        final String body = message.content.isNotEmpty
+        final String body = message.e2eeContent != null || message.isE2ee
+            ? 'Зашифрованное сообщение'
+            : message.content.isNotEmpty
             ? message.content
             : (message.msgType == 'media' ? '📎 Media' : '...');
         NotificationStorage.createAndSave(
@@ -1261,7 +1271,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final generation = _generation;
     ApiMessage next = message;
     // Secret chats: re-decrypt the edited payload.
-    if (message.isE2ee && message.e2eeContent != null) {
+    if (message.e2eeContent != null) {
       final List<ApiMessage> decrypted = await _decryptE2eeMessages(
         <ApiMessage>[message],
       );
@@ -1597,6 +1607,17 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   Future<List<ApiMessage>> _decryptE2eeMessages(
     List<ApiMessage> messages,
   ) async {
+    final ordinary = ref.read(ordinaryE2eeProvider);
+    messages = await Future.wait(
+      messages.map((message) async {
+        if (ordinary != null &&
+            message.e2eeContent != null &&
+            ref.read(chatByIdProvider(_chatId))?.isSecret != true) {
+          return ordinary.decrypt(message);
+        }
+        return message;
+      }),
+    );
     final partnerPublicKey = await _getPartnerPublicKey();
     if (partnerPublicKey == null) {
       // Not a secret chat — but handshake echoes can still be filtered out.
@@ -2207,6 +2228,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     String? localId,
     String? e2eePlaintext,
     String? e2eeFileKey,
+    bool requestAi = true,
   }) async {
     final generation = _generation;
     if (ref.read(chatByIdProvider(_chatId)) == null && _secret == null) {
@@ -2233,7 +2255,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return;
     }
     final String trimmed = content.trim();
-    if (trimmed.isEmpty && (uploadId == null || uploadId.trim().isEmpty)) {
+    if (trimmed.isEmpty &&
+        e2eePlaintext == null &&
+        (uploadId == null || uploadId.trim().isEmpty)) {
       return;
     }
 
@@ -2313,6 +2337,40 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       }
     }
 
+    if (chat?.isSecret != true) {
+      final ordinary = ref.read(ordinaryE2eeProvider);
+      final prepared = await ordinary?.prepare(
+        _chatId,
+        force: e2eeFileKey != null,
+      );
+      if (ordinary != null && prepared != null) {
+        if (uploadId != null && e2eeFileKey == null) {
+          throw StateError(
+            'Файл не был зашифрован. Повторите отправку после подключения E2E.',
+          );
+        }
+        Map<String, dynamic>? descriptor;
+        if (e2eePlaintext != null) {
+          descriptor = jsonDecode(e2eePlaintext) as Map<String, dynamic>;
+        }
+        e2eeContent = await ordinary.encrypt(
+          _chatId,
+          trimmed,
+          reply: replyToId,
+          fileKey: e2eeFileKey,
+          preparedContext: prepared,
+          name: descriptor?['name'] as String?,
+          size: descriptor?['size'] as int?,
+          extra: {
+            'media_kind': msgType,
+            if (descriptor?['sticker'] != null)
+              'sticker': descriptor!['sticker'],
+          },
+        );
+        isE2ee = true;
+      }
+    }
+
     final ApiMessage optimisticMessage = ApiMessage(
       clientMessageId: 'normal:$_cacheAccountId:$_chatId:$tempId',
       id: tempId,
@@ -2378,8 +2436,16 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           );
 
       if (!ref.mounted || generation != _generation) return;
+      final ordinary = ref.read(ordinaryE2eeProvider);
+      if (ordinary != null &&
+          sent.e2eeContent != null &&
+          OrdinaryCodec.recognises(sent.e2eeContent!)) {
+        sent = await ordinary.decrypt(sent);
+      }
       sent = sent.copyWith(clientMessageId: optimisticMessage.clientMessageId);
-      if (isE2ee) {
+      if (isE2ee &&
+          !(sent.e2eeContent != null &&
+              OrdinaryCodec.recognises(sent.e2eeContent!))) {
         sent = sent.copyWith(
           content: trimmed,
           e2eeFileKey: e2eeFileKey,
@@ -2415,6 +2481,35 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       await _saveToCache(next);
       ref.read(chatsProvider.notifier)._handleNewMessagePush(sent);
       ref.read(chatsProvider.notifier).setChatBlockedByUser(_chatId, false);
+      if (requestAi &&
+          sent.e2eeContent != null &&
+          OrdinaryCodec.recognises(sent.e2eeContent!)) {
+        final match = RegExp(
+          r'(?:^|\s)@ai\b\s*([\s\S]*)',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        final question = match?.group(1)?.trim();
+        final ordinary = ref.read(ordinaryE2eeProvider);
+        if (ordinary != null && question != null && question.isNotEmpty) {
+          unawaited(
+            _retainOperation(() async {
+              String answer;
+              try {
+                answer = await ordinary.askAi(_chatId, sent.id, question);
+              } catch (_) {
+                answer =
+                    'Не удалось получить ответ NiosAI. Попробуйте ещё раз.';
+              }
+              if (!ref.mounted || generation != _generation) return;
+              await _send(
+                '**NiosAI**\n\n$answer',
+                replyToId: sent.id,
+                requestAi: false,
+              );
+            }).catchError((Object _) {}),
+          );
+        }
+      }
     } catch (e) {
       if (!ref.mounted || generation != _generation) return;
       current = state.value ?? const <ApiMessage>[];
@@ -2473,6 +2568,20 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       if (foundSticker != null) break;
     }
 
+    if (ref.read(chatByIdProvider(_chatId))?.isSecret != true &&
+        _secret == null) {
+      final ordinary = ref.read(ordinaryE2eeProvider);
+      if (ordinary != null && await ordinary.prepare(_chatId) != null) {
+        if (foundSticker == null) throw StateError('Стикер не загружен');
+        await _send(
+          '',
+          replyToId: replyToId,
+          msgType: 'sticker',
+          e2eePlaintext: jsonEncode({'sticker': foundSticker.toJson()}),
+        );
+        return;
+      }
+    }
     if (ref.read(chatByIdProvider(_chatId))?.isSecret == true ||
         _secret != null) {
       _secret ??= await ref.read(secretChatCoordinatorProvider.future);
@@ -2743,7 +2852,28 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         );
       }
 
-      final ApiMessage? edited = await ref
+      if (editChat?.isSecret != true) {
+        final ordinary = ref.read(ordinaryE2eeProvider);
+        final prepared = await ordinary?.prepare(_chatId, force: target.isE2ee);
+        if (ordinary != null && prepared != null) {
+          editE2ee = await ordinary.encrypt(
+            _chatId,
+            trimmed,
+            reply: target.replyToId,
+            edit: messageId,
+            preparedContext: prepared,
+            fileKey: target.e2eeFileKey,
+            extra: {'media_kind': target.msgType},
+            name: target.mediaName,
+            size: target.mediaSize,
+          );
+        } else if (target.isE2ee) {
+          throw StateError(
+            'Зашифрованное сообщение нельзя изменить открытым текстом',
+          );
+        }
+      }
+      ApiMessage? edited = await ref
           .read(chatRepositoryProvider)
           .editMessage(
             _chatId,
@@ -2754,9 +2884,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
       if (!ref.mounted || generation != _generation) return;
       if (edited != null) {
+        edited = editChat?.isSecret == true
+            ? edited
+            : await ref.read(ordinaryE2eeProvider)?.decrypt(edited) ?? edited;
+        final confirmedMessage = edited;
         final List<ApiMessage> confirmed = List<ApiMessage>.from(
           state.value ?? const <ApiMessage>[],
-        )..removeWhere((ApiMessage m) => m.id == edited.id);
+        )..removeWhere((ApiMessage m) => m.id == confirmedMessage.id);
         insertSorted(confirmed, edited, _compareMessages);
         state = AsyncData<List<ApiMessage>>(confirmed);
         await _saveToCache(confirmed);

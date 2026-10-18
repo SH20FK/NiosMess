@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
+import 'package:pulse_flutter/widgets/settings/ordinary_e2ee_settings.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -139,6 +141,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       title: context.l10n.e2eeScreenTitle,
       isEmbedded: widget.isEmbedded,
       children: [
+        OrdinaryE2eeSettings(key: ObjectKey(ref.watch(ordinaryE2eeProvider))),
         SettingsSection(
           title: context.l10n.e2eeDeviceKey,
           children: [

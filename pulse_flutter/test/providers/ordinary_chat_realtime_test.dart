@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
+import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'dart:async';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'package:pulse_flutter/core/storage/message_history_snapshot.dart';
@@ -82,6 +85,7 @@ class _Socket extends WebSocketClient {
   final histories = <Completer<dynamic>>[];
   final pages = <int>[];
   final sentMessages = <Completer<dynamic>>[];
+  final outgoing = <Map<String, dynamic>>[];
   @override
   Stream<Map<String, dynamic>> get pushStream => pushes.stream;
   @override
@@ -94,6 +98,7 @@ class _Socket extends WebSocketClient {
     int maxRetries = 2,
   }) async {
     if (action == 'send_message') {
+      outgoing.add(Map<String, dynamic>.from(payload!));
       final result = Completer<dynamic>();
       sentMessages.add(result);
       return result.future;
@@ -175,6 +180,7 @@ void main() {
       socket = _Socket();
       container = ProviderContainer(
         overrides: [
+          ordinaryE2eeProvider.overrideWithValue(null),
           authProvider.overrideWith(_Auth.new),
           chatsProvider.overrideWith(_Chats.new),
           webSocketClientProvider.overrideWithValue(socket),
@@ -221,6 +227,7 @@ void main() {
         );
         container = ProviderContainer(
           overrides: [
+            ordinaryE2eeProvider.overrideWithValue(null),
             authProvider.overrideWith(_Auth.new),
             chatsProvider.overrideWith(_Chats.new),
             webSocketClientProvider.overrideWithValue(socket),
@@ -273,6 +280,7 @@ void main() {
         socket = _Socket();
         container = ProviderContainer(
           overrides: [
+            ordinaryE2eeProvider.overrideWithValue(null),
             authProvider.overrideWith(_Auth.new),
             chatsProvider.overrideWith(_Chats.new),
             webSocketClientProvider.overrideWithValue(socket),
@@ -638,6 +646,7 @@ void main() {
         addTearDown(retention.dispose);
         container = ProviderContainer(
           overrides: [
+            ordinaryE2eeProvider.overrideWithValue(null),
             authProvider.overrideWith(_Auth.new),
             chatsProvider.overrideWith(_Chats.new),
             webSocketClientProvider.overrideWithValue(socket),
@@ -727,6 +736,133 @@ void main() {
         expect(notifier.window.followingLatest, isFalse);
         expect(messages().any((m) => m.id == 200), isTrue);
         expect(messages().length, lessThanOrEqualTo(300));
+      },
+    );
+
+    test(
+      'ordinary E2E leaves only ciphertext on wire and decrypts own ack and offline peer push',
+      () async {
+        container.dispose();
+        WebSocketPushDispatcher.dispose();
+        socket.close();
+        await EncryptedMessageCache.clearAccount(1, []);
+        final alice = OrdinaryKeys(
+          1,
+          '00000000-0000-4000-8000-000000000001',
+          List.filled(32, 1),
+          List.filled(32, 11),
+        );
+        final bob = OrdinaryKeys(
+          3,
+          '00000000-0000-4000-8000-000000000003',
+          List.filled(32, 3),
+          List.filled(32, 13),
+        );
+        final recovery = randomE2eBytes(),
+            alicePublic = await alice.public(),
+            bobPublic = await bob.public();
+        FlutterSecureStorage.setMockInitialValues({
+          'niosmess.ordinary.1.v1.keys': jsonEncode({
+            'keys': alice.secret(),
+            'recovery': OrdinaryCodec.recoveryCode(recovery),
+            'old': [],
+          }),
+        });
+        final backup = await OrdinaryCodec.backup(alice, recovery);
+        final service = OrdinaryE2eeService(1, (action, {payload}) async {
+          switch (payload!['op']) {
+            case 'status':
+              return {
+                'enabled': true,
+                'identity': alicePublic,
+                'backup': backup,
+              };
+            case 'chat':
+              return {
+                'eligible': true,
+                'required': true,
+                'own': alicePublic,
+                'peer': bobPublic,
+              };
+            case 'identity':
+              return payload['user_id'] == 1 ? alicePublic : bobPublic;
+            default:
+              throw StateError('Unexpected E2E action');
+          }
+        });
+        await service.open();
+        socket = _Socket();
+        container = ProviderContainer(
+          overrides: [
+            ordinaryE2eeProvider.overrideWithValue(service),
+            authProvider.overrideWith(_Auth.new),
+            chatsProvider.overrideWith(_Chats.new),
+            webSocketClientProvider.overrideWithValue(socket),
+            appSoundProvider.overrideWithValue(_NoopSound()),
+          ],
+        );
+        addTearDown(service.dispose);
+        await container.read(chatsProvider.future);
+        container.listen(chatMessagesProvider(9142001), (_, _) {});
+        await _waitUntil(() => socket.histories.isNotEmpty);
+        socket.history(0, []);
+        await container.read(chatMessagesProvider(9142001).future);
+        final sending = container
+            .read(chatMessagesProvider(9142001).notifier)
+            .send('wire secret', replyToId: 7);
+        await _waitUntil(() => socket.sentMessages.isNotEmpty);
+        final wire = socket.outgoing.single;
+        expect(wire.containsKey('content'), isFalse);
+        expect(jsonEncode(wire), isNot(contains('wire secret')));
+        final ciphertext = wire['e2ee_content'] as String;
+        expect(
+          (await OrdinaryCodec.decrypt(
+            bob,
+            alicePublic,
+            ciphertext,
+            9142001,
+            1,
+            reply: 7,
+          ))['text'],
+          'wire secret',
+        );
+        socket.sentMessages.single.complete({
+          'id': 10,
+          'chat_id': 9142001,
+          'sender_id': 1,
+          'reply_to_id': 7,
+          'msg_type': 'text',
+          'is_e2ee': true,
+          'e2ee_content': ciphertext,
+          'sent_at': '2026-10-18T10:00:00Z',
+        });
+        await sending;
+        expect(messages().single.content, 'wire secret');
+        expect(messages().single.isDecrypted, isTrue);
+        // Alice's other device is offline; Bob's ciphertext still arrives through the server.
+        final incoming =
+            await OrdinaryCodec.encrypt(bob, alicePublic, 9142001, {
+              'text': 'caption',
+              'file_key': base64Encode(List.filled(32, 77)),
+              'name': 'sample.txt',
+              'size': 12,
+            });
+        socket.push(
+          ApiMessage.fromJson({
+            'id': 11,
+            'chat_id': 9142001,
+            'sender_id': 3,
+            'msg_type': 'media',
+            'is_e2ee': true,
+            'e2ee_content': incoming,
+            'sent_at': '2026-10-18T10:01:00Z',
+          }),
+        );
+        await _waitUntil(() => messages().any((m) => m.id == 11));
+        final message = messages().last;
+        expect(message.content, 'caption');
+        expect(message.e2eeFileKey, base64Encode(List.filled(32, 77)));
+        expect(message.mediaName, 'sample.txt');
       },
     );
   });

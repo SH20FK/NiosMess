@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/ordinary_e2ee_notice.dart';
 import 'dart:async';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:flutter/material.dart';
@@ -33,7 +34,6 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/chat/chat_actions_modal.dart';
 import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 
-
 enum _LastMessageKind { photo, video, audio, file }
 
 class ChatListScreen extends ConsumerStatefulWidget {
@@ -50,7 +50,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     super.initState();
     // The provider already fetches on first build and WebSocket push keeps data fresh.
   }
-
 
   List<ApiChatSummary> _applyFilter(
     List<ApiChatSummary> chats,
@@ -93,7 +92,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
       chatsProvider,
     );
-    final AsyncValue<ApiSearchResult> searchAsync = ref.watch(chatListSearchProvider);
+    final AsyncValue<ApiSearchResult> searchAsync = ref.watch(
+      chatListSearchProvider,
+    );
     final filter = ref.watch(chatFilterProvider);
     final int? desktopChatId = ref.watch(desktopSelectedChatProvider);
     final TextTheme textTheme = Theme.of(context).textTheme;
@@ -116,6 +117,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: <Widget>[
+              const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -263,7 +265,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         (ApiSearchMessage message) => message.chatId,
       ),
     };
-    final bool isSearchActive = ref.watch(chatListSearchProvider.notifier).hasActiveQuery;
+    final bool isSearchActive = ref
+        .watch(chatListSearchProvider.notifier)
+        .hasActiveQuery;
     final List<ApiChatSummary> searched = filtered
         .where((ApiChatSummary chat) {
           if (!isSearchActive) return true;
@@ -369,10 +373,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 ),
               );
 
-              return RepaintBoundary(
-                key: ValueKey<int>(chat.id),
-                child: item,
-              );
+              return RepaintBoundary(key: ValueKey<int>(chat.id), child: item);
             },
             addAutomaticKeepAlives: false,
             addRepaintBoundaries: false,
@@ -453,6 +454,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   String _chatPreview(ApiChatSummary chat) {
+    if (chat.lastMessage?.e2eeContent != null ||
+        (chat.lastMessage?.isE2ee == true &&
+            chat.lastMessage?.isDecrypted != true)) {
+      return 'Зашифрованное сообщение';
+    }
     final ApiMessage? lastMessage = chat.lastMessage;
     final String preview = _previewText(lastMessage?.content);
     final bool hasMessage = (lastMessage?.content ?? '').trim().isNotEmpty;
@@ -539,8 +545,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           : isDirect
           ? context.l10n.modalDeleteChatBody
           : context.l10n.groupManageLeaveBody,
-      confirmLabel:
-          isDirect ? context.l10n.commonDelete : context.l10n.groupManageLeave,
+      confirmLabel: isDirect
+          ? context.l10n.commonDelete
+          : context.l10n.groupManageLeave,
       cancelLabel: context.l10n.commonCancel,
       icon: isDirect ? Icons.delete_outline_rounded : Icons.logout_rounded,
       destructive: true,
@@ -557,10 +564,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       }
       await ref.read(chatsProvider.notifier).refresh();
       if (!context.mounted) return;
-      AppToast.showSuccess(
-        context,
-        context.l10n.chatListLeft,
-      );
+      AppToast.showSuccess(context, context.l10n.chatListLeft);
     } catch (e) {
       if (!context.mounted) return;
       AppToast.showError(context, e);

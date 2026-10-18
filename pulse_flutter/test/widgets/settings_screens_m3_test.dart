@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -112,6 +113,7 @@ Widget _wrapWithApp(Widget child, {Size surfaceSize = const Size(800, 1000)}) {
 
   return ProviderScope(
     overrides: [
+      ordinaryE2eeProvider.overrideWithValue(null),
       authProvider.overrideWith(() => _FakeAuthNotifier()),
       authRepositoryProvider.overrideWith((ref) => _MockAuthRepository(ref)),
       sessionsRepositoryProvider.overrideWith((ref) => _StubSessionsRepository(ref)),
