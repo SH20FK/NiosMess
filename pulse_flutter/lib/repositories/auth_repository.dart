@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
@@ -10,6 +9,7 @@ import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/models/api/session_model.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/services/public_media_upload_service.dart';
 
 class AuthRepository {
   const AuthRepository(this._ref);
@@ -264,15 +264,20 @@ class AuthRepository {
       throw Exception('Размер аватара не должен превышать 8 МБ');
     }
 
+    final uploadId = await _ref.read(publicMediaUploadServiceProvider).upload(
+      Uint8List.fromList(bytes), filename: filename,
+    );
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
           'upload_avatar',
           payload: <String, dynamic>{
-            'data_base64': base64Encode(bytes),
+            'upload_id': uploadId,
             'filename': filename,
             if (isVideo) 'is_video': true,
           },
+          timeout: const Duration(seconds: 45),
+          maxRetries: 0,
         );
     return asStringMap(response)['avatar_url'] as String? ?? '';
   }

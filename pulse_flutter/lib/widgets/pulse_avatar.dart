@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/identity/nios_mark.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
 
 class PulseAvatar extends StatelessWidget {
   const PulseAvatar({
@@ -53,6 +54,10 @@ class PulseAvatar extends StatelessWidget {
     final Widget child;
     if (url.isEmpty) {
       child = fallback;
+    } else if (RegExp(r'\.(mp4|webm|mov)$', caseSensitive: false)
+        .hasMatch(Uri.tryParse(url)?.path ?? '')) {
+      child = ClipOval(child: StickerVideoPlayer(url: url,
+        placeholder: fallback, fit: BoxFit.cover));
     } else if (kIsWeb) {
       // In Flutter Web, Image.network avoids CanvasKit black texture rendering bugs
       child = ClipOval(

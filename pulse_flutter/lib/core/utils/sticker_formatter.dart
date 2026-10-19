@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:image/image.dart' as img;
 
 /// Sticker formatting mode for client-side processing.
@@ -38,19 +39,59 @@ class StickerFormatter {
   static Future<StickerFormatResult> formatBytes(
     Uint8List inputBytes, {
     StickerFitMode mode = StickerFitMode.fit,
+    String? filename,
   }) async {
-    // Attempt decoding using package:image (supports PNG, JPG, GIF, WebP, BMP, TIFF, etc.)
-    final img.Image? decoded = img.decodeImage(inputBytes);
-
-    if (decoded == null) {
-      // Non-image format (e.g. video / animated webm / mp4)
+    final extension = filename?.split('.').last.toLowerCase();
+    if (const {'mp4', 'webm', 'mov'}.contains(extension)) {
       return StickerFormatResult(
         bytes: inputBytes,
         width: kStickerDimension,
         height: kStickerDimension,
-        extension: 'webm',
-        mimeType: 'video/webm',
+        extension: extension!,
+        mimeType: extension == 'webm'
+            ? 'video/webm'
+            : extension == 'mov'
+            ? 'video/quicktime'
+            : 'video/mp4',
         isVideo: true,
+      );
+    }
+    return compute(_formatStickerImage, <String, Object>{
+      'bytes': inputBytes,
+      'mode': mode,
+    });
+  }
+
+  static StickerFormatResult formatImage(
+    Uint8List inputBytes,
+    StickerFitMode mode,
+  ) {
+    // Attempt decoding using package:image (supports PNG, JPG, GIF, WebP, BMP, TIFF, etc.)
+    final img.Image? decoded = img.decodeImage(inputBytes);
+
+    if (decoded == null) {
+      throw const FormatException('Не удалось прочитать изображение');
+    }
+    if (decoded.numFrames > 1) {
+      final isGif =
+          inputBytes.length >= 3 &&
+          inputBytes[0] == 71 &&
+          inputBytes[1] == 73 &&
+          inputBytes[2] == 70;
+      return StickerFormatResult(
+        bytes: inputBytes,
+        width: decoded.width,
+        height: decoded.height,
+        extension: isGif
+            ? 'gif'
+            : inputBytes[0] == 137
+            ? 'png'
+            : 'webp',
+        mimeType: isGif
+            ? 'image/gif'
+            : inputBytes[0] == 137
+            ? 'image/png'
+            : 'image/webp',
       );
     }
 
@@ -102,12 +143,7 @@ class StickerFormatter {
       final int dstX = (kStickerDimension - targetW) ~/ 2;
       final int dstY = (kStickerDimension - targetH) ~/ 2;
 
-      img.compositeImage(
-        canvas,
-        resized,
-        dstX: dstX,
-        dstY: dstY,
-      );
+      img.compositeImage(canvas, resized, dstX: dstX, dstY: dstY);
 
       finalImage = canvas;
     }
@@ -125,3 +161,9 @@ class StickerFormatter {
     );
   }
 }
+
+StickerFormatResult _formatStickerImage(Map<String, Object> job) =>
+    StickerFormatter.formatImage(
+      job['bytes']! as Uint8List,
+      job['mode']! as StickerFitMode,
+    );

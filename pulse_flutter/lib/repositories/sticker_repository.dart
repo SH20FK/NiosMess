@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/services/public_media_upload_service.dart';
 
 class StickerRepository {
   const StickerRepository(this._ref);
@@ -116,16 +119,24 @@ class StickerRepository {
   Future<ApiSticker> addSticker({
     required int setId,
     required String filename,
-    required String dataBase64,
+    String? dataBase64,
+    Uint8List? bytes,
     int? width,
     int? height,
     int? durationSeconds,
     String? emoji,
   }) async {
+    final content = bytes ?? (dataBase64 != null ? base64Decode(dataBase64) : null);
+    if (content == null || content.isEmpty) {
+      throw ArgumentError('Sticker content is required');
+    }
+    final uploadId = await _ref.read(publicMediaUploadServiceProvider).upload(
+      content, filename: filename,
+    );
     final Map<String, dynamic> payload = <String, dynamic>{
       'set_id': setId,
       'filename': filename,
-      'data_base64': dataBase64,
+      'upload_id': uploadId,
     };
     if (width != null) payload['width'] = width;
     if (height != null) payload['height'] = height;
@@ -134,7 +145,8 @@ class StickerRepository {
 
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('add_sticker', payload: payload);
+        .request('add_sticker', payload: payload,
+          timeout: const Duration(seconds: 45), maxRetries: 0);
 
     if (response is! Map) {
       throw ApiException(

@@ -242,6 +242,11 @@ class ApiMessage {
   }
 
   factory ApiMessage.fromJson(Map<String, dynamic> json) {
+    final Map author = json['author'] is Map ? json['author'] as Map : const {};
+    final String senderUsername =
+        (json['sender_username'] ?? author['username'] ?? '').toString();
+    final String displayName =
+        (json['sender_display_name'] ?? author['display_name'] ?? '').toString();
     final dynamic badgesRaw = json['sender_badges'];
     final List<ApiBadge> badges;
     if (badgesRaw is List) {
@@ -287,10 +292,11 @@ class ApiMessage {
       isFailed: _parseBool(json['is_failed']),
       id: json['id'] as int? ?? 0,
       chatId: json['chat_id'] as int? ?? 0,
-      senderId: json['sender_id'] as int? ?? 0,
-      senderUsername: json['sender_username'] as String? ?? '',
-      senderDisplayName: json['sender_display_name'] as String? ?? json['sender_username'] as String? ?? 'Unknown',
-      senderAvatarUrl: json['sender_avatar_url'] as String?,
+      senderId: (json['sender_id'] as num?)?.toInt() ??
+          (author['id'] as num?)?.toInt() ?? (json['author_id'] as num?)?.toInt() ?? 0,
+      senderUsername: senderUsername,
+      senderDisplayName: displayName.trim().isNotEmpty ? displayName : senderUsername,
+      senderAvatarUrl: (json['sender_avatar_url'] ?? author['avatar_url']) as String?,
       senderBadges: badges,
       content: resolvedContent,
       msgType: json['msg_type'] as String? ?? 'text',
@@ -302,7 +308,7 @@ class ApiMessage {
       mediaDuration: json['media_duration'] as int?,
       commentsCount: json['comments_count'] as int? ?? 0,
       reactions: reactions,
-      sentAt: parseApiDateTime(json['sent_at'] as String?),
+      sentAt: parseApiDateTime((json['sent_at'] ?? json['created_at']) as String?),
       editedAt: parseApiDateTimeNullable(json['edited_at'] as String?),
       isDeleted: _parseBool(json['is_deleted']),
       replyMarkup: json['reply_markup'] is Map

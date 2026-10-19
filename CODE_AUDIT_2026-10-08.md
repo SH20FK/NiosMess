@@ -10,7 +10,7 @@
 
 ## Результаты проверок
 
-Локальная среда фактически: Flutter 3.44.6, Dart 3.12.2. В AGENTS.md указаны старые локальные версии, CI фиксирует Flutter 3.47.5; результаты ниже относятся к локальной среде.
+Локальная среда фактически: Flutter 3.44.6, Dart 3.12.2. В локальной документации были указаны старые версии, CI фиксирует Flutter 3.47.5; результаты ниже относятся к локальной среде.
 
 | Проверка | Результат |
 | --- | --- |
@@ -23,7 +23,7 @@
 | После изменения метаданных: повторный `flutter analyze --no-pub` | Без замечаний, exit 0 |
 | После изменения метаданных: About/update service tests | 14/14, exit 0 |
 
-Полный запуск выполняет часть тестов дважды: как отдельные файлы и внутри `suite_test.dart`. Поэтому 1390 — число успешных выполнений, а не уникальных тестов. Тесты проекта импортируют `flutter_test`; использован Flutter runner согласно исключению в AGENTS.md, а CLI-проверки запущены напрямую через Dart. Зависимости не обновлялись.
+Полный запуск выполняет часть тестов дважды: как отдельные файлы и внутри `suite_test.dart`. Поэтому 1390 — число успешных выполнений, а не уникальных тестов. Тесты проекта импортируют `flutter_test`; использован Flutter runner для тестов с зависимостью от Flutter, а CLI-проверки запущены напрямую через Dart. Зависимости не обновлялись.
 
 Три падения находятся в [entry_screens_reachability_test.dart](<F:/Niosmess V2/pulse_flutter/test/unit/entry_screens_reachability_test.dart:139>): проверки требуют текст `M3SpringCurves.spatial`, `AppRadii.lgRadius` и `_cachedPicture`. Код теперь использует другие кривые/формы и кэш `ui.Image`. Это падения проверок текстовых фрагментов, а не доказательство краша этих экранов.
 
@@ -141,7 +141,7 @@
 
 - [wallpaper_studio_screen.dart:216](<F:/Niosmess V2/pulse_flutter/lib/features/wallpaper/presentation/wallpaper_studio_screen.dart:216>) использует `PopupMenuButton`, вопреки проектному правилу MenuAnchor/expressive action panel.
 - [pulse_loading_indicator.dart:37](<F:/Niosmess V2/pulse_flutter/lib/widgets/pulse_loading_indicator.dart:37>) при `value != null` переключается на стандартный `LinearProgressIndicator`. В комментарии обоснована читаемость определённого прогресса, но требование проекта о wave/morphing expressive индикаторе выполняется лишь в неопределённом режиме. Стандартный LinearProgressIndicator при M3-theme сам по себе не является доказательством MD2.
-- [m3_spring_constants.dart:88](<F:/Niosmess V2/pulse_flutter/lib/core/motion/m3_spring_constants.dart:88>) содержит boundary clamps, хотя AGENTS.md требует нормализацию без них. При этом `raw/rawEnd` уже нормализует endpoint; это вопрос согласованности протокола, а не доказанный скачок анимации.
+- [m3_spring_constants.dart:88](<F:/Niosmess V2/pulse_flutter/lib/core/motion/m3_spring_constants.dart:88>) содержит boundary clamps, хотя требования проекта предусматривали нормализацию без них. При этом `raw/rawEnd` уже нормализует endpoint; это вопрос согласованности протокола, а не доказанный скачок анимации.
 - Есть фиксированные white/black в настройках, логотипах и call overlays. Некоторые осмысленны поверх видео/фото; переносить всё на `onSurface` без проверки контраста нельзя. Для theme UI нужны semantic color roles и явные документированные media-исключения.
 - `verify_m3e` проходит, но в основном ищет фрагменты кода и старые version thresholds. Он не ловит перечисленные runtime/security ошибки и не подтверждает визуальное соответствие всей спецификации.
 
@@ -163,14 +163,12 @@ Flutter описывает `useMaterial3` как переключатель M3 �
 
 ## Артефакты и изменения этого аудита
 
-[Семь воспроизведений](<C:/CodexHome/visualizations/2026/10/08/01a11c25-70c3-7c90-ad26-03bcc0600750/niosmess_audit_probes_test.dart>) используют реальные crypto/cache/providers и синтетические данные. Они находятся вне набора CI и **утверждают наблюдаемое ошибочное поведение**; их зелёный результат подтверждает дефекты, а не исправления. После исправления нужны обычные regression tests с ожидаемым безопасным поведением.
+Семь локальных воспроизведений используют реальные crypto/cache/providers и синтетические данные. Они находятся вне набора CI и **утверждают наблюдаемое ошибочное поведение**; их зелёный результат подтверждает дефекты, а не исправления. После исправления нужны обычные regression tests с ожидаемым безопасным поведением.
 
-Сохранены логи: [полный набор](<C:/CodexHome/visualizations/2026/10/08/01a11c25-70c3-7c90-ad26-03bcc0600750/niosmess-audit-tests.log>), [CI-агрегатор](<C:/CodexHome/visualizations/2026/10/08/01a11c25-70c3-7c90-ad26-03bcc0600750/niosmess-audit-ci-suite.log>), [воспроизведения](<C:/CodexHome/visualizations/2026/10/08/01a11c25-70c3-7c90-ad26-03bcc0600750/niosmess-audit-probes.log>), [About/update service](<C:/CodexHome/visualizations/2026/10/08/01a11c25-70c3-7c90-ad26-03bcc0600750/niosmess-audit-metadata-tests.log>).
-
-Команда повторения из `pulse_flutter`:
+Логи полного набора, CI-агрегатора, воспроизведений и About/update service сохранялись локально на машине аудитора и не включены в репозиторий. Для повторения используйте синтетические сценарии, описанные в соответствующих находках выше. Текущие проверки проекта запускаются из pulse_flutter:
 
 ```powershell
-flutter test --no-pub --reporter expanded 'C:/CodexHome/visualizations/2026/10/08/01a11c25-70c3-7c90-ad26-03bcc0600750/niosmess_audit_probes_test.dart'
+flutter test --no-pub --reporter expanded test/suite_test.dart
 ```
 
-Добавлен этот отчёт. По SemVer-протоколу AGENTS.md документационная задача поднимает patch до **3.95.1+213**. Метаданные `BuildInfo` синхронизированы: до аудита там оставались `3.88.2+188`, старые дата и commit, хотя pubspec уже был `3.95.0+212`; экран About использовал эти значения в некоторых местах. Changelog обновлён в корне и assets. Runtime-дефекты выше не исправлялись. Коммит и push не выполнялись.
+Добавлен этот отчёт. По правилам версионирования проекта документационная задача поднимает patch до **3.95.1+213**. Метаданные `BuildInfo` синхронизированы: до аудита там оставались `3.88.2+188`, старые дата и commit, хотя pubspec уже был `3.95.0+212`; экран About использовал эти значения в некоторых местах. Changelog обновлён в корне и assets. Runtime-дефекты выше не исправлялись. Коммит и push не выполнялись.

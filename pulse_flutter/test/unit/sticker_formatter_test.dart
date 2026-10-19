@@ -18,52 +18,75 @@ void main() {
       testPortraitImageBytes = Uint8List.fromList(img.encodePng(portrait));
     });
 
-    test('formatBytes with fit mode preserves aspect ratio and outputs 512x512 PNG', () async {
-      final StickerFormatResult result = await StickerFormatter.formatBytes(
-        testLandscapeImageBytes,
-        mode: StickerFitMode.fit,
-      );
+    test(
+      'formatBytes with fit mode preserves aspect ratio and outputs 512x512 PNG',
+      () async {
+        final StickerFormatResult result = await StickerFormatter.formatBytes(
+          testLandscapeImageBytes,
+          mode: StickerFitMode.fit,
+        );
 
-      expect(result.width, 512);
-      expect(result.height, 512);
-      expect(result.extension, 'png');
-      expect(result.mimeType, 'image/png');
-      expect(result.isVideo, isFalse);
+        expect(result.width, 512);
+        expect(result.height, 512);
+        expect(result.extension, 'png');
+        expect(result.mimeType, 'image/png');
+        expect(result.isVideo, isFalse);
 
-      final img.Image? decoded = img.decodeImage(result.bytes);
-      expect(decoded, isNotNull);
-      expect(decoded!.width, 512);
-      expect(decoded.height, 512);
-    });
+        final img.Image? decoded = img.decodeImage(result.bytes);
+        expect(decoded, isNotNull);
+        expect(decoded!.width, 512);
+        expect(decoded.height, 512);
+      },
+    );
 
-    test('formatBytes with crop mode produces exact 512x512 cropped PNG', () async {
-      final StickerFormatResult result = await StickerFormatter.formatBytes(
-        testPortraitImageBytes,
-        mode: StickerFitMode.crop,
-      );
+    test(
+      'formatBytes with crop mode produces exact 512x512 cropped PNG',
+      () async {
+        final StickerFormatResult result = await StickerFormatter.formatBytes(
+          testPortraitImageBytes,
+          mode: StickerFitMode.crop,
+        );
 
-      expect(result.width, 512);
-      expect(result.height, 512);
-      expect(result.extension, 'png');
-      expect(result.mimeType, 'image/png');
-      expect(result.isVideo, isFalse);
+        expect(result.width, 512);
+        expect(result.height, 512);
+        expect(result.extension, 'png');
+        expect(result.mimeType, 'image/png');
+        expect(result.isVideo, isFalse);
 
-      final img.Image? decoded = img.decodeImage(result.bytes);
-      expect(decoded, isNotNull);
-      expect(decoded!.width, 512);
-      expect(decoded.height, 512);
-    });
+        final img.Image? decoded = img.decodeImage(result.bytes);
+        expect(decoded, isNotNull);
+        expect(decoded!.width, 512);
+        expect(decoded.height, 512);
+      },
+    );
 
-    test('formatBytes with invalid image bytes falls back gracefully', () async {
-      final Uint8List rawBinary = Uint8List.fromList([0, 1, 2, 3, 4, 5]);
-      final StickerFormatResult result = await StickerFormatter.formatBytes(
-        rawBinary,
-      );
+    test(
+      'invalid bytes are rejected instead of renamed as a WebM video',
+      () async {
+        final Uint8List rawBinary = Uint8List.fromList([0, 1, 2, 3, 4, 5]);
+        await expectLater(
+          StickerFormatter.formatBytes(rawBinary),
+          throwsFormatException,
+        );
+      },
+    );
 
-      expect(result.width, 512);
-      expect(result.height, 512);
-      expect(result.isVideo, isTrue);
-      expect(result.bytes, rawBinary);
-    });
+    test(
+      'video containers are preserved without decoding or fake conversion',
+      () async {
+        final bytes = Uint8List.fromList(
+          List<int>.generate(512, (i) => i % 256),
+        );
+        for (final ext in ['mp4', 'mov', 'webm']) {
+          final result = await StickerFormatter.formatBytes(
+            bytes,
+            filename: 'clip.$ext',
+          );
+          expect(result.bytes, same(bytes));
+          expect(result.extension, ext);
+          expect(result.isVideo, isTrue);
+        }
+      },
+    );
   });
 }

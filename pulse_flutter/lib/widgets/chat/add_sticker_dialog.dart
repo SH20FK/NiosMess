@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -78,6 +77,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
   }
 
   Future<void> _changeFitMode(StickerFitMode mode) async {
+    if (_isLoading || _isFormatting) return;
     if (_globalFitMode == mode || _files.isEmpty) {
       setState(() => _globalFitMode = mode);
       return;
@@ -88,9 +88,10 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
       _isFormatting = true;
     });
 
-    for (final _PickedStickerFile file in _files) {
+    for (final _PickedStickerFile file in List<_PickedStickerFile>.of(_files)) {
       final StickerFormatResult res =
-          await StickerFormatter.formatBytes(file.rawBytes, mode: mode);
+          await StickerFormatter.formatBytes(file.rawBytes, filename: file.name, mode: mode);
+      if (!mounted) return;
       file.formattedBytes = res.bytes;
       file.extension = res.extension;
       file.fitMode = mode;
@@ -102,6 +103,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
   }
 
   Future<void> _pickFiles() async {
+    if (_isLoading || _isFormatting) return;
     try {
       final List<PlatformFile> picked = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -122,7 +124,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
         ],
       );
 
-      if (picked.isEmpty) return;
+      if (picked.isEmpty || !mounted) return;
 
       setState(() => _isFormatting = true);
 
@@ -130,6 +132,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
 
       for (final PlatformFile file in picked) {
         final Uint8List bytes = await file.readAsBytes();
+        if (!mounted) return;
         if (bytes.isEmpty) continue;
 
         final String ext = (file.extension ?? '').toLowerCase();
@@ -150,7 +153,8 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
 
         // Auto-format any image on-device into compliant 512x512
         final StickerFormatResult formatted =
-            await StickerFormatter.formatBytes(bytes, mode: _globalFitMode);
+            await StickerFormatter.formatBytes(bytes, filename: file.name, mode: _globalFitMode);
+        if (!mounted) return;
 
         newFiles.add(
           _PickedStickerFile(
@@ -184,6 +188,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
   }
 
   Future<void> _submitUpload() async {
+    if (_isLoading || _isFormatting) return;
     if (_files.isEmpty) {
       AppToast.showError(context, 'Выберите хотя бы одно изображение или видео');
       return;
@@ -201,14 +206,13 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
     try {
       for (int i = 0; i < total; i++) {
         final _PickedStickerFile item = _files[i];
-        final String base64Data = base64Encode(item.formattedBytes);
         final String safeFilename =
             'sticker_${widget.setId}_${DateTime.now().millisecondsSinceEpoch}_$i.${item.extension}';
 
         await ref.read(stickerSetsProvider.notifier).addSticker(
               setId: widget.setId,
               filename: safeFilename,
-              dataBase64: base64Data,
+              bytes: item.formattedBytes,
               width: StickerFormatter.kStickerDimension,
               height: StickerFormatter.kStickerDimension,
               emoji: item.emoji.isNotEmpty ? item.emoji : '✨',
@@ -592,7 +596,7 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                                     top: 2,
                                     right: 2,
                                     child: InkWell(
-                                      onTap: () {
+                                      onTap: _isLoading ? null : () {
                                         HapticService.tap();
                                         setState(() {
                                           _files.removeAt(index);
@@ -624,7 +628,8 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
 
             // Google Pixel Pill Action Button
             FilledButton.icon(
-              onPressed: (_isLoading || _files.isEmpty) ? null : _submitUpload,
+              onPressed: (_isLoading || _isFormatting || _files.isEmpty)
+                  ? null : _submitUpload,
               icon: _isLoading
                   ? AppLoadingIndicator(
                       size: 18,

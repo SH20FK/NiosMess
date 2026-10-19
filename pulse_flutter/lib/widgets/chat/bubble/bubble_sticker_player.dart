@@ -11,8 +11,11 @@ import 'package:pulse_flutter/core/media/media_playback_visibility.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 
 class StickerVideoPlayer extends ConsumerStatefulWidget {
-  const StickerVideoPlayer({required this.url, super.key});
+  const StickerVideoPlayer({required this.url, this.placeholder,
+    this.fit = BoxFit.contain, super.key});
   final String url;
+  final Widget? placeholder;
+  final BoxFit fit;
 
   @override
   ConsumerState<StickerVideoPlayer> createState() => StickerVideoPlayerState();
@@ -256,7 +259,7 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
       key: _posterBoundary,
       child: _controller != null && _isInit && _controller!.value.isInitialized
           ? FittedBox(
-              fit: BoxFit.contain,
+              fit: widget.fit,
               child: SizedBox(
                 width: _controller!.value.size.width,
                 height: _controller!.value.size.height,
@@ -266,16 +269,16 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
           : _imagePlaying
           ? CachedNetworkImage(
               imageUrl: widget.url,
-              fit: BoxFit.contain,
+              fit: widget.fit,
               memCacheWidth: 400,
               memCacheHeight: 400,
-              placeholder: (_, _) => const Icon(Icons.sticky_note_2_outlined),
+              placeholder: (_, _) => widget.placeholder ?? const Icon(Icons.sticky_note_2_outlined),
               errorWidget: (_, _, _) =>
-                  const Icon(Icons.sticky_note_2_outlined),
+                  widget.placeholder ?? const Icon(Icons.sticky_note_2_outlined),
             )
           : _posterImage != null
-          ? RawImage(image: _posterImage, fit: BoxFit.contain)
-          : const Icon(Icons.sticky_note_2_outlined),
+          ? RawImage(image: _posterImage, fit: widget.fit)
+          : widget.placeholder ?? const Icon(Icons.sticky_note_2_outlined),
     ),
   );
 }

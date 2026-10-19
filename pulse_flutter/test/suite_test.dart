@@ -123,6 +123,8 @@ import 'unit/shared_media_classification_test.dart'
 import 'unit/smooth_text_streamer_test.dart' as unit_smooth_text_streamer;
 import 'unit/sound_service_test.dart' as unit_sound_service;
 import 'unit/sticker_formatter_test.dart' as unit_sticker_formatter;
+import 'unit/public_media_contract_test.dart' as unit_public_media_contract;
+import 'widgets/video_avatar_test.dart' as widgets_video_avatar;
 import 'unit/morphing_brand_mark_test.dart' as unit_morphing_brand_mark;
 import 'unit/moments_test.dart' as unit_moments;
 import 'unit/tri_sync_test.dart' as unit_tri_sync;
@@ -206,6 +208,8 @@ void main() {
     unit_smooth_text_streamer.main();
     unit_sound_service.main();
     unit_sticker_formatter.main();
+    unit_public_media_contract.main();
+    widgets_video_avatar.main();
     unit_morphing_brand_mark.main();
     unit_moments.main();
     unit_tri_sync.main();

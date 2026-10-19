@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'support/fake_public_media_upload.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -298,6 +298,7 @@ void main() {
       container = ProviderContainer(
         overrides: [
           webSocketClientProvider.overrideWithValue(fakeWs),
+          publicMediaUploadServiceProvider.overrideWithValue(FakePublicMediaUpload()),
         ],
       );
       repository = container.read(authRepositoryProvider);
@@ -350,7 +351,9 @@ void main() {
       final Map<String, dynamic> payload = fakeWs.requests.last['payload'] as Map<String, dynamic>;
       expect(payload['is_video'], true);
       expect(payload['filename'], 'avatar.mp4');
-      expect(payload['data_base64'], base64Encode(videoBytes));
+      expect(payload.containsKey('data_base64'), isFalse);
+      expect(payload['upload_id'], '0123456789abcdef0123456789abcdef');
+      expect((container.read(publicMediaUploadServiceProvider) as FakePublicMediaUpload).uploaded, videoBytes);
     });
 
     test('Static photo avatar payload does NOT include is_video', () async {

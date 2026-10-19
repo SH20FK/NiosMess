@@ -20,6 +20,7 @@ import 'package:pulse_flutter/models/api/upload_models.dart';
 import 'package:pulse_flutter/models/blob_store_models.dart';
 import 'package:pulse_flutter/services/blob_hasher.dart';
 import 'package:pulse_flutter/services/blob_store_service.dart';
+import 'package:pulse_flutter/services/public_media_upload_service.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 class ChatRepository {
@@ -1221,15 +1222,19 @@ class ChatRepository {
     List<int> bytes,
     String filename,
   ) async {
+    final uploadId = await _ref.read(publicMediaUploadServiceProvider).upload(
+      Uint8List.fromList(bytes), filename: filename,
+    );
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
           'chat_avatar_upload',
           payload: <String, dynamic>{
             'chat_id': chatId,
-            'data_base64': base64Encode(bytes),
+            'upload_id': uploadId,
             'filename': filename,
           },
+          timeout: const Duration(seconds: 45), maxRetries: 0,
         );
     return asStringMap(response)['avatar_url'] as String? ?? '';
   }

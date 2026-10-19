@@ -1,3 +1,4 @@
+import 'support/fake_public_media_upload.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -186,6 +187,7 @@ void main() {
       container = ProviderContainer(
         overrides: [
           webSocketClientProvider.overrideWithValue(fakeWs),
+          publicMediaUploadServiceProvider.overrideWithValue(FakePublicMediaUpload()),
         ],
       );
       repository = container.read(authRepositoryProvider);
@@ -350,6 +352,7 @@ void main() {
         ProviderScope(
           overrides: [
             webSocketClientProvider.overrideWithValue(fakeWs),
+          publicMediaUploadServiceProvider.overrideWithValue(FakePublicMediaUpload()),
           ],
           child: const MaterialApp(
             home: Scaffold(

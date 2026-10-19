@@ -70,7 +70,8 @@ class StickerSetsNotifier extends AsyncNotifier<List<ApiStickerSet>> {
   Future<ApiSticker> addSticker({
     required int setId,
     required String filename,
-    required String dataBase64,
+    String? dataBase64,
+    Uint8List? bytes,
     int? width,
     int? height,
     int? durationSeconds,
@@ -81,6 +82,7 @@ class StickerSetsNotifier extends AsyncNotifier<List<ApiStickerSet>> {
       setId: setId,
       filename: filename,
       dataBase64: dataBase64,
+      bytes: bytes,
       width: width,
       height: height,
       durationSeconds: durationSeconds,

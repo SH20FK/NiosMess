@@ -1,3 +1,4 @@
+import 'support/fake_public_media_upload.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -232,6 +233,7 @@ void main() {
       container = ProviderContainer(
         overrides: [
           webSocketClientProvider.overrideWithValue(fakeWs),
+          publicMediaUploadServiceProvider.overrideWithValue(FakePublicMediaUpload()),
         ],
       );
     });
@@ -324,7 +326,9 @@ void main() {
       final payload = fakeWs.recordedRequests.first['payload'] as Map;
       expect(payload['set_id'], 10);
       expect(payload['filename'], 'dog.webp');
-      expect(payload['data_base64'], 'AAAA');
+      expect(payload.containsKey('data_base64'), isFalse);
+      expect(payload['upload_id'], '0123456789abcdef0123456789abcdef');
+      expect((container.read(publicMediaUploadServiceProvider) as FakePublicMediaUpload).uploaded, [0, 0, 0]);
       expect(payload['emoji'], '🐶');
       expect(sticker.id, 99);
     });
@@ -418,6 +422,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           webSocketClientProvider.overrideWithValue(fakeWs),
+          publicMediaUploadServiceProvider.overrideWithValue(FakePublicMediaUpload()),
         ],
       );
       addTearDown(container.dispose);
@@ -454,7 +459,7 @@ void main() {
       await container.read(stickerSetsProvider.notifier).addSticker(
             setId: 2,
             filename: 'fire.webp',
-            dataBase64: '...',
+            dataBase64: 'AAAA',
             emoji: '🔥',
           );
 
