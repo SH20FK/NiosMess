@@ -30,6 +30,7 @@ import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_upload_overlay.dart';
 import 'package:pulse_flutter/widgets/chat/inline_keyboard_view.dart';
+import 'package:pulse_flutter/widgets/chat/ordinary_encryption_settings_button.dart';
 import 'package:pulse_flutter/widgets/chat/noto_message_emoji.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_details_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
@@ -78,6 +79,7 @@ class MessageBubble extends ConsumerWidget {
     this.isNextSame = false,
     this.animate = false,
     this.isE2ee = false,
+    this.showEncryptionSettings = false,
     this.e2eeFileKey,
     this.isVoice = false,
     this.isCircleVideo = false,
@@ -112,6 +114,7 @@ class MessageBubble extends ConsumerWidget {
   final bool isEdited;
   final bool isRead;
   final bool isE2ee;
+  final bool showEncryptionSettings;
 
   /// Base64 per-file AES key from the E2EE envelope (secret chats).
   final String? e2eeFileKey;
@@ -507,7 +510,9 @@ class MessageBubble extends ConsumerWidget {
                 ),
               ),
             ),
-            if (replyMarkup != null && replyMarkup!.inlineKeyboard.isNotEmpty)
+            if (showEncryptionSettings && !isDeleted)
+              OrdinaryEncryptionSettingsButton(isMine: isMine)
+            else if (replyMarkup != null && replyMarkup!.inlineKeyboard.isNotEmpty)
               _buildInlineKeyboard(scheme, textTheme),
             if (reactions.isNotEmpty)
               Padding(

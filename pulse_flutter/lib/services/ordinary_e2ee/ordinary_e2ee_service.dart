@@ -1,6 +1,7 @@
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import '../bluetooth_mesh/mesh_preferences.dart';
 import '../bluetooth_mesh/mesh_packet.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'ordinary_e2ee_codec.dart';
 import 'automatic_enrollment.dart';
@@ -53,6 +55,69 @@ class OrdinaryE2eeService extends ChangeNotifier {
   bool _disposed = false;
   int _identityGeneration = 0;
   String? get identityEpoch => locked ? null : _keys?.epoch;
+  String get keyState =>
+      locked ? 'locked' : ((_keyring.keys.toList()..sort()).join(':'));
+  final _contactNotices = <int, String>{};
+  final _missingEpochs = <String>{};
+  Future<void>? _repairing;
+  DateTime? _lastRepair;
+  final _peerRefreshes = <int, Future<void>>{};
+  final _lastPeerRefresh = <int, DateTime>{};
+  String? contactKeyChange(int chatId) => _contactNotices[chatId];
+  Future<void> dismissContactKeyChange(int chatId, String epoch) async {
+    if (_contactNotices[chatId] != epoch) return;
+    _contactNotices.remove(chatId);
+    await storage.delete(key: '$_prefix.notice.$chatId');
+    _changed();
+  }
+
+  void _refreshContact(int chatId, E2eJson sender) {
+    if (_disposed ||
+        !isOnline() ||
+        sender['user_id'] == userId ||
+        _peerRefreshes.containsKey(chatId)) {
+      return;
+    }
+    final now = DateTime.now(), last = _lastPeerRefresh[chatId];
+    if (last != null && now.difference(last) < const Duration(seconds: 30)) {
+      return;
+    }
+    _lastPeerRefresh[chatId] = now;
+    if (_lastPeerRefresh.length > 512) {
+      _lastPeerRefresh.remove(_lastPeerRefresh.keys.first);
+    }
+    _peerRefreshes[chatId] =
+        () async {
+          final latest = await storage.read(
+            key: '$_prefix.latest.${sender['user_id']}',
+          );
+          if (!_disposed && isOnline() && latest != sender['epoch']) {
+            await prepare(chatId, force: true);
+          }
+        }().catchError((Object _) {}).whenComplete(() {
+          _peerRefreshes.remove(chatId);
+        });
+  }
+
+  void _repairKeys() {
+    final now = DateTime.now();
+    if (_disposed ||
+        !isOnline() ||
+        _repairing != null ||
+        (_lastRepair != null &&
+            now.difference(_lastRepair!) < const Duration(seconds: 30))) {
+      return;
+    }
+    _lastRepair = now;
+    _repairing = () async {
+      // Reopen the full saved epoch ring, then use the existing authenticated
+      // NiosID enrollment flow. No new keys, resets or plaintext fallback.
+      await open();
+      _missingEpochs.removeWhere(_keyring.containsKey);
+      if (!_disposed && isOnline()) await syncAutomatic();
+    }().catchError((Object _) {}).whenComplete(() => _repairing = null);
+  }
+
   String _namespace = '';
   String get meshStorageScope {
     if (_namespace.isEmpty || !initialised) {
@@ -82,6 +147,8 @@ class OrdinaryE2eeService extends ChangeNotifier {
     _keyring.clear();
     _opened.clear();
     _identities.clear();
+    _contactNotices.clear();
+    _missingEpochs.clear();
     _pairKey = null;
     _pairSecret = null;
     _autoOffer = null;
@@ -124,6 +191,8 @@ class OrdinaryE2eeService extends ChangeNotifier {
       _keyring.clear();
       _identities.clear();
       _opened.clear();
+      _contactNotices.clear();
+      _missingEpochs.clear();
       _pairKey = null;
       _pairId = null;
       _pairSecret = null;
@@ -244,11 +313,14 @@ class OrdinaryE2eeService extends ChangeNotifier {
     if (!initialised) await open();
     final E2eJson context;
     final cacheKey = '$_prefix.mesh-chat.$chatId';
-    if (isOnline()) {
+    final fromServer = isOnline();
+    if (fromServer) {
       try {
         context = await _call('chat', {'chat_id': chatId});
-      } catch (_) {
-        await storage.delete(key: cacheKey);
+      } on ApiException catch (error) {
+        if (const [401, 403, 404].contains(error.statusCode)) {
+          await storage.delete(key: cacheKey);
+        }
         rethrow;
       }
       if (context['eligible'] != true) await storage.delete(key: cacheKey);
@@ -275,8 +347,22 @@ class OrdinaryE2eeService extends ChangeNotifier {
         'Собеседнику нужно обновить NiosMess и подключить шифрование. Открытый текст не отправлен.',
       );
     }
-    await _checkPin(peer);
-    if (isOnline()) {
+    final changed = await _checkPin(peer, current: fromServer);
+    if (changed) {
+      _contactNotices[chatId] = peer['epoch'] as String;
+      await storage.write(
+        key: '$_prefix.notice.$chatId',
+        value: peer['epoch'] as String,
+      );
+      _changed();
+    } else if (!_contactNotices.containsKey(chatId)) {
+      final notice = await storage.read(key: '$_prefix.notice.$chatId');
+      if (notice != null) {
+        _contactNotices[chatId] = notice;
+        _changed();
+      }
+    }
+    if (fromServer) {
       await storage.write(
         key: cacheKey,
         value: jsonEncode({
@@ -288,27 +374,28 @@ class OrdinaryE2eeService extends ChangeNotifier {
     return context;
   }
 
-  Future<void> warmMeshChat(int chatId) async {
-    if (!isOnline() || locked || !meshEnabled()) return;
+  Future<bool> warmMeshChat(int chatId) async {
+    if (!isOnline() || locked || !meshEnabled()) return false;
     if (!initialised) await open();
     final raw = await storage.read(key: '$_prefix.mesh-chat.$chatId');
     if (raw != null) {
       try {
         final value = jsonDecode(raw) as E2eJson;
         if (DateTime.now().millisecondsSinceEpoch - (value['saved'] as int) <
-            const Duration(hours: 12).inMilliseconds) {
-          return;
+            const Duration(minutes: 30).inMilliseconds) {
+          return false;
         }
       } catch (_) {}
     }
     await prepare(chatId, force: true);
+    return true;
   }
 
   Future<E2eJson> _offlineChat(int chatId) async {
     final raw = await storage.read(key: '$_prefix.mesh-chat.$chatId');
     if (raw == null) {
       throw StateError(
-        'Откройте этот личный чат с интернетом перед отправкой по Bluetooth',
+        'Ключи этого чата ещё не синхронизированы. Подготовим их автоматически при появлении связи',
       );
     }
     final saved = jsonDecode(raw) as E2eJson;
@@ -468,7 +555,7 @@ class OrdinaryE2eeService extends ChangeNotifier {
     };
   }
 
-  Future<void> _checkPin(E2eJson identity) async {
+  Future<bool> _checkPin(E2eJson identity, {bool current = false}) async {
     final key = '$_prefix.pin.${identity['user_id']}.${identity['epoch']}';
     final value = jsonEncode(OrdinaryCodec.canonical(identity));
     final previous = await storage.read(key: key);
@@ -477,13 +564,14 @@ class OrdinaryE2eeService extends ChangeNotifier {
     }
     final latestKey = '$_prefix.latest.${identity['user_id']}';
     final latest = await storage.read(key: latestKey);
-    if (previous == null && latest != null && latest != identity['epoch']) {
-      throw StateError(
-        'Ключ собеседника изменился. Сверьте отпечаток в настройках шифрования.',
-      );
-    }
+    final changed = current && latest != null && latest != identity['epoch'];
     await storage.write(key: key, value: value);
-    await storage.write(key: latestKey, value: identity['epoch'] as String);
+    // Historical identity lookups must never roll back the current contact key.
+    // Only a live authenticated chat response may advance the current epoch.
+    if (current) {
+      await storage.write(key: latestKey, value: identity['epoch'] as String);
+    }
+    return changed;
   }
 
   Future<String> encrypt(
@@ -547,18 +635,29 @@ class OrdinaryE2eeService extends ChangeNotifier {
   final Map<(int, int, int?, int?, String), E2eJson> _opened = {};
   Future<ApiMessage> decrypt(ApiMessage message) async {
     if (message.e2eeContent == null) return message;
+    var waitingForKeys = false;
     try {
       if (!OrdinaryCodec.recognises(message.e2eeContent!)) {
         throw const FormatException('Unknown E2E format');
       }
-      if (!initialised) await open();
+      if (!initialised) {
+        waitingForKeys = true;
+        await open();
+        waitingForKeys = false;
+      }
       final h = OrdinaryCodec.header(message.e2eeContent!),
           box = (h['boxes'] as E2eJson)['$userId'] as E2eJson;
       final own = _keyring[box['epoch']];
       if (own == null) {
-        throw StateError('Подключите это устройство в настройках шифрования.');
+        if (_missingEpochs.length < 256) {
+          _missingEpochs.add(box['epoch'] as String);
+        }
+        waitingForKeys = true;
+        throw StateError('Waiting for the matching private key');
       }
+      waitingForKeys = true;
       final sender = await _identity(message.senderId, h['epoch'] as String);
+      waitingForKeys = false;
       final cacheKey = (
         message.chatId,
         message.senderId,
@@ -587,6 +686,7 @@ class OrdinaryE2eeService extends ChangeNotifier {
         throw const FormatException('Unauthenticated attachment');
       }
       if (_disposed) throw StateError('Сеанс шифрования закрыт');
+      _refreshContact(message.chatId, sender);
       if (message.e2eeContent!.length <= 65536) {
         _opened[cacheKey] = body;
         if (_opened.length > 128) _opened.remove(_opened.keys.first);
@@ -623,10 +723,12 @@ class OrdinaryE2eeService extends ChangeNotifier {
         mediaSize: body['size'] as int?,
       );
     } catch (_) {
+      if (waitingForKeys) _repairKeys();
       return ApiMessage.fromJson({
         ...message.toJson(),
-        'content':
-            'Зашифрованное сообщение. Откройте настройки шифрования, чтобы подключить устройство или проверить ключ собеседника.',
+        'content': waitingForKeys
+            ? 'Ожидаем ключи. Сообщение откроется автоматически после синхронизации.'
+            : 'Не удалось проверить зашифрованное сообщение.',
         'is_e2ee': true,
         'is_decrypted': false,
         'msg_type': 'text',
@@ -689,10 +791,10 @@ class OrdinaryE2eeService extends ChangeNotifier {
         if (proof.requestId != offer.requestId || proof.target != localTarget) {
           throw const FormatException('Mismatched device login');
         }
-        if (!locked) {
-          await _enrollmentStore.clear(offer);
-          _autoOffer = null;
-        } else {
+        // Keep a still-valid NiosID offer for on-demand historical key repair.
+        // An unlocked device continues serving other devices normally until it
+        // actually needs a missing epoch; no user confirmation is introduced.
+        if (locked || _missingEpochs.isNotEmpty) {
           if (_autoStarted != proof.requestId) {
             await _call('auto_start', {'proof': offer.proof});
             _autoStarted = proof.requestId;
@@ -772,6 +874,7 @@ class OrdinaryE2eeService extends ChangeNotifier {
           _opened.clear();
           _identities.clear();
           locked = false;
+          _missingEpochs.removeWhere(_keyring.containsKey);
           await _enrollmentStore.clear(offer);
           _autoOffer = null;
           _changed();
@@ -1028,7 +1131,8 @@ final ordinaryE2eeProvider = Provider<OrdinaryE2eeService?>((ref) {
         maxRetries: payload?['op'] == 'ask_ai' ? 0 : 2,
       );
     },
-    isOnline: () => ws.isConnected,
+    isOnline: () =>
+        ws.isConnected && ref.read(connectivityProvider).value != false,
     meshEnabled: () =>
         meshPlatformSupported &&
         ref.read(meshPreferenceProvider.notifier).hydrated &&
@@ -1040,6 +1144,7 @@ final ordinaryE2eeProvider = Provider<OrdinaryE2eeService?>((ref) {
   var lastPoll = DateTime.fromMillisecondsSinceEpoch(0);
   void sync({bool forced = false}) {
     if (!ws.isConnected ||
+        ref.read(connectivityProvider).value == false ||
         (!forced &&
             !service.locked &&
             DateTime.now().difference(lastPoll).inSeconds < 30)) {

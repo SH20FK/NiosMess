@@ -8,10 +8,27 @@ abstract interface class BleTransport {
   Future<void> send(String peer, Uint8List bytes);
 }
 
-class NativeBleTransport implements BleTransport {
+abstract interface class BleAccessTransport {
+  Future<Map<String, dynamic>> requestAccess();
+}
+
+class NativeBleTransport implements BleTransport, BleAccessTransport {
   final _lease = const Uuid().v4();
   static const _methods = MethodChannel('app.niosmess/bluetooth_mesh');
   static const _events = EventChannel('app.niosmess/bluetooth_mesh/events');
+  @override
+  Future<Map<String, dynamic>> requestAccess() async {
+    try {
+      return await _methods.invokeMapMethod<String, dynamic>('requestAccess', {
+            'lease': _lease,
+          }) ??
+          {'state': 'unavailable'};
+    } on MissingPluginException {
+      // Windows access is managed by the OS; its existing start checks support.
+      return start(requestPermission: true);
+    }
+  }
+
   @override
   Stream<Map<String, dynamic>> get events => _events
       .receiveBroadcastStream()

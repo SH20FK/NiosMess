@@ -12,8 +12,7 @@ class OrdinaryE2eeNotice extends ConsumerWidget {
     return ListenableBuilder(
       listenable: service,
       builder: (context, _) {
-        if (!service.initialised ||
-            (!service.locked && service.backupAcknowledged)) {
+        if (!service.initialised || !service.locked) {
           return const SizedBox.shrink();
         }
         return Padding(
@@ -22,11 +21,9 @@ class OrdinaryE2eeNotice extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  service.locked
-                      ? service.autoWaiting
-                            ? 'Получаем ключи от активного устройства'
-                            : 'Подключите устройство для чтения защищённых чатов'
-                      : 'Сохраните ключ восстановления переписки',
+                  service.autoWaiting
+                      ? 'Получаем ключи от активного устройства'
+                      : 'Ожидаем ключи защищённых чатов',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

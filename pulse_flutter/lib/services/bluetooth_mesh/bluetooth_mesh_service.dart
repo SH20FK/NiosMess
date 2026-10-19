@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart' as hashing;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pulse_flutter/core/storage/hive_bootstrap.dart';
@@ -9,12 +10,14 @@ import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import '../ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'ble_transport.dart';
 import 'mesh_packet.dart';
 import 'mesh_preferences.dart';
 import 'mesh_router.dart';
+import 'mesh_automatic_access.dart';
 
 class MeshMessage {
   MeshMessage(
@@ -106,6 +109,7 @@ class BluetoothMeshService extends ChangeNotifier {
   StreamSubscription<Map<String, dynamic>>? _subscription;
   Timer? _timer;
   Future<void>? _starting, _flushing, _warming;
+  Future<String>? _accessing;
   Future<void> _sending = Future.value();
   final _warmQueue = <int>{};
   final _expiredNotified = <String>{};
@@ -137,10 +141,38 @@ class BluetoothMeshService extends ChangeNotifier {
     }
   }
 
-  Future<void> start({bool requestPermission = false}) => _starting ??= _start(
-    requestPermission,
-  ).whenComplete(() => _starting = null);
-  Future<void> _start(bool requestPermission) async {
+  Future<String> requestAccess() =>
+      _accessing ??= _requestAccess().whenComplete(() => _accessing = null);
+  Future<String> _requestAccess() async {
+    if (_closed || !enabled()) return 'stopped';
+    final radio = transport;
+    final status = radio is BleAccessTransport
+        ? await (radio as BleAccessTransport).requestAccess()
+        : await radio.start(requestPermission: true);
+    if (_closed || !enabled()) {
+      await transport.stop();
+      return 'stopped';
+    }
+    final value = status['state'] as String? ?? 'unavailable';
+    // Native access on Windows can already start the adapter; keep the Dart
+    // service non-active until the encrypted router has finished loading.
+    if (value == 'active') return 'permission_granted';
+    if (value != 'permission_granted') {
+      state = value;
+      _notify();
+    }
+    return value;
+  }
+
+  Future<void> start({bool requestPermission = false}) async {
+    if (requestPermission) {
+      final access = await requestAccess();
+      if (access != 'permission_granted' && access != 'active') return;
+    }
+    await (_starting ??= _start().whenComplete(() => _starting = null));
+  }
+
+  Future<void> _start() async {
     if (_closed || !enabled()) return;
     state = 'starting';
     _notify();
@@ -217,9 +249,7 @@ class BluetoothMeshService extends ChangeNotifier {
           }
         },
       );
-      final status = await transport.start(
-        requestPermission: requestPermission,
-      );
+      final status = await transport.start(requestPermission: false);
       if (_closed || !enabled()) {
         await transport.stop();
         return;
@@ -508,10 +538,14 @@ class BluetoothMeshService extends ChangeNotifier {
     while (!_closed && enabled() && online() && _warmQueue.isNotEmpty) {
       final id = _warmQueue.first;
       _warmQueue.remove(id);
+      var refreshed = true;
       try {
-        await ordinary.warmMeshChat(id);
+        refreshed = await ordinary.warmMeshChat(id);
       } catch (_) {}
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      // Cached chats must not repeatedly delay the rest of a large contact list.
+      await Future<void>.delayed(
+        refreshed ? const Duration(milliseconds: 250) : Duration.zero,
+      );
     }
     if (!_closed) await replay();
   }
@@ -585,7 +619,8 @@ final bluetoothMeshProvider = Provider<BluetoothMeshService?>((ref) {
     enabled: () =>
         ref.read(meshPreferenceProvider.notifier).hydrated &&
         ref.read(meshPreferenceProvider),
-    online: () => ws.isConnected,
+    online: () =>
+        ws.isConnected && ref.read(connectivityProvider).value != false,
     cloudSubmit: (packet) async {
       final data = await ws.request(
         'ordinary_e2ee',
@@ -621,7 +656,49 @@ final bluetoothMeshProvider = Provider<BluetoothMeshService?>((ref) {
   final connected = ws.onConnected.listen(
     (_) => unawaited(startWhenReady().catchError((Object _) {})),
   );
+  final access = MeshAutomaticAccess(
+    snapshot: () => MeshAccessState(
+      enabled:
+          ref.read(meshPreferenceProvider.notifier).hydrated &&
+          ref.read(meshPreferenceProvider),
+      foreground:
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed,
+      networkAvailable: ref.read(connectivityProvider).value ?? true,
+      serverAvailable: ws.isConnected,
+      radioState: service.state,
+    ),
+    request: () async {
+      final result = await service.requestAccess();
+      if (ref.mounted &&
+          (result == 'permission_granted' || result == 'active')) {
+        unawaited(startWhenReady().catchError((Object _) {}));
+      }
+      return result;
+    },
+  );
+  var lastWarm = DateTime.fromMillisecondsSinceEpoch(0);
+  void checkAccessAndPreparation() {
+    if (!ref.mounted) return;
+    unawaited(access.check().catchError((Object _) {}));
+    if (service.enabled() &&
+        service.online() &&
+        DateTime.now().difference(lastWarm) >= const Duration(minutes: 1)) {
+      lastWarm = DateTime.now();
+      unawaited(ordinary.prepareMesh().catchError((Object _) {}));
+      service.warmChats(ref.read(chatsProvider).value ?? const []);
+    }
+  }
+
+  final monitor = Timer.periodic(
+    const Duration(seconds: 2),
+    (_) => checkAccessAndPreparation(),
+  );
+  final lifecycle = AppLifecycleListener(onResume: checkAccessAndPreparation);
+  ref.listen(connectivityProvider, (_, _) => checkAccessAndPreparation());
   ref.onDispose(() {
+    monitor.cancel();
+    lifecycle.dispose();
+    access.dispose();
     unawaited(connected.cancel());
     service.dispose();
   });

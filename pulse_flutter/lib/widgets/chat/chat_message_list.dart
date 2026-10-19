@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:pulse_flutter/widgets/chat/ordinary_encryption_settings_button.dart';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'package:pulse_flutter/widgets/chat/message_layout_store.dart';
 export 'package:pulse_flutter/widgets/chat/message_layout_store.dart';
@@ -621,6 +622,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
           text: rawText,
           isMine: isMine,
           isE2ee: message.isE2ee,
+          showEncryptionSettings: needsOrdinaryEncryptionSettings(message),
           e2eeFileKey: message.e2eeFileKey,
           expiresAt: message.expiresAt,
           isPrevSame: data.isPrevSame,

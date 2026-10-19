@@ -37,7 +37,9 @@ internal class BluetoothMeshPlugin(private val activity: MainActivity, messenger
     private val peers = linkedMapOf<String, Peer>()
     private val visited = linkedMapOf<String, Long>()
     private var nextPeer = 0
-    private var pendingPermission: Pair<String, MethodChannel.Result>? = null
+    private data class AccessRequest(val lease: String, val result: MethodChannel.Result, val startAfter: Boolean)
+    private var pendingPermission: AccessRequest? = null
+    private var pendingEnable: AccessRequest? = null
     private var scanCycle: Runnable? = null
 
     private inner class Peer(val key: String, val device: BluetoothDevice, val client: Boolean) {
@@ -60,6 +62,11 @@ internal class BluetoothMeshPlugin(private val activity: MainActivity, messenger
         })
         methods.setMethodCallHandler { call, result ->
             when (call.method) {
+                "requestAccess" -> {
+                    val requested = call.argument<String>("lease")
+                    if (requested.isNullOrEmpty() || requested.length > 64) result.error("INVALID", "Invalid lease", null)
+                    else requestAccess(requested, result, false)
+                }
                 "start" -> {
                     val requested = call.argument<String>("lease")
                     if (requested.isNullOrEmpty() || requested.length > 64) result.error("INVALID", "Invalid lease", null)
@@ -93,16 +100,45 @@ internal class BluetoothMeshPlugin(private val activity: MainActivity, messenger
         else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
     private fun permitted() = permissions().all { ContextCompat.checkSelfPermission(app, it) == PackageManager.PERMISSION_GRANTED }
 
+    private fun requestAccess(requested: String, result: MethodChannel.Result, startAfter: Boolean) {
+        if (requested != lease) { stop(); lease = requested }
+        if (manager?.adapter == null) { state("unsupported"); result.success(status()); return }
+        if (pendingPermission != null || pendingEnable != null) { result.success(mapOf("state" to "starting")); return }
+        val request = AccessRequest(requested, result, startAfter)
+        if (!permitted()) {
+            state("permission_required"); pendingPermission = request
+            try { ActivityCompat.requestPermissions(activity, permissions(), PERMISSION_REQUEST) }
+            catch (_: Exception) { pendingPermission = null; state("unavailable"); result.success(status()) }
+        } else finishAccess(request)
+    }
+    private fun finishAccess(request: AccessRequest) {
+        if (request.lease != lease) { request.result.success(mapOf("state" to "stopped")); return }
+        try {
+            if (manager?.adapter?.isEnabled != true) {
+                state("bluetooth_off"); pendingEnable = request
+                activity.startActivityForResult(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), ENABLE_REQUEST)
+            } else if (request.startAfter) start(request.lease, false, request.result)
+            else request.result.success(mapOf("state" to "permission_granted"))
+        } catch (_: Exception) { pendingEnable = null; request.result.success(mapOf("state" to "unavailable")) }
+    }
+    fun onActivityResult(requestCode: Int) {
+        if (requestCode != ENABLE_REQUEST) return
+        val pending = pendingEnable ?: return; pendingEnable = null
+        if (pending.lease != lease) { pending.result.success(mapOf("state" to "stopped")); return }
+        try {
+            if (permitted() && manager?.adapter?.isEnabled == true) finishAccess(pending)
+            else { state("bluetooth_off"); pending.result.success(status()) }
+        } catch (_: Exception) { state("unavailable"); pending.result.success(status()) }
+    }
+
     private fun start(requested: String, requestPermission: Boolean, result: MethodChannel.Result) {
         if (requested != lease) { stop(); lease = requested }
         if (running) { result.success(status()); return }
         if (manager?.adapter == null) { state("unsupported"); result.success(status()); return }
         if (!permitted()) {
             state("permission_required")
-            if (requestPermission && pendingPermission == null) {
-                pendingPermission = requested to result
-                ActivityCompat.requestPermissions(activity, permissions(), PERMISSION_REQUEST)
-            } else result.success(status())
+            if (requestPermission) requestAccess(requested, result, true)
+            else result.success(status())
             return
         }
         try {
@@ -131,9 +167,9 @@ internal class BluetoothMeshPlugin(private val activity: MainActivity, messenger
         if (requestCode != PERMISSION_REQUEST) return
         val pending = pendingPermission ?: return
         pendingPermission = null
-        if (pending.first != lease) { pending.second.success(mapOf("state" to "stopped")); return }
-        if (!permitted()) { state("permission_required"); pending.second.success(status()) }
-        else start(pending.first, false, pending.second)
+        if (pending.lease != lease) { pending.result.success(mapOf("state" to "stopped")); return }
+        if (!permitted()) { state("permission_required"); pending.result.success(status()) }
+        else finishAccess(pending)
     }
     private fun startScanning() {
         val cycle = object : Runnable {
@@ -305,6 +341,8 @@ internal class BluetoothMeshPlugin(private val activity: MainActivity, messenger
         } }
     }
     private fun stop() {
+        pendingPermission?.result?.success(mapOf("state" to "stopped")); pendingPermission = null
+        pendingEnable?.result?.success(mapOf("state" to "stopped")); pendingEnable = null
         running = false
         scanCycle?.let { main.removeCallbacks(it) }; scanCycle = null
         try { manager?.adapter?.bluetoothLeScanner?.stopScan(scanCallbacks) } catch (_: Exception) {}
@@ -316,11 +354,11 @@ internal class BluetoothMeshPlugin(private val activity: MainActivity, messenger
         state("stopped")
     }
     fun dispose() {
-        pendingPermission?.second?.success(mapOf("state" to "stopped")); pendingPermission = null
         stop(); methods.setMethodCallHandler(null); events.setStreamHandler(null); sink = null
     }
     companion object {
         const val PERMISSION_REQUEST = 17482
+        const val ENABLE_REQUEST = 17483
         val SERVICE_UUID: UUID = UUID.fromString("c358e1b0-bf5c-48ec-9f05-241f97d4a06a")
         val CHAR_UUID: UUID = UUID.fromString("c358e1b1-bf5c-48ec-9f05-241f97d4a06a")
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")

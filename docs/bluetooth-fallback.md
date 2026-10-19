@@ -2,13 +2,23 @@
 
 Android and Windows can exchange ordinary human-DM text over BLE GATT, using
 existing ordinary E2E envelopes. Settings default on; OS permission remains an
-explicit user action and the app never enables the radio itself. Turning off E2E
+explicit user confirmation and the app never silently enables the radio itself.
+When network access is absent, or the authenticated messenger socket has remained
+unavailable for eight seconds, the foreground app automatically asks for Bluetooth
+access. Android also uses the OS enable-Bluetooth confirmation if needed. A refusal
+is remembered across restarts; successful manual access rearms automatic recovery.
+Disabled fallback, background apps and unsupported radios do not trigger prompts.
+Transient adapter failures are retried with a cooldown instead of being recorded
+as user refusals. Turning off E2E
 requires first disabling Bluetooth fallback. Groups, bots, secret-chat protocol
 and attachments use their existing transports.
 
 Messages are at most 4 KiB UTF-8. Previously verified chat keys and an enrolled
-account are required before going offline. Chat metadata is prepared in the
-background while online. Offline credentials/chat metadata last at most 72 hours.
+account are required before going offline. Chat metadata is prepared from the
+eligible chat list in the background, without opening individual chats. The worker
+skips recently prepared chats, refreshes them after 30 minutes, and proactively
+renews its signed relay permit before expiry. Offline credentials/chat metadata
+last at most 72 hours.
 No identities are learned from arbitrary relay devices.
 
 The relay queue retains at most 128 signed ciphertext packets / 2 MiB and

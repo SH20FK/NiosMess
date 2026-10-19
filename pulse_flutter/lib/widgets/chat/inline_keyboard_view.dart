@@ -77,12 +77,14 @@ class InlineKeyboardView extends StatelessWidget {
     required this.replyMarkup,
     this.isMine = false,
     this.onCallbackQuery,
+    this.maxLabelLines = 1,
     super.key,
   });
 
   final InlineKeyboardMarkup replyMarkup;
   final bool isMine;
   final ValueChanged<String>? onCallbackQuery;
+  final int maxLabelLines;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +124,7 @@ class InlineKeyboardView extends StatelessWidget {
                       scheme: scheme,
                       textTheme: textTheme,
                       onCallbackQuery: onCallbackQuery,
+                      maxLabelLines: maxLabelLines,
                     ),
                   ),
                 );
@@ -140,12 +143,14 @@ class _InlineButton extends StatelessWidget {
     required this.scheme,
     required this.textTheme,
     required this.onCallbackQuery,
+    required this.maxLabelLines,
   });
 
   final InlineKeyboardButton button;
   final ColorScheme scheme;
   final TextTheme textTheme;
   final ValueChanged<String>? onCallbackQuery;
+  final int maxLabelLines;
 
   Future<void> _handlePress(BuildContext context) async {
     HapticService.tap();
@@ -180,7 +185,7 @@ class _InlineButton extends StatelessWidget {
           splashColor: colors.ripple,
           highlightColor: colors.ripple.withValues(alpha: 0.5),
           child: Container(
-            constraints: const BoxConstraints(minHeight: 38),
+            constraints: BoxConstraints(minHeight: maxLabelLines > 1 ? 44 : 38),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             alignment: Alignment.center,
             child: Row(
@@ -190,7 +195,7 @@ class _InlineButton extends StatelessWidget {
                 Flexible(
                   child: Text(
                     button.text,
-                    maxLines: 1,
+                    maxLines: maxLabelLines,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: textTheme.labelMedium?.copyWith(

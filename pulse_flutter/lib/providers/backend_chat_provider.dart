@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/services/bluetooth_mesh/bluetooth_mesh_service.dart';
 import 'package:pulse_flutter/services/bluetooth_mesh/mesh_preferences.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/services/bluetooth_mesh/mesh_history.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
@@ -131,10 +132,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
     final ordinary = ref.read(ordinaryE2eeProvider);
     if (ordinary != null) {
-      var previousEpoch = ordinary.identityEpoch;
+      var previousEpoch = ordinary.keyState;
       void onKeysChanged() {
-        final current = ordinary.identityEpoch;
-        if (current != null && current != previousEpoch && ref.mounted) {
+        final current = ordinary.keyState;
+        if (current != 'locked' && current != previousEpoch && ref.mounted) {
           previousEpoch = current;
           ref.invalidate(chatMessagesProvider);
         }
@@ -2364,7 +2365,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return;
     }
 
-    if (!ref.read(webSocketClientProvider).isConnected &&
+    if ((!ref.read(webSocketClientProvider).isConnected ||
+            ref.read(connectivityProvider).value == false) &&
         meshPlatformSupported &&
         ref.read(meshPreferenceProvider) &&
         ref.read(chatByIdProvider(_chatId))?.chatType == 'direct' &&

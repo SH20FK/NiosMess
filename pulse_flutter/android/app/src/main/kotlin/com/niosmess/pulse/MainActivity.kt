@@ -23,6 +23,10 @@ class MainActivity : FlutterFragmentActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         bluetoothMesh?.onPermissionsResult(requestCode)
     }
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        bluetoothMesh?.onActivityResult(requestCode)
+    }
     override fun onDestroy() {
         bluetoothMesh?.dispose(); bluetoothMesh = null
         super.onDestroy()

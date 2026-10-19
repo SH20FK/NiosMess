@@ -8,6 +8,7 @@ import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/status_emoji_badge.dart';
 import 'package:pulse_flutter/widgets/chat/security_status_chip.dart';
+import 'package:pulse_flutter/widgets/chat/ordinary_peer_key_notice.dart';
 
 class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ChatDetailAppBar({
@@ -241,6 +242,11 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                           color: scheme.onSurfaceVariant,
                           height: 1.2,
                         ),
+                      )
+                    else if (!isGroup && !isChannel && !isBot)
+                      OrdinaryPeerKeyNotice(
+                        chatId: chatId,
+                        child: typingSubtitle,
                       )
                     else
                       typingSubtitle,
