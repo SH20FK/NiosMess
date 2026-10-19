@@ -274,6 +274,9 @@ class CacheService {
 
   Future<void> clearAll() async {
     try {
+      if (Hive.isBoxOpen('bluetooth_mesh_ciphertext_v1')) {
+        await Hive.box<String>('bluetooth_mesh_ciphertext_v1').clear();
+      }
       if (Hive.isBoxOpen(_chatsBoxName)) {
         await Hive.box<List<dynamic>>(_chatsBoxName).clear();
       }

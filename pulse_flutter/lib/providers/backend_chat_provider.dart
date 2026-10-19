@@ -1,3 +1,6 @@
+import 'package:pulse_flutter/services/bluetooth_mesh/bluetooth_mesh_service.dart';
+import 'package:pulse_flutter/services/bluetooth_mesh/mesh_preferences.dart';
+import 'package:pulse_flutter/services/bluetooth_mesh/mesh_history.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
@@ -99,6 +102,7 @@ _E2eeHelo? _parseHeloMessage(ApiMessage message) {
 }
 
 class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
+  final _seenOperations = <String>{};
   Timer? _persistTimer;
   List<ApiChatSummary>? _pendingChats;
 
@@ -135,6 +139,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
           ref.invalidate(chatMessagesProvider);
         }
       }
+
       ordinary.addListener(onKeysChanged);
       ref.onDispose(() => ordinary.removeListener(onKeysChanged));
       unawaited(ordinary.open().catchError((Object _) {}));
@@ -182,7 +187,26 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       debugPrint('[backend_chat_provider.dart] Cache load error: $e');
     }
 
-    return _fetch();
+    final mesh = ref.read(bluetoothMeshProvider);
+    if (mesh != null) {
+      final seen = <String>{};
+      final sub = mesh.changes.listen((chatId) {
+        if (!ref.mounted) return;
+        for (final m in mesh.messages(chatId)) {
+          if (!seen.add(m.operationId)) continue;
+          if (seen.length > 512) seen.remove(seen.first);
+          _handleNewMessagePush(m.asApi(ownId: mesh.userId, senderName: ''));
+        }
+      });
+      ref.onDispose(() => unawaited(sub.cancel()));
+      unawaited(mesh.replay());
+    }
+    try {
+      return await _fetch();
+    } catch (_) {
+      if (state.value?.isNotEmpty == true) return state.value!;
+      rethrow;
+    }
   }
 
   void _handlePushEvent(ChatPushEvent event) {
@@ -394,8 +418,13 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       );
       final ApiChatSummary chat = updated[index];
 
+      final operation = meshOperation(message);
+      final duplicate = operation != null && !_seenOperations.add(operation);
+      while (_seenOperations.length > 4096) {
+        _seenOperations.remove(_seenOperations.first);
+      }
       final int newUnreadCount =
-          (message.senderId != myUserId && !isCurrentChatOpen)
+          (message.senderId != myUserId && !isCurrentChatOpen && !duplicate)
           ? chat.unreadCount + 1
           : (isCurrentChatOpen ? 0 : chat.unreadCount);
 
@@ -413,6 +442,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
       state = AsyncData<List<ApiChatSummary>>(updated);
       _persistChats(updated);
+      if (duplicate) return;
 
       if (message.senderId != myUserId && isCurrentChatOpen) {
         // Chat is currently open: automatically mark read on backend in real time
@@ -488,6 +518,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
           .listChats(publicKey: secret?.engine.publicKey);
       if (secret != null) await secret.importChats(remote);
       final chats = secret?.mergeChats(remote) ?? remote;
+      ref.read(bluetoothMeshProvider)?.warmChats(chats);
       // Save cache
       _persistChats(chats);
       return chats;
@@ -1144,6 +1175,27 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return _secretMessages();
     }
 
+    final mesh = ref.read(bluetoothMeshProvider);
+    if (mesh != null) {
+      final sub = mesh.changes.listen((id) {
+        if (id != _chatId || !ref.mounted || generation != _generation) return;
+        final next = _mergeMesh(state.value ?? const []);
+        state = AsyncData(next);
+        unawaited(_saveToCache(next));
+      });
+      ref.onDispose(() => unawaited(sub.cancel()));
+      final ordinary = ref.read(ordinaryE2eeProvider);
+      if (summary?.chatType == 'direct' &&
+          summary?.isBotChat != true &&
+          ref.read(webSocketClientProvider).isConnected) {
+        try {
+          await ordinary?.prepare(_chatId, force: true);
+          await ordinary?.prepareMesh();
+        } catch (_) {}
+      }
+      await mesh.replay();
+    }
+
     ref.read(webSocketDispatcherProvider);
     WebSocketPushDispatcher.registerChat(_chatId, handlePush);
     final cacheUserId = accountId;
@@ -1241,13 +1293,33 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       if (!ref.mounted || generation != _generation) return const [];
       // Disk history is useful data while offline, not a loading placeholder
       // that should disappear when the first network refresh fails.
-      final cached = state.value;
-      if (cached == null || cached.isEmpty) rethrow;
+      final cached = _mergeMesh(state.value ?? const []);
+      if (cached.isEmpty) rethrow;
       return _withoutExpiredMessages(cached);
     }
     if (!ref.mounted || generation != _generation) return const <ApiMessage>[];
     unawaited(ensureSecretHandshake());
-    return _withoutExpiredMessages(messages);
+    return _withoutExpiredMessages(_mergeMesh(messages));
+  }
+
+  List<ApiMessage> _mergeMesh(List<ApiMessage> rows) {
+    if (!meshPlatformSupported) return rows;
+    final mesh = ref.read(bluetoothMeshProvider);
+    if (mesh == null) return rows;
+    final summary = ref.read(chatByIdProvider(_chatId));
+    return mergeMeshHistory(
+      rows,
+      mesh
+          .messages(_chatId)
+          .map(
+            (m) => m.asApi(
+              ownId: mesh.userId,
+              senderName: m.senderId == mesh.userId
+                  ? 'Я'
+                  : (summary?.name ?? ''),
+            ),
+          ),
+    );
   }
 
   List<ApiMessage> _secretMessages() =>
@@ -1463,7 +1535,17 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final List<ApiMessage> next = List<ApiMessage>.from(current);
     if (next.any((m) => m.id == finalMessage.id)) return;
     if (finalMessage.senderId == myUserId) {
-      next.removeWhere((m) => m.id < 0 && m.content == finalMessage.content);
+      next.removeWhere(
+        (m) =>
+            m.id < 0 &&
+            (meshOperation(m) != null
+                ? meshOperation(m) == meshOperation(finalMessage)
+                : m.content == finalMessage.content),
+      );
+    }
+    final operation = meshOperation(finalMessage);
+    if (operation != null) {
+      next.removeWhere((m) => m.id < 0 && meshOperation(m) == operation);
     }
     insertSorted(next, finalMessage, _compareMessages);
     if (finalMessage.senderId != myUserId) _incomingRevision++;
@@ -1586,9 +1668,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
             )
             .toList()
           ..sort(_compareMessages);
-    final result = _overlayHistoryMutations(
-      mergeSorted(retained, fetched, _compareMessages),
-      changes,
+    final result = _mergeMesh(
+      _overlayHistoryMutations(
+        mergeSorted(retained, fetched, _compareMessages),
+        changes,
+      ),
     );
     try {
       unawaited(_saveToCache(result));
@@ -2271,6 +2355,37 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       return;
     }
 
+    if (!ref.read(webSocketClientProvider).isConnected &&
+        meshPlatformSupported &&
+        ref.read(meshPreferenceProvider) &&
+        ref.read(chatByIdProvider(_chatId))?.chatType == 'direct' &&
+        ref.read(chatByIdProvider(_chatId))?.isBotChat != true) {
+      if (uploadId != null ||
+          e2eePlaintext != null ||
+          e2eeFileKey != null ||
+          msgType != 'text') {
+        throw StateError(
+          'Пока по Bluetooth можно отправлять только текст в личных чатах',
+        );
+      }
+      if (replyToId != null && replyToId < 0) {
+        throw StateError(
+          'Ответить на это сообщение можно после синхронизации с сервером',
+        );
+      }
+      final mesh = ref.read(bluetoothMeshProvider);
+      if (mesh == null) {
+        throw StateError('Bluetooth недоступен на этом устройстве');
+      }
+      await mesh.sendText(_chatId, trimmed, reply: replyToId);
+      if (ref.mounted && generation == _generation) {
+        final next = _mergeMesh(state.value ?? const []);
+        state = AsyncData(next);
+        await _saveToCache(next);
+      }
+      return;
+    }
+
     // Try to parse localId to an integer if it's already there
     final int tempId;
     if (localId != null) {
@@ -2923,6 +3038,22 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final generation = _generation;
     if (_secret != null) {
       await _secret!.engine.delete(_chatId, messageId);
+      return;
+    }
+    if (messageId < 0 &&
+        meshPlatformSupported &&
+        (state.value ?? const <ApiMessage>[]).any(
+          (m) =>
+              m.id == messageId &&
+              m.clientMessageId?.startsWith('mesh:') == true,
+        )) {
+      await ref.read(bluetoothMeshProvider)?.hide(messageId);
+      _archiveRemovals.add(messageId);
+      final next = (state.value ?? const <ApiMessage>[])
+          .where((m) => m.id != messageId)
+          .toList();
+      state = AsyncData(next);
+      await _saveToCache(next);
       return;
     }
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];

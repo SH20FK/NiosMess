@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/services/bluetooth_mesh/bluetooth_mesh_service.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -79,6 +80,7 @@ void main() {
           ProviderScope(
             overrides: [
               ordinaryE2eeProvider.overrideWithValue(service),
+              bluetoothMeshProvider.overrideWithValue(null),
               chatsProvider.overrideWith(_Chats.new),
             ],
             child: MaterialApp(
@@ -110,7 +112,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+        expect(tester.widget<Switch>(find.byType(Switch).first).value, isTrue);
         expect(find.text('Личные чаты · тестирование E2E'), findsOneWidget);
         expect(find.text(OrdinaryCodec.recoveryCode(recovery)), findsNothing);
         if (Platform.environment['NIOS_E2EE_PREVIEW'] == '1') {
@@ -130,6 +132,37 @@ void main() {
               'E:/NiosIDAndNiosmess/release/ordinary-e2ee/settings-${brightness.name}.png',
             ).writeAsBytes(data!.buffer.asUint8List());
           });
+        }
+        if (find
+            .text('Если нет интернета использовать блютуз')
+            .evaluate()
+            .isNotEmpty) {
+          expect(
+            tester.widget<Switch>(find.byType(Switch).first).onChanged,
+            isNull,
+          );
+          expect(
+            tester.widget<Switch>(find.byType(Switch).at(1)).value,
+            isTrue,
+          );
+          if (Platform.environment['NIOS_E2EE_PREVIEW'] == '1') {
+            await tester.ensureVisible(
+              find.text('Если нет интернета использовать блютуз'),
+            );
+            await tester.pumpAndSettle();
+            await tester.runAsync(() async {
+              final image =
+                  await (boundary.currentContext!.findRenderObject()!
+                          as RenderRepaintBoundary)
+                      .toImage();
+              final data = await image.toByteData(
+                format: ui.ImageByteFormat.png,
+              );
+              await File(
+                'E:/NiosIDAndNiosmess/release/bluetooth-mesh/settings-${brightness.name}.png',
+              ).writeAsBytes(data!.buffer.asUint8List());
+            });
+          }
         }
         await tester.ensureVisible(find.text('Показать ключ'));
         await tester.tap(find.text('Показать ключ'));

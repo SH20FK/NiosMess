@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/services/bluetooth_mesh/bluetooth_mesh_service.dart';
+import 'package:pulse_flutter/services/bluetooth_mesh/mesh_preferences.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -90,6 +92,10 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
     final service = ref.watch(ordinaryE2eeProvider);
     if (service == null) return const SizedBox.shrink();
     final theme = Theme.of(context);
+    final meshEnabled = ref.watch(meshPreferenceProvider);
+    final mesh = meshPlatformSupported
+        ? ref.watch(bluetoothMeshProvider)
+        : null;
     return ListenableBuilder(
       listenable: service,
       builder: (context, _) {
@@ -107,8 +113,14 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
                 SwitchListTile.adaptive(
                   title: const Text('Шифровать'),
 
+                  subtitle: meshPlatformSupported && meshEnabled
+                      ? const Text('Для передачи по Bluetooth нужно E2E')
+                      : null,
                   value: service.enabled,
-                  onChanged: _busy || !service.initialised
+                  onChanged:
+                      _busy ||
+                          !service.initialised ||
+                          (meshPlatformSupported && meshEnabled)
                       ? null
                       : (value) => _run(() => service.setEnabled(value)),
                 ),
@@ -142,6 +154,53 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
                   ),
               ],
             ),
+            if (meshPlatformSupported)
+              SettingsSection(
+                title: 'Без интернета',
+                children: [
+                  _MeshSwitch(
+                    value: meshEnabled,
+                    onChanged: _busy
+                        ? null
+                        : (value) => _run(() async {
+                            if (value) await service.setEnabled(true);
+                            await ref
+                                .read(meshPreferenceProvider.notifier)
+                                .setEnabled(value);
+                            if (value) {
+                              await mesh?.start(requestPermission: true);
+                            }
+                          }),
+                  ),
+                  if (meshEnabled && mesh != null)
+                    ListenableBuilder(
+                      listenable: mesh,
+                      builder: (context, _) => Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              mesh.stateText,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                            if (mesh.state == 'permission_required' ||
+                                mesh.state == 'unavailable')
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _run(
+                                        () =>
+                                            mesh.start(requestPermission: true),
+                                      ),
+                                child: const Text('Разрешить Bluetooth'),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             if (service.initialised && !service.locked)
               SettingsSection(
                 title: 'Ключ восстановления',
@@ -416,4 +475,54 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
       },
     );
   }
+}
+
+class _MeshSwitch extends StatelessWidget {
+  const _MeshSwitch({required this.value, required this.onChanged});
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  static const label = 'Если нет интернета использовать блютуз';
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      LayoutBuilder(
+        builder: (context, box) {
+          if (box.maxWidth < 500 &&
+              MediaQuery.textScalerOf(context).scale(16) > 20) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: MergeSemantics(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(label, style: Theme.of(context).textTheme.bodyLarge),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Switch.adaptive(
+                        value: value,
+                        onChanged: onChanged,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return SwitchListTile.adaptive(
+            title: const Text(label),
+            value: value,
+            onChanged: onChanged,
+          );
+        },
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Text(
+          'Передаёт зашифрованный текст через устройства NiosMess рядом. Нужны разрешение Bluetooth и работающие приложения.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ),
+    ],
+  );
 }

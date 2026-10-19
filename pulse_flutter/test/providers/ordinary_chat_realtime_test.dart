@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/services/bluetooth_mesh/bluetooth_mesh_service.dart';
+import 'package:pulse_flutter/services/bluetooth_mesh/mesh_preferences.dart';
 import 'dart:convert';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
@@ -150,6 +152,11 @@ Future<void> _waitUntil(bool Function() predicate) async {
   expect(predicate(), isTrue);
 }
 
+class _InternetOnly extends MeshPreference {
+  @override
+  bool build() => false;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   group('Isolated ordinary history fixture', () {
@@ -180,6 +187,8 @@ void main() {
       socket = _Socket();
       container = ProviderContainer(
         overrides: [
+          meshPreferenceProvider.overrideWith(_InternetOnly.new),
+          bluetoothMeshProvider.overrideWithValue(null),
           ordinaryE2eeProvider.overrideWithValue(null),
           authProvider.overrideWith(_Auth.new),
           chatsProvider.overrideWith(_Chats.new),
@@ -227,6 +236,8 @@ void main() {
         );
         container = ProviderContainer(
           overrides: [
+            meshPreferenceProvider.overrideWith(_InternetOnly.new),
+            bluetoothMeshProvider.overrideWithValue(null),
             ordinaryE2eeProvider.overrideWithValue(null),
             authProvider.overrideWith(_Auth.new),
             chatsProvider.overrideWith(_Chats.new),
@@ -280,6 +291,8 @@ void main() {
         socket = _Socket();
         container = ProviderContainer(
           overrides: [
+            meshPreferenceProvider.overrideWith(_InternetOnly.new),
+            bluetoothMeshProvider.overrideWithValue(null),
             ordinaryE2eeProvider.overrideWithValue(null),
             authProvider.overrideWith(_Auth.new),
             chatsProvider.overrideWith(_Chats.new),
@@ -646,6 +659,8 @@ void main() {
         addTearDown(retention.dispose);
         container = ProviderContainer(
           overrides: [
+            meshPreferenceProvider.overrideWith(_InternetOnly.new),
+            bluetoothMeshProvider.overrideWithValue(null),
             ordinaryE2eeProvider.overrideWithValue(null),
             authProvider.overrideWith(_Auth.new),
             chatsProvider.overrideWith(_Chats.new),
@@ -794,6 +809,8 @@ void main() {
         socket = _Socket();
         container = ProviderContainer(
           overrides: [
+            meshPreferenceProvider.overrideWith(_InternetOnly.new),
+            bluetoothMeshProvider.overrideWithValue(null),
             ordinaryE2eeProvider.overrideWithValue(service),
             authProvider.overrideWith(_Auth.new),
             chatsProvider.overrideWith(_Chats.new),

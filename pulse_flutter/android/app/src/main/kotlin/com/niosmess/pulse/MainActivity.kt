@@ -18,11 +18,21 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterFragmentActivity() {
+    private var bluetoothMesh: BluetoothMeshPlugin? = null
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        bluetoothMesh?.onPermissionsResult(requestCode)
+    }
+    override fun onDestroy() {
+        bluetoothMesh?.dispose(); bluetoothMesh = null
+        super.onDestroy()
+    }
     private val SECURITY_CHANNEL = "com.niosmess.pulse/security"
     private val SYSTEM_CHANNEL = "app.niosmess/system"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        bluetoothMesh = BluetoothMeshPlugin(this, flutterEngine.dartExecutor.binaryMessenger)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SECURITY_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {

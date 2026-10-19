@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
+import 'package:crypto/crypto.dart' as hashing;
+import '../bluetooth_mesh/mesh_preferences.dart';
+import '../bluetooth_mesh/mesh_packet.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -21,12 +24,21 @@ class OrdinaryE2eeService extends ChangeNotifier {
     this.request, {
     FlutterSecureStorage? storage,
     EnrollmentVerifier? enrollmentVerifier,
+    bool Function()? isOnline,
+    bool Function()? meshEnabled,
+    this.offlineSessionTag,
   }) : storage = storage ?? const FlutterSecureStorage(),
+       isOnline = isOnline ?? (() => true),
+       meshEnabled = meshEnabled ?? (() => false),
        enrollmentVerifier = enrollmentVerifier ?? EnrollmentVerifier();
   final int userId;
   final E2eRequest request;
   final FlutterSecureStorage storage;
   final EnrollmentVerifier enrollmentVerifier;
+  final bool Function() isOnline, meshEnabled;
+  final String? offlineSessionTag;
+  String get _offlineStateKey =>
+      'niosmess.ordinary.$userId.offline.$offlineSessionTag.v1';
   EnrollmentStore get _enrollmentStore => EnrollmentStore(storage: storage);
   EnrollmentOffer? _autoOffer;
   Future<void>? _automaticSync;
@@ -42,6 +54,15 @@ class OrdinaryE2eeService extends ChangeNotifier {
   int _identityGeneration = 0;
   String? get identityEpoch => locked ? null : _keys?.epoch;
   String _namespace = '';
+  String get meshStorageScope {
+    if (_namespace.isEmpty || !initialised) {
+      throw StateError('Account keys unavailable');
+    }
+    return hashing.sha256
+        .convert(utf8.encode('$userId:$_namespace'))
+        .toString();
+  }
+
   String get _prefix => _namespace.isEmpty
       ? 'niosmess.ordinary.$userId.v1'
       : 'niosmess.ordinary.$userId.${base64UrlEncode(utf8.encode(_namespace))}.v1';
@@ -81,7 +102,18 @@ class OrdinaryE2eeService extends ChangeNotifier {
       _opening ??= _open().whenComplete(() => _opening = null);
   Future<void> _open() async {
     _identityGeneration++;
-    final remote = await _call('status');
+    final E2eJson remote;
+    if (isOnline()) {
+      remote = await _call('status');
+    } else {
+      final cached = offlineSessionTag == null
+          ? null
+          : await storage.read(key: _offlineStateKey);
+      if (cached == null) {
+        throw StateError('Откройте NiosMess с интернетом для подготовки E2E');
+      }
+      remote = jsonDecode(cached) as E2eJson;
+    }
     if (!remote.containsKey('identity') || !remote.containsKey('enabled')) {
       throw StateError('Сервер не поддерживает эту версию шифрования');
     }
@@ -102,7 +134,10 @@ class OrdinaryE2eeService extends ChangeNotifier {
     backupAcknowledged =
         await storage.read(key: '$_prefix.backup_saved') == 'yes';
     _status = remote;
-    enabled = remote['enabled'] != false;
+    enabled = remote['enabled'] != false || meshEnabled();
+    if (isOnline() && meshEnabled() && remote['enabled'] == false) {
+      await _call('preference', {'enabled': true});
+    }
     final saved = await storage.read(key: '$_prefix.keys');
     if (saved != null) {
       final local = jsonDecode(saved) as E2eJson;
@@ -135,6 +170,9 @@ class OrdinaryE2eeService extends ChangeNotifier {
       }
     }
     if (remote['identity'] == null) {
+      if (!isOnline()) {
+        throw StateError('Нужно подключить ключи E2E с интернетом');
+      }
       _keys ??= OrdinaryKeys.create(userId);
       _recovery ??= randomE2eBytes();
       await _save(); // Persist before publishing; a retry uses the same identity.
@@ -146,6 +184,9 @@ class OrdinaryE2eeService extends ChangeNotifier {
         jsonEncode(await _keys!.public()) !=
             jsonEncode(OrdinaryCodec.canonical(identity!));
     initialised = true;
+    if (isOnline() && offlineSessionTag != null) {
+      await storage.write(key: _offlineStateKey, value: jsonEncode(_status));
+    }
     _changed();
   }
 
@@ -185,16 +226,37 @@ class OrdinaryE2eeService extends ChangeNotifier {
   }
 
   Future<void> setEnabled(bool value) async {
-    await _call('preference', {'enabled': value});
+    if (!value && meshEnabled()) {
+      throw StateError(
+        'Сначала отключите «Если нет интернета использовать блютуз»',
+      );
+    }
+    if (isOnline()) {
+      await _call('preference', {'enabled': value});
+    } else if (!value) {
+      throw StateError('Для отключения E2E нужен интернет');
+    }
     enabled = value;
     _changed();
   }
 
   Future<E2eJson?> prepare(int chatId, {bool force = false}) async {
     if (!initialised) await open();
-    final context = await _call('chat', {'chat_id': chatId});
+    final E2eJson context;
+    final cacheKey = '$_prefix.mesh-chat.$chatId';
+    if (isOnline()) {
+      try {
+        context = await _call('chat', {'chat_id': chatId});
+      } catch (_) {
+        await storage.delete(key: cacheKey);
+        rethrow;
+      }
+      if (context['eligible'] != true) await storage.delete(key: cacheKey);
+    } else {
+      context = await _offlineChat(chatId);
+    }
     if (context['eligible'] != true ||
-        (!force && context['required'] != true)) {
+        (!force && !meshEnabled() && context['required'] != true)) {
       return null;
     }
     final identity = context['own'] as E2eJson?;
@@ -214,7 +276,196 @@ class OrdinaryE2eeService extends ChangeNotifier {
       );
     }
     await _checkPin(peer);
+    if (isOnline()) {
+      await storage.write(
+        key: cacheKey,
+        value: jsonEncode({
+          'saved': DateTime.now().millisecondsSinceEpoch,
+          'context': context,
+        }),
+      );
+    }
     return context;
+  }
+
+  Future<void> warmMeshChat(int chatId) async {
+    if (!isOnline() || locked || !meshEnabled()) return;
+    if (!initialised) await open();
+    final raw = await storage.read(key: '$_prefix.mesh-chat.$chatId');
+    if (raw != null) {
+      try {
+        final value = jsonDecode(raw) as E2eJson;
+        if (DateTime.now().millisecondsSinceEpoch - (value['saved'] as int) <
+            const Duration(hours: 12).inMilliseconds) {
+          return;
+        }
+      } catch (_) {}
+    }
+    await prepare(chatId, force: true);
+  }
+
+  Future<E2eJson> _offlineChat(int chatId) async {
+    final raw = await storage.read(key: '$_prefix.mesh-chat.$chatId');
+    if (raw == null) {
+      throw StateError(
+        'Откройте этот личный чат с интернетом перед отправкой по Bluetooth',
+      );
+    }
+    final saved = jsonDecode(raw) as E2eJson;
+    if (DateTime.now().millisecondsSinceEpoch - (saved['saved'] as int) >
+        const Duration(days: 3).inMilliseconds) {
+      throw StateError('Для обновления ключей этого чата нужен интернет');
+    }
+    return saved['context'] as E2eJson;
+  }
+
+  List<int>? _meshSeed;
+  String? _meshPermit;
+  Future<void>? _meshEnrolling;
+  Future<void> prepareMesh() => _meshEnrolling ??= _prepareMesh().whenComplete(
+    () => _meshEnrolling = null,
+  );
+  Future<void> _prepareMesh() async {
+    if (!initialised) await open();
+    if (locked || _keys == null || offlineSessionTag == null) return;
+    final key = '$_offlineStateKey.mesh';
+    final raw = await storage.read(key: key);
+    if (raw != null) {
+      final saved = jsonDecode(raw) as E2eJson;
+      _meshSeed = decodeE2e(saved['seed'], 32);
+      _meshPermit = saved['permit'] as String?;
+    }
+    _meshSeed ??= randomE2eBytes();
+    if (_meshPermit != null) {
+      try {
+        final claim = MeshPacket.permitClaims(_meshPermit!);
+        if (claim['epoch'] != _keys!.epoch ||
+            claim['user'] != userId ||
+            (claim['exp'] as int) * 1000 <
+                DateTime.now()
+                    .add(isOnline() ? const Duration(hours: 6) : Duration.zero)
+                    .millisecondsSinceEpoch) {
+          _meshPermit = null;
+        }
+      } catch (_) {
+        _meshPermit = null;
+      }
+    }
+    if (_meshPermit == null && isOnline() && _status?['mesh_relay'] == 1) {
+      final keypair = await Ed25519().newKeyPairFromSeed(_meshSeed!);
+      final device = base64Encode((await keypair.extractPublicKey()).bytes),
+          nonce = const Uuid().v4();
+      final result = await _call('mesh_permit', {
+        'device': device,
+        'nonce': nonce,
+        'signature': await _keys!.sign(
+          'niosmess-mesh-permit-v1:$userId:$device:$nonce',
+        ),
+      });
+      _meshPermit = result['permit'] as String;
+      MeshPacket.permitClaims(_meshPermit!);
+      await storage.write(
+        key: key,
+        value: jsonEncode({
+          'seed': base64Encode(_meshSeed!),
+          'permit': _meshPermit,
+        }),
+      );
+    }
+  }
+
+  Future<MeshPacket> createMeshPacket(
+    int chatId,
+    String text, {
+    int? reply,
+    E2eJson? extra,
+  }) async {
+    if (!meshEnabled()) throw StateError('Bluetooth-доставка отключена');
+    if (utf8.encode(text).length > 4096) {
+      throw StateError('Для Bluetooth текст должен быть не больше 4 КБ');
+    }
+    final context = await prepare(chatId, force: true);
+    if (context == null || locked || _keys == null) {
+      throw StateError('Нужны ключи личного чата');
+    }
+    final envelope = await encrypt(
+      chatId,
+      text,
+      reply: reply,
+      extra: extra,
+      preparedContext: context,
+    );
+    return wrapMeshPacket(
+      envelope,
+      purpose:
+          extra?['mesh'] is Map && (extra!['mesh'] as Map)['kind'] == 'receipt'
+          ? 'receipt'
+          : 'message',
+    );
+  }
+
+  Future<MeshPacket> wrapMeshPacket(
+    String envelope, {
+    String purpose = 'message',
+  }) async {
+    await prepareMesh();
+    if (_meshPermit == null || _meshSeed == null || _keys == null) {
+      throw StateError(
+        'Подключитесь к интернету для подготовки Bluetooth-доставки',
+      );
+    }
+    return MeshPacket.create(
+      _keys!,
+      envelope,
+      deviceSeed: _meshSeed!,
+      permit: _meshPermit!,
+      purpose: purpose,
+    );
+  }
+
+  /// A relay cannot introduce a new conversation, member, identity or epoch.
+  Future<E2eJson> openMeshPacket(MeshPacket packet) async {
+    if (!initialised) await open();
+    final header = OrdinaryCodec.header(packet.envelope);
+    final chatId = header['chat'] as int, sender = header['sender'] as int;
+    final context = await _offlineChat(chatId);
+    final peer = context['peer'] as E2eJson?, own = context['own'] as E2eJson?;
+    if (locked ||
+        context['eligible'] != true ||
+        peer == null ||
+        own == null ||
+        (sender != userId && sender != peer['user_id'])) {
+      throw const FormatException('Unknown offline peer');
+    }
+    final author = sender == userId ? own : peer;
+    if (author['ed'] != packet.author || author['epoch'] != header['epoch']) {
+      throw const FormatException('Untrusted offline identity');
+    }
+    final box = (header['boxes'] as E2eJson)['$userId'] as E2eJson?;
+    final keys = box == null ? null : _keyring[box['epoch']];
+    if (keys == null) {
+      throw const FormatException('Not addressed to this device');
+    }
+    final body = await OrdinaryCodec.decrypt(
+      keys,
+      author,
+      packet.envelope,
+      chatId,
+      sender,
+      reply: header['reply'] as int?,
+    );
+    if (body['text'] is! String ||
+        utf8.encode(body['text'] as String).length > 4096 ||
+        body['file_key'] != null) {
+      throw const FormatException('Unsupported offline message');
+    }
+    return {
+      'chat_id': chatId,
+      'sender_id': sender,
+      'operation_id': header['id'],
+      'reply': header['reply'],
+      'body': body,
+    };
   }
 
   Future<void> _checkPin(E2eJson identity) async {
@@ -271,6 +522,19 @@ class OrdinaryE2eeService extends ChangeNotifier {
     '$user:$epoch',
     () async {
       try {
+        if (!isOnline()) {
+          final own = _keyring[epoch];
+          if (user == userId && own != null) return await own.public();
+          final raw = await storage.read(key: '$_prefix.pin.$user.$epoch');
+          if (raw == null) {
+            throw const FormatException('Unknown offline identity');
+          }
+          final cached = jsonDecode(raw) as E2eJson;
+          if (cached['user_id'] != user || cached['epoch'] != epoch) {
+            throw const FormatException('Invalid offline pin');
+          }
+          return cached;
+        }
         final data = await _call('identity', {'user_id': user, 'epoch': epoch});
         if (user != userId) await _checkPin(data);
         return data;
@@ -760,6 +1024,12 @@ final ordinaryE2eeProvider = Provider<OrdinaryE2eeService?>((ref) {
           : const Duration(seconds: 15),
       maxRetries: payload?['op'] == 'ask_ai' ? 0 : 2,
     ),
+    isOnline: () => ws.isConnected,
+    meshEnabled: () =>
+        meshPlatformSupported && ref.read(meshPreferenceProvider),
+    offlineSessionTag: hashing.sha256
+        .convert(utf8.encode(account.$2!))
+        .toString(),
   );
   var lastPoll = DateTime.fromMillisecondsSinceEpoch(0);
   void sync({bool forced = false}) {
@@ -774,7 +1044,12 @@ final ordinaryE2eeProvider = Provider<OrdinaryE2eeService?>((ref) {
   }
 
   final timer = Timer.periodic(const Duration(seconds: 5), (_) => sync());
-  final connected = ws.onConnected.listen((_) => sync(forced: true));
+  final connected = ws.onConnected.listen((_) {
+    if (ref.read(meshPreferenceProvider)) {
+      unawaited(service.setEnabled(true).catchError((Object _) {}));
+    }
+    sync(forced: true);
+  });
   final push = ws.pushStream.listen((event) {
     if (event['action'] == 'ordinary_auto_enrollment') sync(forced: true);
   });

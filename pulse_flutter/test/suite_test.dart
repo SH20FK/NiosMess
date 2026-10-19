@@ -1,3 +1,5 @@
+import 'services/bluetooth_mesh_test.dart' as bluetooth_mesh;
+import 'services/bluetooth_mesh_delivery_test.dart' as bluetooth_delivery;
 import 'services/automatic_enrollment_test.dart' as automatic_enrollment;
 import 'widgets/ordinary_e2ee_settings_test.dart' as ordinary_e2ee_settings;
 import 'services/ordinary_e2ee_test.dart' as ordinary_e2ee;
@@ -149,6 +151,10 @@ import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 
 void main() {
+  group('Bluetooth encrypted fallback', () {
+    bluetooth_mesh.main();
+    bluetooth_delivery.main();
+  });
   ordinary_e2ee_settings.main();
   ordinary_e2ee.main();
   automatic_enrollment.main();
