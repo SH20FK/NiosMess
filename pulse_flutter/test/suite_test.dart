@@ -1,3 +1,4 @@
+import 'services/mesh_preferences_test.dart' as mesh_preferences;
 import 'services/bluetooth_mesh_test.dart' as bluetooth_mesh;
 import 'services/bluetooth_mesh_delivery_test.dart' as bluetooth_delivery;
 import 'services/automatic_enrollment_test.dart' as automatic_enrollment;
@@ -152,6 +153,7 @@ import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 
 void main() {
   group('Bluetooth encrypted fallback', () {
+    mesh_preferences.main();
     bluetooth_mesh.main();
     bluetooth_delivery.main();
   });

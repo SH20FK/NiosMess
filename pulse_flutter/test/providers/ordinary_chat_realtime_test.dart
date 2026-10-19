@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/services/bluetooth_mesh/ble_transport.dart';
 import 'package:pulse_flutter/services/bluetooth_mesh/bluetooth_mesh_service.dart';
 import 'package:pulse_flutter/services/bluetooth_mesh/mesh_preferences.dart';
 import 'dart:convert';
@@ -157,6 +158,61 @@ class _InternetOnly extends MeshPreference {
   bool build() => false;
 }
 
+class _OnlineSocket extends _Socket {
+  @override
+  bool get isConnected => true;
+}
+
+class _PendingPreparation extends OrdinaryE2eeService {
+  _PendingPreparation()
+    : super(1, (action, {payload}) async => <String, dynamic>{});
+  final pending = Completer<E2eJson?>();
+  bool started = false;
+  @override
+  Future<E2eJson?> prepare(int chatId, {bool force = false}) {
+    started = true;
+    return pending.future;
+  }
+
+  @override
+  Future<void> prepareMesh() async {}
+}
+
+class _MeshOn extends MeshPreference {
+  @override
+  bool build() => true;
+}
+
+class _NoRadio implements BleTransport {
+  @override
+  Stream<Map<String, dynamic>> get events => const Stream.empty();
+  @override
+  Future<Map<String, dynamic>> start({bool requestPermission = false}) async =>
+      {'state': 'unsupported'};
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> send(String peer, bytes) async {}
+}
+
+class _IdleMesh extends BluetoothMeshService {
+  _IdleMesh(OrdinaryE2eeService ordinary)
+    : super(
+        userId: 1,
+        scope: () => 'fixture',
+        ordinary: ordinary,
+        transport: _NoRadio(),
+        chat: (_) => null,
+        cloudSubmit: (_) async {
+          throw StateError('Unexpected cloud submission');
+        },
+        enabled: () => true,
+        online: () => true,
+      );
+  @override
+  Future<void> replay() async {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   group('Isolated ordinary history fixture', () {
@@ -222,6 +278,48 @@ void main() {
       await EncryptedMessageCache.clearAccount(2, []);
       await _flush();
     });
+
+    test(
+      'history and push dispatcher do not wait for Bluetooth key preparation',
+      () async {
+        container.dispose();
+        WebSocketPushDispatcher.dispose();
+        socket.close();
+        socket = _OnlineSocket();
+        final ordinary = _PendingPreparation(),
+            mesh = _IdleMesh(_PendingPreparation());
+        container = ProviderContainer(
+          overrides: [
+            meshPreferenceProvider.overrideWith(_MeshOn.new),
+            bluetoothMeshProvider.overrideWithValue(mesh),
+            ordinaryE2eeProvider.overrideWithValue(ordinary),
+            authProvider.overrideWith(_Auth.new),
+            chatsProvider.overrideWith(_Chats.new),
+            webSocketClientProvider.overrideWithValue(socket),
+            appSoundProvider.overrideWithValue(_NoopSound()),
+          ],
+        );
+        try {
+          await container.read(chatsProvider.future);
+          container.listen(chatMessagesProvider(9142001), (_, _) {});
+          await _waitUntil(() => ordinary.started);
+          await _waitUntil(() => socket.histories.isNotEmpty);
+          socket.history(0, [_message(1)]);
+          await container.read(chatMessagesProvider(9142001).future);
+          expect(ordinary.pending.isCompleted, isFalse);
+          expect(messages().single.id, 1);
+          socket.push(_message(2));
+          await _waitUntil(() => messages().any((m) => m.id == 2));
+          expect(ordinary.pending.isCompleted, isFalse);
+        } finally {
+          ordinary.pending.complete(null);
+          await _flush();
+          ordinary.dispose();
+          mesh.ordinary.dispose();
+          mesh.dispose();
+        }
+      },
+    );
 
     test(
       'unobserved history expires but an active send retains its notifier',

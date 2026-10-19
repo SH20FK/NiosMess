@@ -152,9 +152,9 @@ class BluetoothMeshService extends ChangeNotifier {
         } catch (_) {}
       }
       await HiveBootstrap.ensureInitialized();
-      if (_closed) return;
+      if (_closed || !enabled()) return;
       _box ??= await Hive.openBox<String>('bluetooth_mesh_ciphertext_v1');
-      if (_closed) return;
+      if (_closed || !enabled()) return;
       _router ??= MeshRouter(
         send: (peer, frame) =>
             transport.send(peer, Uint8List.fromList(utf8.encode(frame))),
@@ -207,7 +207,7 @@ class BluetoothMeshService extends ChangeNotifier {
         }
         _loaded = true;
       }
-      if (_closed) return;
+      if (_closed || !enabled()) return;
       _subscription ??= transport.events.listen(
         _event,
         onError: (Object _) {
@@ -220,7 +220,7 @@ class BluetoothMeshService extends ChangeNotifier {
       final status = await transport.start(
         requestPermission: requestPermission,
       );
-      if (_closed) {
+      if (_closed || !enabled()) {
         await transport.stop();
         return;
       }
@@ -228,7 +228,7 @@ class BluetoothMeshService extends ChangeNotifier {
       _notify();
       await _router!.replayLocal();
       _timer ??= Timer.periodic(const Duration(seconds: 30), (_) {
-        if (_closed) return;
+        if (_closed || !enabled()) return;
         for (final peer in _peers.toList()) {
           unawaited(_router!.connected(peer).catchError((Object _) {}));
         }
@@ -582,7 +582,9 @@ final bluetoothMeshProvider = Provider<BluetoothMeshService?>((ref) {
     ordinary: ordinary,
     transport: NativeBleTransport(),
     chat: (id) => ref.read(chatByIdProvider(id)),
-    enabled: () => ref.read(meshPreferenceProvider),
+    enabled: () =>
+        ref.read(meshPreferenceProvider.notifier).hydrated &&
+        ref.read(meshPreferenceProvider),
     online: () => ws.isConnected,
     cloudSubmit: (packet) async {
       final data = await ws.request(
@@ -593,10 +595,17 @@ final bluetoothMeshProvider = Provider<BluetoothMeshService?>((ref) {
       return ApiMessage.fromJson(Map<String, dynamic>.from(data as Map));
     },
   );
+  Future<void> startWhenReady() async {
+    await ref.read(meshPreferenceProvider.notifier).loaded;
+    if (ref.mounted && ref.read(meshPreferenceProvider)) {
+      await service.start();
+    }
+  }
+
   void keysChanged() {
     if (!ordinary.locked && ordinary.initialised && ref.mounted) {
       service.warmChats(ref.read(chatsProvider).value ?? const []);
-      unawaited(service.start().catchError((Object _) {}));
+      unawaited(startWhenReady().catchError((Object _) {}));
     }
   }
 
@@ -604,20 +613,20 @@ final bluetoothMeshProvider = Provider<BluetoothMeshService?>((ref) {
   ref.onDispose(() => ordinary.removeListener(keysChanged));
   ref.listen(meshPreferenceProvider, (_, enabled) {
     if (enabled) {
-      unawaited(service.start().catchError((Object _) {}));
+      unawaited(startWhenReady().catchError((Object _) {}));
     } else {
       unawaited(service.stop());
     }
   });
   final connected = ws.onConnected.listen(
-    (_) => unawaited(service.start().catchError((Object _) {})),
+    (_) => unawaited(startWhenReady().catchError((Object _) {})),
   );
   ref.onDispose(() {
     unawaited(connected.cancel());
     service.dispose();
   });
   if (ref.read(meshPreferenceProvider)) {
-    unawaited(service.start().catchError((Object _) {}));
+    unawaited(startWhenReady().catchError((Object _) {}));
   }
   return service;
 });

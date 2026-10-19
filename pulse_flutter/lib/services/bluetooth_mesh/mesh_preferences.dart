@@ -11,21 +11,27 @@ bool get meshPlatformSupported =>
 class MeshPreference extends Notifier<bool> {
   static const key = 'niosmess.bluetooth_fallback.v1';
   int _generation = 0;
+  Future<void> _loading = Future.value();
+  Future<void> get loaded => _loading;
+  bool hydrated = false;
   @override
   bool build() {
     final generation = ++_generation;
-    if (!meshPlatformSupported) return false;
-    unawaited(
-      SharedPreferences.getInstance()
-          .then((prefs) {
-            if (ref.mounted && generation == _generation) {
-              state = prefs.getBool(key) ?? true;
-            }
-          })
-          .catchError((Object _) {
-            /* Keep the default when local settings are unavailable. */
-          }),
-    );
+    if (!meshPlatformSupported) {
+      hydrated = true;
+      return false;
+    }
+    _loading = SharedPreferences.getInstance()
+        .then((prefs) {
+          if (ref.mounted && generation == _generation) {
+            state = prefs.getBool(key) ?? true;
+          }
+        })
+        .catchError((Object _) {
+          /* Keep the default when local settings are unavailable. */
+        })
+        .whenComplete(() => hydrated = true);
+    unawaited(_loading);
     return true;
   }
 
@@ -36,6 +42,7 @@ class MeshPreference extends Notifier<bool> {
     if (!await prefs.setBool(key, value)) {
       throw StateError('Не удалось сохранить настройку');
     }
+    hydrated = true;
     if (ref.mounted) state = value;
   }
 }

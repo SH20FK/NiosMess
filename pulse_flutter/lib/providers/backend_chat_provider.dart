@@ -1185,15 +1185,24 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       });
       ref.onDispose(() => unawaited(sub.cancel()));
       final ordinary = ref.read(ordinaryE2eeProvider);
-      if (summary?.chatType == 'direct' &&
+      final warmOnline =
+          summary?.chatType == 'direct' &&
           summary?.isBotChat != true &&
-          ref.read(webSocketClientProvider).isConnected) {
+          ref.read(meshPreferenceProvider) &&
+          ref.read(webSocketClientProvider).isConnected;
+      // Cached history and push registration must never wait for radio/key
+      // preparation. A slow network is exactly when local history matters.
+      unawaited(() async {
         try {
-          await ordinary?.prepare(_chatId, force: true);
-          await ordinary?.prepareMesh();
-        } catch (_) {}
-      }
-      await mesh.replay();
+          if (warmOnline) await ordinary?.prepare(_chatId, force: true);
+          if (!ref.mounted || generation != _generation) return;
+          if (warmOnline) await ordinary?.prepareMesh();
+          if (!ref.mounted || generation != _generation) return;
+          await mesh.replay();
+        } catch (_) {
+          /* Preparation retries in the account-owned mesh service. */
+        }
+      }());
     }
 
     ref.read(webSocketDispatcherProvider);

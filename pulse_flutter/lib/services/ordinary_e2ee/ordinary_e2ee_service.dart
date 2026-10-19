@@ -1016,17 +1016,23 @@ final ordinaryE2eeProvider = Provider<OrdinaryE2eeService?>((ref) {
   final ws = ref.watch(webSocketClientProvider);
   final service = OrdinaryE2eeService(
     user,
-    (action, {payload}) => ws.request(
-      action,
-      payload: payload,
-      timeout: payload?['op'] == 'ask_ai'
-          ? const Duration(minutes: 2)
-          : const Duration(seconds: 15),
-      maxRetries: payload?['op'] == 'ask_ai' ? 0 : 2,
-    ),
+    (action, {payload}) async {
+      await ref.read(meshPreferenceProvider.notifier).loaded;
+      if (!ref.mounted) throw StateError('Account closed');
+      return ws.request(
+        action,
+        payload: payload,
+        timeout: payload?['op'] == 'ask_ai'
+            ? const Duration(minutes: 2)
+            : const Duration(seconds: 15),
+        maxRetries: payload?['op'] == 'ask_ai' ? 0 : 2,
+      );
+    },
     isOnline: () => ws.isConnected,
     meshEnabled: () =>
-        meshPlatformSupported && ref.read(meshPreferenceProvider),
+        meshPlatformSupported &&
+        ref.read(meshPreferenceProvider.notifier).hydrated &&
+        ref.read(meshPreferenceProvider),
     offlineSessionTag: hashing.sha256
         .convert(utf8.encode(account.$2!))
         .toString(),
@@ -1045,10 +1051,14 @@ final ordinaryE2eeProvider = Provider<OrdinaryE2eeService?>((ref) {
 
   final timer = Timer.periodic(const Duration(seconds: 5), (_) => sync());
   final connected = ws.onConnected.listen((_) {
-    if (ref.read(meshPreferenceProvider)) {
-      unawaited(service.setEnabled(true).catchError((Object _) {}));
-    }
-    sync(forced: true);
+    unawaited(
+      () async {
+        await ref.read(meshPreferenceProvider.notifier).loaded;
+        if (!ref.mounted) return;
+        if (ref.read(meshPreferenceProvider)) await service.setEnabled(true);
+        sync(forced: true);
+      }().catchError((Object _) {}),
+    );
   });
   final push = ws.pushStream.listen((event) {
     if (event['action'] == 'ordinary_auto_enrollment') sync(forced: true);
