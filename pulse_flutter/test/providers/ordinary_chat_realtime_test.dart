@@ -898,7 +898,10 @@ void main() {
                 'peer': bobPublic,
               };
             case 'identity':
-              return payload['user_id'] == 1 ? alicePublic : bobPublic;
+              if (payload['user_id'] == 1) {
+                throw StateError('Own identity endpoint unavailable');
+              }
+              return bobPublic;
             default:
               throw StateError('Unexpected E2E action');
           }
@@ -954,6 +957,50 @@ void main() {
         await sending;
         expect(messages().single.content, 'wire secret');
         expect(messages().single.isDecrypted, isTrue);
+        // Equal plaintexts are separate encrypted operations. A push arriving
+        // before the request acknowledgement must retain only its own row ID.
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        final firstSend = notifier.send('repeat');
+        final secondSend = notifier.send('repeat');
+        await _waitUntil(() => socket.sentMessages.length == 3);
+        final pending = messages().where((m) => m.id < 0).toList();
+        expect(pending, hasLength(2));
+        final firstWire = socket.outgoing[1]['e2ee_content'] as String;
+        final secondWire = socket.outgoing[2]['e2ee_content'] as String;
+        expect(firstWire, isNot(secondWire));
+        final firstLocal = pending.singleWhere(
+          (m) => m.e2eeContent == firstWire,
+        );
+        final secondLocal = pending.singleWhere(
+          (m) => m.e2eeContent == secondWire,
+        );
+        Map<String, dynamic> ack(int id, String cipher) => {
+          'id': id,
+          'chat_id': 9142001,
+          'sender_id': 1,
+          'msg_type': 'text',
+          'is_e2ee': true,
+          'e2ee_content': cipher,
+          'sent_at': DateTime.now().toUtc().toIso8601String(),
+        };
+        socket.push(ApiMessage.fromJson(ack(12, firstWire)));
+        await _waitUntil(() => messages().any((m) => m.id == 12));
+        expect(
+          messages().singleWhere((m) => m.id == 12).clientMessageId,
+          firstLocal.clientMessageId,
+        );
+        expect(
+          messages().singleWhere((m) => m.id == secondLocal.id).isSending,
+          isTrue,
+        );
+        socket.sentMessages[1].complete(ack(12, firstWire));
+        socket.sentMessages[2].complete(ack(13, secondWire));
+        await Future.wait([firstSend, secondSend]);
+        expect(messages().where((m) => m.content == 'repeat'), hasLength(2));
+        expect(
+          messages().singleWhere((m) => m.id == 13).clientMessageId,
+          secondLocal.clientMessageId,
+        );
         // Alice's other device is offline; Bob's ciphertext still arrives through the server.
         final incoming =
             await OrdinaryCodec.encrypt(bob, alicePublic, 9142001, {
@@ -974,7 +1021,7 @@ void main() {
           }),
         );
         await _waitUntil(() => messages().any((m) => m.id == 11));
-        final message = messages().last;
+        final message = messages().singleWhere((m) => m.id == 11);
         expect(message.content, 'caption');
         expect(message.e2eeFileKey, base64Encode(List.filled(32, 77)));
         expect(message.mediaName, 'sample.txt');

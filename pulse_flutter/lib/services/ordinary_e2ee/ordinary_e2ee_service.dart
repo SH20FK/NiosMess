@@ -610,9 +610,11 @@ class OrdinaryE2eeService extends ChangeNotifier {
     '$user:$epoch',
     () async {
       try {
+        // Our exact signing epoch is already held locally. A delivery receipt
+        // must not wait for a redundant identity request or its timeout.
+        final own = _keyring[epoch];
+        if (user == userId && own != null) return await own.public();
         if (!isOnline()) {
-          final own = _keyring[epoch];
-          if (user == userId && own != null) return await own.public();
           final raw = await storage.read(key: '$_prefix.pin.$user.$epoch');
           if (raw == null) {
             throw const FormatException('Unknown offline identity');

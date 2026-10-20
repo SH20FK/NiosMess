@@ -1539,20 +1539,32 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       // The message was E2EE protocol traffic (handshake) — not rendered.
       return;
     }
-    final ApiMessage finalMessage = decrypted.first;
+    ApiMessage finalMessage = decrypted.first;
     if (!ref.mounted || generation != _generation) return;
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final current = state.value ?? const <ApiMessage>[];
     final List<ApiMessage> next = List<ApiMessage>.from(current);
     if (next.any((m) => m.id == finalMessage.id)) return;
+    ApiMessage? pending;
     if (finalMessage.senderId == myUserId) {
-      next.removeWhere(
-        (m) =>
-            m.id < 0 &&
-            (meshOperation(m) != null
-                ? meshOperation(m) == meshOperation(finalMessage)
-                : m.content == finalMessage.content),
-      );
+      for (final candidate in current) {
+        if (candidate.id >= 0 || candidate.senderId != myUserId) continue;
+        final mesh = meshOperation(candidate);
+        final matches = mesh != null
+            ? mesh == meshOperation(finalMessage)
+            : candidate.e2eeContent != null
+            ? candidate.e2eeContent == finalMessage.e2eeContent
+            : finalMessage.e2eeContent == null &&
+                candidate.replyToId == finalMessage.replyToId &&
+                candidate.content == finalMessage.content;
+        if (!matches) continue;
+        pending = candidate;
+        break;
+      }
+      if (pending != null) {
+        finalMessage = finalMessage.copyWith(clientMessageId: pending.clientMessageId);
+        next.removeWhere((m) => m.id == pending!.id);
+      }
     }
     final operation = meshOperation(finalMessage);
     if (operation != null) {
@@ -1562,11 +1574,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     if (finalMessage.senderId != myUserId) _incomingRevision++;
 
     state = AsyncData<List<ApiMessage>>(
-      MessageHistorySnapshot.afterInsert(
-        previous: current,
-        rows: next,
-        inserted: finalMessage,
-      ),
+      pending != null
+          ? MessageHistorySnapshot.afterAcknowledgement(
+              previous: current, rows: next, pendingId: pending.id, confirmed: finalMessage,
+            )
+          : MessageHistorySnapshot.afterInsert(
+              previous: current, rows: next, inserted: finalMessage,
+            ),
     );
     await _saveToCache(next);
 

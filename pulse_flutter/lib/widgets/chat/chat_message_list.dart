@@ -111,6 +111,41 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
     with WidgetsBindingObserver {
   late final AdaptivePerformanceNotifier _performance;
   final Map<int, _HistoryAnchorBox> _anchors = {};
+  Map<int, int> _rowIds = {};
+  Map<(int, String), int> _clientRowIds = {};
+  Map<int, int> _rowIndexes = {};
+  int _collisionId = -(1 << 62);
+
+  void _syncRowIds(List<ApiMessage> messages) {
+    final next = <int, int>{};
+    final clients = <(int, String), int>{};
+    final indexes = <int, int>{};
+    for (var i = 0; i < messages.length; i++) {
+      final message = messages[i];
+      final client = message.clientMessageId;
+      final operation = client == null || client.isEmpty
+          ? null
+          : (message.senderId, client);
+      var rowId =
+          _rowIds[message.id] ??
+          (operation == null ? null : _clientRowIds[operation]) ??
+          message.id;
+      if (indexes.containsKey(rowId)) {
+        rowId = message.id;
+        while (indexes.containsKey(rowId)) {
+          rowId = _collisionId--;
+        }
+      }
+      next[message.id] = rowId;
+      indexes[rowId] = i;
+      if (operation != null) clients.putIfAbsent(operation, () => rowId);
+    }
+    _rowIds = next;
+    _clientRowIds = clients;
+    _rowIndexes = indexes;
+  }
+
+  int _rowId(ApiMessage message) => _rowIds[message.id] ?? message.id;
   final Key _centerSliverKey = UniqueKey();
   int? _centerMessageId;
   double? _anchorFraction;
@@ -364,6 +399,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
     _performance = ref.read(adaptivePerformanceProvider.notifier);
     _centerMessageId = widget.messages.isEmpty ? null : widget.messages.last.id;
     _store.reset(widget.messages);
+    _syncRowIds(widget.messages);
     final saved = widget.highlightMessageId == null
         ? widget.initialScrollAnchor
         : null;
@@ -409,7 +445,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         _captureScrollAnchor();
       }
     });
-    _animatedMessageIds.addAll(widget.messages.map((ApiMessage m) => m.id));
+    _animatedMessageIds.addAll(widget.messages.map(_rowId));
     if (widget.highlightMessageId case final id?) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_scrollToMessage(id));
@@ -427,9 +463,10 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
       });
     }
     if (!identical(widget.messages, oldWidget.messages)) {
+      _syncRowIds(widget.messages);
       _rebaseAnchor(widget.messages);
       _store.sync(widget.messages);
-      _animatedMessageIds.retainAll(widget.messages.map((m) => m.id));
+      _animatedMessageIds.retainAll(widget.messages.map(_rowId));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _captureScrollAnchor();
       });
@@ -567,7 +604,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
           isMine: isMine,
         );
         return RepaintBoundary(
-          key: ValueKey<int>(message.id),
+          key: ValueKey<int>(_rowId(message)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -587,7 +624,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
           formattedTime: formatMessageTime(message.sentAt),
         );
         return RepaintBoundary(
-          key: ValueKey<int>(message.id),
+          key: ValueKey<int>(_rowId(message)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -601,11 +638,11 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
 
       final bool shouldAnimate =
           index == 0 &&
-          !_animatedMessageIds.contains(message.id) &&
+          !_animatedMessageIds.contains(_rowId(message)) &&
           now.difference(message.resolvedSentAt).inSeconds < 4;
       if (shouldAnimate) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _animatedMessageIds.add(message.id);
+          _animatedMessageIds.add(_rowId(message));
         });
       }
 
@@ -618,7 +655,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         required bool animateHighlight,
       }) {
         return MessageBubble(
-          key: ValueKey<int>(message.id),
+          key: ValueKey<int>(_rowId(message)),
           chatId: message.chatId,
           text: InteractiveMessage.parse(rawText)?.preview ?? rawText,
           messageData: message,
@@ -716,7 +753,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
           ? (_activeTargetKey ??= GlobalKey(
               debugLabel: 'target_msg_${message.id}',
             ))
-          : ValueKey<int>(message.id);
+          : ValueKey<int>(_rowId(message));
 
       final Widget bubble = ValueListenableBuilder<int?>(
         valueListenable: _highlightedIdNotifier,
@@ -751,7 +788,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
       final Widget animatedBubble = KeyedSubtree(
         key: itemKey,
         child: widget.animatedMessageBuilder(
-          messageId: message.id,
+          messageId: _rowId(message),
           animate: shouldAnimate,
           isMine: isMine,
           child: bubble,
@@ -760,7 +797,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
 
       if (isMine) {
         return RepaintBoundary(
-          key: ValueKey<int>(message.id),
+          key: ValueKey<int>(_rowId(message)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
@@ -804,7 +841,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
       }
 
       return RepaintBoundary(
-        key: ValueKey<int>(message.id),
+        key: ValueKey<int>(_rowId(message)),
         child: Column(
           children: <Widget>[
             if (data.showDateSep)
@@ -882,16 +919,13 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         ? messages.length - 1
         : messages.length - 1 - centerReversed;
     Widget anchored(BuildContext context, int ascending) => _HistoryAnchor(
-      key: ValueKey<int>(messages[ascending].id),
+      key: ValueKey<int>(_rowId(messages[ascending])),
       messageId: messages[ascending].id,
       registry: _anchors,
       child: buildRow(context, messages.length - 1 - ascending),
     );
-    int? ascendingIndex(Key key) {
-      if (key is! ValueKey<int>) return null;
-      final reversed = _store.idToIndex[key.value];
-      return reversed == null ? null : messages.length - 1 - reversed;
-    }
+    int? ascendingIndex(Key key) =>
+        key is ValueKey<int> ? _rowIndexes[key.value] : null;
 
     return ScrollNotificationObserver(
       child: NotificationListener<ScrollNotification>(
@@ -976,12 +1010,27 @@ class _HistoryAnchor extends SingleChildRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) =>
       _HistoryAnchorBox(messageId, registry);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _HistoryAnchorBox renderObject,
+  ) {
+    renderObject.updateMessageId(messageId);
+  }
 }
 
 class _HistoryAnchorBox extends RenderProxyBox {
   _HistoryAnchorBox(this.messageId, this.registry);
-  final int messageId;
+  int messageId;
   final Map<int, _HistoryAnchorBox> registry;
+  void updateMessageId(int next) {
+    if (messageId == next) return;
+    if (identical(registry[messageId], this)) registry.remove(messageId);
+    messageId = next;
+    if (attached) registry[messageId] = this;
+  }
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);

@@ -76,7 +76,9 @@ class ChatScrollCoordinator {
     if (_disposed || _jumping) return;
     _jumping = true;
     try {
-      await onJumpToLatest?.call();
+      // The newest window is already local in the usual send path. Refetching
+      // it here blocks the jump on network/decryption and can hide the new row.
+      if (_hasNewerHistory) await onJumpToLatest?.call();
       if (_disposed) return;
       WidgetsBinding.instance.ensureVisualUpdate();
       await WidgetsBinding.instance.endOfFrame;

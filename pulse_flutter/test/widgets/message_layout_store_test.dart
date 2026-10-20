@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:pulse_flutter/widgets/chat/chat_scroll_coordinator.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'package:flutter/material.dart';
@@ -46,6 +48,7 @@ class _Performance extends AdaptivePerformanceNotifier {
 Widget _historyHarness(
   List<ApiMessage> messages,
   ScrollController scroll, {
+  bool followingLatest = false,
   int? highlight,
   ChatHistoryAnchor? initialAnchor,
   ValueChanged<ChatHistoryAnchor>? onAnchor,
@@ -58,7 +61,7 @@ Widget _historyHarness(
       body: ChatMessageList(
         messages: messages,
         scrollController: scroll,
-        followingLatest: false,
+        followingLatest: followingLatest,
         highlightMessageId: highlight,
         initialScrollAnchor: initialAnchor,
         onScrollAnchorChanged: onAnchor,
@@ -96,6 +99,104 @@ Finder _anchor(int id) => find.byWidgetPredicate(
 );
 
 void main() {
+  testWidgets(
+    'scrolling to an already loaded tail never waits for network history',
+    (tester) async {
+      final delayedHistory = Completer<void>();
+      var requests = 0;
+      final coordinator = ChatScrollCoordinator(
+        onJumpToLatest: () {
+          requests++;
+          return delayedHistory.future;
+        },
+      );
+      addTearDown(coordinator.dispose);
+      addTearDown(() {
+        if (!delayedHistory.isCompleted) delayedHistory.complete();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ListView.builder(
+              controller: coordinator.scrollController,
+              reverse: true,
+              itemCount: 100,
+              itemBuilder: (_, i) =>
+                  SizedBox(height: 48, child: Text('Row $i')),
+            ),
+          ),
+        ),
+      );
+      coordinator.scrollController.jumpTo(180);
+      var finished = false;
+      final localJump = coordinator
+          .scrollToBottom(animate: false)
+          .then((_) => finished = true);
+      await tester.pumpAndSettle();
+      expect(requests, 0);
+      expect(finished, isTrue);
+      await localJump;
+      expect(
+        coordinator.scrollController.offset,
+        coordinator.scrollController.position.minScrollExtent,
+      );
+      coordinator.setHasNewerHistory(true);
+      finished = false;
+      final remoteJump = coordinator
+          .scrollToBottom(animate: false)
+          .then((_) => finished = true);
+      await tester.pump();
+      expect(requests, 1);
+      expect(finished, isFalse);
+      delayedHistory.complete();
+      await tester.pumpAndSettle();
+      await remoteJump;
+      expect(finished, isTrue);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'encrypted outgoing acknowledgement retains the visible bubble element',
+    (tester) async {
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+      final pending = _message(-100).copyWith(
+        senderId: 1,
+        content: '📞 outgoing marker',
+        isSending: true,
+        isE2ee: true,
+        clientMessageId: 'local-operation-1',
+      );
+      final older = [for (var id = 1; id <= 30; id++) _message(id)];
+      await tester.pumpWidget(
+        _historyHarness([...older, pending], scroll, followingLatest: true),
+      );
+      await tester.pumpAndSettle();
+      final original = tester.element(_anchor(pending.id));
+      final originalRect = tester.getRect(_anchor(pending.id));
+      final confirmed = pending.copyWith(id: 31, isSending: false);
+      await tester.pumpWidget(
+        _historyHarness([...older, confirmed], scroll, followingLatest: true),
+      );
+      await tester.pump();
+      expect(_anchor(pending.id), findsOneWidget);
+      expect(tester.element(_anchor(pending.id)), same(original));
+      expect(
+        tester.getRect(_anchor(pending.id)).top,
+        closeTo(originalRect.top, .5),
+      );
+      expect(
+        (tester.renderObject(_anchor(pending.id)) as dynamic).messageId,
+        31,
+      );
+      await tester.pump(const Duration(seconds: 20));
+      expect(tester.element(_anchor(pending.id)), same(original));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets(
     'actual list scroll notifications pause media and debounce resumption',
     (tester) async {
