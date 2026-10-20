@@ -15,6 +15,12 @@ class InteractiveIcon extends StatelessWidget {
       'poll' => '<path d="M5 20V10h4v10M10 20V4h4v16M15 20v-7h4v7M3 20h18"/>',
       'quiz' => '<path d="M9 8a3 3 0 0 1 6 0c0 2-3 2-3 4m0 4h.01"/><rect x="3" y="2" width="18" height="20" rx="3"/>',
       'list' => '<path d="m3 6 2 2 3-4m3 2h10M3 13h4m4 0h10M3 20h4m4 0h10"/>',
+      'answer' => '<circle cx="12" cy="12" r="8"/>',
+      'selected' => '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>',
+      'check' => '<path d="m5 12 4 4L19 6"/>',
+      'incorrect' => '<path d="m6 6 12 12M6 18 18 6"/>',
+      'unchecked' => '<rect x="4" y="4" width="16" height="16" rx="3"/>',
+      'checked' => '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 3 3 5-6"/>',
       'close' => '<path d="m6 6 12 12M6 18 18 6"/>',
       'remove' => '<path d="M5 12h14"/>',
       _ => '<path d="M12 5v14M5 12h14"/>',
@@ -132,12 +138,26 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                         maxLength: 180,
                         decoration: InputDecoration(
                           labelText: _list ? 'Название' : 'Вопрос',
+                          counterText: _list ? null : '',
                         ),
                         validator: (v) => (v ?? '').trim().isEmpty
                             ? 'Введите ${_list ? 'название' : 'вопрос'}'
                             : null,
                       ),
                       const SizedBox(height: 8),
+                      if (!_list)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              _quiz
+                                  ? 'Варианты ответа. Отметьте правильный'
+                                  : 'Варианты ответа',
+                              style: theme.textTheme.labelLarge,
+                            ),
+                          ),
+                        ),
                       for (var i = 0; i < _items.length; i++)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
@@ -147,12 +167,16 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                               if (_quiz)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 6),
-                                  child: Semantics(
-                                    label: 'Правильный ответ ${i + 1}',
-                                    child: Checkbox(
-                                      value: _correct == i,
-                                      onChanged: (_) =>
-                                          setState(() => _correct = i),
+                                  child: IconButton(
+                                    tooltip: 'Правильный ответ ${i + 1}',
+                                    isSelected: _correct == i,
+                                    onPressed: () =>
+                                        setState(() => _correct = i),
+                                    icon: InteractiveIcon(
+                                      _correct == i ? 'selected' : 'answer',
+                                      color: _correct == i
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ),
@@ -164,6 +188,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                   decoration: InputDecoration(
                                     labelText:
                                         '${_list ? 'Пункт' : 'Вариант'} ${i + 1}',
+                                    counterText: _list ? null : '',
                                   ),
                                   validator: (v) => (v ?? '').trim().isEmpty
                                       ? 'Заполните поле'
@@ -210,17 +235,14 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                         ),
                       if (_quiz) ...[
                         const SizedBox(height: 8),
-                        Text(
-                          'Отметьте правильный ответ. Его пояснение появится после выбора.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _explanation,
                           maxLength: 500,
                           maxLines: 3,
                           decoration: const InputDecoration(
                             labelText: 'Пояснение (необязательно)',
+                            helperText: 'Появится после ответа',
+                            counterText: '',
                           ),
                         ),
                       ],

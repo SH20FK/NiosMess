@@ -197,86 +197,153 @@ class _InteractiveMessageCardState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  InteractiveIcon(definition.kind, color: foreground, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: foreground,
+              if (list) ...[
+                Row(
+                  children: [
+                    InteractiveIcon(
+                      definition.kind,
+                      color: foreground,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: foreground,
+                        ),
                       ),
                     ),
-                  ),
-                  if (state.closed)
-                    Text(
-                      'Завершён',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: foreground,
+                    if (state.closed)
+                      Text(
+                        'Завершён',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: foreground,
+                        ),
                       ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                definition.title,
-                style: theme.textTheme.titleSmall?.copyWith(color: foreground),
-              ),
-              const SizedBox(height: 8),
-              for (var i = 0; i < definition.items.length; i++)
-                _choice(
-                  label: definition.items[i],
-                  selected: list
-                      ? state.checked[i] == true
-                      : selected.contains(i),
-                  enabled: canAct && (!quiz || mine.isEmpty),
-                  percentage: !list && showResults && state.voters > 0
-                      ? state.count(i) / state.voters
-                      : null,
-                  helper: list && state.checked[i] == true
-                      ? state.checkedBy[i]
-                      : quiz && showResults && i == definition.correct
-                      ? 'Правильный ответ'
-                      : null,
-                  helperAvatar: list ? state.checkedByAvatar[i] : null,
-                  helperIsPerson: list && state.checked[i] == true,
-                  onTap: () {
-                    if (list) {
-                      _update(
-                        {
-                          'action': 'check',
-                          'item': i,
-                          'checked': state.checked[i] != true,
-                        },
-                        state.checked[i] == true
-                            ? 'Пункт снова открыт'
-                            : 'Пункт выполнен',
-                      );
-                    } else if (quiz) {
-                      _update({
-                        'action': 'vote',
-                        'choices': [i],
-                      }, 'Ответ на викторину');
-                    } else {
-                      setState(() {
-                        _selection = Set<int>.from(selected);
-                        if (definition.multiple) {
-                          if (!_selection!.add(i)) _selection!.remove(i);
-                        } else {
-                          _selection = {i};
-                        }
-                      });
-                    }
-                  },
-                  foreground: foreground,
+                  ],
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  definition.title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: foreground,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ] else ...[
+                Text(
+                  definition.title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  state.closed
+                      ? quiz
+                            ? 'Викторина завершена'
+                            : 'Опрос завершён'
+                      : quiz
+                      ? 'Викторина, один ответ'
+                      : definition.multiple
+                      ? 'Открытый опрос, несколько ответов'
+                      : 'Открытый опрос, один ответ',
+                  style: theme.textTheme.bodySmall?.copyWith(color: foreground),
+                ),
+                const SizedBox(height: 12),
+              ],
+              for (var i = 0; i < definition.items.length; i++)
+                if (list)
+                  _choice(
+                    label: definition.items[i],
+                    selected: list
+                        ? state.checked[i] == true
+                        : selected.contains(i),
+                    enabled: canAct && (!quiz || mine.isEmpty),
+                    percentage: !list && showResults && state.voters > 0
+                        ? state.count(i) / state.voters
+                        : null,
+                    helper: list && state.checked[i] == true
+                        ? state.checkedBy[i]
+                        : quiz && showResults && i == definition.correct
+                        ? 'Правильный ответ'
+                        : null,
+                    helperAvatar: list ? state.checkedByAvatar[i] : null,
+                    helperIsPerson: list && state.checked[i] == true,
+                    onTap: () {
+                      if (list) {
+                        _update(
+                          {
+                            'action': 'check',
+                            'item': i,
+                            'checked': state.checked[i] != true,
+                          },
+                          state.checked[i] == true
+                              ? 'Пункт снова открыт'
+                              : 'Пункт выполнен',
+                        );
+                      } else if (quiz) {
+                        _update({
+                          'action': 'vote',
+                          'choices': [i],
+                        }, 'Ответ на викторину');
+                      } else {
+                        setState(() {
+                          _selection = Set<int>.from(selected);
+                          if (definition.multiple) {
+                            if (!_selection!.add(i)) _selection!.remove(i);
+                          } else {
+                            _selection = {i};
+                          }
+                        });
+                      }
+                    },
+                    foreground: foreground,
+                  )
+                else
+                  _ballotChoice(
+                    label: definition.items[i],
+                    selected: selected.contains(i),
+                    multiple: definition.multiple && !quiz,
+                    enabled: canAct && (!quiz || mine.isEmpty),
+                    percentage: showResults && state.voters > 0
+                        ? state.count(i) / state.voters
+                        : null,
+                    correct: quiz && showResults && i == definition.correct,
+                    wrong:
+                        quiz &&
+                        showResults &&
+                        mine.contains(i) &&
+                        i != definition.correct,
+                    foreground: foreground,
+                    onTap: () {
+                      if (quiz) {
+                        _update({
+                          'action': 'vote',
+                          'choices': [i],
+                        }, 'Ответ на викторину');
+                      } else {
+                        setState(() {
+                          _selection = Set<int>.from(selected);
+                          if (definition.multiple) {
+                            if (!_selection!.add(i)) _selection!.remove(i);
+                          } else {
+                            _selection = {i};
+                          }
+                        });
+                      }
+                    },
+                  ),
               if (quiz && showResults && mine.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
-                  mine.contains(definition.correct)
-                      ? 'Верно!'
-                      : 'В этот раз неверно. Попробуйте следующую викторину.',
+                  mine.contains(definition.correct) ? 'Верно' : 'Неверно',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: foreground,
+                  ),
                 ),
                 if (definition.explanation.isNotEmpty)
                   Padding(
@@ -285,31 +352,34 @@ class _InteractiveMessageCardState
                   ),
               ],
               if (!list && !quiz && !state.closed)
-                Wrap(
-                  children: [
-                    TextButton(
-                      onPressed:
-                          canAct && _selection != null && selected.isNotEmpty
-                          ? () => _update({
-                              'action': 'vote',
-                              'choices': selected.toList()..sort(),
-                            }, 'Голос в опросе')
-                          : null,
-                      child: Text(
-                        mine.isEmpty ? 'Голосовать' : 'Изменить голос',
-                      ),
-                    ),
-                    if (mine.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Wrap(
+                    children: [
                       TextButton(
-                        onPressed: canAct
+                        onPressed:
+                            canAct && _selection != null && selected.isNotEmpty
                             ? () => _update({
                                 'action': 'vote',
-                                'choices': <int>[],
-                              }, 'Голос отозван')
+                                'choices': selected.toList()..sort(),
+                              }, 'Голос в опросе')
                             : null,
-                        child: const Text('Отозвать'),
+                        child: Text(
+                          mine.isEmpty ? 'Голосовать' : 'Изменить голос',
+                        ),
                       ),
-                  ],
+                      if (mine.isNotEmpty)
+                        TextButton(
+                          onPressed: canAct
+                              ? () => _update({
+                                  'action': 'vote',
+                                  'choices': <int>[],
+                                }, 'Голос отозван')
+                              : null,
+                          child: const Text('Отозвать'),
+                        ),
+                    ],
+                  ),
                 ),
               if (events.hasError)
                 TextButton(
@@ -378,6 +448,141 @@ class _InteractiveMessageCardState
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _ballotChoice({
+    required String label,
+    required bool selected,
+    required bool multiple,
+    required bool enabled,
+    required bool correct,
+    required bool wrong,
+    required VoidCallback onTap,
+    required Color foreground,
+    double? percentage,
+  }) {
+    final results = percentage != null;
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 160);
+    final icon = correct
+        ? 'check'
+        : wrong
+        ? 'incorrect'
+        : multiple
+        ? selected
+              ? 'checked'
+              : 'unchecked'
+        : selected
+        ? 'selected'
+        : 'answer';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(6),
+          child: Semantics(
+            selected: selected,
+            enabled: enabled,
+            button: true,
+            label: [
+              label,
+              if (correct) 'Правильный ответ',
+              if (wrong) 'Ваш ответ, неверно',
+            ].join(', '),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: InteractiveIcon(
+                          icon,
+                          size: 20,
+                          color: foreground,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              label,
+                              style: TextStyle(
+                                color: foreground,
+                                fontWeight: selected || correct
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                            if (correct || wrong) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                correct ? 'Правильный ответ' : 'Ваш ответ',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: foreground),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      if (results) ...[
+                        const SizedBox(width: 12),
+                        Text(
+                          '${(percentage * 100).round()}%',
+                          style: TextStyle(
+                            color: foreground,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (results)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 32, top: 8),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: percentage, end: percentage),
+                        duration: duration,
+                        builder: (_, value, _) => SizedBox(
+                          height: 4,
+                          width: double.infinity,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: foreground.withValues(alpha: .12),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: FractionallySizedBox(
+                                widthFactor: value.clamp(0, 1),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: foreground,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: const SizedBox.expand(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

@@ -220,7 +220,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('Верно!'), findsOneWidget);
+        expect(find.text('Верно'), findsOneWidget);
         expect(find.text('Выполнено 1 из 3'), findsOneWidget);
         expect(find.text('Изменить голос'), findsOneWidget);
         expect(find.byType(PulseAvatar), findsOneWidget);
@@ -238,7 +238,7 @@ void main() {
                     .toImage();
             final data = await image.toByteData(format: ui.ImageByteFormat.png);
             final path = File(
-              'E:/NiosIDAndNiosmess/release/interactive-messages/messages-${brightness.name}.png',
+              'E:/NiosIDAndNiosmess/release/ballot-redesign/messages-${brightness.name}.png',
             );
             await path.parent.create(recursive: true);
             await path.writeAsBytes(data!.buffer.asUint8List());
