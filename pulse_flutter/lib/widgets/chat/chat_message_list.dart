@@ -114,7 +114,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
   Map<int, int> _rowIds = {};
   Map<(int, String), int> _clientRowIds = {};
   Map<int, int> _rowIndexes = {};
-  int _collisionId = -(1 << 62);
+  // Keep fallback keys exact on both native Dart and JavaScript targets.
+  int _collisionId = -1;
 
   void _syncRowIds(List<ApiMessage> messages) {
     final next = <int, int>{};
