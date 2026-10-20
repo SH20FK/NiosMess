@@ -38,7 +38,7 @@ def package(source, output, commit, version):
     with zipfile.ZipFile(archive,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
         for path,data in sorted(files.items()):
             zi=zipfile.ZipInfo('web/'+path,date_time=(2026,1,1,0,0,0))
-            zi.external_attr=0o100644<<16;zi.compress_type=zipfile.ZIP_DEFLATED
+            zi.create_system=3;zi.external_attr=0o100644<<16;zi.compress_type=zipfile.ZIP_DEFLATED
             z.writestr(zi,data)
     info.update(size=archive.stat().st_size,sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),
                 file_count=len(files),url='https://github.com/SH20FK/NiosMess/releases/download/latest/niosmess-web.zip')
