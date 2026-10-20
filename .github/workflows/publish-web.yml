@@ -1,0 +1,79 @@
+name: Publish Flutter Web
+
+on:
+  workflow_run:
+    workflows: ['Build & Release (Android APK & Windows Installer)']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful main Build & Release run containing web-release
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: publish-flutter-web
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.event != 'pull_request')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate the existing successful artifact and release
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+        run: |
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" > web-run.json
+          gh release download latest --pattern version.json --dir release-meta
+          python3 - <<'PY'
+          import json, os, re
+          run=json.load(open('web-run.json'))
+          release=json.load(open('release-meta/version.json'))
+          assert run['conclusion']=='success' and run['head_branch']=='main'
+          assert run['name']=='Build & Release (Android APK & Windows Installer)'
+          assert run['event'] in ('push','workflow_dispatch')
+          assert run['head_repository']['full_name'].lower()==os.environ['GITHUB_REPOSITORY'].lower()
+          assert release['build_commit']==run['head_sha'], 'A newer application release has already replaced this artifact'
+          assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+', release['version'])
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write('commit='+run['head_sha']+'\nversion='+release['version']+'\n')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-release
+          path: web-artifact
+          run-id: ${{ github.event.workflow_run.id || inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Package the artifact for /web/
+        env:
+          WEB_COMMIT: ${{ steps.source.outputs.commit }}
+          WEB_VERSION: ${{ steps.source.outputs.version }}
+        run: >-
+          python3 pulse_flutter/tool/package_web_release.py
+          --input web-artifact --output web-dist
+          --commit "$WEB_COMMIT" --version "$WEB_VERSION"
+      - name: Publish without replacing desktop or Android files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WEB_COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          gh release download latest --pattern version.json --dir release-check
+          python3 - <<'PY'
+          import json,os
+          assert json.load(open('release-check/version.json'))['build_commit']==os.environ['WEB_COMMIT']
+          PY
+          gh release upload latest web-dist/niosmess-web.zip web-dist/web-version.json --clobber
