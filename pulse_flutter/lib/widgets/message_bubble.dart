@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/models/interactive_message.dart';
+import 'package:pulse_flutter/widgets/chat/interactive_message_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +57,7 @@ class MessageBubble extends ConsumerWidget {
     required this.formattedTime,
     required this.isMine,
     required this.chatId,
+    this.messageData,
     this.isDeleted = false,
     this.isEdited = false,
     this.isRead = false,
@@ -106,6 +109,7 @@ class MessageBubble extends ConsumerWidget {
     super.key,
   });
 
+  final ApiMessage? messageData;
   final String text;
   final String formattedTime;
   final bool isMine;
@@ -1338,7 +1342,12 @@ class MessageBubble extends ConsumerWidget {
         ],
       );
     }
-    final Widget textWidget = InteractiveMessageText(
+    final interactive = messageData != null && !isDeleted
+        ? InteractiveMessage.parse(messageData!.content) : null;
+    final Widget textWidget = interactive?.isDocument == true
+        ? InteractiveMessageCard(message: messageData!, definition: interactive!, foreground: textColor)
+        : InteractiveMessageText(
+
       text: text,
       baseStyle: textTheme.bodyMedium?.copyWith(
         color: textColor,

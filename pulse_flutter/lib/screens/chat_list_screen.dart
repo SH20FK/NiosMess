@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/widgets/chat/ordinary_e2ee_notice.dart';
 import 'dart:async';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
@@ -390,7 +391,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   String _previewText(String? raw) {
-    final String text = (raw ?? '').trim();
+    final String text = (InteractiveMessage.parse(raw ?? '')?.preview ?? raw ?? '').trim();
     if (text.isEmpty) return context.l10n.chatNoMessages;
     final RegExp forwarded = RegExp(r'^_fwd from\s+(.+?):');
     final Match? match = forwarded.firstMatch(text);

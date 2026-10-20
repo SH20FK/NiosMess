@@ -6,6 +6,7 @@ import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart'
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'dart:async';
+import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -455,7 +456,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         final String body = message.e2eeContent != null || message.isE2ee
             ? 'Зашифрованное сообщение'
             : message.content.isNotEmpty
-            ? message.content
+            ? (InteractiveMessage.parse(message.content)?.preview ?? message.content)
             : (message.msgType == 'media' ? '📎 Media' : '...');
         NotificationStorage.createAndSave(
           title: chatName,
@@ -487,7 +488,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         final String body = message.e2eeContent != null || message.isE2ee
             ? 'Зашифрованное сообщение'
             : message.content.isNotEmpty
-            ? message.content
+            ? (InteractiveMessage.parse(message.content)?.preview ?? message.content)
             : (message.msgType == 'media' ? '📎 Media' : '...');
         NotificationStorage.createAndSave(
           title: 'NiosMess',
@@ -2304,11 +2305,38 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
+  Future<void> sendInteractiveUpdate(String content, {required int rootId, required bool encryptedRoot}) => _retainOperation(() async {
+    final update = InteractiveMessage.parse(content);
+    final generation = _generation;
+    if (update?.kind != 'update' || update?.data['root'] != rootId || rootId <= 0) {
+      throw const FormatException('Некорректное изменение');
+    }
+    final chat = ref.read(chatByIdProvider(_chatId));
+    if (chat == null || chat.isSecret || chat.isBotChat ||
+        (chat.chatType != 'direct' && chat.chatType != 'group')) {
+      throw StateError('Недоступно в этом чате');
+    }
+    final ordinary = ref.read(ordinaryE2eeProvider);
+    final context = await ordinary?.prepare(_chatId, force: encryptedRoot);
+    if (encryptedRoot && (ordinary == null || context == null)) {
+      throw StateError('Требуется сквозное шифрование');
+    }
+    final encrypted = context != null && ordinary != null
+        ? await ordinary.encrypt(_chatId, content, reply: rootId, preparedContext: context) : null;
+    if (!ref.mounted || generation != _generation) {
+      throw StateError('Сеанс закрыт');
+    }
+    await ref.read(chatRepositoryProvider).sendMessage(_chatId,
+      content: encrypted == null ? content : null, e2eeContent: encrypted,
+      replyToId: rootId, interactiveUpdate: true);
+  });
+
   Future<void> send(
     String content, {
     int? replyToId,
     String? uploadId,
     String msgType = 'text',
+    bool requestAi = true,
     String? localId,
     String? e2eePlaintext,
     String? e2eeFileKey,
@@ -2318,6 +2346,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       replyToId: replyToId,
       uploadId: uploadId,
       msgType: msgType,
+      requestAi: requestAi,
       localId: localId,
       e2eePlaintext: e2eePlaintext,
       e2eeFileKey: e2eeFileKey,

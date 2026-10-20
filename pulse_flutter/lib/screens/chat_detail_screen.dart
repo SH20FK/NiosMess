@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
@@ -1120,6 +1121,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   Future<void> _editMessage(ApiMessage message) async {
+    if (InteractiveMessage.parse(message.content) != null) {
+      AppToast.showInfo(context, 'После отправки опрос или список можно завершить либо создать новый.');
+      return;
+    }
     final int? chatId = _chatId;
     if (chatId == null) return;
     // Enter inline edit mode instead of showing AlertDialog
@@ -1395,7 +1400,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       case MessageActionType.reply:
         _setReply(message);
       case MessageActionType.copy:
-        Clipboard.setData(ClipboardData(text: message.content));
+        Clipboard.setData(ClipboardData(text: _displayText(message)));
         AppToast.showInfo(context, context.l10n.chatMessageTextCopied);
       case MessageActionType.forward:
         _forwardMessage(message);
@@ -1698,7 +1703,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     return isVideoExt(lower) || (fileName.isNotEmpty && isVideoExt(fileName));
   }
 
-  String _displayText(ApiMessage message) => message.content;
+  String _displayText(ApiMessage message) => InteractiveMessage.parse(message.content)?.preview ?? message.content;
 
   Future<void> _showMediaActions(
     ApiMessage message,

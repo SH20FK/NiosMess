@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
@@ -261,6 +263,33 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     }
   }
 
+  bool get _canCreateInteractive {
+    final id = widget.chatId;
+    if (id == null) return false;
+    final chat = ref.read(chatByIdProvider(id));
+    return chat != null && !chat.isSecret && !chat.isBotChat &&
+        (chat.chatType == 'direct' || chat.chatType == 'group');
+  }
+
+  Future<void> _createInteractive(String kind) async {
+    final id = widget.chatId;
+    if (id == null || !_canCreateInteractive) return;
+    final content = await showInteractiveComposer(context, kind);
+    if (content == null || !mounted) return;
+    try {
+      await ref.read(chatMessagesProvider(id).notifier).send(content, requestAi: false);
+    } catch (_) {
+      if (mounted) AppToast.showError(context, 'Не удалось отправить. Повторите отправку в чате.');
+    }
+  }
+
+  List<Widget> _interactiveMenuItems() => [
+    if (_canCreateInteractive)
+      for (final entry in const {'poll': 'Опрос', 'quiz': 'Викторина', 'list': 'Общий список'}.entries)
+        MenuItemButton(leadingIcon: InteractiveIcon(entry.key),
+          onPressed: () => _createInteractive(entry.key), child: Text(entry.value)),
+  ];
+
   Widget _buildAttachButton(BuildContext context, ColorScheme scheme) {
     final bool isDesktop = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
@@ -293,6 +322,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           );
         },
         menuChildren: <Widget>[
+          ..._interactiveMenuItems(),
           MenuItemButton(
             leadingIcon: const Icon(Icons.image_outlined, size: 20),
             onPressed: () => _pickDesktopFiles(
@@ -328,6 +358,19 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             onPressed: () => _openCircleVideo(autoStart: true),
             child: const Text('Записать видеокружок'),
           ),
+        ],
+      );
+    }
+
+    if (_canCreateInteractive) {
+      return MenuAnchor(
+        builder: (context, controller, child) => IconButton(
+          tooltip: context.l10n.chatAttachMedia,
+          icon: const InteractiveIcon('add'),
+          onPressed: () => controller.isOpen ? controller.close() : controller.open()),
+        menuChildren: [
+          MenuItemButton(onPressed: widget.onAttachMedia, child: const Text('Фото, видео или файл')),
+          ..._interactiveMenuItems(),
         ],
       );
     }

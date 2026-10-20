@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/models/interactive_message.dart';
 import 'dart:async';
 import 'package:pulse_flutter/widgets/chat/ordinary_encryption_settings_button.dart';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
@@ -619,7 +620,8 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         return MessageBubble(
           key: ValueKey<int>(message.id),
           chatId: message.chatId,
-          text: rawText,
+          text: InteractiveMessage.parse(rawText)?.preview ?? rawText,
+          messageData: message,
           isMine: isMine,
           isE2ee: message.isE2ee,
           showEncryptionSettings: needsOrdinaryEncryptionSettings(message),

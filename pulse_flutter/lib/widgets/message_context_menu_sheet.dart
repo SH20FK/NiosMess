@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -176,7 +177,7 @@ class MessageContextMenuSheet extends StatelessWidget {
     }
 
     // Edit (mine & text message)
-    if (isMine && !message.isDeleted && message.content.trim().isNotEmpty) {
+    if (isMine && !message.isDeleted && message.content.trim().isNotEmpty && InteractiveMessage.parse(message.content) == null) {
       list.add(_ActionListTile(
         icon: Icons.edit_outlined,
         title: context.l10n.chatEdit,
@@ -255,7 +256,7 @@ class _MessagePreviewCard extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    String previewText = message.content.trim();
+    String previewText = (InteractiveMessage.parse(message.content)?.preview ?? message.content).trim();
     if (previewText.isEmpty) {
       if (message.isSticker) {
         final String emoji = message.sticker?.emoji.trim() ?? '';

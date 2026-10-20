@@ -1,4 +1,7 @@
 import 'services/mesh_preferences_test.dart' as mesh_preferences;
+import 'unit/interactive_message_test.dart' as interactive_messages;
+import 'providers/interactive_provider_test.dart' as interactive_provider;
+import 'widgets/interactive_messages_test.dart' as interactive_widgets;
 import 'services/mesh_automatic_access_test.dart' as mesh_access;
 import 'services/mesh_permission_race_test.dart' as mesh_permission_race;
 import 'services/ordinary_automatic_keys_test.dart' as ordinary_automatic_keys;
@@ -260,6 +263,9 @@ void main() {
     secret_chat_ui.main();
     route_tab_switcher.main();
     ordinary_chat_realtime.main();
+    interactive_messages.main();
+    interactive_provider.main();
+    interactive_widgets.main();
     appearance_palette.main();
     app_modals.main();
     formatter_and_detector.main();

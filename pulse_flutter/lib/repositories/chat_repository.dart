@@ -344,10 +344,12 @@ class ChatRepository {
     int? replyToId,
     String? uploadId,
     String? e2eeContent,
+    bool interactiveUpdate = false,
   }) async {
     final String normalizedContent = (content ?? '').trim();
     final Map<String, dynamic> payload = <String, dynamic>{
       'chat_id': chatId,
+      if (interactiveUpdate) 'interactive_update': true,
     };
     if (replyToId != null) {
       payload['reply_to_id'] = replyToId;
@@ -370,7 +372,7 @@ class ChatRepository {
 
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('send_message', payload: payload);
+        .request(interactiveUpdate ? 'interactive_update' : 'send_message', payload: payload);
 
     if (response is! Map) {
       throw const ApiException(
