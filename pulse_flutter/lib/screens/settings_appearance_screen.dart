@@ -1,4 +1,5 @@
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -455,7 +456,7 @@ class NiosColorField extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            SwitchListTile(
+            if (!kIsWeb) SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(context.l10n.appearanceSystemColors),
               subtitle: Text(context.l10n.appearanceSystemColorsSubtitle),

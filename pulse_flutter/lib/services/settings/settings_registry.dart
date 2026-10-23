@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/localization/secret_chat_l10n.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -250,7 +251,8 @@ class SettingsRegistry {
     // 9. Energy Saving
     SettingsNavNode(
       id: 'energy_saving',
-      title: (AppLocalizations l) => 'Энергосбережение',
+      title: (AppLocalizations l) =>
+          kIsWeb ? l.webMotionTitle : 'Энергосбережение',
       subtitle: (AppLocalizations l) => 'Батарея, анимации стикеров и эмодзи',
       icon: Icons.battery_saver_rounded,
       group: SettingsGroup.motion,
@@ -412,7 +414,6 @@ class SettingsRegistry {
     ),
 
     // Chats items
-
     SettingsToggleNode(
       id: 'send_on_enter',
       parentNavId: 'chats',
@@ -452,6 +453,7 @@ class SettingsRegistry {
     ),
     SettingsToggleNode(
       id: 'auto_download_cellular',
+      availability: () => !kIsWeb,
       parentNavId: 'chats',
       title: (AppLocalizations l) => l.settingsChatsAutoDownloadCellular,
       subtitle: (AppLocalizations l) => l.settingsChatsAutoDownloadCellularDesc,

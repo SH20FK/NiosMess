@@ -3,17 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
-enum NetworkType {
-  wifi,
-  cellular,
-  other,
-  none,
-}
+enum NetworkType { wifi, cellular, other, none }
 
 bool _isConnected(List<ConnectivityResult> results) {
-  if (kIsWeb) return true;
   final bool hasActive = results.any((r) => r != ConnectivityResult.none);
   if (hasActive) return true;
+  if (kIsWeb) return results.isEmpty;
   // On desktop, fallback to true if results are empty or indeterminate
   if (!kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.windows ||
@@ -28,11 +23,13 @@ final connectivityProvider = StreamProvider<bool>((ref) async* {
   final Connectivity connectivity = Connectivity();
 
   // Initial state — true = connected, false = disconnected
-  final List<ConnectivityResult> initialResult = await connectivity.checkConnectivity();
+  final List<ConnectivityResult> initialResult = await connectivity
+      .checkConnectivity();
   yield _isConnected(initialResult);
 
   // Stream state
-  await for (final List<ConnectivityResult> result in connectivity.onConnectivityChanged) {
+  await for (final List<ConnectivityResult> result
+      in connectivity.onConnectivityChanged) {
     yield _isConnected(result);
   }
 });
@@ -61,10 +58,12 @@ final networkTypeProvider = StreamProvider<NetworkType>((ref) async* {
     return NetworkType.other;
   }
 
-  final List<ConnectivityResult> initialResult = await connectivity.checkConnectivity();
+  final List<ConnectivityResult> initialResult = await connectivity
+      .checkConnectivity();
   yield mapResults(initialResult);
 
-  await for (final List<ConnectivityResult> result in connectivity.onConnectivityChanged) {
+  await for (final List<ConnectivityResult> result
+      in connectivity.onConnectivityChanged) {
     yield mapResults(result);
   }
 });
@@ -73,7 +72,12 @@ final networkTypeProvider = StreamProvider<NetworkType>((ref) async* {
 /// based on the current network connection and user settings.
 final autoDownloadAllowedProvider = Provider<bool>((ref) {
   final UiSettingsState settings = ref.watch(uiSettingsProvider);
-  final NetworkType netType = ref.watch(networkTypeProvider).value ?? NetworkType.wifi;
+  if (kIsWeb) {
+    return (ref.watch(connectivityProvider).value ?? true) &&
+        settings.autoDownloadWifi;
+  }
+  final NetworkType netType =
+      ref.watch(networkTypeProvider).value ?? NetworkType.wifi;
   if (netType == NetworkType.wifi || netType == NetworkType.other) {
     return settings.autoDownloadWifi;
   } else if (netType == NetworkType.cellular) {
@@ -81,4 +85,3 @@ final autoDownloadAllowedProvider = Provider<bool>((ref) {
   }
   return false;
 });
-

@@ -291,7 +291,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(
-          find.text(locale == 'ru' ? 'Ожидает отправки' : 'Waiting to send'),
+          find.byTooltip(locale == 'ru' ? 'Ожидает отправки' : 'Waiting to send'),
           findsOneWidget,
         );
         expect(tester.takeException(), isNull);

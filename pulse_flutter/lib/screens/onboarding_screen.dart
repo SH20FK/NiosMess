@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -138,244 +139,282 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return M3OrganicBackground(
+      contentMaxWidth: kIsWeb ? 1040 : 560,
       showBackButton: false,
       showThemeToggle: true,
       child: SafeArea(
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final bool bounded = constraints.hasBoundedHeight;
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: kIsWeb ? 1040 : double.infinity,
+              maxHeight: kIsWeb ? 800 : double.infinity,
+            ),
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final bool bounded = constraints.hasBoundedHeight;
 
-            final Widget headerSection = Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Hero(
-                  tag: 'app_brand_logo',
-                  child: const AppLogoMark(size: 72),
-                )
-                    .animate()
-                    .scale(
-                      begin: const Offset(0.85, 0.85),
-                      end: const Offset(1, 1),
-                      curve: M3SpringCurves.spatial,
-                      duration: const Duration(milliseconds: 400),
-                    )
-                    .fade(duration: const Duration(milliseconds: 300)),
-                const SizedBox(height: 12),
-                Row(
+                final Widget headerSection = Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      context.l10n.appName,
-                      style: TextStyle(
-                        fontFamily: AppFonts.headline,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                        color: scheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    M3Container(
-                      Shapes.c9_sided_cookie,
-                      width: 22,
-                      height: 22,
-                      color: scheme.primaryContainer,
-                      child: Center(
-                        child: Icon(
-                          Icons.bolt_rounded,
-                          size: 14,
-                          color: scheme.primary,
+                    Hero(
+                          tag: 'app_brand_logo',
+                          child: const AppLogoMark(size: 72),
+                        )
+                        .animate()
+                        .scale(
+                          begin: const Offset(0.85, 0.85),
+                          end: const Offset(1, 1),
+                          curve: M3SpringCurves.spatial,
+                          duration: const Duration(milliseconds: 400),
+                        )
+                        .fade(duration: const Duration(milliseconds: 300)),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          context.l10n.appName,
+                          style: TextStyle(
+                            fontFamily: AppFonts.headline,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                            color: scheme.onSurface,
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ).animate().fade(
+                        const SizedBox(width: 8),
+                        M3Container(
+                          Shapes.c9_sided_cookie,
+                          width: 22,
+                          height: 22,
+                          color: scheme.primaryContainer,
+                          child: Center(
+                            child: Icon(
+                              Icons.bolt_rounded,
+                              size: 14,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ).animate().fade(
                       delay: const Duration(milliseconds: 150),
                       duration: const Duration(milliseconds: 300),
                     ),
-              ],
-            );
+                  ],
+                );
 
-            final Widget carouselSection = PageView.builder(
-              controller: _pageController,
-              onPageChanged: (int index) {
-                if (ref.read(uiSettingsProvider).haptics) {
-                  HapticService.tap();
-                }
-                setState(() => _index = index);
-                _startClockTimerIfNeeded();
-              },
-              itemCount: _totalSlides,
-              itemBuilder: (BuildContext context, int index) {
-                if (index == 3) {
-                  return _buildRegionAndLanguageSlide(scheme, textTheme);
-                }
-                return _buildLottieSlide(index, scheme, textTheme);
-              },
-            );
+                final Widget carouselSection = PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (int index) {
+                    if (ref.read(uiSettingsProvider).haptics) {
+                      HapticService.tap();
+                    }
+                    setState(() => _index = index);
+                    _startClockTimerIfNeeded();
+                  },
+                  itemCount: _totalSlides,
+                  itemBuilder: (BuildContext context, int index) {
+                    if (index == 3) {
+                      return _buildRegionAndLanguageSlide(scheme, textTheme);
+                    }
+                    return _buildLottieSlide(index, scheme, textTheme);
+                  },
+                );
 
-            final Widget indicatorSection = Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  tooltip: context.l10n.commonBack,
-                  icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                  onPressed: _index > 0
-                      ? () {
-                          HapticService.selection();
-                          _pageController.previousPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: M3SpringCurves.spatial,
-                          );
-                        }
-                      : null,
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List<Widget>.generate(_totalSlides, (int dotIndex) {
-                    final bool active = dotIndex == _index;
-                    return Semantics(
-                      button: true,
-                      selected: active,
-                      label: '${dotIndex + 1} / $_totalSlides',
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticService.selection();
-                          _pageController.animateToPage(
-                            dotIndex,
-                            duration: const Duration(milliseconds: 320),
-                            curve: M3SpringCurves.spatial,
-                          );
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 260),
-                          curve: M3SpringCurves.spatial,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: active ? 26 : 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: active
-                                ? scheme.primary
-                                : scheme.outlineVariant.withValues(alpha: 0.5),
-                            borderRadius: AppRadii.fullRadius,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                IconButton(
-                  tooltip: context.l10n.commonContinue,
-                  icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                  onPressed: _index < _totalSlides - 1
-                      ? () {
-                          HapticService.selection();
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: M3SpringCurves.spatial,
-                          );
-                        }
-                      : null,
-                ),
-              ],
-            );
-
-            final Widget actionButtonsSection = Padding(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                bottom: bottomInset > 0 ? bottomInset + 12 : 24,
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Row(
+                final Widget indicatorSection = Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (_index < 3)
-                      Expanded(
-                        child: TextButton(
-                          onPressed: _handleSkip,
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size.fromHeight(56),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: AppRadii.fullRadius,
+                    IconButton(
+                      tooltip: context.l10n.commonBack,
+                      icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                      onPressed: _index > 0
+                          ? () {
+                              HapticService.selection();
+                              _pageController.previousPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: M3SpringCurves.spatial,
+                              );
+                            }
+                          : null,
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List<Widget>.generate(_totalSlides, (
+                        int dotIndex,
+                      ) {
+                        final bool active = dotIndex == _index;
+                        return Semantics(
+                          button: true,
+                          selected: active,
+                          label: '${dotIndex + 1} / $_totalSlides',
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticService.selection();
+                              _pageController.animateToPage(
+                                dotIndex,
+                                duration: const Duration(milliseconds: 320),
+                                curve: M3SpringCurves.spatial,
+                              );
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 260),
+                              curve: M3SpringCurves.spatial,
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: active ? 26 : 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? scheme.primary
+                                    : scheme.outlineVariant.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                borderRadius: AppRadii.fullRadius,
+                              ),
                             ),
                           ),
-                          child: Text(
-                            context.l10n.commonSkip,
-                            style: textTheme.titleMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (_index < 3) const SizedBox(width: 12),
-                    Expanded(
-                      flex: _index < 3 ? 1 : 2,
-                      child: SizedBox(
-                        height: 56,
-                        child: FilledButton.icon(
-                          onPressed: _handleNext,
-                          icon: Icon(
-                            _index == 3
-                                ? Icons.arrow_forward_rounded
-                                : Icons.arrow_forward_rounded,
-                            size: 20,
-                            color: scheme.onPrimary,
-                          ),
-                          label: Text(
-                            _index == 3
-                                ? context.l10n.setupStartMessaging
-                                : context.l10n.commonContinue,
-                            style: textTheme.titleMedium?.copyWith(
-                              color: scheme.onPrimary,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: scheme.primary,
-                            foregroundColor: scheme.onPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: AppRadii.fullRadius,
-                            ),
-                            elevation: 0,
-                          ),
-                        ),
-                      ),
+                        );
+                      }),
+                    ),
+                    IconButton(
+                      tooltip: context.l10n.commonContinue,
+                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                      onPressed: _index < _totalSlides - 1
+                          ? () {
+                              HapticService.selection();
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: M3SpringCurves.spatial,
+                              );
+                            }
+                          : null,
                     ),
                   ],
-                ),
-              ),
-            );
+                );
 
-            if (bounded) {
-              return Column(
-                children: [
-                  const SizedBox(height: 8),
-                  Expanded(flex: 4, child: headerSection),
-                  Expanded(flex: 7, child: carouselSection),
-                  indicatorSection,
-                  const SizedBox(height: 18),
-                  actionButtonsSection,
-                ],
-              );
-            }
+                final Widget actionButtonsSection = Padding(
+                  padding: EdgeInsets.only(
+                    left: 24,
+                    right: 24,
+                    bottom: bottomInset > 0 ? bottomInset + 12 : 24,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: Row(
+                      children: [
+                        if (_index < 3)
+                          Expanded(
+                            child: TextButton(
+                              onPressed: _handleSkip,
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size.fromHeight(56),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: AppRadii.fullRadius,
+                                ),
+                              ),
+                              child: Text(
+                                context.l10n.commonSkip,
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (_index < 3) const SizedBox(width: 12),
+                        Expanded(
+                          flex: _index < 3 ? 1 : 2,
+                          child: SizedBox(
+                            height: 56,
+                            child: FilledButton.icon(
+                              onPressed: _handleNext,
+                              icon: Icon(
+                                _index == 3
+                                    ? Icons.arrow_forward_rounded
+                                    : Icons.arrow_forward_rounded,
+                                size: 20,
+                                color: scheme.onPrimary,
+                              ),
+                              label: Text(
+                                _index == 3
+                                    ? context.l10n.setupStartMessaging
+                                    : context.l10n.commonContinue,
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: scheme.onPrimary,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: scheme.primary,
+                                foregroundColor: scheme.onPrimary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: AppRadii.fullRadius,
+                                ),
+                                elevation: 0,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
 
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 20),
-                headerSection,
-                const SizedBox(height: 20),
-                SizedBox(height: 320, child: carouselSection),
-                indicatorSection,
-                const SizedBox(height: 20),
-                actionButtonsSection,
-              ],
-            );
-          },
+                if (kIsWeb &&
+                    bounded &&
+                    constraints.maxWidth >= 840 &&
+                    constraints.maxHeight >= 500) {
+                  return Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Row(
+                      children: [
+                        Expanded(flex: 4, child: headerSection),
+                        const VerticalDivider(width: 48),
+                        Expanded(
+                          flex: 6,
+                          child: Column(
+                            children: [
+                              Expanded(child: carouselSection),
+                              indicatorSection,
+                              const SizedBox(height: 24),
+                              actionButtonsSection,
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                if (bounded) {
+                  return Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      Expanded(flex: 4, child: headerSection),
+                      Expanded(flex: 7, child: carouselSection),
+                      indicatorSection,
+                      const SizedBox(height: 18),
+                      actionButtonsSection,
+                    ],
+                  );
+                }
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 20),
+                    headerSection,
+                    const SizedBox(height: 20),
+                    SizedBox(height: 320, child: carouselSection),
+                    indicatorSection,
+                    const SizedBox(height: 20),
+                    actionButtonsSection,
+                  ],
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -430,8 +469,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   index == 0
                       ? Icons.call_rounded
                       : index == 1
-                          ? Icons.chat_bubble_rounded
-                          : Icons.bolt_rounded,
+                      ? Icons.chat_bubble_rounded
+                      : Icons.bolt_rounded,
                   size: 48,
                   color: scheme.primary,
                 ),
@@ -503,7 +542,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               // Language Chips / Buttons
               Row(
                 children: langOptions.map((lang) {
-                  final bool selected = _selectedLanguageCode == lang.code ||
+                  final bool selected =
+                      _selectedLanguageCode == lang.code ||
                       (_selectedLanguageCode == null && lang.code == null);
                   return Expanded(
                     child: Padding(
@@ -597,8 +637,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                 '$_deviceTzName (UTC$_deviceOffsetLabel)',
                                 style: textTheme.bodySmall?.copyWith(
                                   color: _timeZoneMode == AppTimeZoneMode.auto
-                                      ? scheme.onPrimaryContainer
-                                          .withValues(alpha: 0.75)
+                                      ? scheme.onPrimaryContainer.withValues(
+                                          alpha: 0.75,
+                                        )
                                       : scheme.onSurfaceVariant,
                                   fontSize: 11,
                                 ),
@@ -665,8 +706,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                 _selectedTimeZoneId,
                                 style: textTheme.bodySmall?.copyWith(
                                   color: _timeZoneMode == AppTimeZoneMode.manual
-                                      ? scheme.onPrimaryContainer
-                                          .withValues(alpha: 0.75)
+                                      ? scheme.onPrimaryContainer.withValues(
+                                          alpha: 0.75,
+                                        )
                                       : scheme.onSurfaceVariant,
                                   fontSize: 11,
                                 ),
@@ -695,7 +737,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               // Live Time Preview
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8,
+                  horizontal: 12,
+                ),
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerLow.withValues(alpha: 0.5),
                   borderRadius: AppRadii.mdRadius,
@@ -744,8 +789,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           builder: (BuildContext ctx, StateSetter setModalState) {
             final List<AppTimeZoneOption> filteredZones = appTimeZoneOptions
                 .where((AppTimeZoneOption option) {
-                  final String hay =
-                      '${option.label} ${option.id}'.toLowerCase();
+                  final String hay = '${option.label} ${option.id}'
+                      .toLowerCase();
                   return hay.contains(query.toLowerCase());
                 })
                 .toList(growable: false);

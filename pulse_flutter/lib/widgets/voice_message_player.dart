@@ -140,6 +140,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       }
       final source = await WsMediaFetcher.acquirePlaybackSource(
         filePath: widget.audioUrl,
+        mimeType: mediaPlaybackMimeType(widget.audioUrl, fallback: 'audio/mp4'),
         wsClient: widget.wsClient,
         e2eeFileKey: fileKey,
       );

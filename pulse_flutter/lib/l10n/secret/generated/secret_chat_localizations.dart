@@ -838,6 +838,96 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Voters: {count}'**
   String interactiveVoterCount(int count);
+
+  /// No description provided for @attachmentPhotoVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo or video'**
+  String get attachmentPhotoVideo;
+
+  /// No description provided for @attachmentDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'File or document'**
+  String get attachmentDocument;
+
+  /// No description provided for @attachmentAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio file'**
+  String get attachmentAudio;
+
+  /// No description provided for @attachmentRecordCircle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a video message'**
+  String get attachmentRecordCircle;
+
+  /// No description provided for @recordCircleDesktopHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Video message: click to record, right-click for microphone'**
+  String get recordCircleDesktopHint;
+
+  /// No description provided for @recordVoiceDesktopHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice message: click to record, right-click for video'**
+  String get recordVoiceDesktopHint;
+
+  /// No description provided for @recordSwitchVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to microphone'**
+  String get recordSwitchVoice;
+
+  /// No description provided for @recordSwitchCircle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to video message'**
+  String get recordSwitchCircle;
+
+  /// No description provided for @deliverySent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get deliverySent;
+
+  /// No description provided for @deliveryRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get deliveryRead;
+
+  /// No description provided for @webWorkspaceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a chat on the left. Ctrl + Alt + N starts a conversation.'**
+  String get webWorkspaceHint;
+
+  /// No description provided for @videoPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Play video'**
+  String get videoPreview;
+
+  /// No description provided for @webAutoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download media automatically'**
+  String get webAutoDownload;
+
+  /// No description provided for @webMotionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion and performance'**
+  String get webMotionTitle;
+
+  /// No description provided for @webDownloadStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Download started'**
+  String get webDownloadStarted;
 }
 
 class _SecretChatLocalizationsDelegate

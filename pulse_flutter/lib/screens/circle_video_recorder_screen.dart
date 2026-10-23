@@ -139,7 +139,9 @@ class _CircleVideoRecorderScreenState
 
     try {
       await _controller!.startVideoRecording();
-      HapticService.tap();
+      if (mounted && ref.read(uiSettingsProvider).haptics) {
+        HapticService.tap();
+      }
       if (mounted) {
         setState(() => _isRecording = true);
         _elapsedSec = 0;
@@ -170,7 +172,9 @@ class _CircleVideoRecorderScreenState
     _progressController.stop();
 
     try {
-      HapticService.confirm();
+      if (mounted && ref.read(uiSettingsProvider).haptics) {
+        HapticService.confirm();
+      }
       final XFile video = await _controller!.stopVideoRecording();
       if (mounted) {
         Navigator.of(context).pop(video.path);
@@ -189,7 +193,11 @@ class _CircleVideoRecorderScreenState
       if (_availableCameras.length < 2) return;
     }
 
-    HapticService.tap();
+    if (mounted && ref.read(uiSettingsProvider).haptics) {
+
+      HapticService.tap();
+
+    }
     _flipController.forward(from: 0.0);
 
     final CameraDescription current = _controller!.description;
@@ -254,7 +262,9 @@ class _CircleVideoRecorderScreenState
   }
 
   void _cancelAndPop() {
-    HapticService.destructive();
+    if (mounted && ref.read(uiSettingsProvider).haptics) {
+      HapticService.destructive();
+    }
     if (_isRecording) {
       _recordingTimer?.cancel();
       _pulseController.stop();

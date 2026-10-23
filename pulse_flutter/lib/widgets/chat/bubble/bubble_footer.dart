@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 class MessageBubbleFooter extends StatelessWidget {
   const MessageBubbleFooter({
@@ -105,18 +106,44 @@ class MessageBubbleFooter extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                   )
-          else if (isSending) ...[
-            Icon(Icons.access_time_rounded, size: 12, color: statusIconColor),
-            const SizedBox(width: 3),
-            Text(
-              context.l10n.inboxWaitingToSend,
-              style: textTheme.labelSmall?.copyWith(color: statusIconColor),
-            ),
-          ] else
-            Icon(
-              isRead ? Icons.done_all_rounded : Icons.check_rounded,
-              size: 13,
-              color: statusIconColor,
+          else
+            Tooltip(
+              excludeFromSemantics: true,
+              message: isSending
+                  ? context.l10n.inboxWaitingToSend
+                  : isRead
+                  ? context.l10n.deliveryRead
+                  : context.l10n.deliverySent,
+              child: Semantics(
+                liveRegion: true,
+                label: isSending
+                    ? context.l10n.inboxWaitingToSend
+                    : isRead
+                    ? context.l10n.deliveryRead
+                    : context.l10n.deliverySent,
+                child: SizedBox(
+                  key: const ValueKey('delivery-status-slot'),
+                  width: 20,
+                  height: 20,
+                  child: AnimatedSwitcher(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : M3Durations.short3,
+                    switchInCurve: M3SpringCurves.expressiveDecel,
+                    switchOutCurve: M3SpringCurves.expressiveDecel,
+                    child: Icon(
+                      isSending
+                          ? Icons.access_time_rounded
+                          : isRead
+                          ? Icons.done_all_rounded
+                          : Icons.check_rounded,
+                      key: ValueKey((isSending, isRead)),
+                      size: 14,
+                      color: statusIconColor,
+                    ),
+                  ),
+                ),
+              ),
             ),
         ],
       ],

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/widgets/chat/ordinary_e2ee_notice.dart';
 import 'dart:async';
@@ -141,7 +142,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       chatListSearchProvider,
     );
     final filter = ref.watch(chatFilterProvider);
-    final int? desktopChatId = ref.watch(desktopSelectedChatProvider);
+    final browserWorkspace = ref.watch(clientCapabilitiesProvider).browserWorkspace;
+    final int? desktopChatId = browserWorkspace
+        ? int.tryParse(GoRouterState.of(context).uri.queryParameters['chat'] ?? '')
+        : ref.watch(desktopSelectedChatProvider);
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
@@ -416,7 +420,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                               : isTyping
                               ? context.l10n.chatTyping
                               : _chatPreview(chat),
-                          formattedTime: formatRelativeTime(chat.lastActivity),
+                          formattedTime: formatRelativeTime(
+                            chat.lastActivity,
+                            localeCode: context.l10n.localeName,
+                          ),
                           deliveryIcon:
                               chat.lastMessage != null &&
                                   chat.lastMessage!.senderId ==
@@ -459,7 +466,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           chatId: chat.id,
                           isSelected: desktopChatId == chat.id,
                           onTap: () {
-                            if (MediaQuery.sizeOf(context).width >=
+                            if (ref.read(clientCapabilitiesProvider).browserWorkspace) {
+                              context.go('/main/chats?chat=${chat.id}');
+                            } else if (MediaQuery.sizeOf(context).width >=
                                 Breakpoints.medium) {
                               ref
                                   .read(desktopSelectedChatProvider.notifier)

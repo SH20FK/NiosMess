@@ -1,3 +1,6 @@
+import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
+import 'package:pulse_flutter/widgets/nav/web_workspace_navigation.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -38,9 +41,15 @@ import 'package:pulse_flutter/core/services/account_background_policy.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 
 class MainShellScreen extends ConsumerStatefulWidget {
-  const MainShellScreen({required this.tab, super.key});
+  const MainShellScreen({
+    required this.tab,
+    this.selectedChatId,
+    this.highlightMessageId,
+    super.key,
+  });
 
   final String tab;
+  final int? selectedChatId, highlightMessageId;
 
   @override
   ConsumerState<MainShellScreen> createState() => _MainShellScreenState();
@@ -373,7 +382,10 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   @override
   Widget build(BuildContext context) {
     final bool haptics = ref.watch(uiSettingsProvider.select((s) => s.haptics));
-    final int? desktopChatId = ref.watch(desktopSelectedChatProvider);
+    final capabilities = ref.watch(clientCapabilitiesProvider);
+    final int? desktopChatId = capabilities.browserWorkspace
+        ? widget.selectedChatId
+        : ref.watch(desktopSelectedChatProvider);
     final int currentIndex = _tabIndex(widget.tab);
     final bool isOffline = !(ref.watch(connectivityProvider).value ?? true);
 
@@ -384,9 +396,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     });
 
     return PopScope(
-      canPop: false,
+      canPop: capabilities.browserWorkspace,
       onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (didPop) return;
+        if (didPop || capabilities.browserWorkspace) return;
         final int currentIndex = _tabIndex(widget.tab);
         if (currentIndex != 0) {
           // Secondary tab (Contacts, NiosGram, Profile) -> return to primary Chats tab
@@ -407,169 +419,269 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         // Second press within 2 seconds -> minimize app cleanly without process kill
         SystemUtils.minimizeApp();
       },
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool isWide = constraints.maxWidth >= Breakpoints.medium;
-
-          final double minChatListWidth = 260.0;
-          final double maxChatListWidth = (constraints.maxWidth - 340.0).clamp(
-            minChatListWidth,
-            640.0,
-          );
-          final double effectiveChatListWidth = _desktopChatListWidth.clamp(
-            minChatListWidth,
-            maxChatListWidth,
-          );
-
-          final List<Widget> pages = <Widget>[
-            if (isWide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  SizedBox(
-                    width: effectiveChatListWidth,
-                    child: const Stack(
-                      fit: StackFit.expand,
-                      children: <Widget>[
-                        ChatListScreen(),
-                        Positioned(
-                          right: 16,
-                          bottom: 16,
-                          child: InboxComposeButton(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _DraggableSidebarDivider(
-                    onDragUpdate: (double delta) {
-                      setState(() {
-                        _desktopChatListWidth = (_desktopChatListWidth + delta)
-                            .clamp(minChatListWidth, maxChatListWidth);
-                      });
-                    },
-                    onReset: () {
-                      setState(() {
-                        _desktopChatListWidth = 360.0;
-                      });
-                    },
-                  ),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      switchInCurve: M3SpringCurves.expressiveDecel,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder:
-                          (Widget child, Animation<double> animation) {
-                            return FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(
-                                    0.015,
-                                    0.0,
-                                  ), // ~12dp subtle slide
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: child,
-                              ),
-                            );
-                          },
-                      child: desktopChatId != null
-                          ? ChatDetailScreen(
-                              key: ValueKey<int>(desktopChatId),
-                              chatId: desktopChatId.toString(),
-                              isDesktopSplit: true,
-                            )
-                          : KeyedSubtree(
-                              key: const ValueKey<String>('desktop_empty_chat'),
-                              child: _buildDesktopEmptyChatPlaceholder(context),
-                            ),
-                    ),
-                  ),
-                ],
-              )
-            else
-              const ChatListScreen(),
-            isWide
-                ? Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 820),
-                      child: const NiosgramScreen(),
-                    ),
-                  )
-                : const NiosgramScreen(),
-            const ProfileScreen(),
-          ];
-          final PerformanceTier tier = ref.watch(
-            adaptivePerformanceProvider.select((s) => s.tier),
-          );
-          final bool tabMotion =
-              !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
-
-          final Widget body = NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              if (notification is ScrollStartNotification) {
-                _mainScrolling = true;
+      child: CallbackShortcuts(
+        bindings: capabilities.browserWorkspace
+            ? {
+                const SingleActivator(
+                  LogicalKeyboardKey.digit1,
+                  control: true,
+                  alt: true,
+                ): () =>
+                    _onTapTab(0),
+                const SingleActivator(
+                  LogicalKeyboardKey.digit2,
+                  control: true,
+                  alt: true,
+                ): () =>
+                    _onTapTab(1),
+                const SingleActivator(
+                  LogicalKeyboardKey.digit3,
+                  control: true,
+                  alt: true,
+                ): () =>
+                    _onTapTab(2),
+                const SingleActivator(
+                  LogicalKeyboardKey.keyN,
+                  control: true,
+                  alt: true,
+                ): () =>
+                    context.push('/new-message'),
               }
-              if (notification is ScrollEndNotification) _mainScrolling = false;
-              _syncInteraction();
-              return false;
-            },
-            child: M3RouteTabSwitcher(
-              onTransitionStateChanged: (_) => _syncInteraction(),
-              index: currentIndex,
-              controller: _tabTransition,
-              animate: tabMotion,
-              duration: tier.isTierA
-                  ? (isWide
-                        ? const Duration(milliseconds: 300)
-                        : const Duration(milliseconds: 320))
-                  : const Duration(milliseconds: 300),
-              children: List<Widget>.generate(pages.length, (int index) {
-                if (!_activatedTabs.contains(index)) {
-                  return const SizedBox.shrink();
-                }
-                final bool isActive = index == currentIndex;
-                return TickerMode(
-                  enabled: isActive,
-                  child: RepaintBoundary(child: pages[index]),
-                );
-              }),
-            ),
-          );
+            : const {},
+        child: Focus(
+          autofocus: capabilities.browserWorkspace,
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final bool isWide = constraints.maxWidth >= Breakpoints.medium;
+              final bool webRail = capabilities.browserWorkspace && isWide;
+              final workspaceWidth = constraints.maxWidth - (webRail ? 89 : 0);
 
-          return Scaffold(
-            extendBody: false,
-            body: Column(
-              children: [
-                OfflineBanner(isOffline: isOffline),
-                Expanded(
-                  child: PulseScaffoldBody(
-                    expand: true,
-                    topSafe: false,
-                    bottomSafe: false,
-                    child: body,
-                  ),
+              final double minChatListWidth = 260.0;
+              final double maxChatListWidth = (workspaceWidth - 340.0).clamp(
+                minChatListWidth,
+                640.0,
+              );
+              final double effectiveChatListWidth = _desktopChatListWidth.clamp(
+                minChatListWidth,
+                maxChatListWidth,
+              );
+
+              final List<Widget> pages = <Widget>[
+                if (isWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      SizedBox(
+                        width: effectiveChatListWidth,
+                        child: const Stack(
+                          fit: StackFit.expand,
+                          children: <Widget>[
+                            ChatListScreen(),
+                            Positioned(
+                              right: 16,
+                              bottom: 16,
+                              child: InboxComposeButton(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _DraggableSidebarDivider(
+                        onDragUpdate: (double delta) {
+                          setState(() {
+                            _desktopChatListWidth =
+                                (_desktopChatListWidth + delta).clamp(
+                                  minChatListWidth,
+                                  maxChatListWidth,
+                                );
+                          });
+                        },
+                        onReset: () {
+                          setState(() {
+                            _desktopChatListWidth = 360.0;
+                          });
+                        },
+                      ),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : M3Durations.medium1,
+                          switchInCurve: M3SpringCurves.expressiveDecel,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder:
+                              (Widget child, Animation<double> animation) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: SlideTransition(
+                                    position: Tween<Offset>(
+                                      begin: const Offset(
+                                        0.015,
+                                        0.0,
+                                      ), // ~12dp subtle slide
+                                      end: Offset.zero,
+                                    ).animate(animation),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                          child: desktopChatId != null
+                              ? ChatDetailScreen(
+                                  key: ValueKey<int>(desktopChatId),
+                                  chatId: desktopChatId.toString(),
+                                  highlightMessageId: widget.highlightMessageId,
+                                  isDesktopSplit: true,
+                                )
+                              : KeyedSubtree(
+                                  key: const ValueKey<String>(
+                                    'desktop_empty_chat',
+                                  ),
+                                  child: _buildDesktopEmptyChatPlaceholder(
+                                    context,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  capabilities.browserWorkspace && desktopChatId != null
+                      ? ChatDetailScreen(
+                          key: ValueKey(desktopChatId),
+                          chatId: desktopChatId.toString(),
+                          highlightMessageId: widget.highlightMessageId,
+                        )
+                      : const ChatListScreen(),
+                isWide
+                    ? Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 820),
+                          child: const NiosgramScreen(),
+                        ),
+                      )
+                    : const NiosgramScreen(),
+                const ProfileScreen(),
+              ];
+              final PerformanceTier tier = ref.watch(
+                adaptivePerformanceProvider.select((s) => s.tier),
+              );
+              final bool tabMotion =
+                  !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
+
+              final Widget body = NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification is ScrollStartNotification) {
+                    _mainScrolling = true;
+                  }
+                  if (notification is ScrollEndNotification) {
+                    _mainScrolling = false;
+                  }
+                  _syncInteraction();
+                  return false;
+                },
+                child: M3RouteTabSwitcher(
+                  onTransitionStateChanged: (_) => _syncInteraction(),
+                  index: currentIndex,
+                  controller: _tabTransition,
+                  animate: tabMotion,
+                  duration: tier.isTierA
+                      ? (isWide
+                            ? const Duration(milliseconds: 300)
+                            : const Duration(milliseconds: 320))
+                      : const Duration(milliseconds: 300),
+                  children: List<Widget>.generate(pages.length, (int index) {
+                    if (!_activatedTabs.contains(index)) {
+                      return const SizedBox.shrink();
+                    }
+                    final bool isActive = index == currentIndex;
+                    return TickerMode(
+                      enabled: isActive,
+                      child: RepaintBoundary(child: pages[index]),
+                    );
+                  }),
                 ),
-              ],
-            ),
-            bottomNavigationBar: RepaintBoundary(
-              child: AppBottomNav(
-                currentIndex: currentIndex,
-                onTap: _onTapTab,
-                hapticsEnabled: haptics,
-              ),
-            ),
-            floatingActionButton: !isWide && currentIndex == 0
-                ? const InboxComposeButton()
-                : null,
-          );
-        },
+              );
+
+              return Scaffold(
+                extendBody: false,
+                body: Column(
+                  children: [
+                    OfflineBanner(isOffline: isOffline),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          if (webRail) ...[
+                            WebWorkspaceNavigation(
+                              index: currentIndex,
+                              onSelect: _onTapTab,
+                            ),
+                            const VerticalDivider(width: 1),
+                          ],
+                          Expanded(
+                            child: PulseScaffoldBody(
+                              expand: true,
+                              topSafe: false,
+                              bottomSafe: false,
+                              child: body,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                bottomNavigationBar: webRail
+                    ? null
+                    : RepaintBoundary(
+                        child: AppBottomNav(
+                          currentIndex: currentIndex,
+                          onTap: _onTapTab,
+                          hapticsEnabled: haptics,
+                        ),
+                      ),
+                floatingActionButton:
+                    !isWide &&
+                        currentIndex == 0 &&
+                        !(capabilities.browserWorkspace &&
+                            desktopChatId != null)
+                    ? const InboxComposeButton()
+                    : null,
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildDesktopEmptyChatPlaceholder(BuildContext context) {
+    if (ref.read(clientCapabilitiesProvider).browserWorkspace) {
+      final scheme = Theme.of(context).colorScheme;
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.forum_outlined, size: 56, color: scheme.primary),
+                const SizedBox(height: 20),
+                Text(
+                  'NiosMess Web',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  context.l10n.webWorkspaceHint,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final radii = AppRadii.of(context);
     return Center(

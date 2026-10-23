@@ -14,6 +14,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/media/media_playback_source.dart';
+import 'package:pulse_flutter/core/media/browser_playback_stub.dart'
+    if (dart.library.js_interop) 'package:pulse_flutter/core/media/browser_playback_web.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -77,7 +79,8 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
   void didUpdateWidget(covariant NativeFileViewerScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url ||
-        oldWidget.e2eeFileKey != widget.e2eeFileKey) {
+        oldWidget.e2eeFileKey != widget.e2eeFileKey ||
+        !identical(oldWidget.bytes, widget.bytes)) {
       _sourceGeneration++;
       unawaited(_streamPlayback?.close());
       _streamPlayback = null;
@@ -97,6 +100,12 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
     // their bytes in hand).
     final bool hasUrl =
         widget.url != null && widget.url!.trim().isNotEmpty;
+    if (kIsWeb && widget.bytes != null && (widget.fileType.isVideo || widget.fileType.isAudio)) {
+      _streamPlayback = browserPlayback(widget.bytes!, mediaPlaybackMimeType(widget.fileName,
+        fallback: widget.fileType.isAudio ? 'audio/mp4' : 'video/mp4'));
+      _fetching = false;
+      return;
+    }
     if (!hasUrl || widget.bytes != null || widget.localPath != null) {
       return;
     }
@@ -109,14 +118,13 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
     try {
       Uint8List? fileKey;
       if (_isE2ee) {
-        try {
-          fileKey = base64Decode(widget.e2eeFileKey!);
-        } catch (_) {}
+        fileKey = base64Decode(widget.e2eeFileKey!);
       }
-      if (widget.url!.startsWith('nios-stream://') && fileKey != null) {
+      if ((kIsWeb || widget.url!.startsWith('nios-stream://')) && (kIsWeb || fileKey != null)) {
         if (widget.fileType.isVideo || widget.fileType.isAudio) {
           final source = await WsMediaFetcher.acquirePlaybackSource(
             filePath: widget.url!, wsClient: ref.read(webSocketClientProvider),
+            mimeType: mediaPlaybackMimeType(widget.fileName, fallback: widget.fileType.isAudio ? "audio/mp4" : "video/mp4"),
             e2eeFileKey: fileKey,
           );
           if (!mounted || generation != _sourceGeneration) {
@@ -126,7 +134,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
           setState(() => _fetching = false);
           return;
         }
-        if (widget.fileType.isPdf) {
+        if (!kIsWeb && widget.fileType.isPdf && fileKey != null) {
           final lifetime = _previewLifetime;
           await WsMediaFetcher.withSecretStreamExport(filePath: widget.url!,
             e2eeFileKey: fileKey, consume: (path) async {
@@ -142,13 +150,13 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
         wsClient: ref.read(webSocketClientProvider),
         e2eeFileKey: fileKey,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _sourceGeneration) return;
       setState(() {
         _fetchedBytes = bytes;
         _fetching = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _sourceGeneration) return;
       setState(() {
         _fetchError = e;
         _fetching = false;
@@ -196,7 +204,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
   }
 
   Future<void> _downloadFile() async {
-    if (widget.url?.startsWith('nios-stream://') ?? false) {
+    if (!kIsWeb && (widget.url?.startsWith('nios-stream://') ?? false)) {
       await saveM3File(context: context, fileName: widget.fileName,
         fileSize: 0, mediaUrl: widget.url, e2eeFileKey: widget.e2eeFileKey,
         wsClient: ref.read(webSocketClientProvider));
@@ -204,10 +212,9 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
     }
     final Uint8List? data = _fetchedBytes ?? widget.bytes;
     if (kIsWeb) {
-      AppToast.showInfo(context, 'В веб-версии файл скачивается через браузер');
-      if (widget.url != null) {
-        launchUrl(Uri.parse(widget.url!));
-      }
+      await saveM3File(context: context, fileName: widget.fileName, fileSize: data?.length ?? 0,
+        fileBytes: data, mediaUrl: widget.url, e2eeFileKey: widget.e2eeFileKey,
+        wsClient: ref.read(webSocketClientProvider));
       return;
     }
     try {
@@ -294,7 +301,7 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
                 onPressed: () =>
                     setState(() => _showMarkdownRaw = !_showMarkdownRaw),
               ),
-            IconButton(
+            if (!kIsWeb) IconButton(
               icon: const Icon(Icons.share_rounded),
               tooltip: 'Поделиться',
               onPressed: _shareFile,
@@ -405,6 +412,13 @@ class _NativeFileViewerScreenState extends ConsumerState<NativeFileViewerScreen>
       );
     }
 
+    if (ft.isPdf && kIsWeb) {
+      return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(context.l10n.mediaViewerCannotPreview),
+        const SizedBox(height: 16),
+        FilledButton.icon(onPressed: _downloadFile, icon: const Icon(Icons.download_rounded), label: Text(context.l10n.filePreviewSave)),
+      ]));
+    }
     if (ft.isPdf) {
       return _PdfViewer(
         url: resolvedBytes == null ? resolvedUrl : null,
@@ -1092,7 +1106,7 @@ class _VideoViewerState extends State<_VideoViewer> {
       if (!mounted) return;
       _chewieController = ChewieController(
         videoPlayerController: _videoController!,
-        autoPlay: true,
+        autoPlay: !kIsWeb,
         looping: false,
         placeholder: const AppLoadingIndicator(size: 32),
         allowFullScreen: true,

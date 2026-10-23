@@ -40,6 +40,34 @@ class M3FilePickerResult {
 /// Opens the Telegram-style attachment bottom sheet with recent media grid,
 /// quick camera capture tile, full gallery album access, and document/audio pickers.
 Future<List<M3FilePickerResult>?> showM3FilePicker(BuildContext context) async {
+  if (kIsWeb) {
+    try {
+      // Browser selection supplies bytes; no filesystem path or gallery plugin.
+      final files = await FilePicker.pickFiles();
+      final result = <M3FilePickerResult>[];
+      for (final file in files) {
+        final bytes = await file.readAsBytes();
+        final type = FileTypeDetector.detect(fileName: file.name);
+        result.add(
+          M3FilePickerResult(
+            fileName: file.name,
+            fileSize: bytes.length,
+            fileBytes: bytes,
+            mediaSubtype: type.isImage
+                ? 'photo'
+                : type.isVideo
+                ? 'video'
+                : 'document',
+            sendAsDocument: !type.isImage && !type.isVideo,
+          ),
+        );
+      }
+      return result.isEmpty ? null : result;
+    } catch (error) {
+      if (context.mounted) AppToast.showError(context, error);
+      return null;
+    }
+  }
   return AppBottomSheets.show<List<M3FilePickerResult>>(
     context: context,
     showDragHandle: true,

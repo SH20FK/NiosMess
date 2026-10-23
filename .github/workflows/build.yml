@@ -73,6 +73,9 @@ jobs:
       - name: Run Test Suite
         run: flutter test test/suite_test.dart --timeout 90s
 
+      - name: Test browser layout and real encrypted media playback
+        run: flutter test test/web/browser_media_test.dart --platform chrome --timeout 90s
+
       - name: Test encrypted streaming against the real Python API
         run: flutter test test/services/secret_stream_python_integration_test.dart --timeout 90s
 

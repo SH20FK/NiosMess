@@ -143,4 +143,19 @@ extension SecretChatL10n on AppLocalizations {
       _secret.interactiveCompletedCount(count, total);
   String interactiveVoterCount(int count) =>
       _secret.interactiveVoterCount(count);
+  String get attachmentPhotoVideo => _secret.attachmentPhotoVideo;
+  String get attachmentDocument => _secret.attachmentDocument;
+  String get attachmentAudio => _secret.attachmentAudio;
+  String get attachmentRecordCircle => _secret.attachmentRecordCircle;
+  String get recordCircleDesktopHint => _secret.recordCircleDesktopHint;
+  String get recordVoiceDesktopHint => _secret.recordVoiceDesktopHint;
+  String get recordSwitchVoice => _secret.recordSwitchVoice;
+  String get recordSwitchCircle => _secret.recordSwitchCircle;
+  String get deliverySent => _secret.deliverySent;
+  String get deliveryRead => _secret.deliveryRead;
+  String get webWorkspaceHint => _secret.webWorkspaceHint;
+  String get videoPreview => _secret.videoPreview;
+  String get webAutoDownload => _secret.webAutoDownload;
+  String get webMotionTitle => _secret.webMotionTitle;
+  String get webDownloadStarted => _secret.webDownloadStarted;
 }

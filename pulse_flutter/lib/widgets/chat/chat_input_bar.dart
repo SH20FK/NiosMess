@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
@@ -308,7 +309,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                 'mkv',
               ],
             ),
-            child: const Text('Фото или видео'),
+            child: Text(context.l10n.attachmentPhotoVideo),
           ),
           MenuItemButton(
             leadingIcon: const Icon(Icons.description_outlined, size: 20),
@@ -316,17 +317,17 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
               type: FileType.any,
               sendAsDocument: true,
             ),
-            child: const Text('Файл или документ'),
+            child: Text(context.l10n.attachmentDocument),
           ),
           MenuItemButton(
             leadingIcon: const Icon(Icons.audiotrack_outlined, size: 20),
             onPressed: () => _pickDesktopFiles(type: FileType.audio),
-            child: const Text('Аудиозапись'),
+            child: Text(context.l10n.attachmentAudio),
           ),
           MenuItemButton(
             leadingIcon: const Icon(Icons.videocam_outlined, size: 20),
             onPressed: () => _openCircleVideo(autoStart: true),
-            child: const Text('Записать видеокружок'),
+            child: Text(context.l10n.attachmentRecordCircle),
           ),
         ],
       );
@@ -370,7 +371,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   }
 
   Future<void> _startVoiceRecording() async {
-    HapticService.tap();
+    if (widget.hapticsEnabled) HapticService.tap();
     _waveformBuffer.clear();
     _amplitudeNotifier.value = const <double>[];
     _dragOffsetNotifier.value = Offset.zero;
@@ -423,7 +424,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   }
 
   Future<void> _sendVoiceRecording() async {
-    HapticService.confirm();
+    if (widget.hapticsEnabled) HapticService.confirm();
     ref.read(appSoundProvider).playEvent(SoundEvent.recordSend);
     final String? path = await VoiceRecorderService.stopRecording();
     if (mounted) {
@@ -440,7 +441,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   }
 
   Future<void> _cancelVoiceRecording() async {
-    HapticService.destructive();
+    if (widget.hapticsEnabled) HapticService.destructive();
     ref.read(appSoundProvider).playEvent(SoundEvent.recordCancel);
     await VoiceRecorderService.cancelRecording();
     if (mounted) {
@@ -1186,6 +1187,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
 
   // ── Record button (mic/video toggle + long press to record) ──
   Widget _buildRecordButton(ColorScheme scheme) {
+    if (!ref.watch(clientCapabilitiesProvider).nativeRecording) {
+      return const SizedBox.shrink();
+    }
     final bool isDesktop = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.linux ||
@@ -1193,8 +1197,8 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
 
     final String tooltipMessage = isDesktop
         ? (_isVideoMode
-            ? 'Видеокружок (ЛКМ — запись, ПКМ — микрофон)'
-            : 'Голосовое сообщение (ЛКМ — запись, ПКМ — кружок)')
+            ? context.l10n.recordCircleDesktopHint
+            : context.l10n.recordVoiceDesktopHint)
         : (_isVideoMode
             ? context.l10n.chatCircleVideo
             : context.l10n.chatVoiceMessage);
@@ -1205,7 +1209,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
         onTap: () async {
           if (isDesktop) {
             if (_isVideoMode) {
-              HapticService.tap();
+              if (widget.hapticsEnabled) HapticService.tap();
               _openCircleVideo(autoStart: true);
             } else {
               if (_isRecording) {
@@ -1219,21 +1223,21 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           } else {
             // Tap toggles mic ↔ video mode on mobile
             setState(() => _isVideoMode = !_isVideoMode);
-            HapticService.confirm();
+            if (widget.hapticsEnabled) HapticService.confirm();
           }
         },
         onSecondaryTap: isDesktop
             ? () {
                 // Secondary click toggles mode on desktop
                 setState(() => _isVideoMode = !_isVideoMode);
-                HapticService.confirm();
+                if (widget.hapticsEnabled) HapticService.confirm();
               }
             : null,
         onLongPressStart: (LongPressStartDetails details) async {
           if (isDesktop) return; // Desktop uses single tap
           if (_isVideoMode) {
             // Video mode: open circle recorder with auto-start
-            HapticService.tap();
+            if (widget.hapticsEnabled) HapticService.tap();
             _openCircleVideo(autoStart: true);
             return;
           }
@@ -1246,7 +1250,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
 
           // Real-time lock detection: lock as soon as threshold is crossed
           if (details.localOffsetFromOrigin.dy < -60 && !_isRecordingLocked) {
-            HapticService.confirm();
+            if (widget.hapticsEnabled) HapticService.confirm();
             ref.read(appSoundProvider).playEvent(SoundEvent.recordLock);
             setState(() => _isRecordingLocked = true);
           }
@@ -1321,12 +1325,12 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             child: GestureDetector(
               onTap: () {
                 setState(() => _isVideoMode = !_isVideoMode);
-                HapticService.selection();
+                if (widget.hapticsEnabled) HapticService.selection();
               },
               child: Tooltip(
                 message: _isVideoMode
-                    ? 'Переключить на микрофон'
-                    : 'Переключить на видеокружок',
+                    ? context.l10n.recordSwitchVoice
+                    : context.l10n.recordSwitchCircle,
                 child: Container(
                   width: 32,
                   height: 32,

@@ -414,4 +414,52 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String interactiveVoterCount(int count) {
     return 'Voters: $count';
   }
+
+  @override
+  String get attachmentPhotoVideo => 'Photo or video';
+
+  @override
+  String get attachmentDocument => 'File or document';
+
+  @override
+  String get attachmentAudio => 'Audio file';
+
+  @override
+  String get attachmentRecordCircle => 'Record a video message';
+
+  @override
+  String get recordCircleDesktopHint =>
+      'Video message: click to record, right-click for microphone';
+
+  @override
+  String get recordVoiceDesktopHint =>
+      'Voice message: click to record, right-click for video';
+
+  @override
+  String get recordSwitchVoice => 'Switch to microphone';
+
+  @override
+  String get recordSwitchCircle => 'Switch to video message';
+
+  @override
+  String get deliverySent => 'Sent';
+
+  @override
+  String get deliveryRead => 'Read';
+
+  @override
+  String get webWorkspaceHint =>
+      'Select a chat on the left. Ctrl + Alt + N starts a conversation.';
+
+  @override
+  String get videoPreview => 'Play video';
+
+  @override
+  String get webAutoDownload => 'Download media automatically';
+
+  @override
+  String get webMotionTitle => 'Motion and performance';
+
+  @override
+  String get webDownloadStarted => 'Download started';
 }

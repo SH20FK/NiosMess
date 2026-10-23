@@ -419,4 +419,52 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String interactiveVoterCount(int count) {
     return 'Проголосовали: $count';
   }
+
+  @override
+  String get attachmentPhotoVideo => 'Фото или видео';
+
+  @override
+  String get attachmentDocument => 'Файл или документ';
+
+  @override
+  String get attachmentAudio => 'Аудиозапись';
+
+  @override
+  String get attachmentRecordCircle => 'Записать видеокружок';
+
+  @override
+  String get recordCircleDesktopHint =>
+      'Видеокружок: нажмите для записи, правая кнопка — микрофон';
+
+  @override
+  String get recordVoiceDesktopHint =>
+      'Голосовое: нажмите для записи, правая кнопка — видео';
+
+  @override
+  String get recordSwitchVoice => 'Переключить на микрофон';
+
+  @override
+  String get recordSwitchCircle => 'Переключить на видеокружок';
+
+  @override
+  String get deliverySent => 'Отправлено';
+
+  @override
+  String get deliveryRead => 'Прочитано';
+
+  @override
+  String get webWorkspaceHint =>
+      'Выберите чат слева. Ctrl + Alt + N — новая переписка.';
+
+  @override
+  String get videoPreview => 'Воспроизвести видео';
+
+  @override
+  String get webAutoDownload => 'Автоматически загружать медиа';
+
+  @override
+  String get webMotionTitle => 'Анимации и производительность';
+
+  @override
+  String get webDownloadStarted => 'Загрузка файла началась';
 }

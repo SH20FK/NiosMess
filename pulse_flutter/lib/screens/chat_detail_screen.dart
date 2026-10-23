@@ -121,6 +121,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   int? get _chatId => int.tryParse(widget.chatId);
 
   void _goBack() {
+    if (kIsWeb) {
+      context.go("/main/chats");
+      return;
+    }
     if (widget.isDesktopSplit) {
       ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(null);
       return;

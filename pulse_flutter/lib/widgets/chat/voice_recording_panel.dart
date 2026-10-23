@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
 
 class VoiceRecordingPanel extends StatefulWidget {
@@ -116,7 +115,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
               : 0.0;
           final double barHeight =
               (amp * height * 0.85).clamp(3.0, height);
-          return Padding(
+          return Flexible(child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 1.0),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 80),
@@ -128,7 +127,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-          );
+          ));
         }),
       ),
     );
@@ -204,7 +203,6 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () {
-                  HapticService.confirm();
                   widget.onCancel();
                 },
                 customBorder: const CircleBorder(),
@@ -227,7 +225,6 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
               elevation: 2,
               child: InkWell(
                 onTap: () {
-                  HapticService.confirm();
                   widget.onSend();
                 },
                 customBorder: const CircleBorder(),
@@ -303,7 +300,6 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () {
-                HapticService.confirm();
                 widget.onCancel();
               },
               customBorder: const CircleBorder(),
@@ -326,7 +322,6 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
             elevation: 2,
             child: InkWell(
               onTap: () {
-                HapticService.confirm();
                 widget.onSend();
               },
               customBorder: const CircleBorder(),

@@ -12,6 +12,8 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/media/media_playback_source.dart';
+import 'package:pulse_flutter/core/media/browser_playback_stub.dart'
+    if (dart.library.js_interop) 'package:pulse_flutter/core/media/browser_playback_web.dart';
 
 /// Downloads chat media over the authenticated `/api/files/download`
 /// endpoint and caches it locally.
@@ -26,8 +28,12 @@ class WsMediaFetcher {
   static Future<Uint8List> Function(String, Uint8List)? secretStreamLoader;
   static Future<MediaPlaybackSource> Function(String, Uint8List)?
   secretStreamPlaybackLoader;
-  static Future<void> Function(String, Uint8List, Future<void> Function(String))?
-      secretStreamExportLoader;
+  static Future<void> Function(
+    String,
+    Uint8List,
+    Future<void> Function(String),
+  )?
+  secretStreamExportLoader;
 
   /// Explicit save/share only. The account owner removes its temporary export
   /// after the platform has copied it; ordinary playback never takes this path.
@@ -42,6 +48,7 @@ class WsMediaFetcher {
     }
     return loader(filePath, e2eeFileKey, consume);
   }
+
   static int _accountGeneration = 0;
   static Future<void>? _cacheClear;
   static final String _stagingSession = List.generate(
@@ -53,6 +60,7 @@ class WsMediaFetcher {
   static Future<void> clearPrivateCache() async {
     final maxGeneration = _accountGeneration;
     _accountGeneration++;
+    releaseBrowserPlayback();
     clearMemoryCache();
     _inFlightFetches.clear();
     _inFlightFiles.clear();
@@ -410,10 +418,21 @@ class WsMediaFetcher {
     required String filePath,
     required WebSocketClient wsClient,
     Uint8List? e2eeFileKey,
+    String? mimeType,
   }) async {
     final cleanPath = _cleanFilePath(filePath);
     final generation = _accountGeneration;
     await _waitForPrivateCacheClear(generation);
+    if (kIsWeb) {
+      final bytes = await fetchAndDecryptMedia(
+        filePath: cleanPath,
+        wsClient: wsClient,
+        e2eeFileKey: e2eeFileKey,
+      );
+      _checkAccount(generation);
+      final resolvedType = mimeType ?? mediaPlaybackMimeType(cleanPath);
+      return browserPlayback(bytes, resolvedType);
+    }
     if (cleanPath.startsWith('nios-stream://')) {
       final loader = secretStreamPlaybackLoader;
       if (loader == null || e2eeFileKey == null) {

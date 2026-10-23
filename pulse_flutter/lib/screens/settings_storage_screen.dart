@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -316,7 +317,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
             SettingsRow(
               anchor: SettingId.storageAutoDownloadWifi.value,
               leading: Icon(Icons.wifi_rounded, color: scheme.primary),
-              title: 'Через сеть Wi-Fi',
+              title: kIsWeb ? context.l10n.webAutoDownload : 'Через сеть Wi-Fi',
               subtitle:
                   'Автоматически скачивать фото, видео и голосовые сообщения',
               control: ToggleControl(
@@ -330,7 +331,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                 },
               ),
             ),
-            SettingsRow(
+            if (!kIsWeb) SettingsRow(
               anchor: SettingId.storageAutoDownloadMobile.value,
               leading:
                   Icon(Icons.signal_cellular_alt_rounded, color: scheme.primary),
@@ -347,7 +348,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                 },
               ),
             ),
-            SettingsRow(
+            if (!kIsWeb) SettingsRow(
               leading:
                   Icon(Icons.airplanemode_active_rounded, color: scheme.primary),
               title: 'В роуминге',
@@ -367,7 +368,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
         ),
 
         // 2. Save to Gallery
-        SettingsSection(
+        if (!kIsWeb) SettingsSection(
           title: 'Сохранять в галерею',
           subtitle:
               'Автоматическое сохранение входящих фото и видео на устройство',

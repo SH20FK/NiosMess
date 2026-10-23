@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:pulse_flutter/widgets/chat/video_message_preview.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_message_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -1043,8 +1044,15 @@ class MessageBubble extends ConsumerWidget {
     }
 
     final FileTypeInfo typeInfo = FileTypeDetector.detect(
-      fileName: mediaLabel ?? 'file',
+      fileName: mediaLabel ?? mediaUrl ?? 'file',
+      mimeType: messageData?.mediaType,
     );
+    if (typeInfo.isVideo && messageData?.mediaType != 'document' && !isSending && !isFailed) {
+      return VideoMessagePreview(url: mediaUrl!, fileKey: e2eeFileKey,
+        mimeType: messageData?.mediaType?.startsWith('video/') == true ? messageData!.mediaType : null,
+        duration: messageData?.mediaDuration, name: mediaLabel,
+        onOpen: onOpenMedia, onLongPress: onLongPressMedia);
+    }
 
     final double p = (uploadProgress ?? 0.0).clamp(0.0, 1.0);
     final int percent = (p * 100).toInt();

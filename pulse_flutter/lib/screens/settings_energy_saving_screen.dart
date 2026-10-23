@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -25,11 +27,11 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return SettingsShell(
-      title: 'Энергосбережение',
+      title: kIsWeb ? context.l10n.webMotionTitle : 'Энергосбережение',
       isEmbedded: isEmbedded,
       children: <Widget>[
         // 1. Master Battery Threshold Card
-        SettingsSection(
+        if (!kIsWeb) SettingsSection(
           title: 'Автоматическое включение',
           subtitle: 'Укажите уровень заряда батареи, при котором приложение автоматически перейдёт в режим экономии',
           children: <Widget>[

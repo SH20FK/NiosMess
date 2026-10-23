@@ -1,4 +1,5 @@
 import 'widgets/bot_keyboard_feedback_test.dart' as bot_keyboard_feedback;
+import 'widgets/web_workspace_test.dart' as web_workspace;
 import 'core/network/web_socket_reliability_test.dart' as transport_reliability;
 import 'widgets/message_surface_test.dart' as message_surfaces;
 import 'providers/inbox_reliability_test.dart' as inbox_reliability;
@@ -304,6 +305,7 @@ void main() {
     neutral_inbox.main();
     message_surfaces.main();
     bot_keyboard_feedback.main();
+    web_workspace.main();
     transport_reliability.main();
     inbox_reliability.main();
     message_previews.main();

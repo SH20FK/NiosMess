@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -105,7 +106,7 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                 },
               ),
             ],
-            SettingsSwitchTile(
+            if (ref.watch(clientCapabilitiesProvider).haptics) SettingsSwitchTile(
               icon: Icons.vibration_rounded,
               title: context.l10n.settingsHapticFeedback,
               subtitle: context.l10n.settingsHapticFeedbackSubtitle,

@@ -11,6 +11,7 @@ import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/message_bubble.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 
 class _Settings extends UiSettingsNotifier {
   @override
@@ -47,7 +48,7 @@ void main() {
           addTearDown(tester.view.resetPhysicalSize);
           addTearDown(tester.view.resetDevicePixelRatio);
           final container = ProviderContainer(
-            overrides: [uiSettingsProvider.overrideWith(_Settings.new)],
+            overrides: [uiSettingsProvider.overrideWith(_Settings.new), autoDownloadAllowedProvider.overrideWithValue(false)],
           );
           addTearDown(container.dispose);
           final capture = GlobalKey();
@@ -192,7 +193,7 @@ void main() {
             const ValueKey<String>('attachment-without-caption'),
           );
           expect(tester.widget<Material>(video).color, Colors.transparent);
-          expect(find.text('movie.mp4'), findsOneWidget);
+          expect(find.byTooltip('movie.mp4'), findsOneWidget);
           expect(find.text('12:30'), findsOneWidget);
           await snapshot('video-file');
           expect(tester.takeException(), isNull);

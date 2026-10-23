@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -157,7 +158,7 @@ class SettingsChatsScreen extends ConsumerWidget {
           children: <Widget>[
             SettingsSwitchTile(
               icon: Icons.wifi_rounded,
-              title: context.l10n.settingsChatsAutoDownloadWifi,
+              title: kIsWeb ? context.l10n.webAutoDownload : context.l10n.settingsChatsAutoDownloadWifi,
               subtitle: context.l10n.settingsChatsAutoDownloadWifiDesc,
               iconColor: scheme.secondary,
               value: settings.autoDownloadWifi,
@@ -167,7 +168,7 @@ class SettingsChatsScreen extends ConsumerWidget {
                     .setAutoDownloadWifi(value);
               },
             ),
-            SettingsSwitchTile(
+            if (!kIsWeb) SettingsSwitchTile(
               icon: Icons.signal_cellular_alt_rounded,
               title: context.l10n.settingsChatsAutoDownloadCellular,
               subtitle: context.l10n.settingsChatsAutoDownloadCellularDesc,
@@ -183,7 +184,7 @@ class SettingsChatsScreen extends ConsumerWidget {
         ),
 
         // 4. Camera & Video circles
-        SettingsSection(
+        if (!kIsWeb) SettingsSection(
           title: context.l10n.settingsChatsCameraSection,
           subtitle: context.l10n.settingsChatsCameraSectionDesc,
           children: <Widget>[

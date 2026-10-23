@@ -14,12 +14,14 @@ class M3OrganicBackground extends ConsumerWidget {
     this.showBackButton = false,
     this.showThemeToggle = true,
     this.onBack,
+    this.contentMaxWidth = 560,
   });
 
   final Widget child;
   final bool showBackButton;
   final bool showThemeToggle;
   final VoidCallback? onBack;
+  final double contentMaxWidth;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,7 +42,7 @@ class M3OrganicBackground extends ConsumerWidget {
                 }
                 return Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
+                    constraints: BoxConstraints(maxWidth: contentMaxWidth),
                     child: child,
                   ),
                 );

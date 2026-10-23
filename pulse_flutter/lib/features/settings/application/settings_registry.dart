@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_destination.dart';
@@ -183,6 +184,9 @@ class SettingsSearchController extends Notifier<List<SearchMatch>> {
     final List<SearchMatch> matches = <SearchMatch>[];
 
     for (final SettingsDestination dest in SettingsRegistry.all) {
+      if (kIsWeb && {SettingId.securityAppLock, SettingId.securityAppLockTimeout, SettingId.appearanceDynamicColor}.contains(dest.id)) {
+        continue;
+      }
       final String title = dest.title(l10n);
       final String lowerTitle = title.toLowerCase();
       final List<String> keywords = dest.keywords(l10n).map((k) => k.toLowerCase()).toList();

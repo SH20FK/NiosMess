@@ -258,7 +258,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/main/:tab',
-        pageBuilder: (context, state) => _page(state, MainShellScreen(tab: state.pathParameters['tab'] ?? 'chats'), pageKey: const ValueKey<String>('main-shell')),
+        pageBuilder: (context, state) => _page(
+          state,
+          MainShellScreen(
+            tab: state.pathParameters['tab'] ?? 'chats',
+            selectedChatId: int.tryParse(state.uri.queryParameters['chat'] ?? ''),
+            highlightMessageId: int.tryParse(state.uri.queryParameters['highlight'] ?? ''),
+          ),
+          pageKey: kIsWeb ? state.pageKey : const ValueKey<String>('main-shell'),
+        ),
       ),
       GoRoute(
         path: '/chats/search',
@@ -332,6 +340,16 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/chat/:chatId',
+        redirect: (context, state) => kIsWeb
+            ? Uri(
+                path: '/main/chats',
+                queryParameters: {
+                  'chat': state.pathParameters['chatId']!,
+                  if (state.uri.queryParameters['highlight'] != null)
+                    'highlight': state.uri.queryParameters['highlight']!,
+                },
+              ).toString()
+            : null,
         pageBuilder: (context, state) => _chatDetailPage(
           state,
           ChatDetailScreen(

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
@@ -205,7 +206,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         await _videoController!.initialize();
         _chewieController = ChewieController(
           videoPlayerController: _videoController!,
-          autoPlay: true,
+          autoPlay: !kIsWeb,
           looping: false,
           placeholder: const AppLoadingIndicator(size: 32),
           allowedScreenSleep: false,
@@ -355,13 +356,13 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      TouchContainer(
+                      if (!kIsWeb) TouchContainer(
                         borderRadius: BorderRadius.circular(20),
                         onTap: () => _shareCurrentMedia(context, ref),
                         padding: const EdgeInsets.all(8),
                         child: Icon(Icons.share_rounded, size: 22, color: scheme.onSurface),
                       ),
-                      const SizedBox(width: 16),
+                      if (!kIsWeb) const SizedBox(width: 16),
                       TouchContainer(
                         borderRadius: BorderRadius.circular(20),
                         onTap: () => _downloadCurrentMedia(context, ref),
@@ -440,7 +441,10 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   }
 
   Widget _buildVideoPlayer(ColorScheme scheme) {
-    if (!_initialized || _chewieController == null) {
+    if (_initialized && _chewieController == null) {
+      return _buildFallback(scheme, _playlistItems[_currentIndex]);
+    }
+    if (!_initialized) {
       return const Center(child: AppLoadingIndicator(size: 32));
     }
 
@@ -483,8 +487,9 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   Future<void> _downloadCurrentMedia(BuildContext context, WidgetRef ref) async {
     final MediaViewerItem current = _playlistItems[_currentIndex];
     if (kIsWeb) {
-      if (!context.mounted) return;
-      AppToast.showInfo(context, context.l10n.mediaViewerDownloadWeb);
+      await saveM3File(context: context, fileName: _sanitizeFileName(current.mediaName ?? current.title ?? 'download'),
+        fileSize: 0, mediaUrl: current.url, e2eeFileKey: current.e2eeFileKey,
+        wsClient: ref.read(webSocketClientProvider));
       return;
     }
     try {
@@ -601,7 +606,7 @@ class _InlineVideoPlayerState extends ConsumerState<_InlineVideoPlayer> {
       await _videoController!.initialize();
       _chewieController = ChewieController(
         videoPlayerController: _videoController!,
-        autoPlay: widget.isActive,
+        autoPlay: widget.isActive && !kIsWeb,
         looping: false,
         placeholder: const AppLoadingIndicator(size: 32),
         allowedScreenSleep: false,
@@ -624,7 +629,10 @@ class _InlineVideoPlayerState extends ConsumerState<_InlineVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized || _chewieController == null) {
+    if (_initialized && _chewieController == null) {
+      return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(context.l10n.mediaViewerCannotPreview)));
+    }
+    if (!_initialized) {
       return const Center(child: AppLoadingIndicator(size: 32));
     }
     return Center(child: Chewie(controller: _chewieController!));

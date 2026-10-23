@@ -476,7 +476,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           ),
 
           // 6. Фоновая работа
-          SettingsSection(
+          if (!kIsWeb) SettingsSection(
             title: context.l10n.settingsBackgroundTitle,
             subtitle: context.l10n.settingsBackgroundSubtitle,
             children: <Widget>[

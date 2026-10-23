@@ -114,6 +114,7 @@ class ChatActionsModal {
     ];
 
     final List<Widget> actions = descriptors
+        .where((descriptor) => descriptor.enabled)
         .map((ChatActionDescriptor desc) {
           return ListTile(
             leading: Icon(

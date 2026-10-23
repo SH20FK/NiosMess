@@ -50,15 +50,20 @@ DateTime? parseApiDateTimeNullable(String? iso) {
   );
 }
 
-String formatRelativeTime(DateTime dateTime) {
+String formatRelativeTime(DateTime dateTime, {String? localeCode}) {
+  final locale = (localeCode ?? AppTimeSettings.localeCode)
+      .split(RegExp(r"[_-]"))
+      .first;
   if (dateTime.millisecondsSinceEpoch <= 0) return '--';
 
   final DateTime resolved = AppTimeSettings.resolve(dateTime);
   final DateTime now = AppTimeSettings.now();
   final Duration diff = now.difference(resolved);
-  if (diff.isNegative) return _wordNow();
-  if (diff.inSeconds < 60) return _wordNow();
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+  if (diff.isNegative) return _wordNow(locale);
+  if (diff.inSeconds < 60) return _wordNow(locale);
+  if (diff.inMinutes < 60) {
+    return locale == 'ru' ? '${diff.inMinutes} мин' : '${diff.inMinutes}m';
+  }
 
   final bool sameDay =
       resolved.year == now.year &&
@@ -73,9 +78,11 @@ String formatRelativeTime(DateTime dateTime) {
       resolved.year == yesterday.year &&
       resolved.month == yesterday.month &&
       resolved.day == yesterday.day;
-  if (isYesterday) return _wordYesterday();
+  if (isYesterday) return _wordYesterday(locale);
 
-  if (diff.inDays < 7) return '${diff.inDays}d';
+  if (diff.inDays < 7) {
+    return locale == 'ru' ? '${diff.inDays} д' : '${diff.inDays}d';
+  }
 
   if (resolved.year == now.year) {
     return _dateFormatShort.format(resolved);
@@ -120,12 +127,12 @@ Duration computeCallElapsed(DateTime? startedAt, int? durationSeconds) {
   return Duration.zero;
 }
 
-String _wordNow() {
-  return AppTimeSettings.localeCode == 'ru' ? 'сейчас' : 'now';
+String _wordNow(String locale) {
+  return locale == 'ru' ? 'сейчас' : 'now';
 }
 
-String _wordYesterday() {
-  return AppTimeSettings.localeCode == 'ru' ? 'вчера' : 'yesterday';
+String _wordYesterday(String locale) {
+  return locale == 'ru' ? 'вчера' : 'yesterday';
 }
 
 bool _hasExplicitTimeZone(String value) {

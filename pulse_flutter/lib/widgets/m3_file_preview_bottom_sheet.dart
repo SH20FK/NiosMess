@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/core/media/browser_playback_stub.dart'
+    if (dart.library.js_interop) 'package:pulse_flutter/core/media/browser_playback_web.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +15,6 @@ import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
@@ -373,7 +374,7 @@ Future<void> saveM3File({
   final bool hasRemoteUrl = (mediaUrl ?? '').trim().isNotEmpty;
 
   try {
-    if (hasRemoteUrl && mediaUrl!.startsWith('nios-stream://')) {
+    if (!kIsWeb && hasRemoteUrl && mediaUrl!.startsWith('nios-stream://')) {
       if (e2eeFileKey == null) throw StateError('Secret file key missing');
       await WsMediaFetcher.withSecretStreamExport(
         filePath: mediaUrl,
@@ -387,14 +388,6 @@ Future<void> saveM3File({
       if (context.mounted) AppToast.showSuccess(context, context.l10n.filePreviewSaved);
       return;
     }
-    if (kIsWeb && hasRemoteUrl) {
-      final Uri? uri = Uri.tryParse(mediaUrl!);
-      if (uri == null) throw Exception('Invalid download URL');
-      final bool launched = await launchUrl(uri);
-      if (!launched) throw Exception('Failed to open download link');
-      return;
-    }
-
     final Uint8List data;
     if (hasBytes) {
       data = fileBytes;
@@ -404,12 +397,7 @@ Future<void> saveM3File({
       }
       Uint8List? fileKey;
       if (e2eeFileKey != null && e2eeFileKey.isNotEmpty) {
-        try {
-          final Uint8List decoded = base64Decode(e2eeFileKey);
-          fileKey = decoded;
-        } catch (_) {
-          fileKey = null;
-        }
+        fileKey = base64Decode(e2eeFileKey);
       } else {
         fileKey = null;
       }
@@ -422,11 +410,13 @@ Future<void> saveM3File({
       throw Exception('Nothing to save');
     }
 
-    await FlutterFileDialog.saveFile(
-      params: SaveFileDialogParams(data: data, fileName: fileName),
-    );
+    if (kIsWeb) {
+      downloadBrowserBytes(data, fileName);
+    } else {
+      await FlutterFileDialog.saveFile(params: SaveFileDialogParams(data: data, fileName: fileName));
+    }
     if (!context.mounted) return;
-    AppToast.showSuccess(context, context.l10n.filePreviewSaved);
+    AppToast.showSuccess(context, kIsWeb ? context.l10n.webDownloadStarted : context.l10n.filePreviewSaved);
   } catch (error) {
     if (!context.mounted) return;
     AppToast.showError(context, context.l10n.filePreviewSaveError(error));
