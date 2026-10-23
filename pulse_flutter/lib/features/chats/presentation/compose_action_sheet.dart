@@ -48,7 +48,9 @@ class _ComposeActionContent extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
-    final actions = buildComposeActions(context);
+    final actions = buildComposeActions(context).where(
+      (action) => action.available && action.id != ComposeActionId.message,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 20),
@@ -103,12 +105,14 @@ class _ComposeActionContent extends ConsumerWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              subtitle: Text(
-                action.subtitle,
-                style: textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
+              subtitle: action.id == ComposeActionId.secret
+                  ? Text(
+                      action.subtitle,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    )
+                  : null,
               onTap: () {
                 if (ref.read(uiSettingsProvider.select((s) => s.haptics))) {
                   HapticService.tap();

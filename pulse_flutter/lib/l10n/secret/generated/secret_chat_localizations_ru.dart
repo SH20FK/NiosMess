@@ -205,4 +205,218 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get inboxDraftSemantics => 'Черновик';
+
+  @override
+  String get inboxDraftLabel => 'Черновик:';
+
+  @override
+  String get inboxDeleted => 'Переписка удалена';
+
+  @override
+  String inboxDeleteNamed(String name) {
+    return 'Удалить чат «$name»?';
+  }
+
+  @override
+  String inboxLeaveNamed(String name) {
+    return 'Покинуть «$name»?';
+  }
+
+  @override
+  String get inboxRefreshFailed =>
+      'Не удалось обновить список. Попробуйте ещё раз.';
+
+  @override
+  String get interactiveTitle => 'Создать';
+
+  @override
+  String get interactivePoll => 'Опрос';
+
+  @override
+  String get interactiveQuiz => 'Викторина';
+
+  @override
+  String get interactiveList => 'Общий список';
+
+  @override
+  String get interactiveTitleField => 'Название';
+
+  @override
+  String get interactiveQuestion => 'Вопрос';
+
+  @override
+  String get interactiveTitleRequired => 'Введите название';
+
+  @override
+  String get interactiveQuestionRequired => 'Введите вопрос';
+
+  @override
+  String get interactiveOptions => 'Варианты ответа';
+
+  @override
+  String get interactiveQuizOptions => 'Варианты ответа. Отметьте правильный';
+
+  @override
+  String get interactiveFieldRequired => 'Заполните поле';
+
+  @override
+  String get interactiveDuplicateOptions => 'Варианты не должны повторяться';
+
+  @override
+  String interactiveItemNumber(int number) {
+    return 'Пункт $number';
+  }
+
+  @override
+  String interactiveOptionNumber(int number) {
+    return 'Вариант $number';
+  }
+
+  @override
+  String get interactiveRemoveItem => 'Удалить пункт';
+
+  @override
+  String get interactiveRemoveOption => 'Удалить вариант';
+
+  @override
+  String get interactiveAddItem => 'Добавить пункт';
+
+  @override
+  String get interactiveAddOption => 'Добавить вариант';
+
+  @override
+  String get interactiveCorrectAnswer => 'Правильный ответ';
+
+  @override
+  String get interactiveMultiple => 'Несколько ответов';
+
+  @override
+  String get interactiveExplanation => 'Пояснение (необязательно)';
+
+  @override
+  String get interactiveExplanationHint => 'Появится после ответа';
+
+  @override
+  String get interactiveVotesVisible =>
+      'Участники видят, кто за что проголосовал.';
+
+  @override
+  String get interactiveSend => 'Отправить';
+
+  @override
+  String get interactiveSendFailed =>
+      'Не удалось отправить. Повторите отправку в чате.';
+
+  @override
+  String get interactiveSaveFailed =>
+      'Не удалось сохранить. Повторите отправку.';
+
+  @override
+  String get interactiveVoters => 'Голоса';
+
+  @override
+  String get interactiveParticipant => 'Участник';
+
+  @override
+  String get interactiveClosed => 'Завершён';
+
+  @override
+  String get interactiveOpenPoll => 'Открытый опрос';
+
+  @override
+  String get interactiveQuizClosed => 'Викторина завершена';
+
+  @override
+  String get interactivePollClosed => 'Опрос завершён';
+
+  @override
+  String get interactiveQuizSingle => 'Викторина, один ответ';
+
+  @override
+  String get interactivePollMultiple => 'Открытый опрос, несколько ответов';
+
+  @override
+  String get interactivePollSingle => 'Открытый опрос, один ответ';
+
+  @override
+  String get interactiveCorrectAnswerLabel => 'Правильный ответ';
+
+  @override
+  String get interactiveItemReopened => 'Пункт снова открыт';
+
+  @override
+  String get interactiveItemCompleted => 'Пункт выполнен';
+
+  @override
+  String get interactiveQuizAnswer => 'Ответ на викторину';
+
+  @override
+  String get interactiveCorrect => 'Верно';
+
+  @override
+  String get interactiveIncorrect => 'Неверно';
+
+  @override
+  String get interactiveVoteEvent => 'Голос в опросе';
+
+  @override
+  String get interactiveVote => 'Голосовать';
+
+  @override
+  String get interactiveChangeVote => 'Изменить голос';
+
+  @override
+  String get interactiveVoteRevoked => 'Голос отозван';
+
+  @override
+  String get interactiveRevoke => 'Отозвать';
+
+  @override
+  String get interactiveLoadRetry => 'Не удалось загрузить. Повторить';
+
+  @override
+  String get interactiveLoading => 'Загружаю изменения…';
+
+  @override
+  String get interactiveAfterSend => 'Доступно после отправки';
+
+  @override
+  String get interactiveFinishList => 'Завершить список?';
+
+  @override
+  String get interactiveFinishPoll => 'Завершить голосование?';
+
+  @override
+  String get interactiveFinishBody =>
+      'После этого участники не смогут менять ответы.';
+
+  @override
+  String get interactiveFinish => 'Завершить';
+
+  @override
+  String get interactiveFinishedEvent => 'Завершено';
+
+  @override
+  String get interactiveYourWrongAnswer => 'Ваш ответ, неверно';
+
+  @override
+  String get interactiveYourAnswer => 'Ваш ответ';
+
+  @override
+  String get interactiveSaving => 'Сохраняю…';
+
+  @override
+  String interactiveParticipantNumber(int id) {
+    return 'Участник $id';
+  }
+
+  @override
+  String interactiveCompletedCount(int count, int total) {
+    return 'Выполнено $count из $total';
+  }
+
+  @override
+  String interactiveVoterCount(int count) {
+    return 'Проголосовали: $count';
+  }
 }

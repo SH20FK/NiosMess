@@ -9,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
+import 'package:pulse_flutter/core/utils/draft_storage.dart';
+import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
@@ -369,6 +371,13 @@ void main() {
                   }),
                   authProvider.overrideWith(_Auth.new),
                   chatsProvider.overrideWith(_Chats.new),
+                  liveDraftMapProvider.overrideWith(
+                    (ref) => Stream.value(const {}),
+                  ),
+                  secretChatEngineProvider.overrideWithValue(null),
+                  secretChatRevisionProvider.overrideWith(
+                    (ref) => Stream.value(0),
+                  ),
                   ordinaryE2eeProvider.overrideWithValue(null),
                   for (final chat in _chats)
                     typingProvider(
@@ -452,6 +461,12 @@ void main() {
               ),
               findsOneWidget,
             );
+            expect(
+              find.text(
+                locale == 'ru' ? 'Создать личный чат' : 'Create direct chat',
+              ),
+              findsNothing,
+            );
             await captureStep('02-create');
             await tester.binding.handlePopRoute();
             await tester.pumpAndSettle();
@@ -518,7 +533,18 @@ void main() {
             await tester.pumpAndSettle();
             expect(find.byType(BottomSheet), findsOneWidget);
             await captureStep('04-actions');
-            await tester.binding.handlePopRoute();
+            await tester.tap(find.text(locale == 'ru' ? 'Удалить' : 'Delete'));
+            await tester.pumpAndSettle();
+            expect(
+              find.text(
+                locale == 'ru'
+                    ? 'Удалить чат «Ирина»?'
+                    : 'Delete chat “Ирина”?',
+              ),
+              findsOneWidget,
+            );
+            await captureStep('05-delete-named');
+            await tester.tap(find.text(locale == 'ru' ? 'Отмена' : 'Cancel'));
             await tester.pumpAndSettle();
             await tester.tap(find.byType(NavigationDestination).last);
             await tester.pumpAndSettle();

@@ -1,6 +1,8 @@
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/widgets/chat/ordinary_e2ee_notice.dart';
 import 'dart:async';
+import 'package:pulse_flutter/core/utils/draft_storage.dart';
+import 'package:pulse_flutter/core/utils/message_preview_text.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -48,7 +50,50 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   @override
   void initState() {
     super.initState();
+    ref.listenManual(authProvider.select((s) => s.session?.userId), (
+      before,
+      after,
+    ) {
+      if (before != after) _previewFormatter.clear();
+    });
     // The provider already fetches on first build and WebSocket push keeps data fresh.
+  }
+
+  final _previewFormatter = MessagePreviewFormatter();
+  bool _retrying = false;
+  final Set<int> _markingRead = {};
+
+  Future<void> _retryChats() async {
+    if (_retrying) return;
+    setState(() => _retrying = true);
+    try {
+      await ref.read(chatsProvider.notifier).refreshOrThrow();
+    } catch (_) {
+      if (mounted) {
+        AppToast.showError(
+          context,
+          context.l10n.inboxRefreshFailed,
+          onRetry: _retryChats,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _retrying = false);
+    }
+  }
+
+  Future<void> _markRead(ApiChatSummary chat) async {
+    if (!_markingRead.add(chat.id)) return;
+    try {
+      await ref
+          .read(chatMessagesProvider(chat.id).notifier)
+          .markRead(reportFailure: true);
+    } catch (error) {
+      if (mounted) {
+        AppToast.showError(context, error, onRetry: () => _markRead(chat));
+      }
+    } finally {
+      _markingRead.remove(chat.id);
+    }
   }
 
   List<ApiChatSummary> _applyFilter(
@@ -105,8 +150,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         onRefresh: () async {
-          HapticService.confirm();
-          await ref.read(chatsProvider.notifier).refresh();
+          if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
+          await _retryChats();
         },
         displacement: 40,
         color: scheme.primary,
@@ -241,6 +286,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         SliverFillRemaining(
           child: EmptyStateWidget(
             title: context.l10n.chatListFailedLoad(context.l10n.commonError),
+            actionLabel: context.l10n.commonRetry,
+            onAction: _retryChats,
+            isBusy: _retrying,
             icon: Icons.error_outline_rounded,
           ),
         ),
@@ -312,19 +360,20 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 padding: EdgeInsets.zero,
                 child: Dismissible(
                   key: ValueKey<String>('chat_${chat.id}'),
-                  direction: DismissDirection.endToStart,
+                  direction: chat.unreadCount > 0
+                      ? DismissDirection.startToEnd
+                      : DismissDirection.none,
                   background: _swipeBackground(
                     scheme: scheme,
-                    alignment: Alignment.centerRight,
-                    icon: Icons.delete_outline_rounded,
-                    label: context.l10n.commonDelete,
-                    destructive: true,
+                    alignment: Alignment.centerLeft,
+                    icon: Icons.done_all_rounded,
+                    label: context.l10n.chatListMarkRead,
                   ),
                   confirmDismiss: (DismissDirection direction) async {
                     if (ref.read(uiSettingsProvider).haptics) {
                       HapticService.tap();
                     }
-                    await _leaveChat(context, chat);
+                    await _markRead(chat);
                     return false;
                   },
                   child: GestureDetector(
@@ -338,12 +387,33 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                             (TypingState s) => s.typingUserIds.isNotEmpty,
                           ),
                         );
+                        String? draft;
+                        if (chat.isSecret) {
+                          ref.watch(secretChatRevisionProvider);
+                          draft =
+                              ref
+                                      .watch(secretChatEngineProvider)
+                                      ?.chat(chat.id)['draft']
+                                  as String?;
+                        } else {
+                          draft = ref.watch(
+                            liveDraftMapProvider.select(
+                              (value) => value.value?[chat.id],
+                            ),
+                          );
+                        }
+                        final hasDraft = draft?.trim().isNotEmpty == true;
                         return ChatTile(
                           title: chat.name,
+                          draftLabel: hasDraft
+                              ? context.l10n.inboxDraftLabel
+                              : null,
                           enableHaptics: ref.watch(
                             uiSettingsProvider.select((s) => s.haptics),
                           ),
-                          subtitle: isTyping
+                          subtitle: hasDraft
+                              ? messagePreviewText(draft!)
+                              : isTyping
                               ? context.l10n.chatTyping
                               : _chatPreview(chat),
                           formattedTime: formatRelativeTime(chat.lastActivity),
@@ -364,7 +434,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           avatarText: chat.name,
                           avatarUrl: chat.avatarUrl,
                           avatarColor: _avatarColor(chat.id, scheme),
-                          subtitleIcon: isTyping
+                          subtitleIcon: hasDraft
+                              ? null
+                              : isTyping
                               ? Icons.edit_note_rounded
                               : _chatPreviewIcon(chat),
                           compact: compact,
@@ -421,7 +493,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     ];
   }
 
-  String _previewText(String? raw) {
+  String _previewText(String? raw, {bool cache = true}) {
     final String text =
         (InteractiveMessage.parse(raw ?? '')?.preview ?? raw ?? '').trim();
     if (text.isEmpty) return context.l10n.chatNoMessages;
@@ -430,7 +502,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     if (match != null) {
       return context.l10n.chatPreviewForwardedFrom(match.group(1) ?? 'Unknown');
     }
-    return text;
+    return _previewFormatter.format(text, cache: cache);
   }
 
   _LastMessageKind? _lastMessageKind(ApiMessage? message) {
@@ -494,7 +566,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       return context.l10n.inboxEncryptedPreview;
     }
     final ApiMessage? lastMessage = chat.lastMessage;
-    final String preview = _previewText(lastMessage?.content);
+    final String preview = _previewText(
+      lastMessage?.content,
+      cache: !chat.isSecret,
+    );
     final bool hasMessage = (lastMessage?.content ?? '').trim().isNotEmpty;
     final _LastMessageKind? kind = _lastMessageKind(lastMessage);
     final String typedPreview = kind == null
@@ -576,8 +651,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
       title: isDirect
-          ? context.l10n.chatDelete
-          : context.l10n.groupManageLeaveTitle,
+          ? context.l10n.inboxDeleteNamed(chat.name)
+          : context.l10n.inboxLeaveNamed(chat.name),
       subtitle: chat.isSecret
           ? context.l10n.secretDeleteWarning
           : isDirect
@@ -602,7 +677,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       }
       await ref.read(chatsProvider.notifier).refresh();
       if (!context.mounted) return;
-      AppToast.showSuccess(context, context.l10n.chatListLeft);
+      AppToast.showSuccess(
+        context,
+        isDirect ? context.l10n.inboxDeleted : context.l10n.chatListLeft,
+      );
     } catch (e) {
       if (!context.mounted) return;
       AppToast.showError(context, e);
@@ -626,10 +704,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     switch (action) {
       case ChatActionResult.markRead:
-        await ref.read(chatMessagesProvider(chat.id).notifier).markRead();
+        await _markRead(chat);
         return;
       case ChatActionResult.toggleMute:
-        await ref.read(chatMutedProvider(chat.id).notifier).toggle();
+        try {
+          await ref.read(chatMutedProvider(chat.id).notifier).toggle();
+        } catch (error) {
+          if (context.mounted) AppToast.showError(context, error);
+          return;
+        }
         if (context.mounted) {
           AppToast.showInfo(
             context,

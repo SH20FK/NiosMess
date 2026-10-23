@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
@@ -56,10 +57,10 @@ class AppToast {
     if (scaffoldMessenger == null) return;
 
     try {
-      ProviderScope.containerOf(
-        context,
-        listen: false,
-      ).read(appSoundProvider).playEvent(SoundEvent.error);
+      final container = ProviderScope.containerOf(context, listen: false);
+      if (container.read(uiSettingsProvider).soundEffects) {
+        container.read(appSoundProvider).playEvent(SoundEvent.error);
+      }
     } catch (_) {}
 
     _present(
@@ -141,10 +142,10 @@ class AppToast {
 
   static void showSuccess(BuildContext context, String message) {
     try {
-      ProviderScope.containerOf(
-        context,
-        listen: false,
-      ).read(appSoundProvider).playEvent(SoundEvent.success);
+      final container = ProviderScope.containerOf(context, listen: false);
+      if (container.read(uiSettingsProvider).soundEffects) {
+        container.read(appSoundProvider).playEvent(SoundEvent.success);
+      }
     } catch (_) {}
     _show(
       context,

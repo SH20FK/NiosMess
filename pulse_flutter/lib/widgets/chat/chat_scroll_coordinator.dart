@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/chat/chat_history_scroll_controller.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
 
@@ -13,7 +14,8 @@ class ChatScrollCoordinator {
     this.onNearBottom,
     this.onJumpToLatest,
     this.onFollowLatestChanged,
-  }) : scrollController = controller ?? ScrollController() {
+    this.onJumpError,
+  }) : scrollController = controller ?? ChatHistoryScrollController() {
     scrollController.addListener(_handleScroll);
   }
 
@@ -23,6 +25,7 @@ class ChatScrollCoordinator {
   final VoidCallback? onNearBottom;
   final Future<void> Function()? onJumpToLatest;
   final ValueChanged<bool>? onFollowLatestChanged;
+  final ValueChanged<Object>? onJumpError;
   bool _hasNewerHistory = false;
   bool _jumping = false;
   bool get isJumping => _jumping;
@@ -51,7 +54,8 @@ class ChatScrollCoordinator {
 
     onFollowLatestChanged?.call(offset <= 60 && !_hasNewerHistory);
     if (!_jumping && _hasNewerHistory && offset < 400) onNearBottom?.call();
-    if (offset <= 60 &&
+    if (!_jumping &&
+        offset <= 60 &&
         !_hasNewerHistory &&
         unreadWhileScrolledNotifier.value != 0) {
       unreadWhileScrolledNotifier.value = 0;
@@ -83,17 +87,31 @@ class ChatScrollCoordinator {
       WidgetsBinding.instance.ensureVisualUpdate();
       await WidgetsBinding.instance.endOfFrame;
       if (_disposed || !scrollController.hasClients) return;
-      unreadWhileScrolledNotifier.value = 0;
-      final target = scrollController.position.minScrollExtent;
-      if (!animate) {
-        scrollController.jumpTo(target);
-        return;
+      final controller = scrollController;
+      if (controller is ChatHistoryScrollController &&
+          controller.hasLatestHandler) {
+        await controller.moveToLoadedLatest(animate);
+      } else {
+        final target = controller.position.minScrollExtent;
+        if (animate) {
+          await controller.animateTo(
+            target,
+            duration: M3Durations.medium2,
+            curve: M3SpringCurves.expressiveDecel,
+          );
+        } else {
+          controller.jumpTo(target);
+        }
       }
-      await scrollController.animateTo(
-        target,
-        duration: M3Durations.medium2,
-        curve: M3SpringCurves.expressiveDecel,
-      );
+      if (_disposed || !controller.hasClients) return;
+      final distance = controller.offset - controller.position.minScrollExtent;
+      if (!_hasNewerHistory && distance <= 60) {
+        unreadWhileScrolledNotifier.value = 0;
+        onReachedBottom?.call();
+      }
+    } catch (error) {
+      if (onJumpError == null) rethrow;
+      if (!_disposed) onJumpError!(error);
     } finally {
       _jumping = false;
     }
@@ -111,7 +129,9 @@ class ChatScrollCoordinator {
               show: showScroll,
               chatId: chatId,
               unreadCount: unreadCount,
-              onPressed: () => scrollToBottom(animate: true),
+              onPressed: () => scrollToBottom(
+                animate: !MediaQuery.disableAnimationsOf(context),
+              ),
             );
           },
         );

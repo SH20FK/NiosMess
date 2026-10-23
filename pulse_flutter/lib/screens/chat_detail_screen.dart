@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
@@ -192,6 +193,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     WidgetsBinding.instance.addObserver(this);
     _draftStorage = ref.read(draftStorageProvider); // cache before dispose
     _scrollCoordinator = ChatScrollCoordinator(
+      onJumpError: (error) {
+        if (mounted) {
+          AppToast.showError(context, error, onRetry: _scrollToBottom);
+        }
+      },
       onNearTop: _autoLoadOlderMessages,
       onNearBottom: () {
         final id = _chatId;
@@ -1122,7 +1128,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   Future<void> _editMessage(ApiMessage message) async {
     if (InteractiveMessage.parse(message.content) != null) {
-      AppToast.showInfo(context, 'После отправки опрос или список можно завершить либо создать новый.');
+      AppToast.showInfo(
+        context,
+        'После отправки опрос или список можно завершить либо создать новый.',
+      );
       return;
     }
     final int? chatId = _chatId;
@@ -1442,7 +1451,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text('Выбранное сообщение и его текст будут переданы модераторам вместе с жалобой.'),
+                child: Text(
+                  'Выбранное сообщение и его текст будут переданы модераторам вместе с жалобой.',
+                ),
               ),
               ListTile(
                 leading: Icon(
@@ -1703,7 +1714,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     return isVideoExt(lower) || (fileName.isNotEmpty && isVideoExt(fileName));
   }
 
-  String _displayText(ApiMessage message) => InteractiveMessage.parse(message.content)?.preview ?? message.content;
+  String _displayText(ApiMessage message) =>
+      InteractiveMessage.parse(message.content)?.preview ?? message.content;
 
   Future<void> _showMediaActions(
     ApiMessage message,
@@ -2395,6 +2407,34 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
               : context.l10n.chatTitleFallback(chatId));
 
     return ChatDetailAppBar(
+      onCreateInteractive:
+          chat != null &&
+              !isSecret &&
+              !chat.isSecret &&
+              !chat.isBotChat &&
+              (chat.chatType == 'direct' || chat.chatType == 'group')
+          ? (kind) async {
+              final accountId = ref.read(authProvider).session?.userId;
+              final content = await showInteractiveComposer(context, kind);
+              if (!context.mounted ||
+                  content == null ||
+                  ref.read(authProvider).session?.userId != accountId) {
+                return;
+              }
+              try {
+                await ref
+                    .read(chatMessagesProvider(chatId).notifier)
+                    .send(content, requestAi: false);
+              } catch (error) {
+                if (context.mounted) {
+                  AppToast.showError(
+                    context,
+                    context.l10n.interactiveSendFailed,
+                  );
+                }
+              }
+            }
+          : null,
       chatId: chatId,
       isDesktopSplit: isDesktopSplit,
       title: title,
@@ -2572,7 +2612,7 @@ class _ChatMessagesScope extends ConsumerWidget {
           onLongPress: onLongPress,
           onSwipeToReply: onSwipeToReply,
           onCallbackQuery: (ApiMessage message, String data) {
-            ref
+            return ref
                 .read(chatMessagesProvider(chatId).notifier)
                 .sendCallbackQuery(message.id, data);
           },

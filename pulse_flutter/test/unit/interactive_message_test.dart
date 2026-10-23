@@ -39,6 +39,19 @@ ApiMessage action(
 }).copyWith(isDecrypted: decrypted);
 
 void main() {
+
+  test('one definition hash and stable counts for a thousand authenticated updates', () {
+    final parsed = definition('poll');
+    final doc = _CountingDefinition(parsed.data, parsed.preview);
+    final rows = [for (var i = 0; i < 1000; i++) action(doc, i + 20, i + 100, {'action': 'vote', 'choices': [1]})];
+    doc.hashes = 0;
+    final state = InteractiveState(doc, 1, rows, rootId: 10);
+    expect(state.voters, 1000);
+    expect(state.count(1), 1000);
+    expect(state.count(0), 0);
+    expect(doc.hashes, 1);
+  });
+
   test(
     'poll reduces authenticated actors in server order, deduplicates, replaces and withdraws',
     () {
@@ -221,4 +234,11 @@ void main() {
       throwsFormatException,
     );
   });
+}
+
+class _CountingDefinition extends InteractiveMessage {
+  _CountingDefinition(super.data, super.preview);
+  int hashes = 0;
+  @override
+  String get fingerprint { hashes++; return super.fingerprint; }
 }

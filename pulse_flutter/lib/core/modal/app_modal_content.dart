@@ -68,7 +68,7 @@ class AppModalContent extends StatelessWidget {
         Flexible(
           fit: FlexFit.loose,
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(inset, inset, inset, 0),
+            padding: EdgeInsets.fromLTRB(inset, compact ? 16 : inset, inset, 0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,7 +113,7 @@ class AppModalContent extends StatelessWidget {
                 else
                   titleWidget,
                 if (subtitle?.trim().isNotEmpty == true) ...[
-                  SizedBox(height: compact ? 8 : 12),
+                  SizedBox(height: compact ? 6 : 12),
                   Text(
                     subtitle!,
                     style: text.bodyMedium?.copyWith(
@@ -123,14 +123,14 @@ class AppModalContent extends StatelessWidget {
                   ),
                 ],
                 if (child != null) ...[const SizedBox(height: 20), child!],
-                SizedBox(height: compact ? 16 : 24),
+                SizedBox(height: compact ? 12 : 24),
               ],
             ),
           ),
         ),
         if (actions.isNotEmpty)
           Padding(
-            padding: EdgeInsets.fromLTRB(inset, 0, inset, inset),
+            padding: EdgeInsets.fromLTRB(inset, 0, inset, compact ? 12 : inset),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 double width = 0;

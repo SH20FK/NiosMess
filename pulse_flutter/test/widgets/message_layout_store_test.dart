@@ -100,6 +100,45 @@ Finder _anchor(int id) => find.byWidgetPredicate(
 
 void main() {
   testWidgets(
+    'bottom action reaches the real tail after restoring an anchored variable-height history',
+    (tester) async {
+      final coordinator = ChatScrollCoordinator();
+      addTearDown(coordinator.dispose);
+      final rows = [
+        for (var id = 1; id <= 500; id++)
+          _message(id).copyWith(
+            content: id % 7 == 0
+                ? List.filled(12, 'Long message line').join('\n')
+                : 'row-$id',
+          ),
+      ];
+      await tester.pumpWidget(
+        _historyHarness(
+          rows,
+          coordinator.scrollController,
+          initialAnchor: const ChatHistoryAnchor(messageId: 250, fraction: .5),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(_anchor(250), findsOneWidget);
+      final operation = coordinator.scrollToBottom();
+      await tester.pumpAndSettle();
+      await operation;
+      expect(_anchor(500), findsOneWidget);
+      final last = tester.getRect(_anchor(500));
+      expect(last.bottom, lessThanOrEqualTo(tester.view.physicalSize.height));
+      expect(last.top, greaterThanOrEqualTo(0));
+      expect(
+        coordinator.scrollController.offset -
+            coordinator.scrollController.position.minScrollExtent,
+        lessThanOrEqualTo(1),
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
     'scrolling to an already loaded tail never waits for network history',
     (tester) async {
       final delayedHistory = Completer<void>();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:uuid/uuid.dart';
 
@@ -9,39 +10,29 @@ class InteractiveIcon extends StatelessWidget {
   final Color? color;
   final double size;
   @override
-  Widget build(BuildContext context) => SvgPicture.string(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
-    '${switch (kind) {
-      'poll' => '<path d="M5 20V10h4v10M10 20V4h4v16M15 20v-7h4v7M3 20h18"/>',
-      'quiz' => '<path d="M9 8a3 3 0 0 1 6 0c0 2-3 2-3 4m0 4h.01"/><rect x="3" y="2" width="18" height="20" rx="3"/>',
-      'list' => '<path d="m3 6 2 2 3-4m3 2h10M3 13h4m4 0h10M3 20h4m4 0h10"/>',
-      'answer' => '<circle cx="12" cy="12" r="8"/>',
-      'selected' => '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>',
-      'check' => '<path d="m5 12 4 4L19 6"/>',
-      'incorrect' => '<path d="m6 6 12 12M6 18 18 6"/>',
-      'unchecked' => '<rect x="4" y="4" width="16" height="16" rx="3"/>',
-      'checked' => '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 3 3 5-6"/>',
-      'close' => '<path d="m6 6 12 12M6 18 18 6"/>',
-      'remove' => '<path d="M5 12h14"/>',
-      _ => '<path d="M12 5v14M5 12h14"/>',
-    }}</svg>',
-    width: size,
-    height: size,
-    colorFilter: ColorFilter.mode(
-      color ??
-          IconTheme.of(context).color ??
-          Theme.of(context).colorScheme.onSurface,
-      BlendMode.srcIn,
-    ),
+  Widget build(BuildContext context) => Icon(
+    switch (kind) {
+      'poll' => Icons.poll_outlined,
+      'quiz' => Icons.quiz_outlined,
+      'list' => Icons.checklist_rounded,
+      'answer' => Icons.radio_button_unchecked_rounded,
+      'selected' => Icons.radio_button_checked_rounded,
+      'check' => Icons.check_rounded,
+      'incorrect' || 'close' => Icons.close_rounded,
+      'unchecked' => Icons.check_box_outline_blank_rounded,
+      'checked' => Icons.check_box_rounded,
+      'remove' => Icons.remove_rounded,
+      _ => Icons.add_rounded,
+    },
+    size: size,
+    color: color,
   );
 }
 
 Future<String?> showInteractiveComposer(BuildContext context, String kind) =>
-    showModalBottomSheet<String>(
+    AppModal.showSheet<String>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      constraints: const BoxConstraints(maxWidth: 560),
+      maxWidth: 560,
       builder: (_) => _InteractiveComposer(kind: kind),
     );
 
@@ -54,6 +45,9 @@ class _InteractiveComposer extends StatefulWidget {
 
 class _InteractiveComposerState extends State<_InteractiveComposer> {
   final _form = GlobalKey<FormState>();
+  final _titleFocus = FocusNode();
+  Animation<double>? _entrance;
+  bool _focusScheduled = false;
   final _title = TextEditingController();
   final _explanation = TextEditingController();
   final _items = [TextEditingController(), TextEditingController()];
@@ -64,13 +58,40 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
   bool get _list => widget.kind == 'list';
   bool get _quiz => widget.kind == 'quiz';
   String get _label => _list
-      ? 'Общий список'
+      ? context.l10n.interactiveList
       : _quiz
-      ? 'Викторина'
-      : 'Опрос';
+      ? context.l10n.interactiveQuiz
+      : context.l10n.interactivePoll;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_focusScheduled) return;
+    _focusScheduled = true;
+    _entrance = ModalRoute.of(context)?.animation;
+    if (_entrance == null || _entrance!.status == AnimationStatus.completed) {
+      _requestTitleFocus();
+    } else {
+      _entrance!.addStatusListener(_onEntranceStatus);
+    }
+  }
+
+  void _onEntranceStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    _entrance?.removeStatusListener(_onEntranceStatus);
+    _requestTitleFocus();
+  }
+
+  void _requestTitleFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _titleFocus.canRequestFocus) _titleFocus.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
+    _entrance?.removeStatusListener(_onEntranceStatus);
+    _titleFocus.dispose();
     for (final c in [_title, _explanation, ..._items, ..._removed]) {
       c.dispose();
     }
@@ -81,7 +102,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
     if (!_form.currentState!.validate()) return;
     final items = _items.map((c) => c.text.trim()).toList();
     if (items.toSet().length != items.length) {
-      setState(() => _error = 'Варианты не должны повторяться');
+      setState(() => _error = context.l10n.interactiveDuplicateOptions);
       return;
     }
     final title = _title.text.trim();
@@ -102,7 +123,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      padding: EdgeInsets.zero,
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * .9,
@@ -120,7 +141,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                       child: Text(_label, style: theme.textTheme.titleLarge),
                     ),
                     IconButton(
-                      tooltip: 'Закрыть',
+                      tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                       onPressed: () => Navigator.pop(context),
                       icon: const InteractiveIcon('close'),
                     ),
@@ -134,14 +155,18 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                     children: [
                       TextFormField(
                         controller: _title,
-                        autofocus: true,
+                        focusNode: _titleFocus,
                         maxLength: 180,
                         decoration: InputDecoration(
-                          labelText: _list ? 'Название' : 'Вопрос',
+                          labelText: _list
+                              ? context.l10n.interactiveTitleField
+                              : context.l10n.interactiveQuestion,
                           counterText: _list ? null : '',
                         ),
                         validator: (v) => (v ?? '').trim().isEmpty
-                            ? 'Введите ${_list ? 'название' : 'вопрос'}'
+                            ? (_list
+                                  ? context.l10n.interactiveTitleRequired
+                                  : context.l10n.interactiveQuestionRequired)
                             : null,
                       ),
                       const SizedBox(height: 8),
@@ -152,8 +177,8 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Text(
                               _quiz
-                                  ? 'Варианты ответа. Отметьте правильный'
-                                  : 'Варианты ответа',
+                                  ? context.l10n.interactiveQuizOptions
+                                  : context.l10n.interactiveOptions,
                               style: theme.textTheme.labelLarge,
                             ),
                           ),
@@ -186,18 +211,24 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                   controller: _items[i],
                                   maxLength: 100,
                                   decoration: InputDecoration(
-                                    labelText:
-                                        '${_list ? 'Пункт' : 'Вариант'} ${i + 1}',
+                                    labelText: _list
+                                        ? context.l10n.interactiveItemNumber(
+                                            i + 1,
+                                          )
+                                        : context.l10n.interactiveOptionNumber(
+                                            i + 1,
+                                          ),
                                     counterText: _list ? null : '',
                                   ),
                                   validator: (v) => (v ?? '').trim().isEmpty
-                                      ? 'Заполните поле'
+                                      ? context.l10n.interactiveFieldRequired
                                       : null,
                                 ),
                               ),
                               IconButton(
-                                tooltip:
-                                    'Удалить ${_list ? 'пункт' : 'вариант'}',
+                                tooltip: _list
+                                    ? context.l10n.interactiveRemoveItem
+                                    : context.l10n.interactiveRemoveOption,
                                 onPressed: _items.length <= (_list ? 1 : 2)
                                     ? null
                                     : () => setState(() {
@@ -222,14 +253,16 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                             ),
                             icon: const InteractiveIcon('add'),
                             label: Text(
-                              _list ? 'Добавить пункт' : 'Добавить вариант',
+                              _list
+                                  ? context.l10n.interactiveAddItem
+                                  : context.l10n.interactiveAddOption,
                             ),
                           ),
                         ),
                       if (!_list && !_quiz)
                         SwitchListTile.adaptive(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Несколько ответов'),
+                          title: Text(context.l10n.interactiveMultiple),
                           value: _multiple,
                           onChanged: (v) => setState(() => _multiple = v),
                         ),
@@ -239,9 +272,9 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                           controller: _explanation,
                           maxLength: 500,
                           maxLines: 3,
-                          decoration: const InputDecoration(
-                            labelText: 'Пояснение (необязательно)',
-                            helperText: 'Появится после ответа',
+                          decoration: InputDecoration(
+                            labelText: context.l10n.interactiveExplanation,
+                            helperText: context.l10n.interactiveExplanationHint,
                             counterText: '',
                           ),
                         ),
@@ -250,7 +283,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            'Участники видят, кто за что проголосовал.',
+                            context.l10n.interactiveVotesVisible,
                             style: theme.textTheme.bodySmall,
                           ),
                         ),
@@ -269,7 +302,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _submit,
-                    child: const Text('Отправить'),
+                    child: Text(context.l10n.interactiveSend),
                   ),
                 ),
               ),

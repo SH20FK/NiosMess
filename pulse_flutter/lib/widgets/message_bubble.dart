@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_message_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -138,7 +139,7 @@ class MessageBubble extends ConsumerWidget {
   final VoidCallback? onSwipeToReply;
   final ValueChanged<String>? onReactionTap;
   final InlineKeyboardMarkup? replyMarkup;
-  final ValueChanged<String>? onCallbackQuery;
+  final FutureOr<void> Function(String)? onCallbackQuery;
   final bool isPrevSame;
   final bool isNextSame;
   final bool animate;
@@ -173,6 +174,7 @@ class MessageBubble extends ConsumerWidget {
         .where((e) => e.isNotEmpty)
         .toList();
   }
+
   static BorderRadius _getBubbleRadius(
     bool isMine,
     bool isPrevSame,
@@ -210,14 +212,10 @@ class MessageBubble extends ConsumerWidget {
 
     final Color bubbleColor = isDeleted
         ? scheme.surfaceContainerHighest
-        : (isMine
-            ? scheme.primaryContainer
-            : scheme.surfaceContainerHigh);
+        : (isMine ? scheme.primaryContainer : scheme.surfaceContainerHigh);
     final Color textColor = isDeleted
         ? scheme.onSurfaceVariant
-        : (isMine
-            ? scheme.onPrimaryContainer
-            : scheme.onSurface);
+        : (isMine ? scheme.onPrimaryContainer : scheme.onSurface);
     final Border? bubbleBorder = (!isMine && !isDark)
         ? Border.all(
             color: scheme.outlineVariant.withValues(alpha: 0.25),
@@ -246,6 +244,93 @@ class MessageBubble extends ConsumerWidget {
       messageRadius,
     );
 
+    final contextHeader = <Widget>[
+      MessageBubbleHeader(
+        isMine: isMine,
+        senderDisplayName: senderDisplayName,
+        senderAvatarUrl: senderAvatarUrl,
+        visibleBadges: visibleBadges,
+        hiddenBadgeCount: hiddenBadgeCount,
+        scheme: scheme,
+        textTheme: textTheme,
+      ),
+      if ((replyPreview ?? '').trim().isNotEmpty)
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: onReplyTap,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: (isMine ? scheme.primary : scheme.secondary).withValues(
+                  alpha: 0.12,
+                ),
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(innerRadius),
+                  bottomRight: Radius.circular(innerRadius),
+                ),
+                border: Border(
+                  left: BorderSide(
+                    color: isMine ? scheme.primary : scheme.secondary,
+                    width: 3,
+                  ),
+                ),
+              ),
+              child: Text(
+                replyPreview!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.labelSmall?.copyWith(
+                  color: isMine ? scheme.primary : scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+      if (forwarded != null) ...<Widget>[
+        Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(innerRadius),
+            border: Border(
+              left: BorderSide(color: scheme.outlineVariant, width: 2.5),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.forward_rounded, size: 14, color: scheme.primary),
+                  const SizedBox(width: 4),
+                  Text(
+                    context.l10n.chatForwardedCard,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              if (forwarded.sender.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  context.l10n.chatForwardedFrom(forwarded.sender),
+                  style: textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    ];
+
     Widget content = Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Padding(
@@ -266,7 +351,9 @@ class MessageBubble extends ConsumerWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+                      color: scheme.surfaceContainerHighest.withValues(
+                        alpha: 0.9,
+                      ),
                       borderRadius: BorderRadius.circular(innerRadius),
                       border: Border(
                         left: BorderSide(
@@ -286,237 +373,163 @@ class MessageBubble extends ConsumerWidget {
                     ),
                   ),
                 ),
-              _buildStickerContent(context, scheme, textTheme, ref: ref, radius: mediaRadius),
-            ]
-            else if (isCircleVideo && hasMedia)
-              _buildCircleVideoContent(context, scheme, textTheme,
+              _buildStickerContent(
+                context,
+                scheme,
+                textTheme,
+                ref: ref,
+                radius: mediaRadius,
+              ),
+            ] else if (isCircleVideo && hasMedia)
+              _buildCircleVideoContent(
+                context,
+                scheme,
+                textTheme,
                 ref: ref,
                 chatId: chatId,
                 wsClient: ref.watch(webSocketClientProvider),
                 e2eeService: ref.watch(e2eeServiceProvider),
               )
+            else if (!isDeleted &&
+                (standaloneEmoji != null || (hasMedia && !isVoice)))
+              _buildUnframedMessage(
+                context,
+                ref: ref,
+                emoji: standaloneEmoji,
+                caption: displayText,
+                header: contextHeader,
+                scheme: scheme,
+                textTheme: textTheme,
+                bubbleColor: bubbleColor,
+                textColor: textColor,
+                radius: messageRadius,
+                headers: headers,
+              )
             else
-            InkWell(
-              borderRadius: bubbleRadius,
-              onDoubleTap: onReactionTap != null
-                  ? () {
-                      final String emoji =
-                          ref.read(uiSettingsProvider).doubleTapReactionEmoji;
-                      if (emoji.isNotEmpty) {
-                        TriSync.reaction(ref: ref, context: context);
-                        onReactionTap!(emoji);
+              InkWell(
+                borderRadius: bubbleRadius,
+                onDoubleTap: onReactionTap != null
+                    ? () {
+                        final String emoji = ref
+                            .read(uiSettingsProvider)
+                            .doubleTapReactionEmoji;
+                        if (emoji.isNotEmpty) {
+                          TriSync.reaction(ref: ref, context: context);
+                          onReactionTap!(emoji);
+                        }
                       }
-                    }
-                  : null,
-              onLongPress: onLongPress != null
-                  ? () {
-                      HapticService.confirm();
-                      onLongPress!();
-                    }
-                  : null,
-              onSecondaryTapUp: (_) {
-                if (onLongPress != null) {
-                  HapticService.confirm();
-                  onLongPress!();
-                }
-              },
-              child: Container(
-                constraints: BoxConstraints(
-                  minWidth: 76,
-                  maxWidth: MediaQuery.sizeOf(context).width > 600
-                      ? 520.0
-                      : MediaQuery.sizeOf(context).width * 0.78,
-                ),
-                padding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
-                decoration: BoxDecoration(
-                  color: bubbleColor,
-                  borderRadius: bubbleRadius,
-                  border: bubbleBorder,
-                ),
-                child: Semantics(
-                  label: isMine
-                      ? context.l10n.messageSentByMe
-                      : (senderDisplayName ?? context.l10n.messageSemantics),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      MessageBubbleHeader(
-                        isMine: isMine,
-                        senderDisplayName: senderDisplayName,
-                        senderAvatarUrl: senderAvatarUrl,
-                        visibleBadges: visibleBadges,
-                        hiddenBadgeCount: hiddenBadgeCount,
-                        scheme: scheme,
-                        textTheme: textTheme,
-                      ),
-                      if ((replyPreview ?? '').trim().isNotEmpty)
-                        MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: onReplyTap,
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: (isMine ? scheme.primary : scheme.secondary)
-                                    .withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.only(
-                                  topRight: Radius.circular(innerRadius),
-                                  bottomRight: Radius.circular(innerRadius),
-                                ),
-                                border: Border(
-                                  left: BorderSide(
-                                    color: isMine
-                                        ? scheme.primary
-                                        : scheme.secondary,
-                                    width: 3,
-                                  ),
-                                ),
-                              ),
-                              child: Text(
-                                replyPreview!,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: isMine
-                                      ? scheme.primary
-                                      : scheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (forwarded != null) ...<Widget>[
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest
-                                .withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(innerRadius),
-                            border: Border(
-                              left: BorderSide(
-                                color: scheme.outlineVariant,
-                                width: 2.5,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Row(
-                                children: <Widget>[
-                                  Icon(
-                                    Icons.forward_rounded,
-                                    size: 14,
-                                    color: scheme.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    context.l10n.chatForwardedCard,
-                                    style: textTheme.labelSmall?.copyWith(
-                                      color: scheme.primary,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (forwarded.sender.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  context.l10n.chatForwardedFrom(
-                                    forwarded.sender,
-                                  ),
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                      if (hasMedia)
-                        _mediaPreview(
-                          context,
-                          ref: ref,
-                          scheme: scheme,
-                          textTheme: textTheme,
-                          textColor: textColor,
-                          headers: headers,
-                          chatId: chatId,
-                          wsClient: ref.watch(webSocketClientProvider),
-                          e2eeService: ref.watch(e2eeServiceProvider),
-                          radius: mediaRadius,
-                        ),
-                      if (hasMedia && hasText) const SizedBox(height: 6),
-                      if (hasText)
-                        _buildMessageTextAndFooter(
-                          context: context,
-                          text: displayText,
-                          emoji: standaloneEmoji,
-                          textColor: textColor,
-                          isDeleted: isDeleted,
-                          isMine: isMine,
-                          scheme: scheme,
-                          textTheme: textTheme,
-                          hideFooter: hideFooter,
-                          footer: MessageBubbleFooter(
-                            isMine: isMine,
-                            isE2ee: isE2ee,
-                            isEdited: isEdited,
-                            isDeleted: isDeleted,
-                            isRead: isRead,
-                            isSending: isSending,
-                            isFailed: isFailed,
-                            onRetrySend: onRetrySend,
-                            formattedTime: formattedTime,
+                    : null,
+                onLongPress: onLongPress != null
+                    ? () {
+                        HapticService.confirm();
+                        onLongPress!();
+                      }
+                    : null,
+                onSecondaryTapUp: (_) {
+                  if (onLongPress != null) {
+                    HapticService.confirm();
+                    onLongPress!();
+                  }
+                },
+                child: Container(
+                  constraints: BoxConstraints(
+                    minWidth: 76,
+                    maxWidth: MediaQuery.sizeOf(context).width > 600
+                        ? 520.0
+                        : MediaQuery.sizeOf(context).width * 0.78,
+                  ),
+                  padding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
+                  decoration: BoxDecoration(
+                    color: bubbleColor,
+                    borderRadius: bubbleRadius,
+                    border: bubbleBorder,
+                  ),
+                  child: Semantics(
+                    label: isMine
+                        ? context.l10n.messageSentByMe
+                        : (senderDisplayName ?? context.l10n.messageSemantics),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        ...contextHeader,
+                        if (hasMedia)
+                          _mediaPreview(
+                            context,
+                            ref: ref,
                             scheme: scheme,
                             textTheme: textTheme,
-                            expiresAt: expiresAt,
+                            textColor: textColor,
+                            headers: headers,
+                            chatId: chatId,
+                            wsClient: ref.watch(webSocketClientProvider),
+                            e2eeService: ref.watch(e2eeServiceProvider),
+                            radius: mediaRadius,
                           ),
-                        )
-                      else if (!hideFooter)
-                        Align(
-                          alignment: Alignment.bottomRight,
-                          child: MessageBubbleFooter(
-                            isMine: isMine,
-                            isE2ee: isE2ee,
-                            isEdited: isEdited,
+                        if (hasMedia && hasText) const SizedBox(height: 6),
+                        if (hasText)
+                          _buildMessageTextAndFooter(
+                            context: context,
+                            text: displayText,
+                            emoji: standaloneEmoji,
+                            textColor: textColor,
                             isDeleted: isDeleted,
-                            isRead: isRead,
-                            isSending: isSending,
-                            isFailed: isFailed,
-                            onRetrySend: onRetrySend,
-                            formattedTime: formattedTime,
+                            isMine: isMine,
                             scheme: scheme,
                             textTheme: textTheme,
-                            expiresAt: expiresAt,
+                            hideFooter: hideFooter,
+                            footer: MessageBubbleFooter(
+                              isMine: isMine,
+                              isE2ee: isE2ee,
+                              isEdited: isEdited,
+                              isDeleted: isDeleted,
+                              isRead: isRead,
+                              isSending: isSending,
+                              isFailed: isFailed,
+                              onRetrySend: onRetrySend,
+                              formattedTime: formattedTime,
+                              scheme: scheme,
+                              textTheme: textTheme,
+                              expiresAt: expiresAt,
+                            ),
+                          )
+                        else if (!hideFooter)
+                          Align(
+                            alignment: Alignment.bottomRight,
+                            child: MessageBubbleFooter(
+                              isMine: isMine,
+                              isE2ee: isE2ee,
+                              isEdited: isEdited,
+                              isDeleted: isDeleted,
+                              isRead: isRead,
+                              isSending: isSending,
+                              isFailed: isFailed,
+                              onRetrySend: onRetrySend,
+                              formattedTime: formattedTime,
+                              scheme: scheme,
+                              textTheme: textTheme,
+                              expiresAt: expiresAt,
+                            ),
                           ),
-                        ),
-                      if (isChannel && onOpenComments != null) ...<Widget>[
-                        const SizedBox(height: 6),
-                        ChannelCommentsBar(
-                          commentsCount: commentsCount,
-                          scheme: scheme,
-                          textTheme: textTheme,
-                          onTap: onOpenComments!,
-                          borderRadius: innerRadius,
-                        ),
+                        if (isChannel && onOpenComments != null) ...<Widget>[
+                          const SizedBox(height: 6),
+                          ChannelCommentsBar(
+                            commentsCount: commentsCount,
+                            scheme: scheme,
+                            textTheme: textTheme,
+                            onTap: onOpenComments!,
+                            borderRadius: innerRadius,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
             if (showEncryptionSettings && !isDeleted)
               OrdinaryEncryptionSettingsButton(isMine: isMine)
-            else if (replyMarkup != null && replyMarkup!.inlineKeyboard.isNotEmpty)
+            else if (replyMarkup != null &&
+                replyMarkup!.inlineKeyboard.isNotEmpty)
               _buildInlineKeyboard(scheme, textTheme),
             if (reactions.isNotEmpty)
               Padding(
@@ -528,23 +541,33 @@ class MessageBubble extends ConsumerWidget {
                   children: reactions.entries
                       .map((MapEntry<String, int> item) {
                         return TweenAnimationBuilder<double>(
-                          key: ValueKey<String>('react_${item.key}_${item.value}'),
+                          key: ValueKey<String>(
+                            'react_${item.key}_${item.value}',
+                          ),
                           tween: Tween<double>(begin: 0.65, end: 1.0),
                           duration: M3Durations.medium1,
                           curve: M3SpringCurves.bouncy,
-                          builder: (BuildContext context, double scale, Widget? child) {
-                            return Transform.scale(
-                              scale: scale,
-                              child: child,
-                            );
-                          },
+                          builder:
+                              (
+                                BuildContext context,
+                                double scale,
+                                Widget? child,
+                              ) {
+                                return Transform.scale(
+                                  scale: scale,
+                                  child: child,
+                                );
+                              },
                           child: TouchContainer(
                             borderRadius: AppRadii.fullRadius,
                             scaleDown: 0.90,
                             releaseCurve: M3SpringCurves.bouncy,
                             onTap: onReactionTap != null
                                 ? () {
-                                    TriSync.reaction(ref: ref, context: context);
+                                    TriSync.reaction(
+                                      ref: ref,
+                                      context: context,
+                                    );
                                     onReactionTap!(item.key);
                                   }
                                 : null,
@@ -557,7 +580,9 @@ class MessageBubble extends ConsumerWidget {
                                 color: scheme.surfaceContainerHigh,
                                 borderRadius: AppRadii.fullRadius,
                                 border: Border.all(
-                                  color: scheme.outlineVariant.withValues(alpha: 0.25),
+                                  color: scheme.outlineVariant.withValues(
+                                    alpha: 0.25,
+                                  ),
                                   width: 0.75,
                                 ),
                               ),
@@ -589,10 +614,7 @@ class MessageBubble extends ConsumerWidget {
         curve: Curves.easeOut,
         builder: (BuildContext context, Color? color, Widget? child) {
           return Container(
-            decoration: BoxDecoration(
-              borderRadius: bubbleRadius,
-              color: color,
-            ),
+            decoration: BoxDecoration(borderRadius: bubbleRadius, color: color),
             child: child,
           );
         },
@@ -600,13 +622,13 @@ class MessageBubble extends ConsumerWidget {
       );
     }
 
-      if (onSwipeToReply != null) {
-        content = SwipeToReply(
-          onReply: onSwipeToReply!,
-          scheme: scheme,
-          child: content,
-        );
-      }
+    if (onSwipeToReply != null) {
+      content = SwipeToReply(
+        onReply: onSwipeToReply!,
+        scheme: scheme,
+        child: content,
+      );
+    }
 
     return content;
   }
@@ -623,7 +645,8 @@ class MessageBubble extends ConsumerWidget {
         ? ApiConstants.resolve(mediaUrl!.trim())
         : '';
     final String url = stickerUrl.isNotEmpty ? stickerUrl : mediaResolved;
-    final bool isAnimated = sticker?.isAnimated == true ||
+    final bool isAnimated =
+        sticker?.isAnimated == true ||
         (sticker?.mediaType ?? '').contains('video') ||
         (sticker?.mediaType ?? '').contains('webm') ||
         url.endsWith('.webm') ||
@@ -682,25 +705,25 @@ class MessageBubble extends ConsumerWidget {
                         ),
                       )
                     : isAnimated
-                        ? StickerVideoPlayer(url: url)
-                        : CachedNetworkImage(
-                            imageUrl: url,
-                            fit: BoxFit.contain,
-                            memCacheWidth: 400,
-                            memCacheHeight: 400,
-                            placeholder: (_, _) => AppLoadingIndicator(
-                              size: 24,
-                              color: scheme.primary.withValues(alpha: 0.4),
-                            ),
-                            errorWidget: (_, _, _) => Center(
-                              child: Text(
-                                sticker?.emoji.isNotEmpty == true
-                                    ? sticker!.emoji
-                                    : '🖼️',
-                                style: const TextStyle(fontSize: 48),
-                              ),
-                            ),
+                    ? StickerVideoPlayer(url: url)
+                    : CachedNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.contain,
+                        memCacheWidth: 400,
+                        memCacheHeight: 400,
+                        placeholder: (_, _) => AppLoadingIndicator(
+                          size: 24,
+                          color: scheme.primary.withValues(alpha: 0.4),
+                        ),
+                        errorWidget: (_, _, _) => Center(
+                          child: Text(
+                            sticker?.emoji.isNotEmpty == true
+                                ? sticker!.emoji
+                                : '🖼️',
+                            style: const TextStyle(fontSize: 48),
                           ),
+                        ),
+                      ),
               ),
 
               // Floating translucent time badge
@@ -708,8 +731,10 @@ class MessageBubble extends ConsumerWidget {
                 bottom: 4,
                 right: 4,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: scheme.scrim.withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(10),
@@ -768,10 +793,7 @@ class MessageBubble extends ConsumerWidget {
                       color: scheme.surface.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: AppLoadingIndicator(
-                      size: 28,
-                      color: scheme.primary,
-                    ),
+                    child: AppLoadingIndicator(size: 28, color: scheme.primary),
                   ),
                 ),
 
@@ -793,7 +815,10 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  Widget _buildCircleVideoContent(BuildContext context, ColorScheme scheme, TextTheme textTheme, {
+  Widget _buildCircleVideoContent(
+    BuildContext context,
+    ColorScheme scheme,
+    TextTheme textTheme, {
     required WidgetRef ref,
     required int chatId,
     required WebSocketClient wsClient,
@@ -831,7 +856,8 @@ class MessageBubble extends ConsumerWidget {
               Positioned.fill(
                 child: ClipOval(
                   child: UploadProgressOverlay(
-                    stage: uploadTask?.stage ??
+                    stage:
+                        uploadTask?.stage ??
                         (isFailed ? UploadStage.failed : UploadStage.uploading),
                     metrics: uploadTask?.metrics,
                     queuePosition: uploadQueuePosition,
@@ -858,8 +884,6 @@ class MessageBubble extends ConsumerWidget {
       ),
     );
   }
-
-
 
   Widget _mediaPreview(
     BuildContext context, {
@@ -896,7 +920,9 @@ class MessageBubble extends ConsumerWidget {
         return MediaCarousel(
           urls: urls,
           scheme: scheme,
-          textStyle: textTheme.bodySmall?.copyWith(color: textColor) ?? const TextStyle(),
+          textStyle:
+              textTheme.bodySmall?.copyWith(color: textColor) ??
+              const TextStyle(),
           isMine: isMine,
           chatId: chatId,
           isE2ee: isE2ee,
@@ -912,7 +938,7 @@ class MessageBubble extends ConsumerWidget {
           uploadTask!.bytes!.isNotEmpty) {
         imageWidget = Image.memory(
           uploadTask!.bytes!,
-          width: 220,
+          width: double.infinity,
           height: 180,
           fit: BoxFit.cover,
         );
@@ -922,7 +948,7 @@ class MessageBubble extends ConsumerWidget {
         final File localFile = File(uploadTask!.filePath);
         imageWidget = Image.file(
           localFile,
-          width: 220,
+          width: double.infinity,
           height: 180,
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => WsCachedImage(
@@ -930,7 +956,7 @@ class MessageBubble extends ConsumerWidget {
             mediaUrl: urls.first,
             chatId: chatId,
             isE2ee: isE2ee,
-            width: 220,
+            width: double.infinity,
             height: 180,
             fit: BoxFit.cover,
           ),
@@ -941,11 +967,11 @@ class MessageBubble extends ConsumerWidget {
           mediaUrl: urls.first,
           chatId: chatId,
           isE2ee: isE2ee,
-          width: 220,
+          width: double.infinity,
           height: 180,
           fit: BoxFit.cover,
           placeholder: (BuildContext context) => SizedBox(
-            width: 220,
+            width: double.infinity,
             height: 180,
             child: Center(
               child: AppLoadingIndicator(
@@ -955,7 +981,7 @@ class MessageBubble extends ConsumerWidget {
           ),
           errorWidget: (BuildContext context, Object error) {
             return Container(
-              width: 220,
+              width: double.infinity,
               height: 180,
               alignment: Alignment.center,
               color: isMine
@@ -981,10 +1007,7 @@ class MessageBubble extends ConsumerWidget {
             borderRadius: BorderRadius.circular(radius),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(radius),
-              child: Hero(
-                tag: 'media_${urls.first}',
-                child: imageWidget,
-              ),
+              child: Hero(tag: 'media_${urls.first}', child: imageWidget),
             ),
           ),
           if (isSending || isFailed)
@@ -992,7 +1015,8 @@ class MessageBubble extends ConsumerWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(radius),
                 child: UploadProgressOverlay(
-                  stage: uploadTask?.stage ??
+                  stage:
+                      uploadTask?.stage ??
                       (isFailed ? UploadStage.failed : UploadStage.uploading),
                   metrics: uploadTask?.metrics,
                   queuePosition: uploadQueuePosition,
@@ -1041,8 +1065,9 @@ class MessageBubble extends ConsumerWidget {
       final String speedStr = UploadSpeedTracker.formatSpeed(
         uploadTask?.metrics.smoothedBytesPerSecond ?? 0,
       );
-      final String etaStr =
-          UploadSpeedTracker.formatEta(uploadTask?.metrics.eta);
+      final String etaStr = UploadSpeedTracker.formatEta(
+        uploadTask?.metrics.eta,
+      );
       final List<String> parts = <String>[];
       if (sent != null && sent > 0) {
         parts.add(
@@ -1071,7 +1096,7 @@ class MessageBubble extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: isMine
-            ? scheme.onPrimary.withValues(alpha: 0.15)
+            ? scheme.onPrimaryContainer.withValues(alpha: 0.06)
             : scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(radius),
       ),
@@ -1110,19 +1135,19 @@ class MessageBubble extends ConsumerWidget {
                         Icon(
                           Icons.hourglass_top_rounded,
                           size: 20,
-                          color: isMine ? scheme.onPrimary : scheme.primary,
+                          color: isMine ? textColor : scheme.primary,
                         )
                       else if (uploadTask?.stage == UploadStage.processing ||
                           uploadTask?.stage == UploadStage.sendingMessage)
                         AppLoadingIndicator(
                           size: 22,
-                          color: isMine ? scheme.onPrimary : scheme.primary,
+                          color: isMine ? textColor : scheme.primary,
                         )
                       else
                         AppLoadingIndicator(
                           size: 22,
                           value: p > 0.01 ? p : null,
-                          color: isMine ? scheme.onPrimary : scheme.primary,
+                          color: isMine ? textColor : scheme.primary,
                         ),
                       if (isMine && localId != null)
                         Material(
@@ -1139,8 +1164,9 @@ class MessageBubble extends ConsumerWidget {
                               padding: const EdgeInsets.all(6),
                               child: Icon(
                                 Icons.close_rounded,
-                                color:
-                                    isMine ? scheme.onPrimary : scheme.primary,
+                                color: isMine
+                                    ? scheme.onPrimary
+                                    : scheme.primary,
                                 size: 18,
                               ),
                             ),
@@ -1160,8 +1186,9 @@ class MessageBubble extends ConsumerWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: (isMine ? scheme.onPrimary : scheme.primary)
-                          .withValues(alpha: 0.12),
+                      color: (isMine ? textColor : scheme.primary).withValues(
+                        alpha: 0.12,
+                      ),
                       borderRadius: BorderRadius.circular(
                         (radius * 0.8).clamp(4.0, 14.0),
                       ),
@@ -1169,9 +1196,11 @@ class MessageBubble extends ConsumerWidget {
                     alignment: Alignment.center,
                     child: Icon(
                       getIconDataByName(
-                        FileTypeDetector.detect(fileName: mediaLabel ?? '').icon,
+                        FileTypeDetector.detect(
+                          fileName: mediaLabel ?? '',
+                        ).icon,
                       ),
-                      color: isMine ? scheme.onPrimary : scheme.primary,
+                      color: isMine ? textColor : scheme.primary,
                       size: 20,
                     ),
                   ),
@@ -1180,8 +1209,9 @@ class MessageBubble extends ConsumerWidget {
               Expanded(
                 child: InkWell(
                   onTap: (isSending || isFailed) ? null : onOpenMedia,
-                  onLongPress:
-                      (isSending || isFailed) ? null : onLongPressMedia,
+                  onLongPress: (isSending || isFailed)
+                      ? null
+                      : onLongPressMedia,
                   borderRadius: BorderRadius.circular(6),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1208,8 +1238,8 @@ class MessageBubble extends ConsumerWidget {
                           color: isFailed
                               ? scheme.error
                               : (isMine
-                                  ? scheme.onPrimary.withValues(alpha: 0.82)
-                                  : scheme.onSurfaceVariant),
+                                    ? textColor.withValues(alpha: 0.76)
+                                    : scheme.onSurfaceVariant),
                         ),
                       ),
                     ],
@@ -1221,7 +1251,7 @@ class MessageBubble extends ConsumerWidget {
                 IconButton(
                   icon: Icon(
                     Icons.chevron_right_rounded,
-                    color: isMine ? scheme.onPrimary : scheme.onSurfaceVariant,
+                    color: isMine ? textColor : scheme.onSurfaceVariant,
                     size: 20,
                   ),
                   onPressed: onOpenMedia,
@@ -1250,8 +1280,9 @@ class MessageBubble extends ConsumerWidget {
                         vertical: 2,
                       ),
                       minimumSize: const Size(0, 28),
-                      foregroundColor:
-                          isMine ? scheme.onPrimary : scheme.primary,
+                      foregroundColor: isMine
+                          ? scheme.onPrimary
+                          : scheme.primary,
                     ),
                   ),
                 if (isMine && localId != null) ...[
@@ -1284,20 +1315,192 @@ class MessageBubble extends ConsumerWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: AppLoadingIndicator(
-                value: (uploadTask?.stage == UploadStage.processing ||
+                value:
+                    (uploadTask?.stage == UploadStage.processing ||
                         uploadTask?.stage == UploadStage.sendingMessage)
                     ? null
                     : (uploadTask?.stage == UploadStage.queued
-                        ? 0.0
-                        : (p > 0.01 ? p : null)),
+                          ? 0.0
+                          : (p > 0.01 ? p : null)),
                 minHeight: 4,
-                backgroundColor: (isMine ? scheme.onPrimary : scheme.primary)
+                backgroundColor: (isMine ? textColor : scheme.primary)
                     .withValues(alpha: 0.2),
-                color: isMine ? scheme.onPrimary : scheme.primary,
+                color: isMine ? textColor : scheme.primary,
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildUnframedMessage(
+    BuildContext context, {
+    required WidgetRef ref,
+    required NotoEmoji? emoji,
+    required String caption,
+    required List<Widget> header,
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required Color bubbleColor,
+    required Color textColor,
+    required double radius,
+    required Map<String, String> headers,
+  }) {
+    final hasCaption = emoji == null && caption.trim().isNotEmpty;
+    final visual =
+        mediaIsImage ||
+        (messageData?.mediaType ?? '').startsWith('video/') ||
+        FileTypeDetector.detect(fileName: mediaLabel ?? mediaUrl ?? '').isVideo;
+    final width = MediaQuery.sizeOf(context).width > 600
+        ? 320.0
+        : MediaQuery.sizeOf(context).width * .78;
+    Widget footer() => MessageBubbleFooter(
+      isMine: isMine,
+      isE2ee: isE2ee,
+      isEdited: isEdited,
+      isDeleted: false,
+      isRead: isRead,
+      isSending: isSending,
+      isFailed: isFailed,
+      onRetrySend: onRetrySend,
+      formattedTime: formattedTime,
+      scheme: scheme,
+      textTheme: textTheme,
+      expiresAt: expiresAt,
+    );
+    final Widget body;
+    if (emoji != null) {
+      body = Column(
+        key: const ValueKey<String>('standalone-emoji'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: isMine
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          ...header,
+          NotoMessageEmoji(emoji: emoji),
+          if (!hideFooter)
+            Padding(padding: const EdgeInsets.only(top: 4), child: footer()),
+        ],
+      );
+    } else {
+      final media = _mediaPreview(
+        context,
+        ref: ref,
+        scheme: scheme,
+        textTheme: textTheme,
+        textColor: textColor,
+        headers: headers,
+        chatId: chatId,
+        wsClient: ref.watch(webSocketClientProvider),
+        e2eeService: ref.watch(e2eeServiceProvider),
+        radius: hasCaption || mediaIsImage ? 0 : radius,
+      );
+      body = SizedBox(
+        width: width,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (header.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: Column(mainAxisSize: MainAxisSize.min, children: header),
+              ),
+            Material(
+              key: ValueKey<String>(
+                hasCaption
+                    ? 'attachment-with-caption'
+                    : 'attachment-without-caption',
+              ),
+              color: hasCaption || !visual ? bubbleColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(radius),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (hasCaption || !mediaIsImage)
+                    media
+                  else
+                    Stack(
+                      children: [
+                        media,
+                        if (!hideFooter)
+                          Positioned(
+                            bottom: 6,
+                            right: 6,
+                            left: 6,
+                            child: Align(
+                              alignment: Alignment.bottomRight,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: bubbleColor.withValues(alpha: .94),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: footer(),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  if (hasCaption)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                      child: _buildMessageTextAndFooter(
+                        context: context,
+                        text: caption,
+                        textColor: textColor,
+                        isDeleted: false,
+                        isMine: isMine,
+                        scheme: scheme,
+                        textTheme: textTheme,
+                        hideFooter: hideFooter,
+                        forceStackedFooter: true,
+                        footer: footer(),
+                      ),
+                    )
+                  else if (!mediaIsImage && !hideFooter)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                      child: Align(
+                        alignment: Alignment.bottomRight,
+                        child: footer(),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Semantics(
+      label: isMine ? context.l10n.messageSentByMe : senderDisplayName,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(radius),
+        onLongPress: onLongPress,
+        onSecondaryTapUp: onLongPress == null ? null : (_) => onLongPress!(),
+        onDoubleTap: onReactionTap == null
+            ? null
+            : () {
+                final reaction = ref
+                    .read(uiSettingsProvider)
+                    .doubleTapReactionEmoji;
+                if (reaction.isNotEmpty) {
+                  TriSync.reaction(ref: ref, context: context);
+                  onReactionTap!(reaction);
+                }
+              },
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: width),
+          child: body,
+        ),
       ),
     );
   }
@@ -1319,6 +1522,7 @@ class MessageBubble extends ConsumerWidget {
       onCallbackQuery: onCallbackQuery,
     );
   }
+
   Widget _buildMessageTextAndFooter({
     required BuildContext context,
     required String text,
@@ -1330,6 +1534,7 @@ class MessageBubble extends ConsumerWidget {
     required bool hideFooter,
     required Widget footer,
     NotoEmoji? emoji,
+    bool forceStackedFooter = false,
   }) {
     if (emoji != null) {
       return Column(
@@ -1343,27 +1548,34 @@ class MessageBubble extends ConsumerWidget {
       );
     }
     final interactive = messageData != null && !isDeleted
-        ? InteractiveMessage.parse(messageData!.content) : null;
+        ? InteractiveMessage.parse(messageData!.content)
+        : null;
     final Widget textWidget = interactive?.isDocument == true
-        ? InteractiveMessageCard(message: messageData!, definition: interactive!, foreground: textColor)
+        ? InteractiveMessageCard(
+            message: messageData!,
+            definition: interactive!,
+            foreground: textColor,
+          )
         : InteractiveMessageText(
-
-      text: text,
-      baseStyle: textTheme.bodyMedium?.copyWith(
-        color: textColor,
-        fontSize: 15,
-        height: 1.35,
-        fontStyle: isDeleted ? FontStyle.italic : null,
-      ) ?? const TextStyle(fontSize: 15, height: 1.35),
-      isMine: isMine,
-      scheme: scheme,
-    );
+            text: text,
+            baseStyle:
+                textTheme.bodyMedium?.copyWith(
+                  color: textColor,
+                  fontSize: 15,
+                  height: 1.35,
+                  fontStyle: isDeleted ? FontStyle.italic : null,
+                ) ??
+                const TextStyle(fontSize: 15, height: 1.35),
+            isMine: isMine,
+            scheme: scheme,
+          );
 
     if (hideFooter) {
       return textWidget;
     }
 
-    final bool isSingleLineShort = !text.contains('\n') && text.trim().length <= 26;
+    final bool isSingleLineShort =
+        !forceStackedFooter && !text.contains('\n') && text.trim().length <= 26;
 
     if (isSingleLineShort) {
       return Row(
@@ -1372,10 +1584,7 @@ class MessageBubble extends ConsumerWidget {
         children: <Widget>[
           Flexible(child: textWidget),
           const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 1),
-            child: footer,
-          ),
+          Padding(padding: const EdgeInsets.only(bottom: 1), child: footer),
         ],
       );
     }
@@ -1384,14 +1593,10 @@ class MessageBubble extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Align(
-          alignment: Alignment.topLeft,
-          child: textWidget,
-        ),
+        Align(alignment: Alignment.topLeft, child: textWidget),
         const SizedBox(height: 3),
         footer,
       ],
     );
   }
 }
-

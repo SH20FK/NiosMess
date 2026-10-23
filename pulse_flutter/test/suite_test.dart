@@ -1,3 +1,8 @@
+import 'widgets/bot_keyboard_feedback_test.dart' as bot_keyboard_feedback;
+import 'core/network/web_socket_reliability_test.dart' as transport_reliability;
+import 'widgets/message_surface_test.dart' as message_surfaces;
+import 'providers/inbox_reliability_test.dart' as inbox_reliability;
+import 'unit/message_preview_text_test.dart' as message_previews;
 import 'services/mesh_preferences_test.dart' as mesh_preferences;
 import 'widgets/neutral_inbox_test.dart' as neutral_inbox;
 import 'unit/interactive_message_test.dart' as interactive_messages;
@@ -297,6 +302,11 @@ void main() {
 
     // Widgets
     neutral_inbox.main();
+    message_surfaces.main();
+    bot_keyboard_feedback.main();
+    transport_reliability.main();
+    inbox_reliability.main();
+    message_previews.main();
     widgets_adaptive_glass.main();
     m3e_design_audit.main();
     widgets_chat_list_header.main();

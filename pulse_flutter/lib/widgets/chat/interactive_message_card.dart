@@ -1,3 +1,6 @@
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -29,6 +32,36 @@ class _InteractiveMessageCardState
     extends ConsumerState<InteractiveMessageCard> {
   bool _busy = false;
   Set<int>? _selection;
+  Map<String, dynamic>? _pendingAction;
+  List<ApiMessage>? _projectedEvents;
+  String? _projectedFingerprint;
+  int? _projectedOwner, _projectedRoot;
+  bool? _projectedEncryption;
+  InteractiveState? _projection;
+
+  InteractiveState _stateFor(List<ApiMessage> events) {
+    final root = widget.message;
+    final fingerprint = widget.definition.fingerprint;
+    if (identical(_projectedEvents, events) &&
+        _projectedFingerprint == fingerprint &&
+        _projectedOwner == root.senderId &&
+        _projectedRoot == root.id &&
+        _projectedEncryption == root.isE2ee) {
+      return _projection!;
+    }
+    _projectedEvents = events;
+    _projectedFingerprint = fingerprint;
+    _projectedOwner = root.senderId;
+    _projectedRoot = root.id;
+    _projectedEncryption = root.isE2ee;
+    return _projection = InteractiveState(
+      widget.definition,
+      root.senderId,
+      events,
+      rootId: root.id,
+      requireE2ee: root.isE2ee,
+    );
+  }
 
   @override
   void didUpdateWidget(covariant InteractiveMessageCard oldWidget) {
@@ -40,7 +73,10 @@ class _InteractiveMessageCardState
 
   Future<void> _update(Map<String, dynamic> action, String description) async {
     if (_busy || widget.message.id <= 0) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _pendingAction = action;
+    });
     final accountId = ref.read(authProvider).session?.userId ?? -1;
     try {
       final document = widget.definition;
@@ -60,38 +96,43 @@ class _InteractiveMessageCardState
           );
       if (mounted) {
         _selection = null;
-        ref.invalidate(
-          interactiveEventsProvider((
-            accountId,
-            widget.message.chatId,
-            widget.message.id,
-          )),
-        );
+        final provider = interactiveEventsProvider((
+          accountId,
+          widget.message.chatId,
+          widget.message.id,
+        ));
+        // A committed push may already have started the same refresh.
+        if (!ref.read(provider).isLoading) ref.invalidate(provider);
+        await ref.read(provider.future);
       }
     } catch (_) {
       if (mounted) {
-        AppToast.showError(
-          context,
-          'Не удалось сохранить. Повторите отправку.',
-        );
+        AppToast.showError(context, context.l10n.interactiveSaveFailed);
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _pendingAction = null;
+        });
+      }
     }
   }
 
   void _showVoters(InteractiveState state) {
-    showModalBottomSheet<void>(
+    AppModal.showSheet<void>(
       context: context,
-      useSafeArea: true,
-      constraints: const BoxConstraints(maxWidth: 520),
+      maxWidth: 520,
       builder: (context) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Голоса', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              context.l10n.interactiveVoters,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 16),
             Flexible(
               child: ListView(
@@ -103,14 +144,18 @@ class _InteractiveMessageCardState
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: PulseAvatar(
-                        name: state.names[entry.key] ?? 'Участник',
+                        name:
+                            state.names[entry.key] ??
+                            context.l10n.interactiveParticipant,
                         avatarUrl: state.avatars[entry.key],
                         radius: 20,
                       ),
                       title: Text(
                         state.names[entry.key]?.trim().isNotEmpty == true
                             ? state.names[entry.key]!
-                            : 'Участник ${entry.key}',
+                            : context.l10n.interactiveParticipantNumber(
+                                entry.key,
+                              ),
                       ),
                       subtitle: Text(
                         entry.value
@@ -125,7 +170,9 @@ class _InteractiveMessageCardState
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Закрыть'),
+                child: Text(
+                  MaterialLocalizations.of(context).closeButtonTooltip,
+                ),
               ),
             ),
           ],
@@ -141,13 +188,7 @@ class _InteractiveMessageCardState
     final me = ref.watch(authProvider.select((a) => a.session?.userId ?? -1));
     final key = (me, message.chatId, message.id);
     final events = ref.watch(interactiveEventsProvider(key));
-    final state = InteractiveState(
-      definition,
-      message.senderId,
-      events.value ?? [],
-      rootId: message.id,
-      requireE2ee: message.isE2ee,
-    );
+    final state = _stateFor(events.value ?? const <ApiMessage>[]);
     final ready =
         !events.isLoading &&
         !events.hasError &&
@@ -155,17 +196,21 @@ class _InteractiveMessageCardState
         !message.isSending;
     final canAct = ready && !state.closed && !_busy;
     final mine = state.votes[me] ?? <int>{};
-    final selected = _selection ?? mine;
+    final selected =
+        _selection ??
+        (_busy && _pendingAction?['action'] == 'vote'
+            ? (_pendingAction!['choices'] as List).cast<int>().toSet()
+            : mine);
     final quiz = definition.kind == 'quiz';
     final list = definition.kind == 'list';
     final showResults = mine.isNotEmpty || state.closed;
     final foreground = widget.foreground;
     final theme = Theme.of(context);
     final label = list
-        ? 'Общий список'
+        ? context.l10n.interactiveList
         : quiz
-        ? 'Викторина'
-        : 'Открытый опрос';
+        ? context.l10n.interactiveQuiz
+        : context.l10n.interactiveOpenPoll;
     final localTheme = theme.copyWith(
       colorScheme: theme.colorScheme.copyWith(
         onSurface: foreground,
@@ -175,7 +220,9 @@ class _InteractiveMessageCardState
       checkboxTheme: CheckboxThemeData(
         side: BorderSide(color: foreground),
         checkColor: WidgetStatePropertyAll(
-          foreground.computeLuminance() > .5 ? Colors.black : Colors.white,
+          foreground.computeLuminance() > .5
+              ? theme.colorScheme.surface
+              : theme.colorScheme.onSurface,
         ),
         fillColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
@@ -216,7 +263,7 @@ class _InteractiveMessageCardState
                     ),
                     if (state.closed)
                       Text(
-                        'Завершён',
+                        context.l10n.interactiveClosed,
                         style: theme.textTheme.labelMedium?.copyWith(
                           color: foreground,
                         ),
@@ -244,13 +291,13 @@ class _InteractiveMessageCardState
                 Text(
                   state.closed
                       ? quiz
-                            ? 'Викторина завершена'
-                            : 'Опрос завершён'
+                            ? context.l10n.interactiveQuizClosed
+                            : context.l10n.interactivePollClosed
                       : quiz
-                      ? 'Викторина, один ответ'
+                      ? context.l10n.interactiveQuizSingle
                       : definition.multiple
-                      ? 'Открытый опрос, несколько ответов'
-                      : 'Открытый опрос, один ответ',
+                      ? context.l10n.interactivePollMultiple
+                      : context.l10n.interactivePollSingle,
                   style: theme.textTheme.bodySmall?.copyWith(color: foreground),
                 ),
                 const SizedBox(height: 12),
@@ -259,9 +306,12 @@ class _InteractiveMessageCardState
                 if (list)
                   _choice(
                     label: definition.items[i],
-                    selected: list
-                        ? state.checked[i] == true
-                        : selected.contains(i),
+                    selected:
+                        _busy &&
+                            _pendingAction?['action'] == 'check' &&
+                            _pendingAction?['item'] == i
+                        ? _pendingAction!['checked'] == true
+                        : state.checked[i] == true,
                     enabled: canAct && (!quiz || mine.isEmpty),
                     percentage: !list && showResults && state.voters > 0
                         ? state.count(i) / state.voters
@@ -269,7 +319,7 @@ class _InteractiveMessageCardState
                     helper: list && state.checked[i] == true
                         ? state.checkedBy[i]
                         : quiz && showResults && i == definition.correct
-                        ? 'Правильный ответ'
+                        ? context.l10n.interactiveCorrectAnswerLabel
                         : null,
                     helperAvatar: list ? state.checkedByAvatar[i] : null,
                     helperIsPerson: list && state.checked[i] == true,
@@ -282,14 +332,14 @@ class _InteractiveMessageCardState
                             'checked': state.checked[i] != true,
                           },
                           state.checked[i] == true
-                              ? 'Пункт снова открыт'
-                              : 'Пункт выполнен',
+                              ? context.l10n.interactiveItemReopened
+                              : context.l10n.interactiveItemCompleted,
                         );
                       } else if (quiz) {
                         _update({
                           'action': 'vote',
                           'choices': [i],
-                        }, 'Ответ на викторину');
+                        }, context.l10n.interactiveQuizAnswer);
                       } else {
                         setState(() {
                           _selection = Set<int>.from(selected);
@@ -324,7 +374,7 @@ class _InteractiveMessageCardState
                         _update({
                           'action': 'vote',
                           'choices': [i],
-                        }, 'Ответ на викторину');
+                        }, context.l10n.interactiveQuizAnswer);
                       } else {
                         setState(() {
                           _selection = Set<int>.from(selected);
@@ -340,7 +390,9 @@ class _InteractiveMessageCardState
               if (quiz && showResults && mine.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
-                  mine.contains(definition.correct) ? 'Верно' : 'Неверно',
+                  mine.contains(definition.correct)
+                      ? context.l10n.interactiveCorrect
+                      : context.l10n.interactiveIncorrect,
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: foreground,
                   ),
@@ -362,10 +414,12 @@ class _InteractiveMessageCardState
                             ? () => _update({
                                 'action': 'vote',
                                 'choices': selected.toList()..sort(),
-                              }, 'Голос в опросе')
+                              }, context.l10n.interactiveVoteEvent)
                             : null,
                         child: Text(
-                          mine.isEmpty ? 'Голосовать' : 'Изменить голос',
+                          mine.isEmpty
+                              ? context.l10n.interactiveVote
+                              : context.l10n.interactiveChangeVote,
                         ),
                       ),
                       if (mine.isNotEmpty)
@@ -374,10 +428,21 @@ class _InteractiveMessageCardState
                               ? () => _update({
                                   'action': 'vote',
                                   'choices': <int>[],
-                                }, 'Голос отозван')
+                                }, context.l10n.interactiveVoteRevoked)
                               : null,
-                          child: const Text('Отозвать'),
+                          child: Text(context.l10n.interactiveRevoke),
                         ),
+                    ],
+                  ),
+                ),
+              if (_busy)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      const AppLoadingIndicator(size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(context.l10n.interactiveSaving)),
                     ],
                   ),
                 ),
@@ -385,20 +450,23 @@ class _InteractiveMessageCardState
                 TextButton(
                   onPressed: () =>
                       ref.invalidate(interactiveEventsProvider(key)),
-                  child: const Text('Не удалось загрузить. Повторить'),
+                  child: Text(context.l10n.interactiveLoadRetry),
                 )
               else if (events.isLoading)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('Загружаю изменения…'),
+                  child: Text(context.l10n.interactiveLoading),
                 )
               else if (message.id <= 0)
-                const Text('Доступно после отправки')
+                Text(context.l10n.interactiveAfterSend)
               else if (list)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Выполнено ${state.checked.values.where((v) => v).length} из ${definition.items.length}',
+                    context.l10n.interactiveCompletedCount(
+                      state.checked.values.where((v) => v).length,
+                      definition.items.length,
+                    ),
                   ),
                 )
               else
@@ -406,7 +474,7 @@ class _InteractiveMessageCardState
                   onPressed: ready && state.voters > 0
                       ? () => _showVoters(state)
                       : null,
-                  child: Text('Проголосовали: ${state.voters}'),
+                  child: Text(context.l10n.interactiveVoterCount(state.voters)),
                 ),
               if (me == message.senderId && !state.closed && ready)
                 Align(
@@ -414,37 +482,23 @@ class _InteractiveMessageCardState
                   child: TextButton(
                     onPressed: canAct
                         ? () async {
-                            final ok = await showDialog<bool>(
+                            final ok = await showAppConfirmDialog(
                               context: context,
-                              builder: (context) => AlertDialog(
-                                title: Text(
-                                  list
-                                      ? 'Завершить список?'
-                                      : 'Завершить голосование?',
-                                ),
-                                content: const Text(
-                                  'После этого участники не смогут менять ответы.',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text('Отмена'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: const Text('Завершить'),
-                                  ),
-                                ],
-                              ),
+                              title: list
+                                  ? context.l10n.interactiveFinishList
+                                  : context.l10n.interactiveFinishPoll,
+                              subtitle: context.l10n.interactiveFinishBody,
+                              confirmLabel: context.l10n.interactiveFinish,
+                              cancelLabel: context.l10n.commonCancel,
                             );
-                            if (ok == true && mounted) {
-                              await _update({'action': 'close'}, 'Завершено');
+                            if (ok == true && context.mounted) {
+                              await _update({
+                                'action': 'close',
+                              }, context.l10n.interactiveFinishedEvent);
                             }
                           }
                         : null,
-                    child: const Text('Завершить'),
+                    child: Text(context.l10n.interactiveFinish),
                   ),
                 ),
             ],
@@ -493,8 +547,8 @@ class _InteractiveMessageCardState
             button: true,
             label: [
               label,
-              if (correct) 'Правильный ответ',
-              if (wrong) 'Ваш ответ, неверно',
+              if (correct) context.l10n.interactiveCorrectAnswerLabel,
+              if (wrong) context.l10n.interactiveYourWrongAnswer,
             ].join(', '),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
@@ -529,7 +583,9 @@ class _InteractiveMessageCardState
                             if (correct || wrong) ...[
                               const SizedBox(height: 2),
                               Text(
-                                correct ? 'Правильный ответ' : 'Ваш ответ',
+                                correct
+                                    ? context.l10n.interactiveCorrectAnswerLabel
+                                    : context.l10n.interactiveYourAnswer,
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(color: foreground),
                               ),

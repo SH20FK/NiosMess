@@ -33,6 +33,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onVideoCall,
     this.onSecurityTap,
     this.onAutoDeleteTap,
+    this.onCreateInteractive,
   });
 
   final int chatId;
@@ -55,6 +56,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onVideoCall;
   final VoidCallback? onSecurityTap;
   final VoidCallback? onAutoDeleteTap;
+  final ValueChanged<String>? onCreateInteractive;
 
   bool get _showCallButtons =>
       !isSecret &&
@@ -304,49 +306,58 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ).moreButtonTooltip,
                   );
                 },
-            menuChildren: AppActionMenuItem.buildItems(context, <
-              AppActionMenuItem
-            >[
-              if (isSecret && !isBot && onVoiceCall != null)
-                AppActionMenuItem(
-                  label: context.l10n.chatVoiceCall,
-                  icon: Icons.phone_rounded,
-                  onPressed: onVoiceCall,
+            menuChildren: [
+              if (onCreateInteractive != null)
+                SubmenuButton(
+                  leadingIcon: const Icon(Icons.interests_outlined),
+                  menuChildren: [
+                    for (final entry in {
+                      "poll": context.l10n.interactivePoll,
+                      "quiz": context.l10n.interactiveQuiz,
+                      "list": context.l10n.interactiveList,
+                    }.entries)
+                      MenuItemButton(
+                        onPressed: () => onCreateInteractive!(entry.key),
+                        child: Text(entry.value),
+                      ),
+                  ],
+                  child: Text(context.l10n.interactiveTitle),
                 ),
-              if (isSecret && !isBot && onVideoCall != null)
-                AppActionMenuItem(
-                  label: context.l10n.chatVideoCall,
-                  icon: Icons.videocam_rounded,
-                  onPressed: onVideoCall,
-                ),
-              if (isSecret)
-                AppActionMenuItem(
-                  label: context.l10n.autoDeleteTitle,
-                  icon: autoDeleteDuration == null
-                      ? Icons.timer_outlined
-                      : Icons.timer_rounded,
-                  onPressed: onAutoDeleteTap,
-                ),
-              if (isGroup || isChannel) ...<AppActionMenuItem>[
-                AppActionMenuItem(
-                  label: context.l10n.chatMembers,
-                  icon: Icons.people_rounded,
-                  onPressed: () => context.push('/chat/$chatId/members'),
-                ),
-                AppActionMenuItem(
-                  label: context.l10n.chatManage,
-                  icon: Icons.settings_rounded,
-                  onPressed: () => context.push('/chat/$chatId/manage'),
-                ),
-              ],
-              AppActionMenuItem(
-                label: context.l10n.chatWallpaperMenu,
-                icon: Icons.texture_rounded,
-                onPressed: () => context.push(
-                  '/settings/wallpaper?chatId=$chatId&chatTitle=${Uri.encodeComponent(title)}',
-                ),
-              ),
-            ]),
+              ...AppActionMenuItem.buildItems(context, <AppActionMenuItem>[
+                if (isSecret && !isBot && onVoiceCall != null)
+                  AppActionMenuItem(
+                    label: context.l10n.chatVoiceCall,
+                    icon: Icons.phone_rounded,
+                    onPressed: onVoiceCall,
+                  ),
+                if (isSecret && !isBot && onVideoCall != null)
+                  AppActionMenuItem(
+                    label: context.l10n.chatVideoCall,
+                    icon: Icons.videocam_rounded,
+                    onPressed: onVideoCall,
+                  ),
+                if (isSecret)
+                  AppActionMenuItem(
+                    label: context.l10n.autoDeleteTitle,
+                    icon: autoDeleteDuration == null
+                        ? Icons.timer_outlined
+                        : Icons.timer_rounded,
+                    onPressed: onAutoDeleteTap,
+                  ),
+                if (isGroup || isChannel) ...<AppActionMenuItem>[
+                  AppActionMenuItem(
+                    label: context.l10n.chatMembers,
+                    icon: Icons.people_rounded,
+                    onPressed: () => context.push('/chat/$chatId/members'),
+                  ),
+                  AppActionMenuItem(
+                    label: context.l10n.chatManage,
+                    icon: Icons.settings_rounded,
+                    onPressed: () => context.push('/chat/$chatId/manage'),
+                  ),
+                ],
+              ]),
+            ],
           ),
       ],
     );

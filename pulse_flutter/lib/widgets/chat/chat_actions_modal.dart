@@ -40,11 +40,15 @@ class ChatActionsModal {
     final ColorScheme scheme = theme.colorScheme;
     final TextTheme textTheme = theme.textTheme;
 
-    final String type = switch (chat.chatType) {
-      'channel' => context.l10n.groupTypeChannel,
-      'group' => context.l10n.groupTypeGroup,
-      _ => context.l10n.chatListFilterDirect,
-    };
+    final String type = chat.isSecret
+        ? context.l10n.secretTitle
+        : chat.isBotChat || chat.chatType == 'bot'
+        ? context.l10n.chatListFilterBots
+        : switch (chat.chatType) {
+            'channel' => context.l10n.groupTypeChannel,
+            'group' => context.l10n.groupTypeGroup,
+            _ => context.l10n.chatListFilterDirect,
+          };
     final String subtitle = chat.unreadCount <= 0
         ? type
         : '${context.l10n.chatListUnreadCount(chat.unreadCount)} • $type';

@@ -116,6 +116,8 @@ class InteractiveState {
   }) {
     // The server IDs establish one order across devices; provisional messages
     // never vote twice. Sender and reply binding come from authenticated messages.
+    final fingerprint = definition.fingerprint;
+    final itemCount = definition.items.length;
     final ordered =
         events
             .where(
@@ -138,7 +140,7 @@ class InteractiveState {
           update.kind != 'update' ||
           update.document != definition.document ||
           update.data['root'] != rootId ||
-          update.data['definition'] != definition.fingerprint) {
+          update.data['definition'] != fingerprint) {
         continue;
       }
       final data = update.data;
@@ -146,7 +148,7 @@ class InteractiveState {
         closed = true;
       } else if (data['action'] == 'vote' && definition.kind != 'list') {
         final choices = (data['choices'] as List).cast<int>().toSet();
-        if (choices.any((i) => i >= definition.items.length) ||
+        if (choices.any((i) => i >= itemCount) ||
             (!definition.multiple && choices.length > 1)) {
           continue;
         }
@@ -159,13 +161,19 @@ class InteractiveState {
         avatars[message.senderId] = message.senderAvatarUrl;
       } else if (data['action'] == 'check' && definition.kind == 'list') {
         final item = data['item'] as int;
-        if (item >= definition.items.length) continue;
+        if (item >= itemCount) continue;
         checked[item] = data['checked'] as bool;
         checkedBy[item] = message.senderDisplayName;
         checkedByAvatar[item] = message.senderAvatarUrl;
       }
     }
+    for (final choices in votes.values) {
+      for (final choice in choices) {
+        _counts.update(choice, (n) => n + 1, ifAbsent: () => 1);
+      }
+    }
   }
+  final _counts = <int, int>{};
   final InteractiveMessage definition;
   final int ownerId;
   bool closed = false;
@@ -176,5 +184,5 @@ class InteractiveState {
   final checkedBy = <int, String>{};
   final checkedByAvatar = <int, String?>{};
   int get voters => votes.values.where((v) => v.isNotEmpty).length;
-  int count(int item) => votes.values.where((v) => v.contains(item)).length;
+  int count(int item) => _counts[item] ?? 0;
 }

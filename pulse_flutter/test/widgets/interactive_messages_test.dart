@@ -1,6 +1,7 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,6 +42,9 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
         await tester.pumpWidget(
           MaterialApp(
+            locale: const Locale('ru'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: ThemeData(brightness: brightness),
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(
@@ -75,6 +79,9 @@ void main() {
       'all interactive messages use the current theme at 320px $brightness',
       (tester) async {
         if (previews) {
+          await (FontLoader('MaterialIcons')
+                ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
+              .load();
           for (final font in {
             'GolosText': 'golos_text/GolosText-Variable.ttf',
             'Onest': 'onest/Onest-Variable.ttf',
@@ -168,6 +175,9 @@ void main() {
                 )).overrideWith((ref) async => [events[i]]),
             ],
             child: MaterialApp(
+              locale: const Locale('ru'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
               theme: AppTheme.themed(
                 const VisualThemeSettings(
                   seedColor: Color(0xFFEAB0FF),
@@ -238,10 +248,11 @@ void main() {
                     .toImage();
             final data = await image.toByteData(format: ui.ImageByteFormat.png);
             final path = File(
-              'E:/NiosIDAndNiosmess/release/ballot-redesign/messages-${brightness.name}.png',
+              '${Platform.environment['NIOS_INTERACTIVE_CAPTURE_DIR'] ?? '../output/design-review-3.108.0'}/messages-${brightness.name}.png',
             );
             await path.parent.create(recursive: true);
             await path.writeAsBytes(data!.buffer.asUint8List());
+            image.dispose();
           });
         }
         // Keep actual counts and action buttons readable at 200% / 320px.

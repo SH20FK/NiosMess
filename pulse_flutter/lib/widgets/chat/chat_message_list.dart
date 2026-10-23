@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'dart:async';
+import 'package:pulse_flutter/widgets/chat/chat_history_scroll_controller.dart';
 import 'package:pulse_flutter/widgets/chat/ordinary_encryption_settings_button.dart';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'package:pulse_flutter/widgets/chat/message_layout_store.dart';
@@ -86,7 +87,7 @@ class ChatMessageList extends ConsumerStatefulWidget {
   )
   onLongPress;
   final void Function(ApiMessage) onSwipeToReply;
-  final void Function(ApiMessage, String data) onCallbackQuery;
+  final FutureOr<void> Function(ApiMessage, String data) onCallbackQuery;
   final void Function(ApiMessage) onRetrySend;
   final String Function(ApiMessage) displayTextBuilder;
   final String? Function(ApiMessage) mediaUrlBuilder;
@@ -277,6 +278,45 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
     }
   }
 
+  void _bindTailController() {
+    final controller = widget.scrollController;
+    if (controller is ChatHistoryScrollController) {
+      controller.bindLatest(this, _moveToLoadedTail);
+    }
+  }
+
+  Future<void> _moveToLoadedTail(bool animate) async {
+    final controller = widget.scrollController;
+    if (!mounted || !controller.hasClients || widget.messages.isEmpty) return;
+    final distance = controller.offset - controller.position.minScrollExtent;
+    // Smooth short moves; rebase large jumps directly instead of animating through
+    // thousands of unmeasured rows and stopping at an obsolete estimated extent.
+    if (animate && distance <= controller.position.viewportDimension * 2) {
+      await controller.animateTo(
+        controller.position.minScrollExtent,
+        duration: M3Durations.medium2,
+        curve: M3SpringCurves.expressiveDecel,
+      );
+    }
+    if (!mounted || !controller.hasClients) return;
+    setState(() {
+      _centerMessageId = widget.messages.last.id;
+      _anchorFraction = null;
+      _explicitTarget = false;
+    });
+    controller.position.correctBy(-controller.position.pixels);
+    WidgetsBinding.instance.ensureVisualUpdate();
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !controller.hasClients) return;
+    controller.jumpTo(
+      0.0.clamp(
+        controller.position.minScrollExtent,
+        controller.position.maxScrollExtent,
+      ),
+    );
+    _captureScrollAnchor(explicit: true);
+  }
+
   void _rebaseAnchor(List<ApiMessage> next) {
     if (next.isEmpty) return;
     final scroll = widget.scrollController;
@@ -396,6 +436,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
   @override
   void initState() {
     super.initState();
+    _bindTailController();
     WidgetsBinding.instance.addObserver(this);
     _performance = ref.read(adaptivePerformanceProvider.notifier);
     _centerMessageId = widget.messages.isEmpty ? null : widget.messages.last.id;
@@ -457,6 +498,11 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
   @override
   void didUpdateWidget(ChatMessageList oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.scrollController != widget.scrollController) {
+      final previous = oldWidget.scrollController;
+      if (previous is ChatHistoryScrollController) previous.unbindLatest(this);
+      _bindTailController();
+    }
     final id = widget.highlightMessageId;
     if (id != null && id != oldWidget.highlightMessageId) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -476,6 +522,10 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
 
   @override
   void dispose() {
+    final controller = widget.scrollController;
+    if (controller is ChatHistoryScrollController) {
+      controller.unbindLatest(this);
+    }
     WidgetsBinding.instance.removeObserver(this);
     _anchorCaptureTimer?.cancel();
     _publishLastMeasuredAnchor();

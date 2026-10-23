@@ -15,6 +15,40 @@ final interactiveEventsProvider = FutureProvider.autoDispose
         throw StateError('Сеанс изменился');
       }
       if (rootId <= 0) return [];
+      // Retain a recently viewed document without refetching its entire event
+      // history whenever it moves a few pixels outside the viewport.
+      final lease = ref.keepAlive();
+      Timer? expiry;
+      var observed = true;
+      var dirty = false;
+      void invalidate() {
+        if (observed) {
+          ref.invalidateSelf();
+        } else {
+          dirty = true;
+        }
+      }
+
+      ref.onCancel(() {
+        observed = false;
+        expiry?.cancel();
+        expiry = Timer(const Duration(seconds: 30), lease.close);
+      });
+      ref.onResume(() {
+        observed = true;
+        expiry?.cancel();
+        // Riverpod forbids invalidation from inside a lifecycle callback.
+        // Defer it until subscriptions have finished attaching.
+        if (dirty) {
+          scheduleMicrotask(() {
+            if (ref.mounted && observed && dirty) {
+              dirty = false;
+              ref.invalidateSelf();
+            }
+          });
+        }
+      });
+      ref.onDispose(() => expiry?.cancel());
       final socket = ref.read(webSocketClientProvider);
       final pushes = socket.pushStream.listen((event) {
         final payload = event['payload'];
@@ -23,12 +57,10 @@ final interactiveEventsProvider = FutureProvider.autoDispose
                 payload['message_id'] == rootId) ||
             event['action'] == 'message_deleted' ||
             event['action'] == 'message_edited') {
-          ref.invalidateSelf();
+          invalidate();
         }
       });
-      final connections = socket.onConnected.listen(
-        (_) => ref.invalidateSelf(),
-      );
+      final connections = socket.onConnected.listen((_) => invalidate());
       ref.onDispose(() {
         unawaited(pushes.cancel());
         unawaited(connections.cancel());
@@ -36,6 +68,7 @@ final interactiveEventsProvider = FutureProvider.autoDispose
       final ordinary = ref.read(ordinaryE2eeProvider);
       final result = <ApiMessage>[];
       var cursor = 0;
+      var lastId = 0;
       // Bound memory/network use; an oversized thread is explicitly unavailable,
       // rather than reporting incorrect counts or allowing unsafe changes.
       for (var page = 0; page < 100; page++) {
@@ -56,7 +89,7 @@ final interactiveEventsProvider = FutureProvider.autoDispose
           var message = ApiMessage.fromJson(Map<String, dynamic>.from(raw));
           if (message.chatId != chatId ||
               message.replyToId != rootId ||
-              message.id <= cursor) {
+              message.id <= lastId) {
             throw const FormatException('Некорректный порядок ответов');
           }
           if (message.isE2ee && ordinary != null) {
@@ -65,11 +98,12 @@ final interactiveEventsProvider = FutureProvider.autoDispose
           if (message.isE2ee && !message.isDecrypted) {
             throw StateError('Не удалось расшифровать изменения');
           }
+          lastId = message.id;
           result.add(message);
         }
         if (response['has_more'] != true) return result;
         final next = response['next_cursor'];
-        if (next is! int || next <= cursor) {
+        if (next is! int || next <= cursor || next < lastId) {
           throw const FormatException('Некорректный курсор');
         }
         cursor = next;

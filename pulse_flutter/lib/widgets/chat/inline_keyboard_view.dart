@@ -1,3 +1,9 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -18,13 +24,18 @@ class InlineButtonColors {
   final Color border;
   final Color ripple;
 
-  static InlineButtonColors resolve(InlineKeyboardButtonStyle style, ColorScheme scheme) {
+  static InlineButtonColors resolve(
+    InlineKeyboardButtonStyle style,
+    ColorScheme scheme,
+  ) {
     final bool isDark = scheme.brightness == Brightness.dark;
 
     switch (style) {
       case InlineKeyboardButtonStyle.primary:
         return InlineButtonColors(
-          background: scheme.primaryContainer.withValues(alpha: isDark ? 0.85 : 0.95),
+          background: scheme.primaryContainer.withValues(
+            alpha: isDark ? 0.85 : 0.95,
+          ),
           foreground: scheme.onPrimaryContainer,
           border: scheme.primary.withValues(alpha: 0.35),
           ripple: scheme.primary.withValues(alpha: 0.15),
@@ -34,9 +45,17 @@ class InlineButtonColors {
         const Color successBase = Color(0xFF2E8A7A);
         return InlineButtonColors(
           background: isDark
-              ? Color.alphaBlend(successBase.withValues(alpha: 0.22), scheme.surfaceContainerHigh)
-              : Color.alphaBlend(successBase.withValues(alpha: 0.14), scheme.surfaceContainerHigh),
-          foreground: isDark ? const Color(0xFF80CBC4) : const Color(0xFF004D40),
+              ? Color.alphaBlend(
+                  successBase.withValues(alpha: 0.22),
+                  scheme.surfaceContainerHigh,
+                )
+              : Color.alphaBlend(
+                  successBase.withValues(alpha: 0.14),
+                  scheme.surfaceContainerHigh,
+                ),
+          foreground: isDark
+              ? const Color(0xFF80CBC4)
+              : const Color(0xFF004D40),
           border: successBase.withValues(alpha: isDark ? 0.45 : 0.35),
           ripple: successBase.withValues(alpha: 0.15),
         );
@@ -45,16 +64,26 @@ class InlineButtonColors {
         const Color warningBase = Color(0xFFD97706);
         return InlineButtonColors(
           background: isDark
-              ? Color.alphaBlend(warningBase.withValues(alpha: 0.22), scheme.surfaceContainerHigh)
-              : Color.alphaBlend(warningBase.withValues(alpha: 0.14), scheme.surfaceContainerHigh),
-          foreground: isDark ? const Color(0xFFFBBF24) : const Color(0xFF92400E),
+              ? Color.alphaBlend(
+                  warningBase.withValues(alpha: 0.22),
+                  scheme.surfaceContainerHigh,
+                )
+              : Color.alphaBlend(
+                  warningBase.withValues(alpha: 0.14),
+                  scheme.surfaceContainerHigh,
+                ),
+          foreground: isDark
+              ? const Color(0xFFFBBF24)
+              : const Color(0xFF92400E),
           border: warningBase.withValues(alpha: isDark ? 0.45 : 0.35),
           ripple: warningBase.withValues(alpha: 0.15),
         );
 
       case InlineKeyboardButtonStyle.danger:
         return InlineButtonColors(
-          background: scheme.errorContainer.withValues(alpha: isDark ? 0.85 : 0.92),
+          background: scheme.errorContainer.withValues(
+            alpha: isDark ? 0.85 : 0.92,
+          ),
           foreground: scheme.onErrorContainer,
           border: scheme.error.withValues(alpha: 0.35),
           ripple: scheme.error.withValues(alpha: 0.15),
@@ -62,7 +91,9 @@ class InlineButtonColors {
 
       case InlineKeyboardButtonStyle.defaultStyle:
         return InlineButtonColors(
-          background: scheme.surfaceContainerHigh.withValues(alpha: isDark ? 0.70 : 0.85),
+          background: scheme.surfaceContainerHigh.withValues(
+            alpha: isDark ? 0.70 : 0.85,
+          ),
           foreground: scheme.onSurface,
           border: scheme.outlineVariant.withValues(alpha: 0.40),
           ripple: scheme.onSurface.withValues(alpha: 0.12),
@@ -77,13 +108,13 @@ class InlineKeyboardView extends StatelessWidget {
     required this.replyMarkup,
     this.isMine = false,
     this.onCallbackQuery,
-    this.maxLabelLines = 1,
+    this.maxLabelLines = 2,
     super.key,
   });
 
   final InlineKeyboardMarkup replyMarkup;
   final bool isMine;
-  final ValueChanged<String>? onCallbackQuery;
+  final FutureOr<void> Function(String)? onCallbackQuery;
   final int maxLabelLines;
 
   @override
@@ -100,120 +131,181 @@ class InlineKeyboardView extends StatelessWidget {
         : MediaQuery.sizeOf(context).width * 0.78;
 
     return Container(
-      constraints: BoxConstraints(
-        minWidth: 80.0,
-        maxWidth: maxBubbleWidth,
-      ),
+      constraints: BoxConstraints(minWidth: 80.0, maxWidth: maxBubbleWidth),
       margin: const EdgeInsets.only(top: 4),
-      child: Column(
-        crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: replyMarkup.inlineKeyboard.map((List<InlineKeyboardButton> row) {
-          if (row.isEmpty) return const SizedBox.shrink();
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final columns = (constraints.maxWidth / (96 * scale.clamp(1, 2)))
+              .floor()
+              .clamp(1, 4);
+          final rows = <List<InlineKeyboardButton>>[];
+          for (final row in replyMarkup.inlineKeyboard) {
+            for (var offset = 0; offset < row.length; offset += columns) {
+              rows.add(
+                row.sublist(offset, (offset + columns).clamp(0, row.length)),
+              );
+            }
+          }
+          return Column(
+            crossAxisAlignment: isMine
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: rows
+                .map((List<InlineKeyboardButton> row) {
+                  if (row.isEmpty) return const SizedBox.shrink();
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.max,
-              children: row.map((InlineKeyboardButton btn) {
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                    child: _InlineButton(
-                      button: btn,
-                      scheme: scheme,
-                      textTheme: textTheme,
-                      onCallbackQuery: onCallbackQuery,
-                      maxLabelLines: maxLabelLines,
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.max,
+                      children: row
+                          .map((InlineKeyboardButton btn) {
+                            return Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2.0,
+                                ),
+                                child: _InlineButton(
+                                  key: ValueKey((
+                                    btn.text,
+                                    btn.callbackData,
+                                    btn.url,
+                                  )),
+                                  button: btn,
+                                  scheme: scheme,
+                                  textTheme: textTheme,
+                                  onCallbackQuery: onCallbackQuery,
+                                  maxLabelLines: maxLabelLines,
+                                ),
+                              ),
+                            );
+                          })
+                          .toList(growable: false),
                     ),
-                  ),
-                );
-              }).toList(growable: false),
-            ),
+                  );
+                })
+                .toList(growable: false),
           );
-        }).toList(growable: false),
+        },
       ),
     );
   }
 }
 
-class _InlineButton extends StatelessWidget {
+class _InlineButton extends ConsumerStatefulWidget {
   const _InlineButton({
     required this.button,
     required this.scheme,
     required this.textTheme,
     required this.onCallbackQuery,
     required this.maxLabelLines,
+    super.key,
   });
 
   final InlineKeyboardButton button;
   final ColorScheme scheme;
   final TextTheme textTheme;
-  final ValueChanged<String>? onCallbackQuery;
+  final FutureOr<void> Function(String)? onCallbackQuery;
   final int maxLabelLines;
 
-  Future<void> _handlePress(BuildContext context) async {
-    HapticService.tap();
+  @override
+  ConsumerState<_InlineButton> createState() => _InlineButtonState();
+}
 
-    if (button.isUrl) {
-      final String rawUrl = button.url!.trim();
-      final bool launched = await AppUrlLauncher.openUrl(context, rawUrl);
-      if (!launched && context.mounted) {
-        AppToast.showError(context, 'Не удалось открыть ссылку: $rawUrl');
+class _InlineButtonState extends ConsumerState<_InlineButton> {
+  bool _busy = false;
+  Future<void> _handlePress() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
+    try {
+      if (widget.button.isUrl) {
+        final launched = await AppUrlLauncher.openUrl(
+          context,
+          widget.button.url!.trim(),
+        );
+        if (!launched && mounted) {
+          AppToast.showError(context, context.l10n.commonError);
+        }
+      } else if (widget.button.isCallback) {
+        await widget.onCallbackQuery?.call(widget.button.callbackData!);
       }
-    } else if (button.isCallback) {
-      onCallbackQuery?.call(button.callbackData!);
+    } catch (error) {
+      if (mounted) AppToast.showError(context, error, onRetry: _handlePress);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final InlineButtonColors colors = InlineButtonColors.resolve(button.buttonStyle, scheme);
+    final InlineButtonColors colors = InlineButtonColors.resolve(
+      widget.button.buttonStyle,
+      widget.scheme,
+    );
 
     return Tooltip(
-      message: button.text,
+      message: widget.button.text,
       waitDuration: const Duration(milliseconds: 700),
-      child: Material(
-        color: colors.background,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: colors.border, width: 1.0),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => _handlePress(context),
-          splashColor: colors.ripple,
-          highlightColor: colors.ripple.withValues(alpha: 0.5),
-          child: Container(
-            constraints: BoxConstraints(minHeight: maxLabelLines > 1 ? 44 : 38),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    button.text,
-                    maxLines: maxLabelLines,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colors.foreground,
-                      letterSpacing: 0.1,
+      child: AnimatedScale(
+        scale: _busy ? .98 : 1,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : M3Durations.short3,
+        curve: M3SpringCurves.gentle,
+        child: Material(
+          color: colors.background,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: colors.border, width: 1.0),
+          ),
+          clipBehavior: Clip.none,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap:
+                _busy ||
+                    (widget.button.isCallback && widget.onCallbackQuery == null)
+                ? null
+                : _handlePress,
+            splashColor: colors.ripple,
+            highlightColor: colors.ripple.withValues(alpha: 0.5),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_busy) ...[
+                    const AppLoadingIndicator(size: 16),
+                    const SizedBox(width: 6),
+                  ],
+                  Flexible(
+                    child: Text(
+                      widget.button.text,
+                      maxLines: widget.maxLabelLines,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: widget.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                        letterSpacing: 0.1,
+                      ),
                     ),
                   ),
-                ),
-                if (button.isUrl) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_outward_rounded,
-                    size: 13,
-                    color: colors.foreground.withValues(alpha: 0.8),
-                  ),
+                  if (widget.button.isUrl) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_outward_rounded,
+                      size: 13,
+                      color: colors.foreground.withValues(alpha: 0.8),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

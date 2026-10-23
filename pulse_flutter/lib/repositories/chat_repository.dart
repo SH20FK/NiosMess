@@ -1007,6 +1007,7 @@ class ChatRepository {
   Future<void> sendCallbackQuery(int chatId, int messageId, String data) async {
     await _ref.read(webSocketClientProvider).request(
       'callback_query',
+      maxRetries: 0,
       payload: <String, dynamic>{
         'chat_id': chatId,
         'message_id': messageId,

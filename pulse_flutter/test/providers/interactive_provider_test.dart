@@ -53,7 +53,7 @@ Map<String, dynamic> row(int id, {int root = 10, bool encrypted = false}) => {
   'is_e2ee': encrypted,
   if (encrypted) 'e2ee_content': 'opaque',
 };
-ProviderContainer _fixture(_Socket socket) {
+ProviderContainer _fixture(_Socket socket, {bool observe = true}) {
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith(_Auth.new),
@@ -61,12 +61,11 @@ ProviderContainer _fixture(_Socket socket) {
       ordinaryE2eeProvider.overrideWithValue(null),
     ],
   );
-  final subscription = container.listen(
-    interactiveEventsProvider((2, 1, 10)),
-    (_, _) {},
-  );
+  final subscription = observe
+      ? container.listen(interactiveEventsProvider((2, 1, 10)), (_, _) {})
+      : null;
   addTearDown(() async {
-    subscription.close();
+    subscription?.close();
     container.dispose();
     await socket.pushes.close();
     await socket.connections.close();
@@ -76,6 +75,45 @@ ProviderContainer _fixture(_Socket socket) {
 }
 
 void main() {
+  test(
+    'recent offscreen cards reuse clean history and refresh once after a relevant change',
+    () async {
+      var version = 11;
+      final socket = _Socket(
+        (_) async => {
+          'messages': [row(version)],
+          'has_more': false,
+        },
+      );
+      final container = _fixture(socket, observe: false);
+      final provider = interactiveEventsProvider((2, 1, 10));
+      var subscription = container.listen(provider, (_, _) {});
+      await container.read(provider.future);
+      subscription.close();
+      await container.pump();
+      subscription = container.listen(provider, (_, _) {});
+      await container.read(provider.future);
+      expect(socket.calls.length, 1);
+      subscription.close();
+      await container.pump();
+      version = 12;
+      socket.pushes.add({
+        'action': 'interactive_changed',
+        'payload': {'chat_id': 1, 'message_id': 10},
+      });
+      await container.pump();
+      expect(
+        socket.calls.length,
+        1,
+        reason: 'Offscreen cards must not fetch unused histories',
+      );
+      subscription = container.listen(provider, (_, _) {});
+      await container.pump();
+      expect((await container.read(provider.future)).single.id, 12);
+      expect(socket.calls.length, 2);
+      subscription.close();
+    },
+  );
   test(
     'loads beyond visible history, refreshes after committed changes and reconnect',
     () async {

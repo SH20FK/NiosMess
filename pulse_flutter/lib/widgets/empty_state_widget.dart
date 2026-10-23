@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class EmptyStateWidget extends StatelessWidget {
   const EmptyStateWidget({
     required this.icon,
     required this.title,
     this.subtitle,
+    this.actionLabel,
+    this.onAction,
+    this.isBusy = false,
     super.key,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool isBusy;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +59,15 @@ class EmptyStateWidget extends StatelessWidget {
                   color: scheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
+              ),
+            ],
+            if (actionLabel != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.tonal(
+                onPressed: isBusy ? null : onAction,
+                child: isBusy
+                    ? const AppLoadingIndicator(size: 20)
+                    : Text(actionLabel!),
               ),
             ],
           ],

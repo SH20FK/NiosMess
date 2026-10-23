@@ -90,7 +90,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
       final surface = find.byType(M3ModalSurface);
-      expect(tester.getSize(surface).height, lessThanOrEqualTo(220));
+      expect(tester.getSize(surface).height, lessThanOrEqualTo(200));
       final icon = tester.getRect(find.byIcon(Icons.delete_outline_rounded));
       final title = tester.getRect(find.text('Удалить').first);
       expect((icon.center.dy - title.center.dy).abs(), lessThanOrEqualTo(4));

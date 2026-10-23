@@ -14,18 +14,14 @@ class ChatMutedNotifier extends AsyncNotifier<bool> {
     return prefs.getBool(_key(_chatId)) ?? false;
   }
 
-  Future<void> toggle() async {
-    final bool current = state.value ?? false;
-    final bool next = !current;
-    state = AsyncData<bool>(next);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_key(_chatId), next);
-  }
+  Future<void> toggle() async => setMuted(!(state.value ?? await future));
 
   Future<void> setMuted(bool muted) async {
-    state = AsyncData<bool>(muted);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_key(_chatId), muted);
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setBool(_key(_chatId), muted)) {
+      throw StateError('Notification preference write failed');
+    }
+    if (ref.mounted) state = AsyncData<bool>(muted);
   }
 }
 

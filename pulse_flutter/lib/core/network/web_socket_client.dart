@@ -14,7 +14,8 @@ import 'ws_stub.dart'
 const int _kCryptoIsolateThresholdBytes = 64 * 1024;
 
 Future<Map<String, dynamic>> _decryptEnvelopeWorker(
-    Map<String, dynamic> job) async {
+  Map<String, dynamic> job,
+) async {
   final List<int> ciphertext = base64Decode(job['ciphertext'] as String);
   final List<int> iv = base64Decode(job['iv'] as String);
   final List<int> tag = base64Decode(job['tag'] as String);
@@ -32,7 +33,8 @@ Future<Map<String, dynamic>> _decryptEnvelopeWorker(
 }
 
 Future<Map<String, dynamic>> _encryptEnvelopeWorker(
-    Map<String, dynamic> job) async {
+  Map<String, dynamic> job,
+) async {
   final String base64Json = base64Encode(utf8.encode(job['json'] as String));
   final SecretBox secretBox = await AesGcm.with256bits().encrypt(
     utf8.encode(base64Json),
@@ -48,16 +50,59 @@ Future<Map<String, dynamic>> _encryptEnvelopeWorker(
   };
 }
 
+class _FrameDecodeGate {
+  int _active = 0;
+  final _waiting = <Completer<void>>[];
+  Future<T> run<T>(Future<T> Function() decode) async {
+    if (_active >= 2) {
+      final slot = Completer<void>();
+      _waiting.add(slot);
+      await slot.future;
+    } else {
+      _active++;
+    }
+    try {
+      return await decode();
+    } finally {
+      if (_waiting.isNotEmpty) {
+        _waiting.removeAt(0).complete();
+      } else {
+        _active--;
+      }
+    }
+  }
+}
+
 class WebSocketClient {
   WebSocketClient({
     required this.baseUrl,
     required this.readToken,
     this.onUnauthorized,
+    this.connectTimeout = const Duration(seconds: 10),
+    this.handshakeTimeout = const Duration(seconds: 10),
+    this.heartbeatInterval = const Duration(seconds: 25),
+    this.heartbeatTimeout = const Duration(seconds: 60),
+    this.probeTimeout = const Duration(seconds: 8),
   });
 
   final String baseUrl;
   final String? Function() readToken;
   final VoidCallback? onUnauthorized;
+  final Duration connectTimeout,
+      handshakeTimeout,
+      heartbeatInterval,
+      heartbeatTimeout,
+      probeTimeout;
+  int _connectionEpoch = 0;
+  int _sessionEpoch = 0;
+  bool _disposed = false;
+  Future<void>? _connectTask;
+  Future<void> _incoming = Future<void>.value();
+  _FrameDecodeGate _decodeGate = _FrameDecodeGate();
+  int _framesInFlight = 0;
+  final _clock = Stopwatch()..start();
+  int _lastReceivedMs = 0;
+  final Map<int, String?> _pendingTokens = {};
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _channelSubscription;
@@ -87,160 +132,215 @@ class WebSocketClient {
   Stream<Map<String, dynamic>> get pushStream => _pushStreamController.stream;
   Stream<void> get onConnected => _connectedStreamController.stream;
 
-  bool get isConnected => _isSocketOpen && _secretKey != null;
+  bool get isConnected =>
+      !_closed && !_disposed && _isSocketOpen && _secretKey != null;
 
   String _getWsUrl() {
-    final Uri uri = Uri.parse(baseUrl);
-    if (uri.host == 'localhost' || uri.host == '127.0.0.1') {
-      return 'wss://ni-os.ru/ws';
-    }
-    final String scheme = uri.scheme == 'https' ? 'wss' : 'ws';
-    final String portPart = (uri.hasPort &&
-            !((uri.scheme == 'https' && uri.port == 443) ||
-                (uri.scheme == 'http' && uri.port == 80)))
-        ? ':${uri.port}'
-        : '';
-    return '$scheme://${uri.host}$portPart/ws';
+    final uri = Uri.parse(baseUrl);
+    return Uri(
+      scheme: uri.scheme == 'https' || uri.scheme == 'wss' ? 'wss' : 'ws',
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+      path: '/ws',
+    ).toString();
   }
 
-  Future<void> connect() async {
-    _closed = false;
-    if (isConnected) return;
-    if (_isConnecting) {
-      await _connectionReadyCompleter?.future;
-      return;
-    }
-
-    _isConnecting = true;
-    _connectionReadyCompleter = Completer<void>();
-
-    final String wsUrl = _getWsUrl();
-    debugPrint('[WebSocketClient] Connecting to $wsUrl ...');
-
-    try {
-      final uri = Uri.parse(wsUrl);
-      _channel = connectWs(uri);
-      await _channel!.ready.timeout(const Duration(seconds: 10));
-      _isSocketOpen = true;
-      debugPrint('[WebSocketClient] Socket open, waiting for key exchange...');
-
-      _channelSubscription = _channel!.stream.listen(
-        _onMessage,
-        onError: _onError,
-        onDone: _onDone,
-        cancelOnError: false,
+  Future<void> connect() {
+    if (_disposed) {
+      return Future.error(
+        const ApiException(statusCode: 0, message: 'WebSocket client closed'),
       );
-    } catch (e) {
-      debugPrint('[WebSocketClient] Connection failed: $e');
-      _isConnecting = false;
-      _isSocketOpen = false;
-      if (_connectionReadyCompleter != null &&
-          !_connectionReadyCompleter!.isCompleted) {
-        _connectionReadyCompleter!
-            .completeError(ApiException(statusCode: 0, message: '$e'));
-      }
-      _connectionReadyCompleter = null;
-      _scheduleReconnect();
-      rethrow;
     }
+    _closed = false;
+    if (isConnected) return Future.value();
+    final current = _connectTask;
+    if (current != null) return current;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    final epoch = ++_connectionEpoch;
+    final task = _openConnection(epoch);
+    _connectTask = task;
+    task.then<void>(
+      (_) {
+        if (identical(_connectTask, task)) _connectTask = null;
+      },
+      onError: (Object _, StackTrace _) {
+        if (identical(_connectTask, task)) _connectTask = null;
+      },
+    );
+    return task;
+  }
 
+  Future<void> _openConnection(int epoch) async {
+    _isConnecting = true;
+    final ready = Completer<void>();
+    _connectionReadyCompleter = ready;
+    // A transport failure can precede awaiting the handshake future.
+    ready.future.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    WebSocketChannel? channel;
     try {
-      await _connectionReadyCompleter!.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      _isConnecting = false;
-      _isSocketOpen = false;
-      _secretKey = null;
-      _channel?.sink.close();
-      _channel = null;
-      rethrow;
+      channel = connectWs(Uri.parse(_getWsUrl()));
+      _channel = channel;
+      await channel.ready.timeout(connectTimeout);
+      if (epoch != _connectionEpoch || _closed || _disposed) {
+        unawaited(channel.sink.close());
+        throw const ApiException(statusCode: 0, message: 'Connection canceled');
+      }
+      _isSocketOpen = true;
+      _lastReceivedMs = _clock.elapsedMilliseconds;
+      _incoming = Future<void>.value();
+      _decodeGate = _FrameDecodeGate();
+      _framesInFlight = 0;
+      _channelSubscription = channel.stream.listen(
+        (raw) {
+          if (epoch != _connectionEpoch || _closed || _disposed) return;
+          // Decrypt at most two frames in parallel. Replies bypass slow media
+          // frames; pushed edits/messages still commit strictly in wire order.
+          final previous = _incoming;
+          _framesInFlight++;
+          if (_framesInFlight >= 8) _channelSubscription?.pause();
+          final frame = _onMessage(raw, epoch, previous, _decodeGate);
+          frame.then<void>((_) {
+            if (epoch != _connectionEpoch) return;
+            _framesInFlight--;
+            if (_framesInFlight < 4) _channelSubscription?.resume();
+          }, onError: (Object _, StackTrace _) {});
+          _incoming = frame.then<void>(
+            (_) {},
+            onError: (Object _, StackTrace _) {
+              _retire(epoch, 'Invalid server frame');
+            },
+          );
+        },
+        onError: (Object _) => _retire(epoch, 'Connection to server lost'),
+        onDone: () => _retire(epoch, 'Connection to server closed'),
+      );
+      await ready.future.timeout(handshakeTimeout);
+      if (epoch != _connectionEpoch || !isConnected) {
+        throw const ApiException(statusCode: 0, message: 'Connection canceled');
+      }
+    } catch (error) {
+      _retire(epoch, 'Connection handshake failed');
+      if (error is ApiException) rethrow;
+      throw const ApiException(
+        statusCode: 0,
+        message: 'Connection handshake failed',
+      );
     }
   }
 
   int _reconnectAttempts = 0;
   Timer? _heartbeatTimer;
+  Timer? _probeTimer;
 
   void _startHeartbeat() {
-    _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (_) {
-      if (isConnected) {
-        sendRaw(jsonEncode(<String, dynamic>{
-          'action': 'ping',
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        }));
+    _stopHeartbeat();
+    if (_isBackgroundPaused || _closed || _disposed) return;
+    final epoch = _connectionEpoch;
+    _heartbeatTimer = Timer.periodic(heartbeatInterval, (_) {
+      if (epoch != _connectionEpoch || !isConnected) return;
+      if (_clock.elapsedMilliseconds - _lastReceivedMs >=
+          heartbeatTimeout.inMilliseconds) {
+        _retire(epoch, 'Connection heartbeat timed out');
+        return;
       }
+      _ping();
     });
   }
+
+  void _ping() => sendRaw(
+    jsonEncode(<String, dynamic>{
+      'action': 'ping',
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    }),
+  );
 
   void _stopHeartbeat() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    _probeTimer?.cancel();
+    _probeTimer = null;
   }
 
-  void _onError(Object error) {
-    debugPrint('[WebSocketClient] Socket error: $error');
+  void _retire(int epoch, String reason, {bool reconnect = true}) {
+    if (epoch != _connectionEpoch) return;
+    ++_connectionEpoch;
     _stopHeartbeat();
-    _channelSubscription?.cancel();
+    final subscription = _channelSubscription;
     _channelSubscription = null;
-    _failPendingRequests('Connection to server lost');
-    _channel?.sink.close();
+    if (subscription != null) unawaited(subscription.cancel());
+    final channel = _channel;
     _channel = null;
     _isSocketOpen = false;
     _secretKey = null;
+    _keyBytesOwner = null;
+    _keyBytesCache = null;
     _isConnecting = false;
-    _scheduleReconnect();
-  }
-
-  void _onDone() {
-    debugPrint('[WebSocketClient] Socket closed by server.');
-    _stopHeartbeat();
-    _channelSubscription?.cancel();
-    _channelSubscription = null;
-    _failPendingRequests('Connection to server closed');
-    _channel?.sink.close();
-    _channel = null;
-    _isSocketOpen = false;
-    _secretKey = null;
-    _isConnecting = false;
-    _scheduleReconnect();
+    _connectTask = null;
+    _failPendingRequests(reason);
+    if (channel != null) {
+      unawaited(channel.sink.close().catchError((Object _) {}));
+    }
+    if (reconnect) _scheduleReconnect();
   }
 
   void _scheduleReconnect() {
-    _stopHeartbeat();
     _reconnectTimer?.cancel();
+    if (_closed || _disposed || _isBackgroundPaused) return;
     _reconnectAttempts++;
-    final int backoffMs =
-        (1200 * math.pow(1.8, math.min(_reconnectAttempts, 6))).toInt();
-    final int jitterMs = math.Random().nextInt(400);
-    final int totalDelay = math.min(25000, backoffMs + jitterMs);
-
-    _reconnectTimer = Timer(Duration(milliseconds: totalDelay), () {
-      if (!_closed && !isConnected && !_isConnecting) {
-        connect().catchError((e) {
-          debugPrint('[WebSocketClient] Reconnect error: $e');
-        });
+    final backoff = (600 * math.pow(1.7, math.min(_reconnectAttempts - 1, 8)))
+        .toInt();
+    final delay = math.min(25000, backoff + math.Random().nextInt(250));
+    _reconnectTimer = Timer(Duration(milliseconds: delay), () {
+      _reconnectTimer = null;
+      if (_closed ||
+          _disposed ||
+          _isBackgroundPaused ||
+          isConnected ||
+          _isConnecting) {
+        return;
       }
+      unawaited(connect().catchError((Object _) {}));
     });
   }
 
-  /// Immediately force a reconnection attempt without waiting for backoff.
-  /// Used when the application resumes from background or network connectivity is restored.
   void reconnectNow() {
-    _closed = false;
+    if (_closed || _disposed || _isBackgroundPaused) return;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _reconnectAttempts = 0;
-    if (!isConnected && !_isConnecting) {
-      debugPrint('[WebSocketClient] Immediate reconnect triggered');
-      connect().catchError((e) {
-        debugPrint('[WebSocketClient] reconnectNow error: $e');
+    if (isConnected &&
+        _clock.elapsedMilliseconds - _lastReceivedMs >=
+            heartbeatTimeout.inMilliseconds) {
+      _retire(
+        _connectionEpoch,
+        'Connection stale after resume',
+        reconnect: false,
+      );
+    }
+    if (isConnected) {
+      final epoch = _connectionEpoch;
+      final observed = _lastReceivedMs;
+      _ping();
+      _probeTimer?.cancel();
+      _probeTimer = Timer(probeTimeout, () {
+        if (epoch == _connectionEpoch &&
+            isConnected &&
+            _lastReceivedMs <= observed) {
+          _retire(epoch, 'Connection probe timed out');
+        }
       });
+    } else if (!_isConnecting) {
+      unawaited(connect().catchError((Object _) {}));
     }
   }
 
   void _failPendingRequests(String reason) {
-    final List<Completer<Map<String, dynamic>>> pending =
-        _pendingRequests.values.toList();
+    final List<Completer<Map<String, dynamic>>> pending = _pendingRequests
+        .values
+        .toList();
     _pendingRequests.clear();
+    _pendingTokens.clear();
     for (final Completer<Map<String, dynamic>> c in pending) {
       if (!c.isCompleted) {
         c.completeError(ApiException(statusCode: 0, message: reason));
@@ -255,7 +355,13 @@ class WebSocketClient {
     _connectionReadyCompleter = null;
   }
 
-  void _onMessage(dynamic rawData) async {
+  Future<void> _onMessage(
+    dynamic rawData,
+    int epoch,
+    Future<void> previous,
+    _FrameDecodeGate gate,
+  ) async {
+    if (epoch != _connectionEpoch || _closed || _disposed) return;
     try {
       if (rawData is List<int>) {
         // Binary frame — try to decode as UTF-8 string first
@@ -263,7 +369,9 @@ class WebSocketClient {
       }
 
       if (rawData is! String) {
-        debugPrint('[WebSocketClient] Received unknown data type: ${rawData.runtimeType}');
+        debugPrint(
+          '[WebSocketClient] Received unknown data type: ${rawData.runtimeType}',
+        );
         return;
       }
 
@@ -281,15 +389,19 @@ class WebSocketClient {
           final dynamic decoded = jsonDecode(utf8.decode(bytes));
           if (decoded is Map<String, dynamic>) {
             parsedOuter = decoded;
-            debugPrint('[WebSocketClient] Received base64-encoded message (unencrypted): ${parsedOuter['action']} / error: ${parsedOuter['error']}');
+            debugPrint('[WebSocketClient] Received legacy envelope');
           }
         } catch (e2) {
-          debugPrint('[WebSocketClient] Could not parse incoming message: $e2');
+          debugPrint('[WebSocketClient] Invalid incoming envelope');
           return;
         }
       }
 
       if (parsedOuter == null) return;
+      if (epoch != _connectionEpoch || _closed || _disposed) return;
+      _lastReceivedMs = _clock.elapsedMilliseconds;
+      _probeTimer?.cancel();
+      _probeTimer = null;
 
       Map<String, dynamic> msg;
       if (parsedOuter['encrypted'] == true) {
@@ -298,9 +410,10 @@ class WebSocketClient {
           return;
         }
         try {
-          msg = await _decryptMessage(parsedOuter);
+          msg = await gate.run(() => _decryptMessage(parsedOuter!));
+          if (epoch != _connectionEpoch || _closed || _disposed) return;
         } catch (e) {
-          debugPrint('[WebSocketClient] Decryption failed: $e');
+          _retire(epoch, 'Invalid encrypted server frame');
           return;
         }
       } else {
@@ -315,9 +428,12 @@ class WebSocketClient {
         final String? keyStr = msg['key'] as String?;
         if (keyStr != null) {
           final List<int> keyBytes = base64Decode(keyStr);
-          debugPrint('[WebSocketClient] Key received: ${keyBytes.length} bytes');
+          debugPrint(
+            '[WebSocketClient] Key received: ${keyBytes.length} bytes',
+          );
           if (keyBytes.length != 32) {
-            debugPrint('[WebSocketClient] WARNING: Key is not 32 bytes! Got ${keyBytes.length}');
+            _retire(epoch, 'Invalid connection key');
+            return;
           }
           _secretKey = SecretKey(keyBytes);
           _isConnecting = false;
@@ -346,39 +462,64 @@ class WebSocketClient {
           : int.tryParse(msg['request_id']?.toString() ?? '');
 
       if (requestId != null) {
-        final Completer<Map<String, dynamic>>? completer =
-            _pendingRequests.remove(requestId);
-        if (completer != null) {
+        final Completer<Map<String, dynamic>>? completer = _pendingRequests
+            .remove(requestId);
+        final sentToken = _pendingTokens.remove(requestId);
+        if (completer != null && !completer.isCompleted) {
           if (error != null && error.isNotEmpty) {
-            debugPrint('[WebSocketClient] Request $requestId error: $error');
+            debugPrint('[WebSocketClient] Request $requestId rejected');
             final String? resAction = msg['action'] as String?;
-            final bool isAuthAction = resAction == 'login' ||
+            final bool isAuthAction =
+                resAction == 'login' ||
                 resAction == 'login_nios_id' ||
                 resAction == 'verify_2fa' ||
                 resAction == 'register';
-            if (!isAuthAction &&
+            if (sentToken == readToken() &&
+                !isAuthAction &&
                 (error.toLowerCase().contains('unauthorized') ||
                     error.toLowerCase().contains('invalid token') ||
                     error.toLowerCase().contains('could not validate'))) {
               onUnauthorized?.call();
             }
             completer.completeError(
-              ApiException(statusCode: 400, message: error, payload: msg['payload']),
+              ApiException(
+                statusCode: 400,
+                message: error,
+                payload: msg['payload'],
+              ),
             );
           } else {
             completer.complete(msg);
           }
         }
       } else {
-        // Push notification (no request_id)
+        // Only stateful pushes wait for older frames. Request acknowledgements
+        // above remain responsive while a file response decrypts in an isolate.
+        await previous;
+        if (epoch != _connectionEpoch || _closed || _disposed) return;
         if (action != null && action.isNotEmpty) {
           _pushStreamController.add(msg);
         }
       }
-    } catch (e, stack) {
-      debugPrint('[WebSocketClient] _onMessage error: $e\n$stack');
+    } catch (e) {
+      debugPrint('[WebSocketClient] Invalid server message');
+    } finally {
+      await previous;
     }
   }
+
+  bool _safeToRetry(String action) =>
+      action.startsWith('get_') ||
+      action.startsWith('list_') ||
+      action.startsWith('search_') ||
+      const {
+        'history',
+        'search',
+        'message_replies',
+        'mark_read',
+        'ping',
+        'heartbeat',
+      }.contains(action);
 
   Future<dynamic> request(
     String action, {
@@ -386,31 +527,34 @@ class WebSocketClient {
     Duration timeout = const Duration(seconds: 15),
     int maxRetries = 2,
   }) async {
-    int attempts = 0;
+    final session = _sessionEpoch;
+    final token = readToken();
+    var attempts = 0;
     while (true) {
-      attempts++;
+      if (_disposed || session != _sessionEpoch || token != readToken()) {
+        throw const ApiException(statusCode: 0, message: 'Request canceled');
+      }
       try {
-        return await _doRequest(action, payload: payload, timeout: timeout);
-      } on ApiException catch (e) {
-        final String errLower = e.message.toLowerCase();
-        final bool isConnectionFlake = e.statusCode == 0 ||
-            errLower.contains('connection') ||
-            errLower.contains('socket') ||
-            errLower.contains('timed out') ||
-            errLower.contains('disconnect') ||
-            errLower.contains('closed');
-        if (isConnectionFlake && attempts <= maxRetries) {
-          debugPrint('[WebSocketClient] $action failed with ${e.message}, retrying ($attempts/$maxRetries)...');
-          _closed = false;
-          _isSocketOpen = false;
-          _secretKey = null;
-          _isConnecting = false;
-          _channel?.sink.close();
-          _channel = null;
-          await Future<void>.delayed(Duration(milliseconds: 300 * attempts));
-          continue;
+        return await _doRequest(
+          action,
+          payload: payload,
+          timeout: timeout,
+          session: session,
+          token: token,
+        );
+      } on ApiException catch (error) {
+        if (error.statusCode != 0 ||
+            !_safeToRetry(action) ||
+            attempts >= maxRetries ||
+            session != _sessionEpoch ||
+            token != readToken() ||
+            _closed ||
+            _disposed) {
+          rethrow;
         }
-        rethrow;
+        attempts++;
+        // A single slow endpoint must not tear down a healthy shared socket.
+        await Future<void>.delayed(Duration(milliseconds: 60 * attempts));
       }
     }
   }
@@ -419,74 +563,64 @@ class WebSocketClient {
     String action, {
     Map<String, dynamic>? payload,
     Duration timeout = const Duration(seconds: 15),
+    required int session,
+    required String? token,
   }) async {
     await connect();
-
-    // Ensure we actually have the secret key before trying to send encrypted message
-    if (_secretKey == null && _connectionReadyCompleter != null) {
-      try {
-        await _connectionReadyCompleter!.future.timeout(const Duration(seconds: 8));
-      } catch (_) {}
+    if (session != _sessionEpoch || token != readToken()) {
+      throw const ApiException(statusCode: 0, message: 'Request canceled');
     }
-
-    final int requestId = ++_requestIdCounter;
-    final Completer<Map<String, dynamic>> completer =
-        Completer<Map<String, dynamic>>();
+    final channel = _channel;
+    final epoch = _connectionEpoch;
+    if (!isConnected || channel == null || _secretKey == null) {
+      throw const ApiException(
+        statusCode: 0,
+        message: 'Encrypted connection unavailable',
+      );
+    }
     if (_pendingRequests.length >= 100) {
-      completer.completeError(StateError('Too many pending WebSocket requests'));
-      return completer.future;
+      throw const ApiException(
+        statusCode: 429,
+        message: 'Too many pending requests',
+      );
     }
-    _pendingRequests[requestId] = completer;
-
-    final Map<String, dynamic> requestObj = <String, dynamic>{
-      'action': action,
-      'payload': payload ?? <String, dynamic>{},
-      'request_id': requestId,
-      'message_id': _uuid.v4(),
-    };
-
-    final String? token = readToken();
-    if (token != null && token.isNotEmpty) {
-      requestObj['token'] = token;
-    }
-
-    try {
-      final String jsonStr = jsonEncode(requestObj);
-      debugPrint('[WebSocketClient] → $action (req=$requestId, ${jsonStr.length} chars)');
-
-      String toSend;
-      if (_secretKey != null) {
-        final Map<String, dynamic> encryptedMsg =
-            await _encryptMessage(requestObj);
-        toSend = jsonEncode(encryptedMsg);
-      } else {
-        // Should not happen after connect() succeeds, but log a warning
-        debugPrint('[WebSocketClient] WARNING: Sending without encryption!');
-        toSend = jsonStr;
-      }
-
-      if (!_isSocketOpen || _channel == null) {
-        throw ApiException(statusCode: 0, message: 'Connection to server lost');
-      }
-
-      _channel!.sink.add(toSend);
-    } catch (e) {
-      _pendingRequests.remove(requestId);
-      completer.completeError(e);
-      return completer.future;
-    }
-
-    final Map<String, dynamic> response = await completer.future.timeout(
+    final id = ++_requestIdCounter;
+    final completer = Completer<Map<String, dynamic>>();
+    _pendingRequests[id] = completer;
+    _pendingTokens[id] = token;
+    final response = completer.future.timeout(
       timeout,
       onTimeout: () {
-        _pendingRequests.remove(requestId);
-        throw ApiException(
+        _pendingRequests.remove(id);
+        _pendingTokens.remove(id);
+        throw const ApiException(
           statusCode: 0,
           message: 'Server response timed out',
         );
       },
     );
-    return response['payload'];
+    response.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    try {
+      final request = <String, dynamic>{
+        'action': action,
+        'payload': payload ?? <String, dynamic>{},
+        'request_id': id,
+        'message_id': _uuid.v4(),
+        if (token != null && token.isNotEmpty) 'token': token,
+      };
+      final encrypted = await _encryptMessage(request);
+      if (epoch != _connectionEpoch ||
+          !identical(_channel, channel) ||
+          !isConnected) {
+        throw const ApiException(statusCode: 0, message: 'Connection replaced');
+      }
+      channel.sink.add(jsonEncode(encrypted));
+    } catch (error, stack) {
+      _pendingRequests.remove(id);
+      _pendingTokens.remove(id);
+      if (!completer.isCompleted) completer.completeError(error, stack);
+    }
+    return (await response)['payload'];
   }
 
   Future<List<int>> _secretKeyBytes() async {
@@ -494,7 +628,9 @@ class WebSocketClient {
     if (key == null) {
       if (_isConnecting && _connectionReadyCompleter != null) {
         try {
-          await _connectionReadyCompleter!.future.timeout(const Duration(seconds: 8));
+          await _connectionReadyCompleter!.future.timeout(
+            const Duration(seconds: 8),
+          );
           key = _secretKey;
         } catch (_) {}
       }
@@ -512,8 +648,7 @@ class WebSocketClient {
     return bytes;
   }
 
-  Future<Map<String, dynamic>> _encryptMessage(
-      Map<String, dynamic> msg) async {
+  Future<Map<String, dynamic>> _encryptMessage(Map<String, dynamic> msg) async {
     final String jsonStr = jsonEncode(msg);
     final Map<String, dynamic> job = <String, dynamic>{
       'key': await _secretKeyBytes(),
@@ -526,7 +661,8 @@ class WebSocketClient {
   }
 
   Future<Map<String, dynamic>> _decryptMessage(
-      Map<String, dynamic> outerMsg) async {
+    Map<String, dynamic> outerMsg,
+  ) async {
     final Map<String, dynamic> data = asStringMap(outerMsg['data']);
     final String? ciphertextB64 = data['ciphertext'] as String?;
     final String? ivB64 = data['iv'] as String?;
@@ -548,8 +684,11 @@ class WebSocketClient {
   }
 
   void sendRaw(String data) {
-    if (_isSocketOpen && _channel != null) {
+    if (!isConnected || _channel == null) return;
+    try {
       _channel!.sink.add(data);
+    } catch (_) {
+      _retire(_connectionEpoch, 'Connection write failed');
     }
   }
 
@@ -570,37 +709,24 @@ class WebSocketClient {
   void resumeFromBackground() {
     if (!_isBackgroundPaused) return;
     _isBackgroundPaused = false;
-    debugPrint('[WebSocketClient] Resumed from background.');
-    if (isConnected) {
-      _startHeartbeat();
-      // Send an immediate keepalive ping to confirm connection viability
-      sendRaw(jsonEncode(<String, dynamic>{
-        'action': 'ping',
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      }));
-    } else if (!_closed && !_isConnecting) {
-      connect();
-    }
+    if (_closed || _disposed) return;
+    if (isConnected) _startHeartbeat();
+    reconnectNow();
   }
 
   void disconnect() {
     _closed = true;
-    _stopHeartbeat();
+    ++_sessionEpoch;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
-    _channelSubscription?.cancel();
-    _channelSubscription = null;
-    _failPendingRequests('WebSocket disconnected');
-    _channel?.sink.close();
-    _channel = null;
-    _isSocketOpen = false;
-    _secretKey = null;
-    _isConnecting = false;
+    _retire(_connectionEpoch, 'WebSocket disconnected', reconnect: false);
   }
 
   void close() {
+    if (_disposed) return;
     disconnect();
-    _closed = true;
+    _disposed = true;
     _connectedStreamController.close();
+    _pushStreamController.close();
   }
 }

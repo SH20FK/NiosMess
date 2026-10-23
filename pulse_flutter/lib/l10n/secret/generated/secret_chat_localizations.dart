@@ -448,6 +448,396 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Draft'**
   String get inboxDraftSemantics;
+
+  /// No description provided for @inboxDraftLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft:'**
+  String get inboxDraftLabel;
+
+  /// No description provided for @inboxDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation deleted'**
+  String get inboxDeleted;
+
+  /// No description provided for @inboxDeleteNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete chat “{name}”?'**
+  String inboxDeleteNamed(String name);
+
+  /// No description provided for @inboxLeaveNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave “{name}”?'**
+  String inboxLeaveNamed(String name);
+
+  /// No description provided for @inboxRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not refresh your chats. Try again.'**
+  String get inboxRefreshFailed;
+
+  /// No description provided for @interactiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get interactiveTitle;
+
+  /// No description provided for @interactivePoll.
+  ///
+  /// In en, this message translates to:
+  /// **'Poll'**
+  String get interactivePoll;
+
+  /// No description provided for @interactiveQuiz.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiz'**
+  String get interactiveQuiz;
+
+  /// No description provided for @interactiveList.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared list'**
+  String get interactiveList;
+
+  /// No description provided for @interactiveTitleField.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get interactiveTitleField;
+
+  /// No description provided for @interactiveQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Question'**
+  String get interactiveQuestion;
+
+  /// No description provided for @interactiveTitleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a title'**
+  String get interactiveTitleRequired;
+
+  /// No description provided for @interactiveQuestionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a question'**
+  String get interactiveQuestionRequired;
+
+  /// No description provided for @interactiveOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer options'**
+  String get interactiveOptions;
+
+  /// No description provided for @interactiveQuizOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer options. Choose the correct one'**
+  String get interactiveQuizOptions;
+
+  /// No description provided for @interactiveFieldRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete this field'**
+  String get interactiveFieldRequired;
+
+  /// No description provided for @interactiveDuplicateOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Options must be different'**
+  String get interactiveDuplicateOptions;
+
+  /// No description provided for @interactiveItemNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Item {number}'**
+  String interactiveItemNumber(int number);
+
+  /// No description provided for @interactiveOptionNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Option {number}'**
+  String interactiveOptionNumber(int number);
+
+  /// No description provided for @interactiveRemoveItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove item'**
+  String get interactiveRemoveItem;
+
+  /// No description provided for @interactiveRemoveOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove option'**
+  String get interactiveRemoveOption;
+
+  /// No description provided for @interactiveAddItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Add item'**
+  String get interactiveAddItem;
+
+  /// No description provided for @interactiveAddOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Add option'**
+  String get interactiveAddOption;
+
+  /// No description provided for @interactiveCorrectAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct answer'**
+  String get interactiveCorrectAnswer;
+
+  /// No description provided for @interactiveMultiple.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple answers'**
+  String get interactiveMultiple;
+
+  /// No description provided for @interactiveExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Explanation (optional)'**
+  String get interactiveExplanation;
+
+  /// No description provided for @interactiveExplanationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown after answering'**
+  String get interactiveExplanationHint;
+
+  /// No description provided for @interactiveVotesVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'Participants can see who voted for each option.'**
+  String get interactiveVotesVisible;
+
+  /// No description provided for @interactiveSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get interactiveSend;
+
+  /// No description provided for @interactiveSendFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send. Retry in the chat.'**
+  String get interactiveSendFailed;
+
+  /// No description provided for @interactiveSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save. Try again.'**
+  String get interactiveSaveFailed;
+
+  /// No description provided for @interactiveVoters.
+  ///
+  /// In en, this message translates to:
+  /// **'Votes'**
+  String get interactiveVoters;
+
+  /// No description provided for @interactiveParticipant.
+  ///
+  /// In en, this message translates to:
+  /// **'Participant'**
+  String get interactiveParticipant;
+
+  /// No description provided for @interactiveClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get interactiveClosed;
+
+  /// No description provided for @interactiveOpenPoll.
+  ///
+  /// In en, this message translates to:
+  /// **'Public poll'**
+  String get interactiveOpenPoll;
+
+  /// No description provided for @interactiveQuizClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiz closed'**
+  String get interactiveQuizClosed;
+
+  /// No description provided for @interactivePollClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Poll closed'**
+  String get interactivePollClosed;
+
+  /// No description provided for @interactiveQuizSingle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiz, one answer'**
+  String get interactiveQuizSingle;
+
+  /// No description provided for @interactivePollMultiple.
+  ///
+  /// In en, this message translates to:
+  /// **'Public poll, multiple answers'**
+  String get interactivePollMultiple;
+
+  /// No description provided for @interactivePollSingle.
+  ///
+  /// In en, this message translates to:
+  /// **'Public poll, one answer'**
+  String get interactivePollSingle;
+
+  /// No description provided for @interactiveCorrectAnswerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct answer'**
+  String get interactiveCorrectAnswerLabel;
+
+  /// No description provided for @interactiveItemReopened.
+  ///
+  /// In en, this message translates to:
+  /// **'Item reopened'**
+  String get interactiveItemReopened;
+
+  /// No description provided for @interactiveItemCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Item completed'**
+  String get interactiveItemCompleted;
+
+  /// No description provided for @interactiveQuizAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiz answer'**
+  String get interactiveQuizAnswer;
+
+  /// No description provided for @interactiveCorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct'**
+  String get interactiveCorrect;
+
+  /// No description provided for @interactiveIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect'**
+  String get interactiveIncorrect;
+
+  /// No description provided for @interactiveVoteEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Poll vote'**
+  String get interactiveVoteEvent;
+
+  /// No description provided for @interactiveVote.
+  ///
+  /// In en, this message translates to:
+  /// **'Vote'**
+  String get interactiveVote;
+
+  /// No description provided for @interactiveChangeVote.
+  ///
+  /// In en, this message translates to:
+  /// **'Change vote'**
+  String get interactiveChangeVote;
+
+  /// No description provided for @interactiveVoteRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Vote withdrawn'**
+  String get interactiveVoteRevoked;
+
+  /// No description provided for @interactiveRevoke.
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw'**
+  String get interactiveRevoke;
+
+  /// No description provided for @interactiveLoadRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load. Retry'**
+  String get interactiveLoadRetry;
+
+  /// No description provided for @interactiveLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading updates…'**
+  String get interactiveLoading;
+
+  /// No description provided for @interactiveAfterSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Available after sending'**
+  String get interactiveAfterSend;
+
+  /// No description provided for @interactiveFinishList.
+  ///
+  /// In en, this message translates to:
+  /// **'Close this list?'**
+  String get interactiveFinishList;
+
+  /// No description provided for @interactiveFinishPoll.
+  ///
+  /// In en, this message translates to:
+  /// **'Close voting?'**
+  String get interactiveFinishPoll;
+
+  /// No description provided for @interactiveFinishBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Participants will no longer be able to change their answers.'**
+  String get interactiveFinishBody;
+
+  /// No description provided for @interactiveFinish.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get interactiveFinish;
+
+  /// No description provided for @interactiveFinishedEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get interactiveFinishedEvent;
+
+  /// No description provided for @interactiveYourWrongAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answer, incorrect'**
+  String get interactiveYourWrongAnswer;
+
+  /// No description provided for @interactiveYourAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answer'**
+  String get interactiveYourAnswer;
+
+  /// No description provided for @interactiveSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get interactiveSaving;
+
+  /// No description provided for @interactiveParticipantNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Participant {id}'**
+  String interactiveParticipantNumber(int id);
+
+  /// No description provided for @interactiveCompletedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed {count} of {total}'**
+  String interactiveCompletedCount(int count, int total);
+
+  /// No description provided for @interactiveVoterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Voters: {count}'**
+  String interactiveVoterCount(int count);
 }
 
 class _SecretChatLocalizationsDelegate

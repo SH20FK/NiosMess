@@ -24,16 +24,23 @@ class ChatDetailScrollToBottomFAB extends StatelessWidget {
       child: RepaintBoundary(
         child: AnimatedOpacity(
           opacity: show ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : M3Durations.short4,
           child: AnimatedScale(
             scale: show ? 1.0 : 0.7,
-            duration: const Duration(milliseconds: 250),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : M3Durations.medium1,
             curve: M3SpringCurves.spatial,
             child: Badge(
               isLabelVisible: unreadCount > 0,
               label: Text(
                 unreadCount > 99 ? '99+' : '$unreadCount',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
               ),
               backgroundColor: scheme.primary,
               textColor: scheme.onPrimary,

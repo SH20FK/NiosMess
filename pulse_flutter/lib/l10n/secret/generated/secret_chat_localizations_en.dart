@@ -203,4 +203,215 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get inboxDraftSemantics => 'Draft';
+
+  @override
+  String get inboxDraftLabel => 'Draft:';
+
+  @override
+  String get inboxDeleted => 'Conversation deleted';
+
+  @override
+  String inboxDeleteNamed(String name) {
+    return 'Delete chat “$name”?';
+  }
+
+  @override
+  String inboxLeaveNamed(String name) {
+    return 'Leave “$name”?';
+  }
+
+  @override
+  String get inboxRefreshFailed => 'Could not refresh your chats. Try again.';
+
+  @override
+  String get interactiveTitle => 'Create';
+
+  @override
+  String get interactivePoll => 'Poll';
+
+  @override
+  String get interactiveQuiz => 'Quiz';
+
+  @override
+  String get interactiveList => 'Shared list';
+
+  @override
+  String get interactiveTitleField => 'Title';
+
+  @override
+  String get interactiveQuestion => 'Question';
+
+  @override
+  String get interactiveTitleRequired => 'Enter a title';
+
+  @override
+  String get interactiveQuestionRequired => 'Enter a question';
+
+  @override
+  String get interactiveOptions => 'Answer options';
+
+  @override
+  String get interactiveQuizOptions => 'Answer options. Choose the correct one';
+
+  @override
+  String get interactiveFieldRequired => 'Complete this field';
+
+  @override
+  String get interactiveDuplicateOptions => 'Options must be different';
+
+  @override
+  String interactiveItemNumber(int number) {
+    return 'Item $number';
+  }
+
+  @override
+  String interactiveOptionNumber(int number) {
+    return 'Option $number';
+  }
+
+  @override
+  String get interactiveRemoveItem => 'Remove item';
+
+  @override
+  String get interactiveRemoveOption => 'Remove option';
+
+  @override
+  String get interactiveAddItem => 'Add item';
+
+  @override
+  String get interactiveAddOption => 'Add option';
+
+  @override
+  String get interactiveCorrectAnswer => 'Correct answer';
+
+  @override
+  String get interactiveMultiple => 'Multiple answers';
+
+  @override
+  String get interactiveExplanation => 'Explanation (optional)';
+
+  @override
+  String get interactiveExplanationHint => 'Shown after answering';
+
+  @override
+  String get interactiveVotesVisible =>
+      'Participants can see who voted for each option.';
+
+  @override
+  String get interactiveSend => 'Send';
+
+  @override
+  String get interactiveSendFailed => 'Could not send. Retry in the chat.';
+
+  @override
+  String get interactiveSaveFailed => 'Could not save. Try again.';
+
+  @override
+  String get interactiveVoters => 'Votes';
+
+  @override
+  String get interactiveParticipant => 'Participant';
+
+  @override
+  String get interactiveClosed => 'Closed';
+
+  @override
+  String get interactiveOpenPoll => 'Public poll';
+
+  @override
+  String get interactiveQuizClosed => 'Quiz closed';
+
+  @override
+  String get interactivePollClosed => 'Poll closed';
+
+  @override
+  String get interactiveQuizSingle => 'Quiz, one answer';
+
+  @override
+  String get interactivePollMultiple => 'Public poll, multiple answers';
+
+  @override
+  String get interactivePollSingle => 'Public poll, one answer';
+
+  @override
+  String get interactiveCorrectAnswerLabel => 'Correct answer';
+
+  @override
+  String get interactiveItemReopened => 'Item reopened';
+
+  @override
+  String get interactiveItemCompleted => 'Item completed';
+
+  @override
+  String get interactiveQuizAnswer => 'Quiz answer';
+
+  @override
+  String get interactiveCorrect => 'Correct';
+
+  @override
+  String get interactiveIncorrect => 'Incorrect';
+
+  @override
+  String get interactiveVoteEvent => 'Poll vote';
+
+  @override
+  String get interactiveVote => 'Vote';
+
+  @override
+  String get interactiveChangeVote => 'Change vote';
+
+  @override
+  String get interactiveVoteRevoked => 'Vote withdrawn';
+
+  @override
+  String get interactiveRevoke => 'Withdraw';
+
+  @override
+  String get interactiveLoadRetry => 'Could not load. Retry';
+
+  @override
+  String get interactiveLoading => 'Loading updates…';
+
+  @override
+  String get interactiveAfterSend => 'Available after sending';
+
+  @override
+  String get interactiveFinishList => 'Close this list?';
+
+  @override
+  String get interactiveFinishPoll => 'Close voting?';
+
+  @override
+  String get interactiveFinishBody =>
+      'Participants will no longer be able to change their answers.';
+
+  @override
+  String get interactiveFinish => 'Close';
+
+  @override
+  String get interactiveFinishedEvent => 'Closed';
+
+  @override
+  String get interactiveYourWrongAnswer => 'Your answer, incorrect';
+
+  @override
+  String get interactiveYourAnswer => 'Your answer';
+
+  @override
+  String get interactiveSaving => 'Saving…';
+
+  @override
+  String interactiveParticipantNumber(int id) {
+    return 'Participant $id';
+  }
+
+  @override
+  String interactiveCompletedCount(int count, int total) {
+    return 'Completed $count of $total';
+  }
+
+  @override
+  String interactiveVoterCount(int count) {
+    return 'Voters: $count';
+  }
 }
