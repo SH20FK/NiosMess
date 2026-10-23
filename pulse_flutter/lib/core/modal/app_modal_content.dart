@@ -30,6 +30,7 @@ class AppModalContent extends StatelessWidget {
     this.actions = const [],
     this.stackedActions = false,
     this.destructive = false,
+    this.compact = false,
     super.key,
   });
   final String title;
@@ -39,11 +40,27 @@ class AppModalContent extends StatelessWidget {
   final List<AppDialogAction> actions;
   final bool stackedActions;
   final bool destructive;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final titleWidget = Semantics(
+      namesRoute: true,
+      header: true,
+      child: Text(
+        title,
+        style: text.titleLarge?.copyWith(
+          fontFamily: AppFonts.ui,
+          fontSize: compact ? 20 : 24,
+          fontWeight: FontWeight.w600,
+          height: 1.25,
+          color: scheme.onSurface,
+        ),
+      ),
+    );
+    final inset = compact ? 20.0 : 24.0;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -51,12 +68,12 @@ class AppModalContent extends StatelessWidget {
         Flexible(
           fit: FlexFit.loose,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+            padding: EdgeInsets.fromLTRB(inset, inset, inset, 0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (icon != null) ...[
+                if (icon != null && !compact) ...[
                   DecoratedBox(
                     decoration: BoxDecoration(
                       color: destructive
@@ -77,22 +94,26 @@ class AppModalContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                 ],
-                Semantics(
-                  namesRoute: true,
-                  header: true,
-                  child: Text(
-                    title,
-                    style: text.titleLarge?.copyWith(
-                      fontFamily: AppFonts.ui,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      height: 1.25,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                ),
+                if (compact && icon != null)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(
+                          icon,
+                          size: 22,
+                          color: destructive ? scheme.error : scheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: titleWidget),
+                    ],
+                  )
+                else
+                  titleWidget,
                 if (subtitle?.trim().isNotEmpty == true) ...[
-                  const SizedBox(height: 12),
+                  SizedBox(height: compact ? 8 : 12),
                   Text(
                     subtitle!,
                     style: text.bodyMedium?.copyWith(
@@ -102,14 +123,14 @@ class AppModalContent extends StatelessWidget {
                   ),
                 ],
                 if (child != null) ...[const SizedBox(height: 20), child!],
-                const SizedBox(height: 24),
+                SizedBox(height: compact ? 16 : 24),
               ],
             ),
           ),
         ),
         if (actions.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            padding: EdgeInsets.fromLTRB(inset, 0, inset, inset),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 double width = 0;
@@ -119,7 +140,10 @@ class AppModalContent extends StatelessWidget {
                     textDirection: Directionality.of(context),
                     textScaler: MediaQuery.textScalerOf(context),
                   )..layout();
-                  width += painter.width + 48 + (action.icon == null ? 0 : 26);
+                  width +=
+                      painter.width +
+                      (compact ? 40 : 48) +
+                      (action.icon == null ? 0 : 26);
                   painter.dispose();
                 }
                 final stacked =
@@ -149,11 +173,14 @@ class AppModalContent extends StatelessWidget {
                     );
                   }
                   final style = ButtonStyle(
-                    minimumSize: const WidgetStatePropertyAll<Size>(
-                      Size(64, 56),
+                    minimumSize: WidgetStatePropertyAll<Size>(
+                      Size(64, compact ? 48 : 56),
                     ),
-                    padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(
-                      EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: WidgetStatePropertyAll<EdgeInsetsGeometry>(
+                      EdgeInsets.symmetric(
+                        horizontal: compact ? 16 : 20,
+                        vertical: compact ? 10 : 12,
+                      ),
                     ),
                     shape: const WidgetStatePropertyAll<OutlinedBorder>(
                       StadiumBorder(),

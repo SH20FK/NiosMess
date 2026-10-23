@@ -69,6 +69,43 @@ void main() {
     );
   }
 
+  testWidgets(
+    'short deletion uses compact inline header and 48dp action targets',
+    (tester) async {
+      await mount(
+        tester,
+        (context) => TextButton(
+          onPressed: () => showAppConfirmDialog(
+            context: context,
+            title: context.l10n.chatDelete,
+            subtitle: context.l10n.modalDeleteChatBody,
+            confirmLabel: context.l10n.commonDelete,
+            cancelLabel: context.l10n.commonCancel,
+            destructive: true,
+            icon: Icons.delete_outline_rounded,
+          ),
+          child: const Text('open'),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      final surface = find.byType(M3ModalSurface);
+      expect(tester.getSize(surface).height, lessThanOrEqualTo(220));
+      final icon = tester.getRect(find.byIcon(Icons.delete_outline_rounded));
+      final title = tester.getRect(find.text('Удалить').first);
+      expect((icon.center.dy - title.center.dy).abs(), lessThanOrEqualTo(4));
+      expect(
+        tester.getSize(find.byType(FilledButton)).height,
+        greaterThanOrEqualTo(48),
+      );
+      expect(
+        tester.getSize(find.widgetWithText(TextButton, 'Отмена')).height,
+        greaterThanOrEqualTo(48),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final brightness in Brightness.values) {
     for (final locale in ['ru', 'en']) {
       for (final width in [320.0, 390.0]) {

@@ -303,7 +303,7 @@ class AppModal {
         subtitle: message,
         icon: icon,
         destructive: destructive,
-        stackedActions: false,
+        compact: true,
         actions: [
           AppDialogAction(
             label: cancelLabel ?? ctx.l10n.commonCancel,
@@ -322,7 +322,7 @@ class AppModal {
     return showDialog<bool>(
       context: context,
       builder: content,
-      maxWidth: 460,
+      maxWidth: 400,
       isScrollable: true,
     );
   }

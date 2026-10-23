@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/modal/app_modal_content.dart';
 import 'package:pulse_flutter/core/modal/m3_modal_surface.dart';
@@ -167,7 +168,9 @@ Future<bool?> showAppConfirmDialog({
   destructive: destructive,
   onActionFeedback: (confirmed) {
     try {
-      ProviderScope.containerOf(context, listen: false)
+      final container = ProviderScope.containerOf(context, listen: false);
+      if (!container.read(uiSettingsProvider).soundEffects) return;
+      container
           .read(appSoundProvider)
           .playEvent(confirmed ? SoundEvent.confirm : SoundEvent.cancel);
     } catch (_) {}

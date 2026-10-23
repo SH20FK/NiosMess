@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
@@ -315,13 +316,13 @@ void main() {
             addTearDown(tester.view.resetDevicePixelRatio);
             final capture = GlobalKey();
             var index = 0;
+            var soundInitializations = 0;
             final router = GoRouter(
               routes: [
                 GoRoute(
                   path: '/',
                   builder: (context, state) => StatefulBuilder(
                     builder: (context, setState) => RepaintBoundary(
-                      key: capture,
                       child: Scaffold(
                         body: const ChatListScreen(),
                         floatingActionButton: const InboxComposeButton(),
@@ -362,6 +363,10 @@ void main() {
               ProviderScope(
                 overrides: [
                   uiSettingsProvider.overrideWith(_Settings.new),
+                  appSoundProvider.overrideWith((ref) {
+                    soundInitializations++;
+                    throw StateError("Disabled audio must stay uninitialized");
+                  }),
                   authProvider.overrideWith(_Auth.new),
                   chatsProvider.overrideWith(_Chats.new),
                   ordinaryE2eeProvider.overrideWithValue(null),
@@ -384,7 +389,7 @@ void main() {
                     data: MediaQuery.of(
                       context,
                     ).copyWith(textScaler: TextScaler.linear(scale)),
-                    child: child!,
+                    child: RepaintBoundary(key: capture, child: child!),
                   ),
                 ),
               ),
@@ -405,7 +410,8 @@ void main() {
             expect(tester.getBottomLeft(nav).dx, 0);
             expect(tester.getBottomLeft(nav).dy, 844);
 
-            if (output != null && scale == 1) {
+            Future<void> captureStep(String name) async {
+              if (output == null || scale != 1) return;
               await tester.runAsync(() async {
                 final boundary =
                     capture.currentContext!.findRenderObject()!
@@ -417,13 +423,15 @@ void main() {
                   );
                   await Directory(output).create(recursive: true);
                   await File(
-                    '$output/inbox_${brightness.name}_$locale.png',
+                    '$output/${name}_${brightness.name}_$locale.png',
                   ).writeAsBytes(bytes!.buffer.asUint8List());
                 } finally {
                   image.dispose();
                 }
               });
             }
+
+            await captureStep('01-inbox');
             expect(find.byType(FilterChip), findsNWidgets(3));
             expect(find.text('never-display-ciphertext'), findsNothing);
             await tester.tap(find.byIcon(Icons.more_vert_rounded));
@@ -444,6 +452,7 @@ void main() {
               ),
               findsOneWidget,
             );
+            await captureStep('02-create');
             await tester.binding.handlePopRoute();
             await tester.pumpAndSettle();
             await tester.tap(find.byType(FloatingActionButton));
@@ -500,10 +509,17 @@ void main() {
               ),
               findsOneWidget,
             );
+            await captureStep('03-direct');
             final unreadLabel = locale == 'ru' ? 'Непрочитанные' : 'Unread';
             await tester.tap(find.widgetWithText(FilterChip, unreadLabel));
             await tester.pumpAndSettle();
             expect(find.byType(ChatTile), findsNWidgets(2));
+            await tester.longPress(find.text('Ирина'));
+            await tester.pumpAndSettle();
+            expect(find.byType(BottomSheet), findsOneWidget);
+            await captureStep('04-actions');
+            await tester.binding.handlePopRoute();
+            await tester.pumpAndSettle();
             await tester.tap(find.byType(NavigationDestination).last);
             await tester.pumpAndSettle();
             expect(tester.widget<NavigationBar>(nav).selectedIndex, 2);
@@ -535,6 +551,7 @@ void main() {
             await tester.pumpAndSettle();
             expect(tester.getSize(nav).height, 100);
             expect(tester.takeException(), isNull);
+            expect(soundInitializations, 0);
             await tester.pumpWidget(const SizedBox());
           },
         );

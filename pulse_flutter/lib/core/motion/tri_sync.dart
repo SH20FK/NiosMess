@@ -66,14 +66,14 @@ class TriSync {
       final UiSettingsState settings = ref.read(uiSettingsProvider);
       hapticsEnabled = settings.haptics;
       soundEnabled = settings.soundEffects;
-      sound = ref.read(appSoundProvider);
+      if (soundEnabled) sound = ref.read(appSoundProvider);
     } else if (context != null) {
       try {
         final container = ProviderScope.containerOf(context, listen: false);
         final UiSettingsState settings = container.read(uiSettingsProvider);
         hapticsEnabled = settings.haptics;
         soundEnabled = settings.soundEffects;
-        sound = container.read(appSoundProvider);
+        if (soundEnabled) sound = container.read(appSoundProvider);
       } catch (_) {
         // Fallback when invoked outside ProviderScope
       }

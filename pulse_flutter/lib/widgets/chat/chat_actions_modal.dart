@@ -142,11 +142,11 @@ class ChatActionsModal {
         .toList(growable: false);
 
     final isDirect = chat.chatType != 'group' && chat.chatType != 'channel';
-    final Widget destructiveTile = Container(
-      decoration: BoxDecoration(
-        color: scheme.errorContainer.withValues(alpha: 0.35),
+    final Widget destructiveTile = Material(
+      color: scheme.errorContainer.withValues(alpha: 0.35),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.error.withValues(alpha: 0.2)),
+        side: BorderSide(color: scheme.error.withValues(alpha: 0.2)),
       ),
       child: ListTile(
         leading: Icon(
