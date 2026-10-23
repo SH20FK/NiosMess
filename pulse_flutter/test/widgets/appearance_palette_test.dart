@@ -109,6 +109,7 @@ void main() {
       final scope = ProviderScope.containerOf(
         tester.element(find.byType(SettingsAppearanceScreen)),
       );
+      expect(find.text('System colors'), findsOneWidget);
       final updates = <UiSettingsState>[];
       final subscription = scope.listen(
         uiSettingsProvider,

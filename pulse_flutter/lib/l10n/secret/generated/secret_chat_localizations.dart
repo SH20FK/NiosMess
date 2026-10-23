@@ -340,6 +340,114 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Backgrounds are temporarily disabled'**
   String get backgroundsPaused;
+
+  /// No description provided for @inboxChatType.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat type'**
+  String get inboxChatType;
+
+  /// No description provided for @inboxCreateMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Create…'**
+  String get inboxCreateMenu;
+
+  /// No description provided for @inboxComposeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a conversation'**
+  String get inboxComposeTitle;
+
+  /// No description provided for @inboxComposePersonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a person or search by @username'**
+  String get inboxComposePersonHint;
+
+  /// No description provided for @inboxComposeGroupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A conversation with several people'**
+  String get inboxComposeGroupHint;
+
+  /// No description provided for @inboxComposeChannelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Posts for your subscribers'**
+  String get inboxComposeChannelHint;
+
+  /// No description provided for @inboxComposeSecretHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A private conversation with end-to-end encryption'**
+  String get inboxComposeSecretHint;
+
+  /// No description provided for @inboxJoinLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Join with a link'**
+  String get inboxJoinLink;
+
+  /// No description provided for @inboxJoinLinkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a group or channel invitation'**
+  String get inboxJoinLinkHint;
+
+  /// No description provided for @inboxEncryptedPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted message'**
+  String get inboxEncryptedPreview;
+
+  /// No description provided for @inboxNoUnread.
+  ///
+  /// In en, this message translates to:
+  /// **'You’re all caught up'**
+  String get inboxNoUnread;
+
+  /// No description provided for @inboxCategoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No chats in this category yet'**
+  String get inboxCategoryEmpty;
+
+  /// No description provided for @inboxFilterResetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select All to return to every chat'**
+  String get inboxFilterResetHint;
+
+  /// No description provided for @inboxSearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing found'**
+  String get inboxSearchEmpty;
+
+  /// No description provided for @inboxSearchEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try another search'**
+  String get inboxSearchEmptyHint;
+
+  /// No description provided for @inboxWaitingToSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting to send'**
+  String get inboxWaitingToSend;
+
+  /// No description provided for @inboxSendFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent — retry in the chat'**
+  String get inboxSendFailed;
+
+  /// No description provided for @inboxDraftSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get inboxDraftSemantics;
 }
 
 class _SecretChatLocalizationsDelegate

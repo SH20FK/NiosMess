@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -336,27 +335,6 @@ class SettingsChatsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-
-        // 7. Chat wallpaper & visual
-        SettingsSection(
-          title: context.l10n.settingsChatsWallpaperSection,
-          subtitle: context.l10n.settingsChatsWallpaperSectionDesc,
-          children: <Widget>[
-            SettingsTile(
-              icon: Icons.wallpaper_rounded,
-              title: context.l10n.settingsChatsWallpaperGenerator,
-              subtitle: context.l10n.settingsChatsWallpaperGeneratorDesc,
-              iconColor: scheme.primary,
-              trailing: Icon(
-                Icons.chevron_right_rounded,
-                color: scheme.onSurfaceVariant,
-              ),
-              onTap: () {
-                context.push('/settings/wallpaper');
-              },
             ),
           ],
         ),

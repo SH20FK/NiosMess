@@ -3,6 +3,25 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.dart';
 
 extension SecretChatL10n on AppLocalizations {
+  String get inboxChatType => _secret.inboxChatType;
+  String get inboxCreateMenu => _secret.inboxCreateMenu;
+  String get inboxComposeTitle => _secret.inboxComposeTitle;
+  String get inboxComposePersonHint => _secret.inboxComposePersonHint;
+  String get inboxComposeGroupHint => _secret.inboxComposeGroupHint;
+  String get inboxComposeChannelHint => _secret.inboxComposeChannelHint;
+  String get inboxComposeSecretHint => _secret.inboxComposeSecretHint;
+  String get inboxJoinLink => _secret.inboxJoinLink;
+  String get inboxJoinLinkHint => _secret.inboxJoinLinkHint;
+  String get inboxEncryptedPreview => _secret.inboxEncryptedPreview;
+  String get inboxNoUnread => _secret.inboxNoUnread;
+  String get inboxCategoryEmpty => _secret.inboxCategoryEmpty;
+  String get inboxFilterResetHint => _secret.inboxFilterResetHint;
+  String get inboxSearchEmpty => _secret.inboxSearchEmpty;
+  String get inboxSearchEmptyHint => _secret.inboxSearchEmptyHint;
+  String get inboxWaitingToSend => _secret.inboxWaitingToSend;
+  String get inboxSendFailed => _secret.inboxSendFailed;
+  String get inboxDraftSemantics => _secret.inboxDraftSemantics;
+
   String get inboxActions => _secret.inboxActions;
   String get backgroundsPaused => _secret.backgroundsPaused;
   String updateFailureMessage(String message) =>

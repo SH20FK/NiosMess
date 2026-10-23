@@ -42,12 +42,15 @@ class MessageBubbleFooter extends StatelessWidget {
 
     final Color statusIconColor = isMine
         ? (isSending
-            ? scheme.onPrimaryContainer.withValues(alpha: 0.60)
-            : (isDark ? scheme.primary : scheme.onPrimaryContainer.withValues(alpha: 0.85)))
+              ? scheme.onPrimaryContainer.withValues(alpha: 0.60)
+              : (isDark
+                    ? scheme.primary
+                    : scheme.onPrimaryContainer.withValues(alpha: 0.85)))
         : scheme.onSurfaceVariant;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: <Widget>[
         if (isE2ee) ...[
           Icon(
@@ -83,25 +86,33 @@ class MessageBubbleFooter extends StatelessWidget {
         if (isMine && !isDeleted) ...<Widget>[
           const SizedBox(width: 3),
           if (isFailed)
-            GestureDetector(
-              onTap: onRetrySend,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Icon(
-                  Icons.error_outline_rounded,
-                  size: 14,
-                  color: scheme.error,
-                ),
-              ),
-            )
-          else if (isSending)
-            Icon(
-              Icons.access_time_rounded,
-              size: 12,
-              color: statusIconColor,
-            )
-          else
+            onRetrySend == null
+                ? Text(
+                    context.l10n.inboxSendFailed,
+                    style: textTheme.labelSmall?.copyWith(color: scheme.error),
+                  )
+                : TextButton.icon(
+                    onPressed: onRetrySend,
+                    icon: Icon(
+                      Icons.refresh_rounded,
+                      size: 16,
+                      color: scheme.error,
+                    ),
+                    label: Text(context.l10n.secretRetry),
+                    style: TextButton.styleFrom(
+                      foregroundColor: scheme.error,
+                      minimumSize: const Size(48, 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  )
+          else if (isSending) ...[
+            Icon(Icons.access_time_rounded, size: 12, color: statusIconColor),
+            const SizedBox(width: 3),
+            Text(
+              context.l10n.inboxWaitingToSend,
+              style: textTheme.labelSmall?.copyWith(color: statusIconColor),
+            ),
+          ] else
             Icon(
               isRead ? Icons.done_all_rounded : Icons.check_rounded,
               size: 13,
@@ -128,8 +139,7 @@ class SelfDestructCountdownPill extends StatefulWidget {
       SelfDestructCountdownPillState();
 }
 
-class SelfDestructCountdownPillState
-    extends State<SelfDestructCountdownPill> {
+class SelfDestructCountdownPillState extends State<SelfDestructCountdownPill> {
   Timer? _timer;
 
   @override
@@ -191,4 +201,3 @@ class SelfDestructCountdownPillState
     );
   }
 }
-

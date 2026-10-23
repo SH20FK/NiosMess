@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/utils/app_curves.dart';
@@ -25,6 +26,9 @@ class ChatTile extends StatefulWidget {
     this.onLongPress,
     this.subtitleIcon,
     this.deliveryIcon,
+    this.deliveryLabel,
+    this.isMuted = false,
+    this.enableHaptics = true,
     this.isPinned = false,
     this.compact = false,
     this.isOnline = false,
@@ -51,6 +55,9 @@ class ChatTile extends StatefulWidget {
   final VoidCallback? onLongPress;
   final IconData? subtitleIcon;
   final IconData? deliveryIcon;
+  final String? deliveryLabel;
+  final bool isMuted;
+  final bool enableHaptics;
   final bool isPinned;
   final bool compact;
   final bool isOnline;
@@ -124,19 +131,19 @@ class _ChatTileState extends State<ChatTile>
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final int totalBadges = widget.partnerBadges.length;
-    final List<ApiBadge> visibleBadges = totalBadges > 3
-        ? widget.partnerBadges.take(2).toList(growable: false)
-        : widget.partnerBadges.take(3).toList(growable: false);
-    final int hiddenBadgeCount = totalBadges > 3 ? totalBadges - 2 : 0;
+    final List<ApiBadge> visibleBadges = widget.partnerBadges
+        .where(BadgeResolver.isVerificationBadge)
+        .take(1)
+        .toList(growable: false);
 
     final double vertical = widget.compact ? 10 : 14;
     final double titleGap = 4;
     final bool hasUnread = widget.unreadCount > 0;
 
     final String semanticsLabel =
-        '${widget.title}${widget.draftLabel != null ? ', draft: ${widget.draftLabel}' : ''}'
-        '${hasUnread ? ', ${widget.unreadCount} unread' : ''}';
+        '${widget.title}${widget.draftLabel != null ? ', ${context.l10n.inboxDraftSemantics}: ${widget.draftLabel}' : ''}'
+        '${hasUnread ? ', ${context.l10n.chatListUnreadCount(widget.unreadCount)}' : ''}'
+        '${widget.deliveryLabel == null ? '' : ', ${widget.deliveryLabel}'}';
 
     final Widget content = RepaintBoundary(
       child: MouseRegion(
@@ -152,7 +159,7 @@ class _ChatTileState extends State<ChatTile>
             borderRadius: BorderRadius.circular(16),
             scaleDown: 0.98,
             releaseCurve: M3SpringCurves.spatial,
-            enableHaptics: true,
+            enableHaptics: widget.enableHaptics,
             child: ValueListenableBuilder<bool>(
               valueListenable: _isHoveredNotifier,
               builder: (BuildContext context, bool isHovered, Widget? child) {
@@ -160,11 +167,15 @@ class _ChatTileState extends State<ChatTile>
                     ? scheme.primaryContainer.withValues(alpha: 0.45)
                     : (isHovered
                           ? scheme.surfaceContainerHigh
-                          : scheme.surface);
+                          : hasUnread
+                          ? scheme.surfaceContainerLow
+                          : Colors.transparent);
 
                 return AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  curve: Curves.easeOutCubic,
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : M3Durations.short3,
+                  curve: M3SpringCurves.gentle,
                   padding: EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: vertical,
@@ -172,12 +183,6 @@ class _ChatTileState extends State<ChatTile>
                   decoration: BoxDecoration(
                     color: tileBg,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: scheme.outlineVariant.withValues(alpha: .25),
-                        width: .5,
-                      ),
-                    ),
                   ),
                   child: child,
                 );
@@ -242,7 +247,7 @@ class _ChatTileState extends State<ChatTile>
                                                 fontSize: 15,
                                                 fontWeight: hasUnread
                                                     ? FontWeight.w700
-                                                    : FontWeight.w600,
+                                                    : FontWeight.w500,
                                                 color: scheme.onSurface,
                                               ),
                                         ),
@@ -262,6 +267,14 @@ class _ChatTileState extends State<ChatTile>
                                           color: scheme.primary,
                                         ),
                                       ],
+                                      if (widget.isMuted) ...<Widget>[
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.notifications_off_outlined,
+                                          size: 14,
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                      ],
                                       if (widget.isPinned) ...<Widget>[
                                         const SizedBox(width: 4),
                                         Icon(
@@ -271,10 +284,7 @@ class _ChatTileState extends State<ChatTile>
                                         ),
                                       ],
                                       if (visibleBadges.isNotEmpty)
-                                        _ChatBadgeStrip(
-                                          badges: visibleBadges,
-                                          hiddenCount: hiddenBadgeCount,
-                                        ),
+                                        _ChatBadgeStrip(badges: visibleBadges),
                                     ],
                                   ),
                                 ),
@@ -292,6 +302,19 @@ class _ChatTileState extends State<ChatTile>
                                 ),
                               ],
                             ),
+                            if (widget.deliveryLabel != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                widget.deliveryLabel!,
+                                style: textTheme.labelSmall?.copyWith(
+                                  color:
+                                      widget.deliveryIcon ==
+                                          Icons.error_outline_rounded
+                                      ? scheme.error
+                                      : scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                             SizedBox(height: titleGap),
                             Row(
                               children: <Widget>[
@@ -378,13 +401,27 @@ class _ChatTileState extends State<ChatTile>
       ),
     );
 
+    final separatedContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        content,
+        Padding(
+          padding: EdgeInsets.only(left: widget.compact ? 68 : 72, right: 12),
+          child: Divider(
+            height: 1,
+            thickness: .5,
+            color: scheme.outlineVariant.withValues(alpha: .35),
+          ),
+        ),
+      ],
+    );
     if (!widget.animateEntrance || _fadeAnim == null || _slideAnim == null) {
-      return content;
+      return separatedContent;
     }
 
     return FadeTransition(
       opacity: _fadeAnim!,
-      child: SlideTransition(position: _slideAnim!, child: content),
+      child: SlideTransition(position: _slideAnim!, child: separatedContent),
     );
   }
 }
@@ -400,9 +437,11 @@ class _AnimatedBadge extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
-      switchInCurve: M3SpringCurves.snappy,
-      switchOutCurve: Curves.easeInCubic,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : M3Durations.short4,
+      switchInCurve: M3SpringCurves.expressiveDecel,
+      switchOutCurve: M3SpringCurves.expressiveAccel,
       transitionBuilder: (Widget child, Animation<double> animation) {
         return FadeTransition(
           opacity: animation,
@@ -432,38 +471,19 @@ class _AnimatedBadge extends StatelessWidget {
 }
 
 class _ChatBadgeStrip extends StatelessWidget {
-  const _ChatBadgeStrip({required this.badges, required this.hiddenCount});
-
+  const _ChatBadgeStrip({required this.badges});
   final List<ApiBadge> badges;
-  final int hiddenCount;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 82),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            for (final ApiBadge badge in badges)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: BadgeChip(
-                  id: badge.id,
-                  name: badge.name,
-                  icon: badge.icon,
-                  color: badge.color,
-                  interactive: false,
-                  mode: BadgeResolver.isStatusBadge(badge)
-                      ? BadgeDisplayMode.statusIcon
-                      : BadgeDisplayMode.infoLabel,
-                ),
-              ),
-            if (hiddenCount > 0) BadgeOverflowChip(count: hiddenCount),
-          ],
-        ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: 4),
+    child: Tooltip(
+      message: badges.first.name,
+      child: Icon(
+        Icons.verified_rounded,
+        size: 16,
+        color: Theme.of(context).colorScheme.primary,
       ),
-    );
-  }
+    ),
+  );
 }

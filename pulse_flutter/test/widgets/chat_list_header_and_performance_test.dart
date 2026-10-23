@@ -32,12 +32,8 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _buildTestHarness(
-          overrides: [
-            totalUnreadCountProvider.overrideWith((ref) => 0),
-          ],
-          child: const Scaffold(
-            appBar: ChatListHeader(),
-          ),
+          overrides: [totalUnreadCountProvider.overrideWith((ref) => 0)],
+          child: const Scaffold(appBar: ChatListHeader()),
         ),
       );
       await tester.pumpAndSettle();
@@ -45,72 +41,65 @@ void main() {
       expect(find.text('Чаты'), findsOneWidget);
     });
 
-    testWidgets('renders unread badge when total unread count > 0', (
+    testWidgets('keeps the header clear when there are unread messages', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
         _buildTestHarness(
-          overrides: [
-            totalUnreadCountProvider.overrideWith((ref) => 12),
-          ],
-          child: const Scaffold(
-            appBar: ChatListHeader(),
-          ),
+          overrides: [totalUnreadCountProvider.overrideWith((ref) => 12)],
+          child: const Scaffold(appBar: ChatListHeader()),
         ),
       );
       await tester.pumpAndSettle();
 
       expect(find.text('Чаты'), findsOneWidget);
-      expect(find.text('12'), findsOneWidget);
+      expect(find.text('12'), findsNothing);
     });
 
-    testWidgets('caps unread badge text at 999+ for huge unread counts', (
+    testWidgets('does not repeat a large unread count in the header', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
         _buildTestHarness(
-          overrides: [
-            totalUnreadCountProvider.overrideWith((ref) => 1500),
-          ],
-          child: const Scaffold(
-            appBar: ChatListHeader(),
-          ),
+          overrides: [totalUnreadCountProvider.overrideWith((ref) => 1500)],
+          child: const Scaffold(appBar: ChatListHeader()),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('999+'), findsOneWidget);
+      expect(find.text('999+'), findsNothing);
     });
   });
 
   group('ChatTile Lazy Animation & Performance Tests', () {
-    testWidgets('renders normally when animateEntrance is false without throwing', (
-      WidgetTester tester,
-    ) async {
-      bool tapped = false;
-      await tester.pumpWidget(
-        _buildTestHarness(
-          child: ChatTile(
-            title: 'Тестовый чат',
-            subtitle: 'Привет мир',
-            formattedTime: '12:00',
-            unreadCount: 3,
-            avatarText: 'ТЧ',
-            avatarColor: Colors.blue,
-            animateEntrance: false,
-            onTap: () => tapped = true,
+    testWidgets(
+      'renders normally when animateEntrance is false without throwing',
+      (WidgetTester tester) async {
+        bool tapped = false;
+        await tester.pumpWidget(
+          _buildTestHarness(
+            child: ChatTile(
+              title: 'Тестовый чат',
+              subtitle: 'Привет мир',
+              formattedTime: '12:00',
+              unreadCount: 3,
+              avatarText: 'ТЧ',
+              avatarColor: Colors.blue,
+              animateEntrance: false,
+              onTap: () => tapped = true,
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Тестовый чат'), findsOneWidget);
-      expect(find.text('Привет мир'), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
+        expect(find.text('Тестовый чат'), findsOneWidget);
+        expect(find.text('Привет мир'), findsOneWidget);
+        expect(find.text('3'), findsOneWidget);
 
-      await tester.tap(find.byType(ChatTile));
-      expect(tapped, isTrue);
-    });
+        await tester.tap(find.byType(ChatTile));
+        expect(tapped, isTrue);
+      },
+    );
 
     testWidgets('animates correctly when animateEntrance is true', (
       WidgetTester tester,

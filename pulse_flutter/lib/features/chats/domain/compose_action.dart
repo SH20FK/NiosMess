@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 
-enum ComposeActionId {
-  message,
-  group,
-  channel,
-  secret,
-  joinLink,
-}
+enum ComposeActionId { message, group, channel, secret, joinLink }
 
 @immutable
 class ComposeActionDescriptor {
@@ -36,36 +30,36 @@ List<ComposeActionDescriptor> buildComposeActions(
     ComposeActionDescriptor(
       id: ComposeActionId.message,
       icon: Icons.chat_bubble_outline_rounded,
-      title: 'Новое сообщение',
-      subtitle: 'Выбрать человека или найти по @username',
+      title: context.l10n.chatCreatePersonal,
+      subtitle: context.l10n.inboxComposePersonHint,
       available: true,
     ),
     ComposeActionDescriptor(
       id: ComposeActionId.group,
       icon: Icons.groups_rounded,
       title: context.l10n.groupNewGroup,
-      subtitle: 'Создать чат и пригласить участников',
+      subtitle: context.l10n.inboxComposeGroupHint,
       available: canCreateGroup,
     ),
     ComposeActionDescriptor(
       id: ComposeActionId.channel,
       icon: Icons.campaign_rounded,
       title: context.l10n.groupNewChannel,
-      subtitle: 'Канал для публикаций и новостей',
+      subtitle: context.l10n.inboxComposeChannelHint,
       available: canCreateChannel,
     ),
     ComposeActionDescriptor(
       id: ComposeActionId.secret,
       icon: Icons.lock_outline_rounded,
-      title: 'Секретный чат',
-      subtitle: 'Сквозное шифрование и самоуничтожение сообщений',
+      title: context.l10n.secretTitle,
+      subtitle: context.l10n.inboxComposeSecretHint,
       available: canCreateSecret,
     ),
-    const ComposeActionDescriptor(
+    ComposeActionDescriptor(
       id: ComposeActionId.joinLink,
       icon: Icons.link_rounded,
-      title: 'Вступить по ссылке',
-      subtitle: 'Перейти по ссылке-приглашению или QR-коду',
+      title: context.l10n.inboxJoinLink,
+      subtitle: context.l10n.inboxJoinLinkHint,
       available: true,
     ),
   ];

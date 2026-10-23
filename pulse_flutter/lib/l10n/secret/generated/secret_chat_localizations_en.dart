@@ -148,4 +148,59 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get backgroundsPaused => 'Backgrounds are temporarily disabled';
+
+  @override
+  String get inboxChatType => 'Chat type';
+
+  @override
+  String get inboxCreateMenu => 'Create…';
+
+  @override
+  String get inboxComposeTitle => 'Start a conversation';
+
+  @override
+  String get inboxComposePersonHint => 'Choose a person or search by @username';
+
+  @override
+  String get inboxComposeGroupHint => 'A conversation with several people';
+
+  @override
+  String get inboxComposeChannelHint => 'Posts for your subscribers';
+
+  @override
+  String get inboxComposeSecretHint =>
+      'A private conversation with end-to-end encryption';
+
+  @override
+  String get inboxJoinLink => 'Join with a link';
+
+  @override
+  String get inboxJoinLinkHint => 'Open a group or channel invitation';
+
+  @override
+  String get inboxEncryptedPreview => 'Encrypted message';
+
+  @override
+  String get inboxNoUnread => 'You’re all caught up';
+
+  @override
+  String get inboxCategoryEmpty => 'No chats in this category yet';
+
+  @override
+  String get inboxFilterResetHint => 'Select All to return to every chat';
+
+  @override
+  String get inboxSearchEmpty => 'Nothing found';
+
+  @override
+  String get inboxSearchEmptyHint => 'Try another search';
+
+  @override
+  String get inboxWaitingToSend => 'Waiting to send';
+
+  @override
+  String get inboxSendFailed => 'Not sent — retry in the chat';
+
+  @override
+  String get inboxDraftSemantics => 'Draft';
 }

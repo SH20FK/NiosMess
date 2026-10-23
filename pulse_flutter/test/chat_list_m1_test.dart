@@ -127,44 +127,41 @@ void main() {
       expect(find.text('99+'), findsOneWidget);
     });
 
-    testWidgets('renders online status indicator cutout when isOnline is true', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ChatTile(
-            title: 'Charlie Online',
-            subtitle: 'Active now',
-            formattedTime: 'Now',
-            unreadCount: 0,
-            isOnline: true,
-            avatarText: 'Charlie Online',
-            avatarColor: const Color(0xFF6750A4),
-            onTap: () {},
+    testWidgets(
+      'renders online status indicator cutout when isOnline is true',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _buildTestApp(
+            child: ChatTile(
+              title: 'Charlie Online',
+              subtitle: 'Active now',
+              formattedTime: 'Now',
+              unreadCount: 0,
+              isOnline: true,
+              avatarText: 'Charlie Online',
+              avatarColor: const Color(0xFF6750A4),
+              onTap: () {},
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(ChatTile), findsOneWidget);
-    });
+        expect(find.byType(ChatTile), findsOneWidget);
+      },
+    );
   });
 
   group('Milestone 1: ChatFilterBar Tests', () {
-    testWidgets('renders all category filter chips', (
+    testWidgets('renders three controls with chat categories in a menu', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: const ChatFilterBar(),
-        ),
-      );
+      await tester.pumpWidget(_buildTestApp(child: const ChatFilterBar()));
       await tester.pumpAndSettle();
 
-      expect(find.byType(FilterChip), findsNWidgets(6));
+      expect(find.byType(FilterChip), findsNWidgets(3));
     });
 
-    testWidgets('shows unread badge on Unread chip when unread chats exist', (
+    testWidgets('does not duplicate global unread counts in filters', (
       WidgetTester tester,
     ) async {
       final mockChats = <ApiChatSummary>[
@@ -187,7 +184,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('3'), findsOneWidget);
+      expect(find.text('3'), findsNothing);
     });
   });
 
@@ -199,9 +196,7 @@ void main() {
 
       await tester.pumpWidget(
         _buildTestApp(
-          child: ChatSearchBar(
-            onAvatarTap: () => avatarTapped = true,
-          ),
+          child: ChatSearchBar(onAvatarTap: () => avatarTapped = true),
         ),
       );
       await tester.pumpAndSettle();

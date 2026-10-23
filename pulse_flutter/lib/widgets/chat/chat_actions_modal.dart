@@ -5,13 +5,7 @@ import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
-enum ChatActionResult {
-  markRead,
-  toggleMute,
-  pin,
-  archive,
-  leave,
-}
+enum ChatActionResult { markRead, toggleMute, leave }
 
 /// Unified descriptor for actions inside [ChatActionsModal].
 class ChatActionDescriptor {
@@ -41,9 +35,6 @@ class ChatActionsModal {
     required ApiChatSummary chat,
     required Color avatarColor,
     bool isMuted = false,
-    bool isPinned = false,
-    bool isArchived = false,
-    bool isOwnerOrAdmin = false,
   }) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
@@ -58,15 +49,9 @@ class ChatActionsModal {
         ? type
         : '${context.l10n.chatListUnreadCount(chat.unreadCount)} • $type';
 
-    final Widget header = Container(
+    final Widget header = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.16),
-        ),
-      ),
+
       child: Row(
         children: <Widget>[
           PulseAvatar(
@@ -75,10 +60,7 @@ class ChatActionsModal {
             id: chat.id.toString(),
             avatarUrl: chat.avatarUrl,
             fallbackColor: avatarColor,
-            textColor: AppColors.avatarTextColorFor(
-              avatarColor,
-              scheme,
-            ),
+            textColor: AppColors.avatarTextColorFor(avatarColor, scheme),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -127,37 +109,52 @@ class ChatActionsModal {
       ),
     ];
 
-    final List<Widget> actions = descriptors.map((ChatActionDescriptor desc) {
-      return ListTile(
-        leading: Icon(
-          desc.icon,
-          color: desc.enabled ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.38),
-        ),
-        title: Text(
-          desc.label,
-          style: TextStyle(
-            color: desc.enabled ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.38),
-          ),
-        ),
-        enabled: desc.enabled,
-        onTap: desc.enabled ? () => Navigator.of(context).pop(desc.result) : null,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      );
-    }).toList(growable: false);
+    final List<Widget> actions = descriptors
+        .map((ChatActionDescriptor desc) {
+          return ListTile(
+            leading: Icon(
+              desc.icon,
+              color: desc.enabled
+                  ? scheme.onSurface
+                  : scheme.onSurface.withValues(alpha: 0.38),
+            ),
+            title: Text(
+              desc.label,
+              style: TextStyle(
+                color: desc.enabled
+                    ? scheme.onSurface
+                    : scheme.onSurface.withValues(alpha: 0.38),
+              ),
+            ),
+            enabled: desc.enabled,
+            onTap: desc.enabled
+                ? () => Navigator.of(context).pop(desc.result)
+                : null,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 2,
+            ),
+          );
+        })
+        .toList(growable: false);
 
+    final isDirect = chat.chatType != 'group' && chat.chatType != 'channel';
     final Widget destructiveTile = Container(
       decoration: BoxDecoration(
         color: scheme.errorContainer.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: scheme.error.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: scheme.error.withValues(alpha: 0.2)),
       ),
       child: ListTile(
-        leading: Icon(Icons.delete_outline_rounded, color: scheme.error),
+        leading: Icon(
+          isDirect ? Icons.delete_outline_rounded : Icons.logout_rounded,
+          color: scheme.error,
+        ),
         title: Text(
-          context.l10n.chatListLeave,
+          isDirect ? context.l10n.chatDelete : context.l10n.chatListLeave,
           style: TextStyle(color: scheme.error, fontWeight: FontWeight.w600),
         ),
         onTap: () => Navigator.of(context).pop(ChatActionResult.leave),

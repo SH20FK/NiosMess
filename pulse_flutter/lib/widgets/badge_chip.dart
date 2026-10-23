@@ -210,6 +210,9 @@ class BadgeResolver {
     return null;
   }
 
+  static bool isVerificationBadge(ApiBadge badge) =>
+      resolve(badge.name, badge.icon).type == _BadgeType.verified;
+
   static bool isStatusBadge(ApiBadge badge) {
     final res = resolve(badge.name, badge.icon);
     // Founder, Premium, Verified, Admin go to the name line as status icons

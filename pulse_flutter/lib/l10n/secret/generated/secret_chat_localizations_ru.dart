@@ -148,4 +148,61 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get backgroundsPaused => 'Фоны временно отключены';
+
+  @override
+  String get inboxChatType => 'Тип чата';
+
+  @override
+  String get inboxCreateMenu => 'Создать…';
+
+  @override
+  String get inboxComposeTitle => 'Начать общение';
+
+  @override
+  String get inboxComposePersonHint =>
+      'Выберите собеседника или найдите по @username';
+
+  @override
+  String get inboxComposeGroupHint => 'Общий чат с несколькими участниками';
+
+  @override
+  String get inboxComposeChannelHint => 'Публикации для ваших подписчиков';
+
+  @override
+  String get inboxComposeSecretHint =>
+      'Личная переписка со сквозным шифрованием';
+
+  @override
+  String get inboxJoinLink => 'Вступить по ссылке';
+
+  @override
+  String get inboxJoinLinkHint => 'Откройте приглашение в группу или канал';
+
+  @override
+  String get inboxEncryptedPreview => 'Зашифрованное сообщение';
+
+  @override
+  String get inboxNoUnread => 'Всё прочитано';
+
+  @override
+  String get inboxCategoryEmpty => 'В этой категории пока нет чатов';
+
+  @override
+  String get inboxFilterResetHint =>
+      'Выберите «Все», чтобы вернуться ко всем чатам';
+
+  @override
+  String get inboxSearchEmpty => 'Ничего не найдено';
+
+  @override
+  String get inboxSearchEmptyHint => 'Попробуйте изменить поисковый запрос';
+
+  @override
+  String get inboxWaitingToSend => 'Ожидает отправки';
+
+  @override
+  String get inboxSendFailed => 'Не отправлено — повторите в чате';
+
+  @override
+  String get inboxDraftSemantics => 'Черновик';
 }

@@ -72,7 +72,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             .toList(growable: false);
       case ChatFilter.direct:
         return chats
-            .where((ApiChatSummary c) => c.chatType == 'direct')
+            .where((ApiChatSummary c) => c.chatType == 'direct' && !c.isBotChat)
             .toList(growable: false);
       case ChatFilter.bots:
         return chats
@@ -278,11 +278,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         SliverFillRemaining(
           child: EmptyStateWidget(
             title: isSearchActive
-                ? 'Ничего не найдено'
-                : context.l10n.chatListNoChats,
+                ? context.l10n.inboxSearchEmpty
+                : filter == ChatFilter.unread
+                ? context.l10n.inboxNoUnread
+                : filter == ChatFilter.all
+                ? context.l10n.chatListNoChats
+                : context.l10n.inboxCategoryEmpty,
             subtitle: isSearchActive
-                ? 'Попробуйте изменить поисковый запрос'
-                : null,
+                ? context.l10n.inboxSearchEmptyHint
+                : filter == ChatFilter.all
+                ? null
+                : context.l10n.inboxFilterResetHint,
             icon: isSearchActive
                 ? Icons.search_off_rounded
                 : Icons.chat_bubble_outline_rounded,
@@ -334,6 +340,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         );
                         return ChatTile(
                           title: chat.name,
+                          enableHaptics: ref.watch(
+                            uiSettingsProvider.select((s) => s.haptics),
+                          ),
                           subtitle: isTyping
                               ? context.l10n.chatTyping
                               : _chatPreview(chat),
@@ -362,7 +371,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           isOnline: chat.chatType == 'direct' && chat.isOnline,
                           isSecret: chat.isSecret,
                           partnerBadges: chat.partnerBadges,
-                          statusEmoji: chat.partnerStatusEmoji,
+                          isMuted:
+                              ref.watch(chatMutedProvider(chat.id)).value ??
+                              false,
+                          deliveryLabel:
+                              chat.lastMessage?.senderId ==
+                                  ref.read(authProvider).session?.userId
+                              ? chat.lastMessage?.isFailed == true
+                                    ? context.l10n.inboxSendFailed
+                                    : chat.lastMessage?.isSending == true ||
+                                          (chat.lastMessage?.id ?? 1) <= 0
+                                    ? context.l10n.inboxWaitingToSend
+                                    : null
+                              : null,
                           chatId: chat.id,
                           isSelected: desktopChatId == chat.id,
                           onTap: () {
@@ -466,10 +487,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   String _chatPreview(ApiChatSummary chat) {
-    if (chat.lastMessage?.e2eeContent != null ||
-        (chat.lastMessage?.isE2ee == true &&
-            chat.lastMessage?.isDecrypted != true)) {
-      return 'Зашифрованное сообщение';
+    final message = chat.lastMessage;
+    if (message != null &&
+        !message.isDecrypted &&
+        (message.e2eeContent != null || message.isE2ee)) {
+      return context.l10n.inboxEncryptedPreview;
     }
     final ApiMessage? lastMessage = chat.lastMessage;
     final String preview = _previewText(lastMessage?.content);
@@ -483,21 +505,24 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final String description = chat.description.trim();
     if (chat.chatType == 'channel') {
       if (lastMessage != null) {
-        return context.l10n.chatListChannelPreview(typedPreview);
+        return typedPreview;
       }
       if (description.isNotEmpty) {
-        return context.l10n.chatListChannelPreview(description);
+        return description;
       }
-      return context.l10n.chatListChannelPreview(context.l10n.groupNoPostsYet);
+      return context.l10n.groupNoPostsYet;
     }
     if (chat.chatType == 'group') {
       if (lastMessage != null) {
-        return context.l10n.chatListGroupPreview(typedPreview);
+        final author = lastMessage.senderDisplayName.trim().isNotEmpty
+            ? lastMessage.senderDisplayName.trim()
+            : lastMessage.senderUsername.trim();
+        return author.isEmpty ? typedPreview : '$author: $typedPreview';
       }
       if (description.isNotEmpty) {
-        return context.l10n.chatListGroupPreview(description);
+        return description;
       }
-      return context.l10n.chatListGroupPreview(context.l10n.chatNoMessages);
+      return context.l10n.chatNoMessages;
     }
     return typedPreview;
   }
@@ -546,7 +571,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   Future<void> _leaveChat(BuildContext context, ApiChatSummary chat) async {
-    final bool isDirect = chat.chatType == 'direct';
+    final bool isDirect =
+        chat.chatType != 'group' && chat.chatType != 'channel';
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
       title: isDirect
@@ -612,9 +638,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 : context.l10n.profileMuteNotifications,
           );
         }
-        return;
-      case ChatActionResult.pin:
-      case ChatActionResult.archive:
         return;
       case ChatActionResult.leave:
         await _leaveChat(context, chat);

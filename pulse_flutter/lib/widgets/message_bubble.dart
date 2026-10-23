@@ -783,7 +783,7 @@ class MessageBubble extends ConsumerWidget {
                   child: IconButton(
                     onPressed: onRetrySend,
                     icon: Icon(Icons.refresh_rounded, color: scheme.error),
-                    tooltip: 'Повторить отправку',
+                    tooltip: context.l10n.secretRetry,
                   ),
                 ),
             ],

@@ -122,14 +122,15 @@ void main() {
               );
               await tester.tap(find.text('open'));
               await tester.pumpAndSettle();
-              expect(find.byType(BottomSheet), findsOneWidget);
+              expect(find.byType(BottomSheet), findsNothing);
               final surface = tester.widget<M3ModalSurface>(
                 find.byType(M3ModalSurface),
               );
-              expect(surface.tone, ModalTone.low);
+              expect(surface.tone, ModalTone.high);
               final confirm = tester.getRect(find.byType(FilledButton));
               final cancel = tester.getRect(find.byType(TextButton).last);
-              expect(confirm.bottom, lessThanOrEqualTo(cancel.top));
+              expect(confirm.overlaps(cancel), isFalse);
+              expect(confirm.bottom, lessThanOrEqualTo(720));
               expect(cancel.bottom, lessThanOrEqualTo(720));
               expect(confirm.left, greaterThanOrEqualTo(0));
               expect(confirm.right, lessThanOrEqualTo(width));
@@ -162,7 +163,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester.widget<M3ModalSurface>(find.byType(M3ModalSurface)).variant,
-        width < 840 ? ModalVariant.bottomSheet : ModalVariant.dialog,
+        ModalVariant.dialog,
       );
       expect(tester.binding.transientCallbackCount, 0);
       expect(tester.takeException(), isNull);
@@ -223,7 +224,10 @@ void main() {
         } else if (action == 'barrier') {
           await tester.tapAt(const Offset(10, 10));
         } else {
-          await tester.drag(find.byType(BottomSheet), const Offset(0, 700));
+          await tester.drag(find.byType(M3ModalSurface), const Offset(0, 100));
+          await tester.pumpAndSettle();
+          expect(result, 'pending');
+          await tester.binding.handlePopRoute();
         }
         await tester.pumpAndSettle();
         expect(operations, action == 'confirm' || action == 'double' ? 1 : 0);
@@ -421,9 +425,9 @@ void main() {
         'form',
       ]) {
         scenario = item;
-          if (item == 'form') {
+        if (item == 'form') {
           tester.view.viewInsets = const FakeViewPadding(bottom: 260);
-          }
+        }
         await tester.tap(find.text('open'));
         await tester.pumpAndSettle();
         final output = Platform.environment['NIOS_MODAL_CAPTURE_DIR'];

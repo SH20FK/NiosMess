@@ -2,153 +2,78 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/models/api/chat_summary_model.dart';
-import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
-/// Clean pill-shaped horizontal filter chips with Google Messages tonal styling.
+/// Common filters stay visible; less frequent categories live in one menu.
+/// Wrap keeps targets readable with large accessibility fonts.
 class ChatFilterBar extends ConsumerWidget {
   const ChatFilterBar({super.key});
 
-  static const List<ChatFilter> _orderedFilters = <ChatFilter>[
-    ChatFilter.all,
-    ChatFilter.unread,
-    ChatFilter.direct,
-    ChatFilter.groups,
-    ChatFilter.channels,
-    ChatFilter.bots,
-  ];
-
-  IconData _filterIcon(ChatFilter value) {
-    return switch (value) {
-      ChatFilter.all => Icons.all_inbox_rounded,
-      ChatFilter.unread => Icons.mark_chat_unread_rounded,
-      ChatFilter.direct => Icons.person_rounded,
-      ChatFilter.groups => Icons.groups_rounded,
-      ChatFilter.channels => Icons.campaign_rounded,
-      ChatFilter.bots => Icons.smart_toy_rounded,
-    };
-  }
-
-  String _filterLabel(BuildContext context, ChatFilter value) {
-    return switch (value) {
-      ChatFilter.all => context.l10n.chatListFilterAll,
-      ChatFilter.unread => context.l10n.chatListFilterUnread,
-      ChatFilter.direct => context.l10n.chatListFilterDirect,
-      ChatFilter.groups => context.l10n.chatListFilterGroups,
-      ChatFilter.channels => context.l10n.chatListFilterChannels,
-      ChatFilter.bots => context.l10n.chatListFilterBots,
-    };
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ChatFilter currentFilter = ref.watch(chatFilterProvider);
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
-      chatsProvider,
+    final filter = ref.watch(chatFilterProvider);
+    final l = context.l10n;
+    final types = <ChatFilter, String>{
+      ChatFilter.direct: l.chatListFilterDirect,
+      ChatFilter.groups: l.chatListFilterGroups,
+      ChatFilter.channels: l.chatListFilterChannels,
+      ChatFilter.bots: l.chatListFilterBots,
+    };
+    void select(ChatFilter value) {
+      if (value == filter) return;
+      if (ref.read(uiSettingsProvider.select((s) => s.haptics))) {
+        HapticService.tap();
+      }
+      ref.read(chatFilterProvider.notifier).updateFilter(value);
+    }
+
+    Widget chip(ChatFilter value, String label) => FilterChip(
+      label: Text(label),
+      selected: filter == value,
+      showCheckmark: false,
+      onSelected: (_) => select(value),
     );
 
-    final int totalUnread = chatsAsync.maybeWhen(
-      data: (List<ApiChatSummary> chats) => chats.fold<int>(
-        0,
-        (int sum, ApiChatSummary c) => sum + c.unreadCount,
-      ),
-      orElse: () => 0,
-    );
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .20)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
+    return Wrap(
+      spacing: 8,
+      children: [
+        chip(ChatFilter.all, l.chatListFilterAll),
+        chip(ChatFilter.unread, l.chatListFilterUnread),
+        MenuAnchor(
+          menuChildren: [
+            for (final entry in types.entries)
+              MenuItemButton(
+                leadingIcon: Icon(
+                  filter == entry.key
+                      ? Icons.check_rounded
+                      : switch (entry.key) {
+                          ChatFilter.direct => Icons.person_outline_rounded,
+                          ChatFilter.groups => Icons.groups_outlined,
+                          ChatFilter.channels => Icons.campaign_outlined,
+                          _ => Icons.smart_toy_outlined,
+                        },
+                ),
+                onPressed: () => select(entry.key),
+                child: Text(entry.value),
+              ),
+          ],
+          builder: (context, controller, child) => FilterChip(
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(types[filter] ?? l.inboxChatType),
+                const SizedBox(width: 2),
+                const Icon(Icons.expand_more_rounded, size: 18),
+              ],
+            ),
+            selected: types.containsKey(filter),
+            showCheckmark: false,
+            onSelected: (_) =>
+                controller.isOpen ? controller.close() : controller.open(),
+          ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: Row(
-          children: _orderedFilters
-              .map((ChatFilter filter) {
-                final bool selected = filter == currentFilter;
-                final bool isUnreadChip = filter == ChatFilter.unread;
-
-                final Color chipBg = selected
-                    ? scheme.primaryContainer
-                    : scheme.surfaceContainerLow;
-                final Color chipFg = selected
-                    ? scheme.onPrimaryContainer
-                    : scheme.onSurfaceVariant;
-                final Color borderColor = selected
-                    ? scheme.primary.withValues(alpha: 0.35)
-                    : scheme.outlineVariant.withValues(alpha: 0.22);
-
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(_filterLabel(context, filter)),
-                        if (isUnreadChip && totalUnread > 0) ...<Widget>[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 1.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? scheme.onPrimaryContainer
-                                  : scheme.primary,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              totalUnread > 99 ? '99+' : '$totalUnread',
-                              style: TextStyle(
-                                color: selected
-                                    ? scheme.primaryContainer
-                                    : scheme.onPrimary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    selected: selected,
-                    onSelected: (_) {
-                      HapticService.tap();
-                      ref
-                          .read(chatFilterProvider.notifier)
-                          .updateFilter(filter);
-                    },
-                    avatar: Icon(_filterIcon(filter), size: 16, color: chipFg),
-                    showCheckmark: false,
-                    backgroundColor: chipBg,
-                    selectedColor: chipBg,
-                    labelStyle: TextStyle(
-                      color: chipFg,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                    side: BorderSide(color: borderColor),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
-                    ),
-                  ),
-                );
-              })
-              .toList(growable: false),
-        ),
-      ),
+      ],
     );
   }
 }

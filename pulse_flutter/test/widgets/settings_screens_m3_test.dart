@@ -491,9 +491,9 @@ void main() {
         final storageRu = SettingsRegistry.search('кэш', l10n);
         expect(storageRu.any((r) => r.targetRoute == '/settings/storage'), isTrue);
 
-        // Search for wallpaper
+        // Disabled wallpaper controls must not be offered by search
         final wpRu = SettingsRegistry.search('обои', l10n);
-        expect(wpRu.any((r) => r.targetRoute == '/settings/wallpaper'), isTrue);
+        expect(wpRu.any((r) => r.targetRoute == '/settings/wallpaper'), isFalse);
       });
 
       test('3.3 SettingsRegistry has zero null titles or routes', () {

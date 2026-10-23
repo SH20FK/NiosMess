@@ -40,14 +40,17 @@ void main() {
       expect(enResults.any((r) => r.node.id == 'ui_corner_radius'), isTrue);
     });
 
-    test('search finds wallpaper generator in Russian and English', () {
+    test('search does not advertise disabled backgrounds and navigation styles', () {
+      final ids = SettingsRegistry.getAllNodes().map((node) => node.id);
+      expect(ids, isNot(contains('true_black_oled')));
+      expect(ids, isNot(contains('navbar_floating')));
       final ruResults = SettingsRegistry.search('обои', l10nRu);
       expect(ruResults.isNotEmpty, isTrue);
-      expect(ruResults.any((r) => r.node.id == 'wallpaper_generator'), isTrue);
+      expect(ruResults.any((r) => r.node.id == 'wallpaper_generator'), isFalse);
 
       final enResults = SettingsRegistry.search('wallpaper', l10nEn);
       expect(enResults.isNotEmpty, isTrue);
-      expect(enResults.any((r) => r.node.id == 'wallpaper_generator'), isTrue);
+      expect(enResults.any((r) => r.node.id == 'wallpaper_generator'), isFalse);
     });
 
     test('search finds privacy rules and blocked users', () {

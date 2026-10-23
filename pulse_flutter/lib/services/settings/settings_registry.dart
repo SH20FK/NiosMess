@@ -392,24 +392,7 @@ class SettingsRegistry {
         'text size',
       ],
     ),
-    SettingsToggleNode(
-      id: 'true_black_oled',
-      parentNavId: 'appearance',
-      title: (AppLocalizations l) => l.appearanceDeepBlackOled,
-      subtitle: (AppLocalizations l) => l.appearanceDeepBlackOledDesc,
-      icon: Icons.dark_mode_rounded,
-      group: SettingsGroup.appearance,
-      valueSelector: (UiSettingsState s) => s.pureBlackOled,
-      onChanged: (WidgetRef ref, bool v) =>
-          ref.read(uiSettingsProvider.notifier).setPureBlackOled(v),
-      keywords: const <String>[
-        'oled',
-        'черный',
-        'глубокий черный',
-        'true black',
-        'батарея',
-      ],
-    ),
+
     SettingsToggleNode(
       id: 'system_dynamic_colors',
       parentNavId: 'appearance',
@@ -427,43 +410,9 @@ class SettingsRegistry {
         'dynamic colors',
       ],
     ),
-    SettingsToggleNode(
-      id: 'navbar_floating',
-      parentNavId: 'appearance',
-      title: (AppLocalizations l) => l.appearanceFloatingNav,
-      subtitle: (AppLocalizations l) => l.appearanceFloatingNavSubtitle,
-      icon: Icons.dock_rounded,
-      group: SettingsGroup.appearance,
-      valueSelector: (UiSettingsState s) => s.navBarFloating,
-      onChanged: (WidgetRef ref, bool v) =>
-          ref.read(uiSettingsProvider.notifier).setNavBarFloating(v),
-      keywords: const <String>[
-        'навигация',
-        'нижняя панель',
-        'плавающая',
-        'navbar',
-        'bottom navigation',
-      ],
-    ),
 
     // Chats items
-    SettingsNavNode(
-      id: 'wallpaper_generator',
-      parentNavId: 'chats',
-      title: (AppLocalizations l) => l.settingsChatsWallpaperGenerator,
-      subtitle: (AppLocalizations l) => l.settingsChatsWallpaperGeneratorDesc,
-      icon: Icons.wallpaper_rounded,
-      group: SettingsGroup.chats,
-      route: '/settings/wallpaper',
-      keywords: const <String>[
-        'обои',
-        'генератор обоев',
-        'фон',
-        'паттерн',
-        'wallpaper',
-        'pattern',
-      ],
-    ),
+
     SettingsToggleNode(
       id: 'send_on_enter',
       parentNavId: 'chats',

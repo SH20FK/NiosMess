@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
+import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -22,6 +23,8 @@ import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
 import 'package:pulse_flutter/widgets/chat/inbox_compose_button.dart';
 import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
+import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_footer.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
@@ -68,11 +71,10 @@ final _chats = <ApiChatSummary>[
   for (var i = 0; i < 6; i++)
     ApiChatSummary(
       id: i + 1,
-      chatType: i == 1
-          ? 'bot'
-          : i == 4
-          ? 'group'
-          : 'direct',
+      partnerBadges: i == 1
+          ? const [ApiBadge(id: 1, name: 'Bot', icon: 'bot', color: 'primary')]
+          : const [],
+      chatType: i == 4 ? 'group' : 'direct',
       name: [
         'Ирина',
         'NiosAI',
@@ -94,7 +96,7 @@ final _chats = <ApiChatSummary>[
         'chat_id': i + 1,
         'sender_id': i == 3 ? 42 : 2,
         'sender_username': 'preview',
-        'sender_display_name': 'Preview',
+        'sender_display_name': i == 4 ? 'Ирина' : 'Preview',
         'content': [
           'До встречи вечером!',
           'Помогу с текстом и переводом',
@@ -106,6 +108,9 @@ final _chats = <ApiChatSummary>[
         'msg_type': 'text',
         'sent_at': DateTime.now().toIso8601String(),
         'is_read': true,
+        if (i == 3 || i == 5) 'e2ee_content': 'never-display-ciphertext',
+        if (i == 3 || i == 5) 'is_e2ee': true,
+        if (i == 3) 'is_decrypted': true,
       }),
     ),
 ];
@@ -180,6 +185,124 @@ void main() {
     },
   );
 
+  testWidgets('hidden composer is absent from accessibility navigation', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      final container = ProviderContainer(
+        overrides: [uiSettingsProvider.overrideWith(_Settings.new)],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const Scaffold(floatingActionButton: InboxComposeButton()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final label = tester
+          .widget<FloatingActionButton>(find.byType(FloatingActionButton))
+          .tooltip!;
+      bool containsComposer() {
+        var found = false;
+        void visit(SemanticsNode node) {
+          final data = node.getSemanticsData();
+          found |= data.label.contains(label) || data.tooltip == label;
+          node.visitChildren((child) {
+            visit(child);
+            return true;
+          });
+        }
+
+        visit(
+          tester
+              .binding
+              .renderViews
+              .first
+              .owner!
+              .semanticsOwner!
+              .rootSemanticsNode!,
+        );
+        return found;
+      }
+
+      expect(containsComposer(), isTrue);
+      container.read(chatListFabVisibleProvider.notifier).hide();
+      await tester.pumpAndSettle();
+      expect(containsComposer(), isFalse);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  for (final locale in ['ru', 'en']) {
+    testWidgets(
+      'pending footer stays readable and retry has a usable hit target $locale',
+      (tester) async {
+        var attempts = 0;
+        var failed = false;
+        late StateSetter update;
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: Locale(locale),
+            theme: ThemeData(useMaterial3: true),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 240,
+                  child: StatefulBuilder(
+                    builder: (context, setState) {
+                      update = setState;
+                      return MessageBubbleFooter(
+                        isMine: true,
+                        isE2ee: true,
+                        isEdited: true,
+                        isDeleted: false,
+                        isRead: false,
+                        formattedTime: '12:30',
+                        scheme: Theme.of(context).colorScheme,
+                        textTheme: Theme.of(context).textTheme,
+                        isSending: !failed,
+                        isFailed: failed,
+                        onRetrySend: () => attempts++,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text(locale == 'ru' ? 'Ожидает отправки' : 'Waiting to send'),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        update(() => failed = true);
+        await tester.pumpAndSettle();
+        final retry = find.byType(TextButton);
+        expect(tester.getSize(retry).height, greaterThanOrEqualTo(48));
+        await tester.tap(retry);
+        expect(attempts, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   for (final brightness in Brightness.values) {
     for (final locale in ['ru', 'en']) {
       for (final scale in [1.0, 1.8]) {
@@ -210,6 +333,11 @@ void main() {
                       ),
                     ),
                   ),
+                ),
+                GoRoute(
+                  path: '/new-message',
+                  builder: (_, _) =>
+                      const Scaffold(body: Text('compose-person')),
                 ),
                 GoRoute(
                   path: '/chats/search',
@@ -296,6 +424,82 @@ void main() {
                 }
               });
             }
+            expect(find.byType(FilterChip), findsNWidgets(3));
+            expect(find.text('never-display-ciphertext'), findsNothing);
+            await tester.tap(find.byIcon(Icons.more_vert_rounded));
+            await tester.pumpAndSettle();
+            await tester.tap(
+              find.text(locale == 'ru' ? 'Создать…' : 'Create…'),
+            );
+            await tester.pumpAndSettle();
+            expect(
+              find.text(
+                locale == 'ru' ? 'Начать общение' : 'Start a conversation',
+              ),
+              findsOneWidget,
+            );
+            expect(
+              find.text(
+                locale == 'ru' ? 'Вступить по ссылке' : 'Join with a link',
+              ),
+              findsOneWidget,
+            );
+            await tester.binding.handlePopRoute();
+            await tester.pumpAndSettle();
+            await tester.tap(find.byType(FloatingActionButton));
+            await tester.pumpAndSettle();
+            expect(find.text('compose-person'), findsOneWidget);
+            router.pop();
+            await tester.pumpAndSettle();
+            final typeLabel = locale == 'ru' ? 'Тип чата' : 'Chat type';
+            final groupsLabel = locale == 'ru' ? 'Группы' : 'Groups';
+            await tester.tap(find.widgetWithText(FilterChip, typeLabel));
+            await tester.pumpAndSettle();
+            await tester.tap(find.widgetWithText(MenuItemButton, groupsLabel));
+            await tester.pumpAndSettle();
+            expect(find.byType(ChatTile), findsOneWidget);
+            expect(
+              find.text('Ирина: Обсуждаем планы на выходные'),
+              findsOneWidget,
+            );
+            await tester.tap(find.widgetWithText(FilterChip, groupsLabel));
+            await tester.pumpAndSettle();
+            await tester.tap(
+              find.widgetWithText(
+                MenuItemButton,
+                locale == 'ru' ? 'Каналы' : 'Channels',
+              ),
+            );
+            await tester.pumpAndSettle();
+            expect(
+              find.text(
+                locale == 'ru'
+                    ? 'В этой категории пока нет чатов'
+                    : 'No chats in this category yet',
+              ),
+              findsOneWidget,
+            );
+            await tester.tap(
+              find.widgetWithText(
+                FilterChip,
+                locale == 'ru' ? 'Каналы' : 'Channels',
+              ),
+            );
+            await tester.pumpAndSettle();
+            // Resolve the existing localized label from the category menu.
+            final directItem = find.byType(MenuItemButton).first;
+            await tester.tap(directItem);
+            await tester.pumpAndSettle();
+            expect(find.text('NiosAI'), findsNothing);
+            expect(find.text('Хорошо, договорились'), findsOneWidget);
+            expect(
+              find.text(
+                locale == 'ru'
+                    ? 'Зашифрованное сообщение'
+                    : 'Encrypted message',
+              ),
+              findsOneWidget,
+            );
             final unreadLabel = locale == 'ru' ? 'Непрочитанные' : 'Unread';
             await tester.tap(find.widgetWithText(FilterChip, unreadLabel));
             await tester.pumpAndSettle();

@@ -284,7 +284,6 @@ class AppModal {
     IconData? icon,
     ValueChanged<bool>? onActionFeedback,
   }) {
-    final wide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
     bool responded = false;
     Widget content(BuildContext ctx) {
       void respond(bool confirmed) {
@@ -304,7 +303,7 @@ class AppModal {
         subtitle: message,
         icon: icon,
         destructive: destructive,
-        stackedActions: !wide,
+        stackedActions: false,
         actions: [
           AppDialogAction(
             label: cancelLabel ?? ctx.l10n.commonCancel,
@@ -320,19 +319,12 @@ class AppModal {
       );
     }
 
-    return wide
-        ? showDialog<bool>(
-            context: context,
-            builder: content,
-            maxWidth: 460,
-            isScrollable: true,
-          )
-        : showSheet<bool>(
-            context: context,
-            builder: content,
-            maxWidth: 640,
-            isScrollable: true,
-          );
+    return showDialog<bool>(
+      context: context,
+      builder: content,
+      maxWidth: 460,
+      isScrollable: true,
+    );
   }
 
   static Future<bool> confirm({

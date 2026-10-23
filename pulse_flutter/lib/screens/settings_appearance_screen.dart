@@ -281,16 +281,6 @@ class _AppearanceScreen extends ConsumerWidget {
             ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
           },
         ),
-        SettingsSwitchTile(
-          icon: Icons.auto_awesome_rounded,
-          title: context.l10n.appearanceSystemColors,
-          subtitle: context.l10n.appearanceSystemColorsSubtitle,
-          iconColor: scheme.secondary,
-          value: useSystemDynamic,
-          onChanged: (bool v) {
-            ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(v);
-          },
-        ),
       ],
     );
 
