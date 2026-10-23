@@ -435,7 +435,7 @@ class SettingsRegistry {
     SettingsToggleNode(
       id: 'auto_download_wifi',
       parentNavId: 'chats',
-      title: (AppLocalizations l) => l.settingsChatsAutoDownloadWifi,
+      title: (AppLocalizations l) => kIsWeb ? l.webAutoDownload : l.settingsChatsAutoDownloadWifi,
       subtitle: (AppLocalizations l) => l.settingsChatsAutoDownloadWifiDesc,
       icon: Icons.wifi_rounded,
       group: SettingsGroup.chats,

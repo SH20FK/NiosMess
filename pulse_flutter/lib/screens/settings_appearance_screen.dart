@@ -349,7 +349,7 @@ class _AppearanceScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                           contrastSection,
                           const SizedBox(height: 16),
-                          navSection,
+                          if (!kIsWeb) navSection,
                         ],
                       ),
                     ),
@@ -374,7 +374,7 @@ class _AppearanceScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               contrastSection,
               const SizedBox(height: 16),
-              navSection,
+              if (!kIsWeb) navSection,
               const SizedBox(height: 32),
             ],
           );

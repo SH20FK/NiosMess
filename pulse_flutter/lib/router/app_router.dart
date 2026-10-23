@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/router/web_settings_location.dart';
 import 'package:pulse_flutter/core/services/incoming_app_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -264,6 +265,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             tab: state.pathParameters['tab'] ?? 'chats',
             selectedChatId: int.tryParse(state.uri.queryParameters['chat'] ?? ''),
             highlightMessageId: int.tryParse(state.uri.queryParameters['highlight'] ?? ''),
+            settingsSection: state.uri.queryParameters['section'],
           ),
           pageKey: kIsWeb ? state.pageKey : const ValueKey<String>('main-shell'),
         ),
@@ -476,18 +478,22 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/energy-saving',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsEnergySavingScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/plus',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsPlusScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/appearance',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsAppearanceScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/chats',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsChatsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
@@ -504,14 +510,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/language-region',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsLanguageRegionScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/account',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsAccountScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/privacy',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsPrivacyScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
@@ -532,10 +541,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/storage',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsStorageScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/about',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsAboutScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
@@ -552,14 +563,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/e2ee',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const E2eeSettingsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/preferences',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SettingsPreferencesScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/sessions',
+        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(state, const SessionsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(

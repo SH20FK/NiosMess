@@ -125,6 +125,23 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     final AsyncValue<LocalStorageSnapshot> snapshotAsync =
         ref.watch(storageSnapshotProvider);
 
+    if (kIsWeb) {
+      return SettingsShell(title: context.l10n.settingsStorageTitle, isEmbedded: widget.isEmbedded,
+        children: [
+          SettingsSection(title: context.l10n.webStorageTitle, children: [
+            Padding(padding: const EdgeInsets.all(16), child: Text(context.l10n.webStorageDescription)),
+            SettingsRow(title: context.l10n.webStorageDrafts,
+              control: ValueControl('${snapshotAsync.value?.draftCount ?? 0}'),
+              subtitle: context.l10n.webStorageDraftsDescription),
+          ]),
+          SettingsSection(title: context.l10n.webAutoDownload, children: [
+            SettingsRow(title: context.l10n.webAutoDownload, control: ToggleControl(
+              value: ref.watch(uiSettingsProvider.select((s) => s.autoDownloadWifi)),
+              onChanged: (value) => ref.read(uiSettingsProvider.notifier).setAutoDownloadWifi(value))),
+          ]),
+        ]);
+    }
+
     return SettingsResponsiveShell(
       title: context.l10n.settingsStorageTitle,
       isEmbedded: widget.isEmbedded,

@@ -467,4 +467,40 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get webDownloadStarted => 'Загрузка файла началась';
+
+  @override
+  String get pasteImageTitle => 'Отправить изображение?';
+
+  @override
+  String get pasteImageCaption => 'Подпись';
+
+  @override
+  String get pasteImageFailed => 'Не удалось прочитать изображение из буфера';
+
+  @override
+  String get pasteImageLimit =>
+      'Можно вставить до 8 изображений общим размером до 40 МБ';
+
+  @override
+  String get pasteImageSendFailed =>
+      'Не удалось сохранить вложение. Изображение осталось здесь — повторите отправку.';
+
+  @override
+  String pasteImageCount(int count) {
+    return 'Осталось изображений: $count';
+  }
+
+  @override
+  String get webStorageTitle => 'Данные в браузере';
+
+  @override
+  String get webStorageDescription =>
+      'Браузер управляет местом для данных сайта. Объём диска и системные временные файлы здесь недоступны. Данные приложения можно удалить в настройках сайта в браузере; это также удалит локальные секретные переписки и очередь.';
+
+  @override
+  String get webStorageDrafts => 'Черновики обычных чатов';
+
+  @override
+  String get webStorageDraftsDescription =>
+      'Сохранены в этом браузере. Секретные черновики хранятся отдельно.';
 }

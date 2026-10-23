@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/services/calls/call_capture_profile.dart';
+import 'package:pulse_flutter/services/calls/call_sender_quality.dart';
 import 'dart:async';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
@@ -147,6 +149,7 @@ class WebRtcCallSession {
   }
 
   Future<void> _configureAudioSession() async {
+    if (kIsWeb) return;
     try {
       final session = await AudioSession.instance;
       await session.configure(
@@ -180,31 +183,8 @@ class WebRtcCallSession {
     }
 
     try {
-      final int maxHeight = gatewayInfo.maxVideoHeight > 0
-          ? gatewayInfo.maxVideoHeight
-          : 480;
-      final int idealWidth = (maxHeight * 16 ~/ 9);
-
-      final Map<String, dynamic> mediaConstraints = {
-        // Native WebRTC supplies its supported audio processing defaults.
-        'audio': true,
-        'video': isVideo
-            ? {
-                'mandatory': {
-                  'minWidth': '320',
-                  'idealWidth': '$idealWidth',
-                  'maxWidth': '$idealWidth',
-                  'minHeight': '240',
-                  'idealHeight': '$maxHeight',
-                  'maxHeight': '$maxHeight',
-                  'minFrameRate': '15',
-                  'idealFrameRate': '30',
-                },
-                'facingMode': 'user',
-                'optional': [],
-              }
-            : false,
-      };
+      final profile = CallCaptureProfile(gatewayInfo.maxVideoHeight);
+      final mediaConstraints = profile.constraints(isWeb: kIsWeb, video: isVideo);
 
       final stream =
           await (mediaStreamFactory ?? navigator.mediaDevices.getUserMedia)(
@@ -328,6 +308,24 @@ class WebRtcCallSession {
     };
 
     return pc;
+  }
+
+  Future<void> _configureSenders(RTCPeerConnection pc) async {
+    if (_ended || _localStream == null) return;
+    try {
+      for (final sender in await pc.getSenders()) {
+        if (_ended) return;
+        try {
+          await configureCallSender(sender, CallCaptureProfile(gatewayInfo.maxVideoHeight));
+        } catch (_) {
+          // Older engines may reject optional tuning. Their negotiated defaults
+          // remain usable, so this must never terminate a working call.
+          debugPrint('[WebRtcCallSession] SENDER_TUNING_UNAVAILABLE');
+        }
+      }
+    } catch (_) {
+      debugPrint('[WebRtcCallSession] SENDERS_UNAVAILABLE');
+    }
   }
 
   void _onRemotePeerJoined(int peerId, String? name) {
@@ -472,6 +470,7 @@ class WebRtcCallSession {
         'offerToReceiveVideo': isVideo ? 1 : 0,
       });
       await pc.setLocalDescription(offer);
+      await _configureSenders(pc);
 
       _signaling?.sendOffer(remoteId, {'type': offer.type, 'sdp': offer.sdp});
       debugPrint('[WebRtcCallSession] Sent offer to peer $remoteId');
@@ -490,6 +489,7 @@ class WebRtcCallSession {
       'offerToReceiveVideo': isVideo ? 1 : 0,
     });
     await pc.setLocalDescription(answer);
+    await _configureSenders(pc);
 
     _signaling?.sendAnswer(fromId, {'type': answer.type, 'sdp': answer.sdp});
     debugPrint('[WebRtcCallSession] Sent answer to peer $fromId');
@@ -503,6 +503,7 @@ class WebRtcCallSession {
     final String type = sdpData['type']?.toString() ?? 'answer';
     await pc.setRemoteDescription(RTCSessionDescription(sdp, type));
     await _flushIce(fromId, pc);
+    await _configureSenders(pc);
     debugPrint('[WebRtcCallSession] Applied answer from peer $fromId');
   }
 

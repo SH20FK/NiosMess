@@ -1,3 +1,5 @@
+import 'widgets/web_settings_paste_test.dart' as web_settings_paste;
+import 'services/call_sender_quality_test.dart' as call_sender_quality;
 import 'widgets/bot_keyboard_feedback_test.dart' as bot_keyboard_feedback;
 import 'widgets/web_workspace_test.dart' as web_workspace;
 import 'core/network/web_socket_reliability_test.dart' as transport_reliability;
@@ -305,6 +307,8 @@ void main() {
     neutral_inbox.main();
     message_surfaces.main();
     bot_keyboard_feedback.main();
+    web_settings_paste.main();
+    call_sender_quality.main();
     web_workspace.main();
     transport_reliability.main();
     inbox_reliability.main();

@@ -184,7 +184,7 @@ class SettingsSearchController extends Notifier<List<SearchMatch>> {
     final List<SearchMatch> matches = <SearchMatch>[];
 
     for (final SettingsDestination dest in SettingsRegistry.all) {
-      if (kIsWeb && {SettingId.securityAppLock, SettingId.securityAppLockTimeout, SettingId.appearanceDynamicColor}.contains(dest.id)) {
+      if (kIsWeb && {SettingId.securityAppLock, SettingId.securityAppLockTimeout, SettingId.appearanceDynamicColor, SettingId.securityAppLockHideInRecents, SettingId.privacyBackgroundMode, SettingId.storageAutoDownloadMobile, SettingId.storageClearCache, SettingId.notificationsVibration}.contains(dest.id)) {
         continue;
       }
       final String title = dest.title(l10n);

@@ -462,4 +462,39 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get webDownloadStarted => 'Download started';
+
+  @override
+  String get pasteImageTitle => 'Send image?';
+
+  @override
+  String get pasteImageCaption => 'Caption';
+
+  @override
+  String get pasteImageFailed => 'Could not read the clipboard image';
+
+  @override
+  String get pasteImageLimit => 'Paste up to 8 images, totaling up to 40 MB';
+
+  @override
+  String get pasteImageSendFailed =>
+      'Could not save the attachment. The image is still here; try sending again.';
+
+  @override
+  String pasteImageCount(int count) {
+    return 'Images remaining: $count';
+  }
+
+  @override
+  String get webStorageTitle => 'Browser data';
+
+  @override
+  String get webStorageDescription =>
+      'Your browser manages this site’s storage. Disk usage and system temporary files are unavailable here. Clearing site data in your browser also deletes local secret chats and the outgoing queue.';
+
+  @override
+  String get webStorageDrafts => 'Regular chat drafts';
+
+  @override
+  String get webStorageDraftsDescription =>
+      'Saved in this browser. Secret drafts are stored separately.';
 }

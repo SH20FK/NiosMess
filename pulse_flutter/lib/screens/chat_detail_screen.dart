@@ -1,3 +1,6 @@
+import 'package:pulse_flutter/core/clipboard/pasted_image.dart';
+import 'package:pulse_flutter/widgets/chat/browser_image_paste_target.dart';
+import 'package:pulse_flutter/widgets/chat/pasted_images_dialog.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
@@ -1084,6 +1087,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
+  Future<void> _previewPastedImages(List<PastedImage> images) async {
+    if (!mounted || _chatId == null || _editingMessageId != null) return;
+    final chatId = _chatId!;
+    final originalText = _inputController.text;
+    await showPastedImagesDialog(context, images: images, caption: originalText,
+      onSend: (image, caption) async {
+        if (!mounted || _chatId != chatId) throw StateError('Conversation closed');
+        await _uploadAndSend(chatId: chatId, bytes: image.bytes, filename: image.name,
+          mediaSubtype: 'image', fileSize: image.bytes.length, text: caption);
+        if (mounted && _inputController.text == originalText) _inputController.clear();
+      });
+    if (mounted) _inputFocusNode.requestFocus();
+  }
+
   Future<void> _pickAndUploadMedia() async {
     final int? chatId = _chatId;
     if (chatId == null) {
@@ -2131,7 +2148,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         : baseScheme;
 
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
-    final Widget content = CallbackShortcuts(
+    final Widget content = BrowserImagePasteTarget(focusNode: _inputFocusNode,
+      enabled: _editingMessageId == null && !_isAiProcessing,
+      onImages: (images) => unawaited(_previewPastedImages(images)), child: CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
         const SingleActivator(LogicalKeyboardKey.escape): () {
           final composer = _composerNotifier.value;
@@ -2143,7 +2162,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             _goBack();
           }
         },
-        const SingleActivator(LogicalKeyboardKey.keyV, control: true): () {
+        if (DesktopPasteboardService.isDesktop) const SingleActivator(LogicalKeyboardKey.keyV, control: true): () {
           unawaited(() async {
             final List<String> files =
                 await DesktopPasteboardService.getClipboardFilesOrImage();
@@ -2152,7 +2171,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             }
           }());
         },
-        const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () {
+        if (DesktopPasteboardService.isDesktop) const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () {
           unawaited(() async {
             final List<String> files =
                 await DesktopPasteboardService.getClipboardFilesOrImage();
@@ -2284,7 +2303,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           backgroundColor: scheme.surface,
         ),
       ),
-    );
+    ));
 
     if (scheme == baseScheme) {
       return content;

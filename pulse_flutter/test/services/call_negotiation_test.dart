@@ -79,7 +79,7 @@ void main() {
         localRenderer: _Renderer(),
         remoteRenderer: _Renderer(),
         mediaStreamFactory: (constraints) async {
-          expect(constraints['audio'], isTrue);
+          expect(constraints['audio'], containsPair('echoCancellation', true));
           throw StateError('capture rejected');
         },
       );

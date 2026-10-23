@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
@@ -149,7 +150,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         const SizedBox(height: 14),
 
         // Block 1: Isolated OTA Update Card
-        const _OtaUpdateCardWidget()
+        if (!kIsWeb) const _OtaUpdateCardWidget()
             .animate(delay: const Duration(milliseconds: 50))
             .fadeIn(
               duration: M3Durations.medium2,

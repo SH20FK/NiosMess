@@ -405,7 +405,9 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 subtitle: context.l10n.settingsSecretChatsSubtitle,
                 control: const NavigationControl(),
                 onTap: () {
-                  if (isEmbedded) {
+                  if (kIsWeb) {
+                    context.go('/main/settings?section=e2ee');
+                  } else if (isEmbedded) {
                     ref
                         .read(desktopSelectedSettingsSectionProvider.notifier)
                         .setSelectedSection(SettingsSectionId.e2ee);
@@ -429,7 +431,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                   },
                 ),
               ),
-              SettingsRow(
+              if (!kIsWeb) SettingsRow(
                 anchor: SettingId.privacyScreenshotsSecret.value,
                 leading: Icon(Icons.screenshot_rounded, color: scheme.primary),
                 title: 'Защита от снимков экрана',

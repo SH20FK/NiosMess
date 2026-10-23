@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -130,7 +131,9 @@ class SettingsAccountScreen extends ConsumerWidget {
                 subtitle: context.l10n.settingsActiveSessionsSubtitle,
                 control: const NavigationControl(),
                 onTap: () {
-                  if (isEmbedded) {
+                  if (kIsWeb) {
+                    context.go('/main/settings?section=sessions');
+                  } else if (isEmbedded) {
                     ref
                         .read(desktopSelectedSettingsSectionProvider.notifier)
                         .setSelectedSection(SettingsSectionId.sessions);

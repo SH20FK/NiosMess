@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -120,15 +121,15 @@ class SettingsShell extends ConsumerWidget {
         ];
 
         final Widget rawScrollView = CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
+          physics: kIsWeb ? const ClampingScrollPhysics()
+              : const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: slivers,
         );
 
+        final Widget scrolling = rawScrollView;
         final Widget bodyContent = onRefresh != null
-            ? RefreshIndicator(onRefresh: onRefresh!, child: rawScrollView)
-            : rawScrollView;
+            ? RefreshIndicator(onRefresh: onRefresh!, child: scrolling)
+            : scrolling;
 
         if (isEmbedded) {
           return Align(

@@ -928,6 +928,66 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Download started'**
   String get webDownloadStarted;
+
+  /// No description provided for @pasteImageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send image?'**
+  String get pasteImageTitle;
+
+  /// No description provided for @pasteImageCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'Caption'**
+  String get pasteImageCaption;
+
+  /// No description provided for @pasteImageFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the clipboard image'**
+  String get pasteImageFailed;
+
+  /// No description provided for @pasteImageLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste up to 8 images, totaling up to 40 MB'**
+  String get pasteImageLimit;
+
+  /// No description provided for @pasteImageSendFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the attachment. The image is still here; try sending again.'**
+  String get pasteImageSendFailed;
+
+  /// No description provided for @pasteImageCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Images remaining: {count}'**
+  String pasteImageCount(int count);
+
+  /// No description provided for @webStorageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browser data'**
+  String get webStorageTitle;
+
+  /// No description provided for @webStorageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your browser manages this site’s storage. Disk usage and system temporary files are unavailable here. Clearing site data in your browser also deletes local secret chats and the outgoing queue.'**
+  String get webStorageDescription;
+
+  /// No description provided for @webStorageDrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'Regular chat drafts'**
+  String get webStorageDrafts;
+
+  /// No description provided for @webStorageDraftsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved in this browser. Secret drafts are stored separately.'**
+  String get webStorageDraftsDescription;
 }
 
 class _SecretChatLocalizationsDelegate

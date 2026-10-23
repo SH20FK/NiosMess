@@ -158,4 +158,14 @@ extension SecretChatL10n on AppLocalizations {
   String get webAutoDownload => _secret.webAutoDownload;
   String get webMotionTitle => _secret.webMotionTitle;
   String get webDownloadStarted => _secret.webDownloadStarted;
+  String get pasteImageTitle => _secret.pasteImageTitle;
+  String get pasteImageCaption => _secret.pasteImageCaption;
+  String get pasteImageFailed => _secret.pasteImageFailed;
+  String get pasteImageLimit => _secret.pasteImageLimit;
+  String get pasteImageSendFailed => _secret.pasteImageSendFailed;
+  String pasteImageCount(int count) => _secret.pasteImageCount(count);
+  String get webStorageTitle => _secret.webStorageTitle;
+  String get webStorageDescription => _secret.webStorageDescription;
+  String get webStorageDrafts => _secret.webStorageDrafts;
+  String get webStorageDraftsDescription => _secret.webStorageDraftsDescription;
 }

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/widgets/nav/web_workspace_navigation.dart';
@@ -45,11 +46,13 @@ class MainShellScreen extends ConsumerStatefulWidget {
     required this.tab,
     this.selectedChatId,
     this.highlightMessageId,
+    this.settingsSection,
     super.key,
   });
 
   final String tab;
   final int? selectedChatId, highlightMessageId;
+  final String? settingsSection;
 
   @override
   ConsumerState<MainShellScreen> createState() => _MainShellScreenState();
@@ -559,7 +562,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                         ),
                       )
                     : const NiosgramScreen(),
-                const ProfileScreen(),
+                ProfileScreen(initialSection: capabilities.browserWorkspace && widget.settingsSection != null
+                    ? SettingsSectionId.fromString(widget.settingsSection) : null),
               ];
               final PerformanceTier tier = ref.watch(
                 adaptivePerformanceProvider.select((s) => s.tier),

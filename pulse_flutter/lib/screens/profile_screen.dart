@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -69,10 +70,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final SearchController _searchController = SearchController();
   bool _uploadingAvatar = false;
 
+  bool get _browser => ref.read(clientCapabilitiesProvider).browserWorkspace;
+  SettingsSectionId get _webSection => widget.initialSection == SettingsSectionId.systemDevice
+      ? SettingsSectionId.about : widget.initialSection ?? SettingsSectionId.account;
+  void _selectSection(SettingsSectionId section) {
+    if (_browser) {
+      context.go('/main/settings?section=${section.name}');
+    } else {
+      ref.read(desktopSelectedSettingsSectionProvider.notifier).setSelectedSection(section);
+    }
+  }
+  void _openSection(SettingsNavNode node) {
+    if (_browser && node.sectionId != null) {
+      _selectSection(node.sectionId!);
+    } else {
+      context.push(node.route);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    if (widget.initialSection != null) {
+    if (widget.initialSection != null && !ref.read(clientCapabilitiesProvider).browserWorkspace) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref
@@ -291,6 +310,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ? (isRussian ? 'Светлая' : 'Light')
               : (isRussian ? 'Системная' : 'System');
     } else if (node.id == 'storage') {
+      if (_browser) return '';
       return snapshot != null
           ? FileTypeDetector.formatFileSize(snapshot.totalBytes)
           : '0 Б';
@@ -299,6 +319,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Localizations.localeOf(context).languageCode == 'ru';
       return isRussian ? 'Русский' : 'English';
     } else if (node.id == 'energy_saving') {
+      if (_browser) return '';
       return settings.energySavingThreshold == 0
           ? 'Выкл'
           : '${settings.energySavingThreshold}%';
@@ -417,10 +438,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   anchor: result.anchor!,
                 );
               }
-              if (isWide && result.targetSectionId != null) {
-                ref
-                    .read(desktopSelectedSettingsSectionProvider.notifier)
-                    .setSelectedSection(result.targetSectionId!);
+              if ((_browser || isWide) && result.targetSectionId != null) {
+                _selectSection(result.targetSectionId!);
               } else {
                 context.push(result.targetRoute);
               }
@@ -510,7 +529,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             size: isCompact ? 36 : 42,
           ),
           const SizedBox(width: 8),
-          Container(
+          if (isCompact && _browser)
+            Tooltip(message: context.l10n.profileEdit, child: Icon(Icons.edit_outlined, size: 18, color: scheme.primary))
+          else Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHigh,
@@ -1010,7 +1031,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         subtitle: node.subtitle?.call(context.l10n),
                         value: badgeVal.isNotEmpty ? badgeVal : null,
                         iconColor: _getSectionColor(node.group, scheme),
-                        onTap: () => context.push(node.route),
+                        onTap: () => _openSection(node),
                       );
                     }).toList(),
                   ),
@@ -1027,7 +1048,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         subtitle: node.subtitle?.call(context.l10n),
                         value: badgeVal.isNotEmpty ? badgeVal : null,
                         iconColor: _getSectionColor(node.group, scheme),
-                        onTap: () => context.push(node.route),
+                        onTap: () => _openSection(node),
                       );
                     }).toList(),
                   ),
@@ -1044,7 +1065,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         subtitle: node.subtitle?.call(context.l10n),
                         value: badgeVal.isNotEmpty ? badgeVal : null,
                         iconColor: _getSectionColor(node.group, scheme),
-                        onTap: () => context.push(node.route),
+                        onTap: () => _openSection(node),
                       );
                     }).toList(),
                   ),
@@ -1112,8 +1133,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     String displayName,
     String username,
   ) {
-    final SettingsSectionId selectedSection =
-        ref.watch(desktopSelectedSettingsSectionProvider);
+    final SettingsSectionId selectedSection = _browser ? _webSection
+        : ref.watch(desktopSelectedSettingsSectionProvider);
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final List<SettingsNavNode> sections =
         SettingsRegistry.getTopLevelSections();
@@ -1123,7 +1144,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       children: <Widget>[
         // Left Master Pane
         Container(
-          width: 360,
+          key: const ValueKey('settings-master-pane'),
+          width: _browser ? (MediaQuery.sizeOf(context).width * .22).clamp(260.0, 320.0) : 360,
           decoration: BoxDecoration(
             color: isDark
                 ? scheme.surfaceContainerLowest
@@ -1165,7 +1187,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               // Top level sections from registry
               SettingsSection(
                 isCard: false,
-                title: 'Настройки',
+                title: context.l10n.tabSettings,
                 children: sections.map((SettingsNavNode node) {
                   final bool isSelected =
                       node.sectionId == selectedSection;
@@ -1180,11 +1202,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     isSelected: isSelected,
                     onTap: () {
                       if (node.sectionId != null) {
-                        ref
-                            .read(
-                              desktopSelectedSettingsSectionProvider.notifier,
-                            )
-                            .setSelectedSection(node.sectionId!);
+                        _selectSection(node.sectionId!);
                       }
                     },
                   );
@@ -1232,7 +1250,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         Expanded(
           child: Container(
             color: scheme.surface,
-            child: _buildDetailPane(selectedSection),
+            child: KeyedSubtree(key: ValueKey(selectedSection), child: _buildDetailPane(selectedSection)),
           ),
         ),
       ],
@@ -1321,8 +1339,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         final double width = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
-        final bool isWide =
-            width >= Breakpoints.medium && MediaQuery.sizeOf(context).width >= Breakpoints.medium;
+        final browser = ref.watch(clientCapabilitiesProvider).browserWorkspace;
+        final bool isWide = width >= (browser ? 720 : Breakpoints.medium) &&
+            MediaQuery.sizeOf(context).width >= Breakpoints.medium;
+        if (browser && !isWide && widget.initialSection != null) {
+          final section = _webSection;
+          final node = SettingsRegistry.getTopLevelSections().where((n) => n.sectionId == section).firstOrNull;
+          return Scaffold(appBar: AppBar(
+            leading: IconButton(icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: context.l10n.commonBack, onPressed: () => context.go('/main/settings')),
+            title: Text(node?.title(context.l10n) ?? context.l10n.tabSettings)),
+            body: KeyedSubtree(key: ValueKey(section), child: _buildDetailPane(section)));
+        }
 
         if (isWide) {
           return _buildDesktopMasterDetail(

@@ -76,6 +76,14 @@ jobs:
       - name: Test browser layout and real encrypted media playback
         run: flutter test test/web/browser_media_test.dart --platform chrome --timeout 90s
 
+      - name: Test paste, browser settings and synthetic WebRTC media
+        run: |
+          chmod +x tool/chrome_synthetic_media.sh
+          CHROME_EXECUTABLE="$PWD/tool/chrome_synthetic_media.sh" flutter test test/web/browser_workspace_calls_test.dart --platform chrome --dart-define=NIOS_CALL_SYNTHETIC_MEDIA_TEST=true --timeout 90s
+
+      - name: Test pure call capture and browser route policy
+        run: dart test test/pure_dart/call_capture_profile_test.dart
+
       - name: Test encrypted streaming against the real Python API
         run: flutter test test/services/secret_stream_python_integration_test.dart --timeout 90s
 

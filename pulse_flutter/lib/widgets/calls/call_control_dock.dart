@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -81,7 +82,7 @@ class CallControlDock extends StatelessWidget {
             const SizedBox(width: 12),
 
             // ── Speaker ────────────────────────────────────────────────
-            if (!isVideoCall) ...[
+            if (!isVideoCall && !kIsWeb) ...[
               _CallDockButton(
                 icon: data.isSpeakerOn
                     ? Icons.volume_up_rounded
