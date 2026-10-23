@@ -7,7 +7,6 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/identity/nios_mark.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
@@ -118,12 +117,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: <Widget>[
-              const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.screenHorizontalPadding,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const <Widget>[
@@ -136,6 +132,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   ),
                 ),
               ),
+              const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
               ..._buildChatSlivers(
                 isAuthenticated,
                 chatsAsync,
@@ -148,7 +145,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               ),
               SliverPadding(
                 padding: EdgeInsets.only(
-                  bottom: 16 + MediaQuery.viewPaddingOf(context).bottom,
+                  bottom: 88 + MediaQuery.viewPaddingOf(context).bottom,
                 ),
               ),
             ],
@@ -300,13 +297,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     return <Widget>[
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             (BuildContext context, int index) {
               final ApiChatSummary chat = searched[index];
               final Widget item = Padding(
-                padding: EdgeInsets.only(bottom: compact ? 8 : 10),
+                padding: EdgeInsets.zero,
                 child: Dismissible(
                   key: ValueKey<String>('chat_${chat.id}'),
                   direction: DismissDirection.endToStart,
@@ -341,6 +338,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                               ? context.l10n.chatTyping
                               : _chatPreview(chat),
                           formattedTime: formatRelativeTime(chat.lastActivity),
+                          deliveryIcon:
+                              chat.lastMessage != null &&
+                                  chat.lastMessage!.senderId ==
+                                      ref.read(authProvider).session?.userId
+                              ? (chat.lastMessage!.isFailed
+                                    ? Icons.error_outline_rounded
+                                    : chat.lastMessage!.isSending ||
+                                          chat.lastMessage!.id <= 0
+                                    ? Icons.schedule_rounded
+                                    : chat.lastMessage!.isRead
+                                    ? Icons.done_all_rounded
+                                    : Icons.done_rounded)
+                              : null,
                           unreadCount: chat.unreadCount,
                           avatarText: chat.name,
                           avatarUrl: chat.avatarUrl,
@@ -391,7 +401,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   String _previewText(String? raw) {
-    final String text = (InteractiveMessage.parse(raw ?? '')?.preview ?? raw ?? '').trim();
+    final String text =
+        (InteractiveMessage.parse(raw ?? '')?.preview ?? raw ?? '').trim();
     if (text.isEmpty) return context.l10n.chatNoMessages;
     final RegExp forwarded = RegExp(r'^_fwd from\s+(.+?):');
     final Match? match = forwarded.firstMatch(text);

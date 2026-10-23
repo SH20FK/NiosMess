@@ -1387,14 +1387,7 @@ class _MusicPlayerState extends State<_MusicPlayer> {
               width: 200,
               height: 200,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    scheme.primaryContainer,
-                    scheme.tertiaryContainer,
-                  ],
-                ),
+                color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(

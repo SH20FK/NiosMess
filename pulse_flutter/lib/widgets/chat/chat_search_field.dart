@@ -6,20 +6,13 @@ export 'package:pulse_flutter/widgets/chat/chat_search_bar.dart';
 
 /// Expressive inbox search launcher maintaining backwards compatibility.
 class ChatSearchField extends StatelessWidget {
-  const ChatSearchField({
-    super.key,
-    this.onAvatarTap,
-    this.hintText,
-  });
+  const ChatSearchField({super.key, this.onAvatarTap, this.hintText});
 
   final VoidCallback? onAvatarTap;
   final String? hintText;
 
   @override
   Widget build(BuildContext context) {
-    return InboxSearchLauncher(
-      onTap: onAvatarTap,
-      hintText: hintText,
-    );
+    return InboxSearchLauncher(onAvatarTap: onAvatarTap, hintText: hintText);
   }
 }

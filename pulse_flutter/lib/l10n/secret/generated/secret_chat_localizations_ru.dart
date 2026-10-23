@@ -142,4 +142,10 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get modalSessionsConfirm => 'Завершить все';
+
+  @override
+  String get inboxActions => 'Действия';
+
+  @override
+  String get backgroundsPaused => 'Фоны временно отключены';
 }

@@ -24,6 +24,7 @@ class ChatTile extends StatefulWidget {
     this.onTapWithRect,
     this.onLongPress,
     this.subtitleIcon,
+    this.deliveryIcon,
     this.isPinned = false,
     this.compact = false,
     this.isOnline = false,
@@ -49,6 +50,7 @@ class ChatTile extends StatefulWidget {
   final void Function(Rect? rect)? onTapWithRect;
   final VoidCallback? onLongPress;
   final IconData? subtitleIcon;
+  final IconData? deliveryIcon;
   final bool isPinned;
   final bool compact;
   final bool isOnline;
@@ -128,8 +130,8 @@ class _ChatTileState extends State<ChatTile>
         : widget.partnerBadges.take(3).toList(growable: false);
     final int hiddenBadgeCount = totalBadges > 3 ? totalBadges - 2 : 0;
 
-    final double vertical = widget.compact ? 8 : 11;
-    final double titleGap = widget.compact ? 3 : 5;
+    final double vertical = widget.compact ? 10 : 14;
+    final double titleGap = 4;
     final bool hasUnread = widget.unreadCount > 0;
 
     final String semanticsLabel =
@@ -147,7 +149,7 @@ class _ChatTileState extends State<ChatTile>
           child: TouchContainer(
             onTap: _handleTap,
             onLongPress: _handleLongPress,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(16),
             scaleDown: 0.98,
             releaseCurve: M3SpringCurves.spatial,
             enableHaptics: true,
@@ -155,26 +157,26 @@ class _ChatTileState extends State<ChatTile>
               valueListenable: _isHoveredNotifier,
               builder: (BuildContext context, bool isHovered, Widget? child) {
                 final Color tileBg = widget.isSelected
-                    ? scheme.primaryContainer.withValues(alpha: 0.55)
+                    ? scheme.primaryContainer.withValues(alpha: 0.45)
                     : (isHovered
-                        ? scheme.primaryContainer.withValues(alpha: 0.28)
-                        : scheme.surfaceContainerLow.withValues(alpha: 0.82));
-                final Color borderColor = widget.isSelected
-                    ? scheme.primary.withValues(alpha: 0.65)
-                    : (isHovered
-                        ? scheme.primary.withValues(alpha: 0.24)
-                        : scheme.outlineVariant.withValues(alpha: 0.18));
+                          ? scheme.surfaceContainerHigh
+                          : scheme.surface);
 
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: vertical),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: vertical,
+                  ),
                   decoration: BoxDecoration(
                     color: tileBg,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: borderColor,
-                      width: widget.isSelected ? 1.5 : 1.0,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: scheme.outlineVariant.withValues(alpha: .25),
+                        width: .5,
+                      ),
                     ),
                   ),
                   child: child,
@@ -192,7 +194,7 @@ class _ChatTileState extends State<ChatTile>
                             key: ValueKey<String>(
                               '${widget.avatarText}_${widget.avatarUrl ?? ''}',
                             ),
-                            radius: 26,
+                            radius: widget.compact ? 22 : 24,
                             name: widget.avatarText,
                             avatarUrl: widget.avatarUrl,
                             fallbackColor: widget.avatarColor,
@@ -235,15 +237,18 @@ class _ChatTileState extends State<ChatTile>
                                           widget.title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: textTheme.titleMedium?.copyWith(
-                                            fontWeight: hasUnread
-                                                ? FontWeight.w700
-                                                : FontWeight.w600,
-                                            color: scheme.onSurface,
-                                          ),
+                                          style: textTheme.titleMedium
+                                              ?.copyWith(
+                                                fontSize: 15,
+                                                fontWeight: hasUnread
+                                                    ? FontWeight.w700
+                                                    : FontWeight.w600,
+                                                color: scheme.onSurface,
+                                              ),
                                         ),
                                       ),
-                                      if (widget.statusEmoji != null) ...<Widget>[
+                                      if (widget.statusEmoji !=
+                                          null) ...<Widget>[
                                         StatusEmojiBadge(
                                           emoji: widget.statusEmoji!,
                                           size: 16,
@@ -254,7 +259,7 @@ class _ChatTileState extends State<ChatTile>
                                         Icon(
                                           Icons.lock_rounded,
                                           size: 14,
-                                          color: scheme.tertiary,
+                                          color: scheme.primary,
                                         ),
                                       ],
                                       if (widget.isPinned) ...<Widget>[
@@ -303,7 +308,7 @@ class _ChatTileState extends State<ChatTile>
                                     widget.draftLabel!,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: textTheme.bodyMedium?.copyWith(
+                                    style: textTheme.bodySmall?.copyWith(
                                       color: scheme.tertiary,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -315,7 +320,7 @@ class _ChatTileState extends State<ChatTile>
                                     widget.subtitle,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: textTheme.bodyMedium?.copyWith(
+                                    style: textTheme.bodySmall?.copyWith(
                                       color: hasUnread
                                           ? scheme.onSurface
                                           : scheme.onSurfaceVariant,
@@ -328,6 +333,18 @@ class _ChatTileState extends State<ChatTile>
                                 if (hasUnread) ...<Widget>[
                                   const SizedBox(width: 8),
                                   _AnimatedBadge(count: widget.unreadCount),
+                                ] else if (widget.deliveryIcon !=
+                                    null) ...<Widget>[
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    widget.deliveryIcon,
+                                    size: 16,
+                                    color:
+                                        widget.deliveryIcon ==
+                                            Icons.error_outline_rounded
+                                        ? scheme.error
+                                        : scheme.primary,
+                                  ),
                                 ],
                               ],
                             ),
@@ -342,13 +359,13 @@ class _ChatTileState extends State<ChatTile>
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHigh
-                              .withValues(alpha: 0.5),
+                          color: scheme.surfaceContainerHigh.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.spaceEvenly,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: widget.actions,
                         ),
                       ),
@@ -394,18 +411,17 @@ class _AnimatedBadge extends StatelessWidget {
       },
       child: Container(
         key: ValueKey<int>(count),
-        height: 22,
-        constraints: const BoxConstraints(minWidth: 22),
-        padding: const EdgeInsets.symmetric(horizontal: 7),
+        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
-          color: scheme.primary,
+          color: scheme.primaryContainer,
           borderRadius: BorderRadius.circular(12),
         ),
         alignment: Alignment.center,
         child: Text(
           count > 99 ? '99+' : '$count',
           style: textTheme.labelSmall?.copyWith(
-            color: scheme.onPrimary,
+            color: scheme.onPrimaryContainer,
             fontWeight: FontWeight.w700,
             fontSize: 11,
           ),

@@ -61,14 +61,7 @@ class AppUpdateDialog extends ConsumerWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: <Color>[
-                      scheme.primaryContainer,
-                      scheme.primary.withValues(alpha: 0.18),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: scheme.primary.withValues(alpha: 0.3),

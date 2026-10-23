@@ -310,9 +310,9 @@ void main() {
       );
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
-      await _waitForMeshShader(tester);
+      expect(find.byType(PaletteMeshPreview), findsNothing);
       expect(tester.takeException(), isNull);
-      expect(find.byType(PaletteMeshPreview), findsOneWidget);
+      expect(find.byType(PaletteMeshPreview), findsNothing);
       expect(find.byType(RawImage), findsNothing);
       final pager = find.byKey(const ValueKey('appearance-palette-strip'));
       final pageBounds = tester.getRect(pager);
@@ -374,58 +374,58 @@ void main() {
     });
   }
 
-  testWidgets('mesh palette transitions finish and respect reduced motion', (
-    tester,
-  ) async {
-    Widget card(Color seed, bool disableMotion) => MaterialApp(
-      themeAnimationDuration: Duration.zero,
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: seed)),
-      home: Builder(
-        builder: (context) {
-          final scheme = Theme.of(context).colorScheme;
-          return MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(disableAnimations: disableMotion),
-            child: SingleChildScrollView(
-              child: NiosColorField(
-                scheme: scheme,
-                seedColor: scheme.primary,
-                useSystemDynamic: false,
-                paletteStyle: PaletteStyle.expressive,
-                onColorSelected: (_) {},
-                onCustomColorTap: () {},
-                onToggleDynamic: (_) {},
-                onSelectPaletteStyle: (_) {},
+  testWidgets(
+    'palette changes preserve controls without restoring decorative backgrounds',
+    (tester) async {
+      Widget card(Color seed, bool disableMotion) => MaterialApp(
+        themeAnimationDuration: Duration.zero,
+        theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: seed)),
+        home: Builder(
+          builder: (context) {
+            final scheme = Theme.of(context).colorScheme;
+            return MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(disableAnimations: disableMotion),
+              child: SingleChildScrollView(
+                child: NiosColorField(
+                  scheme: scheme,
+                  seedColor: scheme.primary,
+                  useSystemDynamic: false,
+                  paletteStyle: PaletteStyle.expressive,
+                  onColorSelected: (_) {},
+                  onCustomColorTap: () {},
+                  onToggleDynamic: (_) {},
+                  onSelectPaletteStyle: (_) {},
+                ),
               ),
-            ),
-          );
-        },
-      ),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-    );
-    await tester.pumpWidget(card(const Color(0xFF6750A4), false));
-    await tester.pumpAndSettle();
-    await _waitForMeshShader(tester);
-    await tester.pumpWidget(card(const Color(0xFF006C5B), false));
-    expect(find.byType(PaletteMeshPreview), findsOneWidget);
-    // Interrupt an active image blend: the visible palette is captured before
-    // its GPU images are replaced, including when several taps arrive quickly.
-    await tester.pump(const Duration(milliseconds: 90));
-    await tester.pumpWidget(card(const Color(0xFF475569), false));
-    await tester.pump(const Duration(milliseconds: 60));
-    await tester.pumpWidget(card(const Color(0xFF6750A4), false));
-    await tester.pumpAndSettle();
-    expect(find.byType(PaletteMeshPreview), findsOneWidget);
-    await tester.pumpWidget(card(const Color(0xFF984061), true));
-    await tester.pump();
-    expect(find.byType(PaletteMeshPreview), findsOneWidget);
-    expect(find.byType(AnimatedSwitcher), findsNothing);
-    await tester.pumpAndSettle();
-    expect(tester.binding.transientCallbackCount, 0);
-    expect(tester.takeException(), isNull);
-  });
+            );
+          },
+        ),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      );
+      await tester.pumpWidget(card(const Color(0xFF6750A4), false));
+      await tester.pumpAndSettle();
+      expect(find.byType(PaletteMeshPreview), findsNothing);
+      await tester.pumpWidget(card(const Color(0xFF006C5B), false));
+      expect(find.byType(PaletteMeshPreview), findsNothing);
+      // Rapid accent changes must not recreate the disabled wallpaper renderer.
+      await tester.pump(const Duration(milliseconds: 90));
+      await tester.pumpWidget(card(const Color(0xFF475569), false));
+      await tester.pump(const Duration(milliseconds: 60));
+      await tester.pumpWidget(card(const Color(0xFF6750A4), false));
+      await tester.pumpAndSettle();
+      expect(find.byType(PaletteMeshPreview), findsNothing);
+      await tester.pumpWidget(card(const Color(0xFF984061), true));
+      await tester.pump();
+      expect(find.byType(PaletteMeshPreview), findsNothing);
+      expect(find.byType(AnimatedSwitcher), findsNothing);
+      await tester.pumpAndSettle();
+      expect(tester.binding.transientCallbackCount, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'mesh motion pauses offscreen, in background and in power saving',

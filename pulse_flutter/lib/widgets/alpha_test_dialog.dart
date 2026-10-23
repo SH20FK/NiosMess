@@ -64,14 +64,7 @@ class _AlphaTestBottomSheetWidget extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: <Color>[
-                      scheme.primaryContainer,
-                      scheme.surfaceContainerHigh,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: scheme.primary.withValues(alpha: 0.35),

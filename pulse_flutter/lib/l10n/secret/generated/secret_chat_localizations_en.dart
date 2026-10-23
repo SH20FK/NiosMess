@@ -142,4 +142,10 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get modalSessionsConfirm => 'End all other sessions';
+
+  @override
+  String get inboxActions => 'Actions';
+
+  @override
+  String get backgroundsPaused => 'Backgrounds are temporarily disabled';
 }

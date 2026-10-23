@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
 import 'package:universal_io/io.dart';
@@ -19,8 +18,7 @@ import 'package:pulse_flutter/screens/niosgram_screen.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
-import 'package:pulse_flutter/features/chats/presentation/compose_action_sheet.dart';
-import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
+import 'package:pulse_flutter/widgets/chat/inbox_compose_button.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
@@ -372,58 +370,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     context.go('/main/$targetTab');
   }
 
-  Widget _composeFab(BuildContext context) {
-    final bool isVisible = ref.watch(chatListFabVisibleProvider);
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final bool reducedMotion = MediaQuery.disableAnimationsOf(context);
-    final Duration motionDuration = reducedMotion
-        ? Duration.zero
-        : M3Durations.short4;
-
-    return AnimatedSlide(
-      offset: isVisible ? Offset.zero : const Offset(0, 0.35),
-      duration: motionDuration,
-      curve: M3SpringCurves.gentle,
-      child: AnimatedOpacity(
-        opacity: isVisible ? 1.0 : 0.0,
-        duration: motionDuration,
-        curve: M3SpringCurves.expressiveDecel,
-        child: IgnorePointer(
-          ignoring: !isVisible,
-          child: FloatingActionButton(
-            heroTag: 'compose_chat_fab',
-            elevation: 0,
-            highlightElevation: 0,
-            focusElevation: 0,
-            hoverElevation: 1,
-            backgroundColor: scheme.primaryContainer,
-            foregroundColor: scheme.onPrimaryContainer,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            tooltip: 'Начать общение',
-            onPressed: () {
-              final bool haptics = ref.read(
-                uiSettingsProvider.select((s) => s.haptics),
-              );
-              if (haptics) {
-                HapticService.tap();
-              }
-              openComposeActions(context);
-            },
-            child: const Icon(Icons.edit_rounded),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bool navBarFloating = ref.watch(
-      uiSettingsProvider.select((s) => s.navBarFloating),
-    );
     final bool haptics = ref.watch(uiSettingsProvider.select((s) => s.haptics));
     final int? desktopChatId = ref.watch(desktopSelectedChatProvider);
     final int currentIndex = _tabIndex(widget.tab);
@@ -480,7 +428,17 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                 children: <Widget>[
                   SizedBox(
                     width: effectiveChatListWidth,
-                    child: const ChatListScreen(),
+                    child: const Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        ChatListScreen(),
+                        Positioned(
+                          right: 16,
+                          bottom: 16,
+                          child: InboxComposeButton(),
+                        ),
+                      ],
+                    ),
                   ),
                   _DraggableSidebarDivider(
                     onDragUpdate: (double delta) {
@@ -580,79 +538,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
             ),
           );
 
-          if (isWide) {
-            return Scaffold(
-              body: Column(
-                children: [
-                  OfflineBanner(isOffline: isOffline),
-                  Expanded(
-                    child: Row(
-                      children: <Widget>[
-                        NavigationRail(
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.surfaceContainerLow,
-                          selectedIndex: currentIndex,
-                          onDestinationSelected: _onTapTab,
-                          labelType: NavigationRailLabelType.all,
-                          useIndicator: true,
-                          indicatorColor: Theme.of(
-                            context,
-                          ).colorScheme.primaryContainer,
-                          leading: Padding(
-                            padding: const EdgeInsets.only(bottom: 20, top: 12),
-                            child: FloatingActionButton(
-                              elevation: 0,
-                              onPressed: () {
-                                if (haptics) {
-                                  HapticService.tap();
-                                }
-                                _showCreateMenu(context);
-                              },
-                              child: const Icon(Icons.edit_rounded),
-                            ),
-                          ),
-                          destinations: <NavigationRailDestination>[
-                            NavigationRailDestination(
-                              icon: const Icon(
-                                Icons.chat_bubble_outline_rounded,
-                              ),
-                              selectedIcon: const Icon(
-                                Icons.chat_bubble_rounded,
-                              ),
-                              label: Text(context.l10n.tabChats),
-                            ),
-                            NavigationRailDestination(
-                              icon: const Icon(Icons.grid_view_rounded),
-                              selectedIcon: const Icon(Icons.grid_view_rounded),
-                              label: Text(context.l10n.tabNiosgram),
-                            ),
-                            NavigationRailDestination(
-                              icon: const Icon(Icons.settings_outlined),
-                              selectedIcon: const Icon(Icons.settings_rounded),
-                              label: Text(context.l10n.tabSettings),
-                            ),
-                          ],
-                        ),
-                        const VerticalDivider(thickness: 1, width: 1),
-                        Expanded(
-                          child: PulseScaffoldBody(
-                            expand: true,
-                            topSafe: false,
-                            bottomSafe: true,
-                            child: body,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
           return Scaffold(
-            extendBody: navBarFloating,
+            extendBody: false,
             body: Column(
               children: [
                 OfflineBanner(isOffline: isOffline),
@@ -673,8 +560,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                 hapticsEnabled: haptics,
               ),
             ),
-            floatingActionButton: currentIndex == 0
-                ? _composeFab(context)
+            floatingActionButton: !isWide && currentIndex == 0
+                ? const InboxComposeButton()
                 : null,
           );
         },
@@ -739,10 +626,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         ),
       ),
     );
-  }
-
-  Future<void> _showCreateMenu(BuildContext context) async {
-    await openComposeActions(context);
   }
 }
 

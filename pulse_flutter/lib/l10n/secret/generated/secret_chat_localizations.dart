@@ -328,6 +328,18 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'End all other sessions'**
   String get modalSessionsConfirm;
+
+  /// No description provided for @inboxActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get inboxActions;
+
+  /// No description provided for @backgroundsPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Backgrounds are temporarily disabled'**
+  String get backgroundsPaused;
 }
 
 class _SecretChatLocalizationsDelegate

@@ -1,4 +1,5 @@
 import 'services/mesh_preferences_test.dart' as mesh_preferences;
+import 'widgets/neutral_inbox_test.dart' as neutral_inbox;
 import 'unit/interactive_message_test.dart' as interactive_messages;
 import 'providers/interactive_provider_test.dart' as interactive_provider;
 import 'widgets/interactive_messages_test.dart' as interactive_widgets;
@@ -295,6 +296,7 @@ void main() {
     screens_register_screen.main();
 
     // Widgets
+    neutral_inbox.main();
     widgets_adaptive_glass.main();
     m3e_design_audit.main();
     widgets_chat_list_header.main();

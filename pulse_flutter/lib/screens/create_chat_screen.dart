@@ -34,21 +34,15 @@ class CreateChatScreen extends ConsumerWidget {
             // Soft ambient depth gradient
             Positioned.fill(
               child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(0, -0.4),
-                    radius: 1.2,
-                    colors: <Color>[
-                      scheme.primary.withValues(alpha: 0.07),
-                      scheme.surfaceContainerLowest,
-                    ],
-                  ),
-                ),
+                decoration: BoxDecoration(color: scheme.surface),
               ),
             ),
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 32,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 520),
                   child: Container(

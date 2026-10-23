@@ -45,95 +45,109 @@ class ChatFilterBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ChatFilter currentFilter = ref.watch(chatFilterProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(chatsProvider);
+    final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
+      chatsProvider,
+    );
 
     final int totalUnread = chatsAsync.maybeWhen(
-      data: (List<ApiChatSummary> chats) =>
-          chats.fold<int>(0, (int sum, ApiChatSummary c) => sum + c.unreadCount),
+      data: (List<ApiChatSummary> chats) => chats.fold<int>(
+        0,
+        (int sum, ApiChatSummary c) => sum + c.unreadCount,
+      ),
       orElse: () => 0,
     );
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(
-        parent: AlwaysScrollableScrollPhysics(),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .20)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: _orderedFilters.map((ChatFilter filter) {
-          final bool selected = filter == currentFilter;
-          final bool isUnreadChip = filter == ChatFilter.unread;
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Row(
+          children: _orderedFilters
+              .map((ChatFilter filter) {
+                final bool selected = filter == currentFilter;
+                final bool isUnreadChip = filter == ChatFilter.unread;
 
-          final Color chipBg = selected
-              ? scheme.secondaryContainer
-              : scheme.surfaceContainerLow;
-          final Color chipFg = selected
-              ? scheme.onSecondaryContainer
-              : scheme.onSurfaceVariant;
-          final Color borderColor = selected
-              ? scheme.secondary.withValues(alpha: 0.35)
-              : scheme.outlineVariant.withValues(alpha: 0.22);
+                final Color chipBg = selected
+                    ? scheme.primaryContainer
+                    : scheme.surfaceContainerLow;
+                final Color chipFg = selected
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurfaceVariant;
+                final Color borderColor = selected
+                    ? scheme.primary.withValues(alpha: 0.35)
+                    : scheme.outlineVariant.withValues(alpha: 0.22);
 
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(_filterLabel(context, filter)),
-                  if (isUnreadChip && totalUnread > 0) ...<Widget>[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 1.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? scheme.onSecondaryContainer
-                            : scheme.primary,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        totalUnread > 99 ? '99+' : '$totalUnread',
-                        style: TextStyle(
-                          color: selected
-                              ? scheme.secondaryContainer
-                              : scheme.onPrimary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(_filterLabel(context, filter)),
+                        if (isUnreadChip && totalUnread > 0) ...<Widget>[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? scheme.onPrimaryContainer
+                                  : scheme.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              totalUnread > 99 ? '99+' : '$totalUnread',
+                              style: TextStyle(
+                                color: selected
+                                    ? scheme.primaryContainer
+                                    : scheme.onPrimary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ],
-              ),
-              selected: selected,
-              onSelected: (_) {
-                HapticService.tap();
-                ref.read(chatFilterProvider.notifier).updateFilter(filter);
-              },
-              avatar: Icon(
-                _filterIcon(filter),
-                size: 18,
-                color: chipFg,
-              ),
-              showCheckmark: false,
-              backgroundColor: chipBg,
-              selectedColor: chipBg,
-              labelStyle: TextStyle(
-                color: chipFg,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                fontSize: 14,
-              ),
-              side: BorderSide(color: borderColor),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            ),
-          );
-        }).toList(growable: false),
+                    selected: selected,
+                    onSelected: (_) {
+                      HapticService.tap();
+                      ref
+                          .read(chatFilterProvider.notifier)
+                          .updateFilter(filter);
+                    },
+                    avatar: Icon(_filterIcon(filter), size: 16, color: chipFg),
+                    showCheckmark: false,
+                    backgroundColor: chipBg,
+                    selectedColor: chipBg,
+                    labelStyle: TextStyle(
+                      color: chipFg,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                    side: BorderSide(color: borderColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
+                  ),
+                );
+              })
+              .toList(growable: false),
+        ),
       ),
     );
   }

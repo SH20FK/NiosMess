@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -78,9 +79,11 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
     final session = ref.watch(callSessionProvider)?.session;
     final theme = Theme.of(context);
     final appScheme = theme.colorScheme;
-    final callScheme = ColorScheme.fromSeed(
-      seedColor: appScheme.primary,
-      brightness: Brightness.dark,
+    final callScheme = AppSurfaces.neutralize(
+      ColorScheme.fromSeed(
+        seedColor: appScheme.primary,
+        brightness: Brightness.dark,
+      ),
     );
     final textTheme = theme.textTheme;
 
@@ -92,19 +95,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
           body: Container(
             width: double.infinity,
             height: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D0F14),
-              gradient: RadialGradient(
-                center: const Alignment(0.0, -0.2),
-                radius: 1.1,
-                colors: [
-                  callScheme.error.withValues(alpha: 0.12),
-                  callScheme.surfaceContainerLowest,
-                  const Color(0xFF0B0C10),
-                ],
-                stops: const [0.0, 0.55, 1.0],
-              ),
-            ),
+            decoration: BoxDecoration(color: callScheme.surface),
             child: SafeArea(
               child: Center(
                 child: SingleChildScrollView(
@@ -114,10 +105,14 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
-                        color: callScheme.surfaceContainerHigh.withValues(alpha: 0.90),
+                        color: callScheme.surfaceContainerHigh.withValues(
+                          alpha: 0.90,
+                        ),
                         borderRadius: BorderRadius.circular(radii.card),
                         border: Border.all(
-                          color: callScheme.outlineVariant.withValues(alpha: 0.25),
+                          color: callScheme.outlineVariant.withValues(
+                            alpha: 0.25,
+                          ),
                         ),
                       ),
                       child: Column(
@@ -166,11 +161,16 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: callScheme.onSurface,
                                     side: BorderSide(
-                                      color: callScheme.outlineVariant.withValues(alpha: 0.4),
+                                      color: callScheme.outlineVariant
+                                          .withValues(alpha: 0.4),
                                     ),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(radii.button),
+                                      borderRadius: BorderRadius.circular(
+                                        radii.button,
+                                      ),
                                     ),
                                   ),
                                   child: Text(context.l10n.callBackToChats),
@@ -186,9 +186,13 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
                                   style: FilledButton.styleFrom(
                                     backgroundColor: callScheme.primary,
                                     foregroundColor: callScheme.onPrimary,
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(radii.button),
+                                      borderRadius: BorderRadius.circular(
+                                        radii.button,
+                                      ),
                                     ),
                                   ),
                                   child: Text(context.l10n.callRetry),
@@ -213,19 +217,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          decoration: BoxDecoration(
-            color: const Color(0xFF0D0F14),
-            gradient: RadialGradient(
-              center: const Alignment(0.0, -0.25),
-              radius: 1.1,
-              colors: [
-                callScheme.primary.withValues(alpha: 0.16),
-                callScheme.tertiary.withValues(alpha: 0.06),
-                const Color(0xFF0B0C10),
-              ],
-              stops: const [0.0, 0.50, 1.0],
-            ),
-          ),
+          decoration: BoxDecoration(color: callScheme.surface),
           child: SafeArea(
             child: Stack(
               children: <Widget>[
@@ -311,7 +303,9 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
                       child: TouchContainer(
                         width: CallTokens.meetEndButtonWidth,
                         height: CallTokens.meetEndButtonHeight,
-                        borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),
+                        borderRadius: BorderRadius.circular(
+                          CallTokens.meetEndButtonHeight / 2,
+                        ),
                         color: callScheme.error,
                         scaleDown: 0.94,
                         releaseCurve: M3SpringCurves.spatial,

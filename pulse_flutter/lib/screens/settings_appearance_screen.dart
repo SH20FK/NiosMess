@@ -12,14 +12,10 @@ import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
-import 'package:pulse_flutter/widgets/settings/palette_mesh_preview.dart';
 import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
 
 class SettingsAppearanceScreen extends StatelessWidget {
-  const SettingsAppearanceScreen({
-    this.isEmbedded = false,
-    super.key,
-  });
+  const SettingsAppearanceScreen({this.isEmbedded = false, super.key});
 
   final bool isEmbedded;
 
@@ -45,7 +41,6 @@ final _palettes = <_PaletteEntry>[
   _PaletteEntry(const Color(0xFF006874), (l) => l.appearanceLabelSky),
   _PaletteEntry(const Color(0xFF984061), (l) => l.appearanceLabelRose),
 ];
-
 
 final _appearanceThemeProvider = Provider.autoDispose
     .family<ThemeData, Brightness>((ref, brightness) {
@@ -96,24 +91,31 @@ class _AppearanceScreen extends ConsumerWidget {
       uiSettingsProvider.select((UiSettingsState s) => s.predictiveBackEnabled),
     );
     final double predictiveBackStrength = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.predictiveBackStrength),
+      uiSettingsProvider.select(
+        (UiSettingsState s) => s.predictiveBackStrength,
+      ),
     );
     final bool optimizeForWeakDevices = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.optimizeForWeakDevices),
+      uiSettingsProvider.select(
+        (UiSettingsState s) => s.optimizeForWeakDevices,
+      ),
     );
     final bool hideBubbleTails = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.hideBubbleTails),
     );
 
     final PerformanceTier tier = ref.watch(
-      adaptivePerformanceProvider.select((AdaptivePerformanceState s) => s.tier),
+      adaptivePerformanceProvider.select(
+        (AdaptivePerformanceState s) => s.tier,
+      ),
     );
     final Brightness brightness = Theme.of(context).brightness;
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        final ColorScheme? dynamicScheme =
-            brightness == Brightness.light ? lightDynamic : darkDynamic;
+        final ColorScheme? dynamicScheme = brightness == Brightness.light
+            ? lightDynamic
+            : darkDynamic;
         final ThemeData targetTheme = useSystemDynamic
             ? AppTheme.themed(
                 visualTheme,
@@ -280,16 +282,6 @@ class _AppearanceScreen extends ConsumerWidget {
           },
         ),
         SettingsSwitchTile(
-          icon: Icons.contrast_rounded,
-          title: context.l10n.appearanceDeepBlackOled,
-          subtitle: context.l10n.appearanceDeepBlackOledDesc,
-          iconColor: scheme.primary,
-          value: pureBlackOled,
-          onChanged: (bool v) {
-            ref.read(uiSettingsProvider.notifier).setPureBlackOled(v);
-          },
-        ),
-        SettingsSwitchTile(
           icon: Icons.auto_awesome_rounded,
           title: context.l10n.appearanceSystemColors,
           subtitle: context.l10n.appearanceSystemColorsSubtitle,
@@ -307,16 +299,6 @@ class _AppearanceScreen extends ConsumerWidget {
       subtitle: context.l10n.appearanceInterfaceNavDesc,
       children: [
         SettingsSwitchTile(
-          icon: Icons.dock_rounded,
-          title: context.l10n.appearanceFloatingNav,
-          subtitle: context.l10n.appearanceFloatingNavSubtitle,
-          iconColor: scheme.primary,
-          value: navBarFloating,
-          onChanged: (bool v) {
-            ref.read(uiSettingsProvider.notifier).setNavBarFloating(v);
-          },
-        ),
-        SettingsSwitchTile(
           icon: Icons.swipe_left_rounded,
           title: context.l10n.appearancePredictiveBack,
           subtitle: context.l10n.appearancePredictiveBackDesc,
@@ -331,7 +313,9 @@ class _AppearanceScreen extends ConsumerWidget {
             strength: predictiveBackStrength,
             scheme: scheme,
             onChanged: (double val) {
-              ref.read(uiSettingsProvider.notifier).setPredictiveBackStrength(val);
+              ref
+                  .read(uiSettingsProvider.notifier)
+                  .setPredictiveBackStrength(val);
             },
           ),
       ],
@@ -456,25 +440,6 @@ class NiosColorField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    // The expressive scheme can rotate primary into a complementary hue.
-    // Keep decorative fog in the chosen palette's family instead.
-    final hue = HSLColor.fromColor(
-      meshAnchor ?? (useSystemDynamic ? scheme.secondary : seedColor),
-    ).hue;
-    final dark = scheme.brightness == Brightness.dark;
-    Color fogTone(double shift, double saturation, double lightness) =>
-        HSLColor.fromAHSL(
-          1,
-          (hue + shift) % 360,
-          saturation,
-          lightness,
-        ).toColor();
-    final colors = <Color>[
-      fogTone(-25, 0.12, dark ? 0.56 : 0.78),
-      fogTone(-5, 0.13, dark ? 0.68 : 0.85),
-      fogTone(-55, 0.19, dark ? 0.46 : 0.65),
-      fogTone(35, 0.24, dark ? 0.80 : 0.91),
-    ];
     final customSelected =
         !useSystemDynamic &&
         !_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32());
@@ -486,19 +451,6 @@ class NiosColorField extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            RepaintBoundary(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: SizedBox(
-                  height: 160,
-                  child: PaletteMeshPreview(
-                    colors: colors,
-                    animate: animateMesh,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
             Text(
               context.l10n.appearancePaletteTitle,
               style: textTheme.titleLarge?.copyWith(
@@ -950,11 +902,7 @@ class _ThemeModeSelectorCard extends StatelessWidget {
                   color: scheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  modeIcon,
-                  color: scheme.primary,
-                  size: 22,
-                ),
+                child: Icon(modeIcon, color: scheme.primary, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1106,8 +1054,10 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
                 curve: M3SpringCurves.bouncy,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _isDragging
                         ? scheme.primary.withValues(alpha: 0.22)
@@ -1160,7 +1110,8 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
                 widget.onChanged(v);
               },
               onChanged: (double v) {
-                final double step = (widget.max - widget.min) / widget.divisions;
+                final double step =
+                    (widget.max - widget.min) / widget.divisions;
                 if ((v - _localValue).abs() >= step * 0.9) {
                   HapticService.selection();
                 }
@@ -1200,8 +1151,7 @@ class _FontScaleSliderTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.format_size_rounded,
-                  color: scheme.primary, size: 20),
+              Icon(Icons.format_size_rounded, color: scheme.primary, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1224,8 +1174,10 @@ class _FontScaleSliderTile extends StatelessWidget {
               ),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: scheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
@@ -1296,8 +1248,9 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final double normalized =
-        strength <= 0.75 ? 0.5 : (strength >= 1.25 ? 1.5 : 1.0);
+    final double normalized = strength <= 0.75
+        ? 0.5
+        : (strength >= 1.25 ? 1.5 : 1.0);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
@@ -1329,8 +1282,10 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
               ),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: scheme.secondary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
@@ -1350,18 +1305,24 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
             segments: <ButtonSegment<double>>[
               ButtonSegment<double>(
                 value: 0.5,
-                label: Text(context.l10n.appearancePredictiveBackSoftLabel,
-                    style: const TextStyle(fontSize: 12)),
+                label: Text(
+                  context.l10n.appearancePredictiveBackSoftLabel,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
               ButtonSegment<double>(
                 value: 1.0,
-                label: Text(context.l10n.appearancePredictiveBackStandardLabel,
-                    style: const TextStyle(fontSize: 12)),
+                label: Text(
+                  context.l10n.appearancePredictiveBackStandardLabel,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
               ButtonSegment<double>(
                 value: 1.5,
-                label: Text(context.l10n.appearancePredictiveBackDeepLabel,
-                    style: const TextStyle(fontSize: 12)),
+                label: Text(
+                  context.l10n.appearancePredictiveBackDeepLabel,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ],
             selected: <double>{normalized},
@@ -1411,9 +1372,9 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
               Text(
                 context.l10n.appearancePaletteStyle,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: scheme.onSurface,
-                    ),
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
               ),
             ],
           ),
@@ -1434,8 +1395,9 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
                     labelStyle: TextStyle(
                       fontFamily: AppFonts.ui,
                       fontSize: 13,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: isSelected
                           ? scheme.onPrimaryContainer
                           : scheme.onSurfaceVariant,

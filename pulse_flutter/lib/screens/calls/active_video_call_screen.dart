@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
@@ -77,14 +78,18 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     _timerNotifier.value = session.currentData.durationSeconds;
     _stateSubscription = session.stateStream.listen((CallSessionData data) {
       if (!mounted) return;
-      if (data.state == CallSessionState.connected && lastState != CallSessionState.connected) {
+      if (data.state == CallSessionState.connected &&
+          lastState != CallSessionState.connected) {
         ref.read(appSoundProvider).playEvent(SoundEvent.callConnected);
       }
       lastState = data.state;
       if (data.state == CallSessionState.ended) {
         ref.read(appSoundProvider).playEvent(SoundEvent.callEnded);
         if (data.fatalError != null) {
-          AppToast.showError(context, context.l10n.callFailureMessage(data.fatalError!));
+          AppToast.showError(
+            context,
+            context.l10n.callFailureMessage(data.fatalError!),
+          );
         }
         _popOrGoHome();
       }
@@ -156,9 +161,11 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
 
     final data = session.currentData;
     final appScheme = Theme.of(context).colorScheme;
-    final scheme = ColorScheme.fromSeed(
-      seedColor: appScheme.primary,
-      brightness: Brightness.dark,
+    final scheme = AppSurfaces.neutralize(
+      ColorScheme.fromSeed(
+        seedColor: appScheme.primary,
+        brightness: Brightness.dark,
+      ),
     );
     final textTheme = ThemeData(
       brightness: Brightness.dark,
@@ -178,8 +185,8 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     final participantName = participants.isNotEmpty
         ? participants.map((p) => p.nickname).join(', ')
         : (data.peerName?.isNotEmpty == true
-            ? data.peerName!
-            : context.l10n.callsInProgress);
+              ? data.peerName!
+              : context.l10n.callsInProgress);
 
     final bool hasRemoteVideo = session.remoteStreams.isNotEmpty;
 
@@ -323,12 +330,14 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: scheme.surfaceContainerHigh
-                                  .withValues(alpha: 0.85),
+                              color: scheme.surfaceContainerHigh.withValues(
+                                alpha: 0.85,
+                              ),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: scheme.outlineVariant
-                                    .withValues(alpha: 0.25),
+                                color: scheme.outlineVariant.withValues(
+                                  alpha: 0.25,
+                                ),
                               ),
                             ),
                             child: Text(
@@ -370,8 +379,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                     height: CallTokens.videoPipHeight,
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHighest,
-                      borderRadius:
-                          BorderRadius.circular(CallTokens.pipBorderRadius),
+                      borderRadius: BorderRadius.circular(
+                        CallTokens.pipBorderRadius,
+                      ),
                       border: Border.all(
                         color: scheme.outlineVariant.withValues(alpha: 0.35),
                         width: 1.5,
@@ -413,8 +423,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: scheme.surfaceContainerHigh
-                                      .withValues(alpha: 0.80),
+                                  color: scheme.surfaceContainerHigh.withValues(
+                                    alpha: 0.80,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(

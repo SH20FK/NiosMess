@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
@@ -59,14 +60,18 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     _timerNotifier.value = session.currentData.durationSeconds;
     _stateSubscription = session.stateStream.listen((CallSessionData data) {
       if (!mounted) return;
-      if (data.state == CallSessionState.connected && lastState != CallSessionState.connected) {
+      if (data.state == CallSessionState.connected &&
+          lastState != CallSessionState.connected) {
         ref.read(appSoundProvider).playEvent(SoundEvent.callConnected);
       }
       lastState = data.state;
       if (data.state == CallSessionState.ended) {
         ref.read(appSoundProvider).playEvent(SoundEvent.callEnded);
         if (data.fatalError != null) {
-          AppToast.showError(context, context.l10n.callFailureMessage(data.fatalError!));
+          AppToast.showError(
+            context,
+            context.l10n.callFailureMessage(data.fatalError!),
+          );
         }
         _popOrGoHome();
       }
@@ -104,9 +109,11 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     super.build(context);
     final session = ref.watch(callSessionProvider)?.session;
     final ColorScheme appScheme = Theme.of(context).colorScheme;
-    final ColorScheme callScheme = ColorScheme.fromSeed(
-      seedColor: appScheme.primary,
-      brightness: Brightness.dark,
+    final ColorScheme callScheme = AppSurfaces.neutralize(
+      ColorScheme.fromSeed(
+        seedColor: appScheme.primary,
+        brightness: Brightness.dark,
+      ),
     );
     final textTheme = Theme.of(context).textTheme;
 
@@ -119,8 +126,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     final String participantName = participants.isNotEmpty
         ? participants.map((p) => p.nickname).join(', ')
         : (data.peerName?.isNotEmpty == true
-            ? data.peerName!
-            : context.l10n.callsInProgress);
+              ? data.peerName!
+              : context.l10n.callsInProgress);
 
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
 
@@ -129,25 +136,16 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
-          color: const Color(0xFF0D0F14),
-          gradient: RadialGradient(
-            center: const Alignment(0.0, -0.28),
-            radius: 1.15,
-            colors: [
-              callScheme.primary.withValues(alpha: 0.18),
-              callScheme.tertiary.withValues(alpha: 0.07),
-              const Color(0xFF0B0C10),
-            ],
-            stops: const [0.0, 0.50, 1.0],
-          ),
-        ),
+        decoration: BoxDecoration(color: callScheme.surface),
         child: SafeArea(
           child: Column(
             children: <Widget>[
               // ── Top Navigation & Status Bar ──────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: <Widget>[
                     IconButton(
@@ -169,10 +167,14 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: callScheme.surfaceContainerHigh.withValues(alpha: 0.85),
+                        color: callScheme.surfaceContainerHigh.withValues(
+                          alpha: 0.85,
+                        ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: callScheme.outlineVariant.withValues(alpha: 0.20),
+                          color: callScheme.outlineVariant.withValues(
+                            alpha: 0.20,
+                          ),
                         ),
                       ),
                       child: Row(
@@ -213,7 +215,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                         CallAudioRipple(
                           animation: _rippleController,
                           scheme: callScheme,
-                          isActive: data.state == CallSessionState.inCall ||
+                          isActive:
+                              data.state == CallSessionState.inCall ||
                               data.state == CallSessionState.connecting ||
                               data.state == CallSessionState.connected,
                           size: 140,
@@ -223,7 +226,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: callScheme.primary.withValues(alpha: 0.35),
+                                color: callScheme.primary.withValues(
+                                  alpha: 0.35,
+                                ),
                                 width: 2.5,
                               ),
                             ),
@@ -254,7 +259,8 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                         ),
 
                         // Username (if present)
-                        if (data.peerUsername != null && data.peerUsername!.isNotEmpty) ...[
+                        if (data.peerUsername != null &&
+                            data.peerUsername!.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             '@${data.peerUsername}',
@@ -285,8 +291,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                       .withValues(alpha: 0.85),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: callScheme.outlineVariant
-                                        .withValues(alpha: 0.22),
+                                    color: callScheme.outlineVariant.withValues(
+                                      alpha: 0.22,
+                                    ),
                                   ),
                                 ),
                                 child: Row(
@@ -323,8 +330,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                   vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: callScheme.errorContainer
-                                      .withValues(alpha: 0.70),
+                                  color: callScheme.errorContainer.withValues(
+                                    alpha: 0.70,
+                                  ),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Row(
@@ -362,8 +370,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                     .withValues(alpha: 0.85),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: callScheme.outlineVariant
-                                      .withValues(alpha: 0.22),
+                                  color: callScheme.outlineVariant.withValues(
+                                    alpha: 0.22,
+                                  ),
                                 ),
                               ),
                               child: Row(
@@ -405,8 +414,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                                     .withValues(alpha: 0.85),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: callScheme.outlineVariant
-                                      .withValues(alpha: 0.2),
+                                  color: callScheme.outlineVariant.withValues(
+                                    alpha: 0.2,
+                                  ),
                                 ),
                               ),
                               child: Row(
@@ -450,8 +460,11 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.hearing_rounded,
-                                    size: 14, color: callScheme.primary),
+                                Icon(
+                                  Icons.hearing_rounded,
+                                  size: 14,
+                                  color: callScheme.primary,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   context.l10n.callListenerModeNotice,
@@ -494,4 +507,3 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     );
   }
 }
-

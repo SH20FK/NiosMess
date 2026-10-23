@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/core/motion/pulse_predictive_back_transition.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
@@ -28,20 +29,7 @@ class AppTheme {
   }
 
   static LinearGradient heroGradient(ColorScheme scheme) {
-    final Color top = Color.alphaBlend(
-      scheme.primary.withValues(alpha: 0.06),
-      scheme.surface,
-    );
-    final Color mid = scheme.surface;
-    final Color end = Color.alphaBlend(
-      scheme.tertiary.withValues(alpha: 0.04),
-      scheme.surface,
-    );
-    return LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: <Color>[top, mid, end],
-    );
+    return LinearGradient(colors: <Color>[scheme.surface, scheme.surface]);
   }
 
   static ThemeData themed(
@@ -50,7 +38,6 @@ class AppTheme {
     ColorScheme? dynamicScheme,
     double contrastLevel = 0.0,
   }) {
-    final bool isOled = settings.pureBlackOled && brightness == Brightness.dark;
     final int cacheKey = Object.hash(
       settings.seedColor.toARGB32(),
       brightness.index,
@@ -70,7 +57,8 @@ class AppTheme {
       return cached;
     }
 
-    final ColorScheme baseScheme = (settings.useSystemDynamic && dynamicScheme != null)
+    final ColorScheme baseScheme =
+        (settings.useSystemDynamic && dynamicScheme != null)
         ? ColorScheme.fromSeed(
             seedColor: dynamicScheme.primary,
             brightness: brightness,
@@ -78,27 +66,13 @@ class AppTheme {
             contrastLevel: contrastLevel,
           )
         : _scheme(settings, brightness, contrastLevel);
-    final ColorScheme scheme = isOled
-        ? baseScheme.copyWith(
-            surface: const Color(0xFF000000),
-            surfaceDim: const Color(0xFF000000),
-            surfaceBright: const Color(0xFF141414),
-            surfaceContainerLowest: const Color(0xFF000000),
-            surfaceContainerLow: const Color(0xFF080808),
-            surfaceContainer: const Color(0xFF101010),
-            surfaceContainerHigh: const Color(0xFF161616),
-            surfaceContainerHighest: const Color(0xFF202020),
-            inverseSurface: const Color(0xFFE0E0E0),
-            onInverseSurface: const Color(0xFF1A1A1A),
-            scrim: const Color(0xFF000000),
-          )
-        : baseScheme;
+    final ColorScheme scheme = AppSurfaces.neutralize(baseScheme);
     final TextTheme textTheme = AppTypography.build(scheme);
 
     final ThemeData theme = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: isOled ? const Color(0xFF000000) : scheme.surface,
+      scaffoldBackgroundColor: scheme.surface,
       textTheme: textTheme,
       extensions: <ThemeExtension<dynamic>>[
         AppRadiiTheme.fromCornerRadius(settings.uiCornerRadius),
@@ -111,7 +85,9 @@ class AppTheme {
         centerTitle: false,
         backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
-        titleTextStyle: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+        titleTextStyle: textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -175,7 +151,7 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 72,
+        height: 66,
         elevation: 0,
         backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.96),
         indicatorColor: scheme.secondaryContainer,
@@ -217,7 +193,9 @@ class AppTheme {
         backgroundColor: WidgetStatePropertyAll<Color>(
           scheme.surfaceContainerHigh,
         ),
-        surfaceTintColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+        surfaceTintColor: const WidgetStatePropertyAll<Color>(
+          Colors.transparent,
+        ),
         padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(
           EdgeInsets.symmetric(horizontal: 14),
         ),
@@ -283,9 +261,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         dragHandleColor: scheme.onSurfaceVariant.withValues(alpha: 0.38),
         shape: RoundedSuperellipseBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(28),
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
       ),
       listTileTheme: ListTileThemeData(
@@ -373,7 +349,9 @@ class AppTheme {
           color: scheme.inverseSurface,
           borderRadius: BorderRadius.circular(8),
         ),
-        textStyle: textTheme.labelSmall?.copyWith(color: scheme.onInverseSurface),
+        textStyle: textTheme.labelSmall?.copyWith(
+          color: scheme.onInverseSurface,
+        ),
       ),
       tabBarTheme: TabBarThemeData(
         indicatorColor: scheme.primary,
@@ -412,7 +390,9 @@ class AppTheme {
       ),
       menuTheme: MenuThemeData(
         style: MenuStyle(
-          backgroundColor: WidgetStatePropertyAll<Color>(scheme.surfaceContainerHigh),
+          backgroundColor: WidgetStatePropertyAll<Color>(
+            scheme.surfaceContainerHigh,
+          ),
           elevation: const WidgetStatePropertyAll<double>(0),
           shape: WidgetStatePropertyAll<OutlinedBorder>(
             RoundedSuperellipseBorder(
@@ -443,24 +423,15 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(settings.uiCornerRadius),
-          borderSide: BorderSide(
-            color: scheme.primary,
-            width: 1.8,
-          ),
+          borderSide: BorderSide(color: scheme.primary, width: 1.8),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(settings.uiCornerRadius),
-          borderSide: BorderSide(
-            color: scheme.error,
-            width: 1.2,
-          ),
+          borderSide: BorderSide(color: scheme.error, width: 1.2),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(settings.uiCornerRadius),
-          borderSide: BorderSide(
-            color: scheme.error,
-            width: 1.8,
-          ),
+          borderSide: BorderSide(color: scheme.error, width: 1.8),
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(settings.uiCornerRadius),
@@ -569,14 +540,13 @@ class VisualEffectBudget extends ThemeExtension<VisualEffectBudget> {
     bool? allowLiveBlur,
     bool? allowColoredShadow,
     int? maxNestedSurfaces,
-  }) =>
-      VisualEffectBudget(
-        allowDecorativeGradient:
-            allowDecorativeGradient ?? this.allowDecorativeGradient,
-        allowLiveBlur: allowLiveBlur ?? this.allowLiveBlur,
-        allowColoredShadow: allowColoredShadow ?? this.allowColoredShadow,
-        maxNestedSurfaces: maxNestedSurfaces ?? this.maxNestedSurfaces,
-      );
+  }) => VisualEffectBudget(
+    allowDecorativeGradient:
+        allowDecorativeGradient ?? this.allowDecorativeGradient,
+    allowLiveBlur: allowLiveBlur ?? this.allowLiveBlur,
+    allowColoredShadow: allowColoredShadow ?? this.allowColoredShadow,
+    maxNestedSurfaces: maxNestedSurfaces ?? this.maxNestedSurfaces,
+  );
 
   @override
   VisualEffectBudget lerp(ThemeExtension<VisualEffectBudget>? other, double t) {
@@ -586,12 +556,13 @@ class VisualEffectBudget extends ThemeExtension<VisualEffectBudget> {
           ? allowDecorativeGradient
           : other.allowDecorativeGradient,
       allowLiveBlur: t < 0.5 ? allowLiveBlur : other.allowLiveBlur,
-      allowColoredShadow:
-          t < 0.5 ? allowColoredShadow : other.allowColoredShadow,
+      allowColoredShadow: t < 0.5
+          ? allowColoredShadow
+          : other.allowColoredShadow,
       maxNestedSurfaces:
-          (maxNestedSurfaces + (other.maxNestedSurfaces - maxNestedSurfaces) * t)
+          (maxNestedSurfaces +
+                  (other.maxNestedSurfaces - maxNestedSurfaces) * t)
               .round(),
     );
   }
 }
-

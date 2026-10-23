@@ -30,15 +30,17 @@ class CallTokens {
   static const double meetTileBorderRadius = 24.0;
 
   // Dark Tonal Palette Tokens for Call Screens
-  static const Color darkSurface = Color(0xFF111318);
-  static const Color meetSurface = Color(0xFF131314);
-  static const Color darkSurfaceContainerHigh = Color(0xFF282A2F);
-  static const Color darkSurfaceContainerHighest = Color(0xFF33353A);
-  static const Color meetTileBackground = Color(0xFF1E1F20);
-  static const Color meetChipBackground = Color(0xFF282A2F);
+  static const Color darkSurface = Color(0xFF1A1A1A);
+  static const Color meetSurface = Color(0xFF1A1A1A);
+  static const Color darkSurfaceContainerHigh = Color(0xFF2C2C2C);
+  static const Color darkSurfaceContainerHighest = Color(0xFF353535);
+  static const Color meetTileBackground = Color(0xFF202020);
+  static const Color meetChipBackground = Color(0xFF2C2C2C);
 
   // Animation Durations
-  static const Duration incomingOverlayAnimationDuration = Duration(milliseconds: 320);
+  static const Duration incomingOverlayAnimationDuration = Duration(
+    milliseconds: 320,
+  );
   static const Duration controlsFadeDuration = Duration(milliseconds: 220);
   static const Duration exitAnimationDuration = Duration(milliseconds: 280);
   static const Duration controlsAutoHideDuration = Duration(seconds: 4);

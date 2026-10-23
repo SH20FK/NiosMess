@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -12,11 +13,13 @@ class InboxSearchLauncher extends ConsumerWidget {
   const InboxSearchLauncher({
     this.hintText,
     this.onTap,
+    this.onAvatarTap,
     super.key,
   });
 
   final String? hintText;
   final VoidCallback? onTap;
+  final VoidCallback? onAvatarTap;
 
   void _openSearch(BuildContext context) {
     HapticService.tap();
@@ -33,14 +36,17 @@ class InboxSearchLauncher extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
-    final avatarUrl = ref.watch(authProvider.select((a) => a.profile?.avatarUrl));
+    final avatarUrl = ref.watch(
+      authProvider.select((a) => a.profile?.avatarUrl),
+    );
     final displayName = ref.watch(
       authProvider.select(
         (a) => a.profile?.displayName ?? a.session?.displayName ?? 'Me',
       ),
     );
 
-    final bool isDesktop = !kIsWeb &&
+    final bool isDesktop =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
@@ -62,7 +68,7 @@ class InboxSearchLauncher extends ConsumerWidget {
             child: Ink(
               height: 48,
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest.withValues(alpha: 0.50),
+                color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(AppRadii.full),
                 border: Border.all(
                   color: scheme.outlineVariant.withValues(alpha: 0.20),
@@ -80,7 +86,7 @@ class InboxSearchLauncher extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        hintText ?? 'Поиск по чатам и сообщениям...',
+                        hintText ?? context.l10n.chatListSearchMessagesHint,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.bodyMedium?.copyWith(
@@ -114,10 +120,15 @@ class InboxSearchLauncher extends ConsumerWidget {
                         ),
                       )
                     else
-                      PulseAvatar(
-                        avatarUrl: avatarUrl,
-                        name: displayName,
-                        radius: 14,
+                      IconButton(
+                        tooltip: context.l10n.tabSettings,
+                        onPressed:
+                            onAvatarTap ?? () => context.go('/main/settings'),
+                        icon: PulseAvatar(
+                          avatarUrl: avatarUrl,
+                          name: displayName,
+                          radius: 14,
+                        ),
                       ),
                   ],
                 ),

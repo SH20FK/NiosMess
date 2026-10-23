@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
-import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -201,19 +200,15 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
 
   @override
   Widget build(BuildContext context) {
-    final int totalUnread = ref.watch(
-      totalUnreadCountProvider.select((int c) => c > 99 ? 99 : c),
-    );
-    final bool isFloating = ref.watch(
-      uiSettingsProvider.select((s) => s.navBarFloating),
-    );
-    final PerformanceTier tier = ref.watch(
-      adaptivePerformanceProvider.select((s) => s.tier),
-    );
+    final int totalUnread = ref.watch(totalUnreadCountProvider);
+    final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
     final bool animate =
         !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
-
-    final List<_NavItem> items = <_NavItem>[
+    final scheme = Theme.of(context).colorScheme;
+    final duration = animate
+        ? const Duration(milliseconds: 280)
+        : Duration.zero;
+    final items = <_NavItem>[
       _NavItem(
         context.l10n.tabChats,
         Icons.chat_bubble_outline_rounded,
@@ -231,159 +226,75 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
         Icons.settings_rounded,
       ),
     ];
-
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final bool isDesktop =
-        !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.windows ||
-            defaultTargetPlatform == TargetPlatform.macOS ||
-            defaultTargetPlatform == TargetPlatform.linux);
-    final Duration duration = isDesktop
-        ? const Duration(milliseconds: 300)
-        : (tier.isTierA
-              ? const Duration(milliseconds: 320)
-              : const Duration(milliseconds: 280));
-    final double stretch = tier.isTierA ? 0.42 : 0.20;
-
-    final Widget navBarContent = SizedBox(
-      height: 80,
-      child: Stack(
-        children: <Widget>[
-          // Traveling squash-and-stretch pill indicator behind the active slot icon
-          Positioned(
-            top: 13,
-            left: 0,
-            right: 0,
-            height: 34,
-            child: TravelingNavIndicator(
-              index: widget.currentIndex,
-              count: items.length,
-              color: scheme.secondaryContainer,
-              animate: animate,
-              stretch: stretch,
-              duration: duration,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainer,
+        border: Border(
+          top: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.35),
+            width: 0.7,
+          ),
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          navigationBarTheme: NavigationBarThemeData(
+            height: 66,
+            elevation: 0,
+            backgroundColor: scheme.surfaceContainer,
+            indicatorColor: scheme.primary.withValues(alpha: 0.16),
+            indicatorShape: const StadiumBorder(),
+            labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
+              (states) => TextStyle(
+                fontFamily: AppFonts.ui,
+                fontSize: 11,
+                fontWeight: states.contains(WidgetState.selected)
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+                color: states.contains(WidgetState.selected)
+                    ? scheme.primary
+                    : scheme.onSurfaceVariant,
+              ),
             ),
           ),
-          // Interactive slots row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: List<Widget>.generate(items.length, (int index) {
-              final _NavItem item = items[index];
-              final bool isSelected = index == widget.currentIndex;
-
-              final Color slotColor = isSelected
-                  ? scheme.onSecondaryContainer
-                  : scheme.onSurfaceVariant;
-
-              final Widget iconWidget = TabMorphIcon(
-                outlineIcon: item.icon,
-                filledIcon: item.selectedIcon,
-                isSelected: isSelected,
-                color: slotColor,
-                animate: animate,
-                duration: duration,
-              );
-
-              // Decouple badge from icon transition to avoid restarting badge animations
-              final Widget badgedIcon = item.badge > 0
+        ),
+        child: NavigationBar(
+          key: const ValueKey('main-bottom-navigation'),
+          height: 66,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          animationDuration: duration,
+          maintainBottomViewPadding: true,
+          selectedIndex: widget.currentIndex,
+          onDestinationSelected: _handleTap,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: List<Widget>.generate(items.length, (index) {
+            final item = items[index];
+            final selected = index == widget.currentIndex;
+            final icon = TabMorphIcon(
+              outlineIcon: item.icon,
+              filledIcon: item.selectedIcon,
+              isSelected: selected,
+              color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              animate: animate,
+              duration: duration,
+              size: 20,
+            );
+            return NavigationDestination(
+              label: item.label,
+              icon: item.badge > 0
                   ? Badge(
-                      label: Text(
-                        item.badge < 100 ? '${item.badge}' : '99+',
-                        style: const TextStyle(
-                          fontFamily: AppFonts.ui,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      child: iconWidget,
+                      backgroundColor: scheme.primary,
+                      textColor: scheme.onPrimary,
+                      label: Text(item.badge > 99 ? '99+' : '${item.badge}'),
+                      child: icon,
                     )
-                  : iconWidget;
-
-              final Widget labelWidget = AnimatedDefaultTextStyle(
-                duration: animate ? duration : Duration.zero,
-                curve: M3SpringCurves.expressiveStandard,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontFamily: 'Onest',
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: slotColor,
-                  letterSpacing: 0.1,
-                ),
-                child: Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              );
-
-              return Expanded(
-                child: Semantics(
-                  label: item.label,
-                  selected: isSelected,
-                  button: true,
-                  child: InkResponse(
-                    onTap: () => _handleTap(index),
-                    radius: 36,
-                    splashColor: scheme.primary.withValues(alpha: 0.08),
-                    highlightColor: Colors.transparent,
-                    containedInkWell: true,
-                    customBorder: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        SizedBox(height: 34, child: Center(child: badgedIcon)),
-                        const SizedBox(height: 4),
-                        SizedBox(height: 18, child: Center(child: labelWidget)),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ],
+                  : icon,
+            );
+          }),
+        ),
       ),
     );
-
-    if (isFloating) {
-      final double bottomInset = MediaQuery.viewPaddingOf(context).bottom;
-      return Padding(
-        padding: EdgeInsets.fromLTRB(10, 0, 10, 12 + bottomInset),
-        child: Container(
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.28),
-              width: 1.0,
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            clipBehavior: Clip.hardEdge,
-            child: Material(color: Colors.transparent, child: navBarContent),
-          ),
-        ),
-      );
-    } else {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerLow,
-          border: Border(
-            top: BorderSide(
-              color: scheme.outlineVariant.withValues(alpha: 0.22),
-              width: 0.8,
-            ),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Material(color: Colors.transparent, child: navBarContent),
-        ),
-      );
-    }
   }
 }
 
