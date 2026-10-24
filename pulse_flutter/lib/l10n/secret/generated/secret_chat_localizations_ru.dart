@@ -503,4 +503,156 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   @override
   String get webStorageDraftsDescription =>
       'Сохранены в этом браузере. Секретные черновики хранятся отдельно.';
+
+  @override
+  String get callDevicesTitle => 'Звук и камера';
+
+  @override
+  String get callDevicesLocalHint =>
+      'Проверка работает только на этом устройстве: звук и видео никуда не отправляются.';
+
+  @override
+  String get callDevicesUnavailable => 'Не удалось получить список устройств';
+
+  @override
+  String get callDevicesPermission =>
+      'Не удалось открыть микрофон или камеру. Проверьте разрешения или выберите другое устройство.';
+
+  @override
+  String get callDevicesApplyFailed =>
+      'Не удалось переключить устройства. Выберите доступное устройство и повторите.';
+
+  @override
+  String get callDeviceDefault => 'По умолчанию';
+
+  @override
+  String get callDeviceMicrophone => 'Микрофон';
+
+  @override
+  String get callDeviceCamera => 'Камера';
+
+  @override
+  String get callDeviceOutput => 'Наушники и динамики';
+
+  @override
+  String get callDeviceSpeak =>
+      'Скажите что-нибудь: индикатор показывает уровень микрофона';
+
+  @override
+  String get callDeviceLevelUnavailable =>
+      'Микрофон открыт. Это устройство не сообщает уровень сигнала.';
+
+  @override
+  String get callDeviceTest => 'Проверить микрофон и камеру';
+
+  @override
+  String get callDeviceTestSound => 'Проверить звук';
+
+  @override
+  String get callDeviceTestSystemSound => 'Проверить системный звук';
+
+  @override
+  String get callDeviceOutputUnavailable =>
+      'Выбор этого выхода недоступен. Проверьте устройства и настройки звука браузера или системы.';
+
+  @override
+  String get callDeviceStart => 'Позвонить';
+
+  @override
+  String get callQualityReconnecting => 'Восстанавливаем связь…';
+
+  @override
+  String get callQualityMeasuring => 'Проверяем связь…';
+
+  @override
+  String get callQualityGood => 'Связь хорошая';
+
+  @override
+  String get callQualityFair => 'Связь нестабильна';
+
+  @override
+  String get callQualityPoor => 'Слабая связь';
+
+  @override
+  String get callQualityLatency => 'высокая задержка';
+
+  @override
+  String get callQualityLoss => 'теряются пакеты';
+
+  @override
+  String get callQualityJitter => 'данные приходят неравномерно';
+
+  @override
+  String get callQualityBandwidth => 'не хватает скорости сети';
+
+  @override
+  String get callQualityCpu => 'устройство не успевает обрабатывать видео';
+
+  @override
+  String get stickerHubSearch => 'Поиск по эмодзи и названиям наборов';
+
+  @override
+  String get stickerHubRecent => 'Недавние';
+
+  @override
+  String get stickerHubEmpty => 'Здесь пока нет стикеров';
+
+  @override
+  String get stickerHubEmptyHint =>
+      'Выберите набор или создайте свой. Отправленные стикеры появятся в недавних.';
+
+  @override
+  String get stickerHubLoadError => 'Не удалось загрузить стикеры';
+
+  @override
+  String get stickerHubCreate => 'Создать набор';
+
+  @override
+  String get stickerHubAdd => 'Добавить стикеры';
+
+  @override
+  String get stickerHubDetails => 'О наборе';
+
+  @override
+  String get stickerHubEmoji => 'Эмодзи';
+
+  @override
+  String get stickerHubStickers => 'Стикеры';
+
+  @override
+  String get stickerHubNoResults => 'Ничего не найдено';
+
+  @override
+  String get chatDropFiles => 'Отпустите файлы, чтобы открыть предпросмотр';
+
+  @override
+  String get chatDropError =>
+      'Не удалось прочитать файлы. Попробуйте добавить их через скрепку.';
+
+  @override
+  String get chatBatchTitle => 'Отправить вложения?';
+
+  @override
+  String get chatBatchAlbum => 'Собрать фотографии в альбом';
+
+  @override
+  String get chatBatchSeparate => 'Отправить отдельными файлами';
+
+  @override
+  String get chatBatchRemove => 'Убрать вложение';
+
+  @override
+  String get chatBatchLimit => 'Добавьте до 10 файлов общим размером до 100 МБ';
+
+  @override
+  String get chatAlbumOpen => 'Открыть альбом';
+
+  @override
+  String get chatAlbumPrevious => 'Предыдущее фото';
+
+  @override
+  String get chatAlbumNext => 'Следующее фото';
+
+  @override
+  String get callDeviceMissing => 'устройство недоступно';
 }

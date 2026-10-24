@@ -155,6 +155,7 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen>
       context.pushReplacement('/call/$callId');
     } on CallStartException catch (e) {
       if (_cancelled || !mounted) return;
+      if (e.failure == CallStartFailure.cancelled) { _cancelAndPop(); return; }
       setState(() {
         if (e.failure == CallStartFailure.botForbidden) {
           _errorMessage = context.l10n.callsBotForbidden;

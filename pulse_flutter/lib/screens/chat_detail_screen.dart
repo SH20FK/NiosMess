@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/widgets/chat/chat_file_drop_target.dart';
+import 'package:pulse_flutter/core/media/media_album.dart';
 import 'package:pulse_flutter/core/clipboard/pasted_image.dart';
 import 'package:pulse_flutter/widgets/chat/browser_image_paste_target.dart';
 import 'package:pulse_flutter/widgets/chat/pasted_images_dialog.dart';
@@ -29,7 +31,7 @@ import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -1087,15 +1089,23 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  Future<void> _previewPastedImages(List<PastedImage> images) async {
+  Future<void> _previewPastedImages(List<PastedImage> images, {String? initialCaption}) async {
     if (!mounted || _chatId == null || _editingMessageId != null) return;
     final chatId = _chatId!;
     final originalText = _inputController.text;
-    await showPastedImagesDialog(context, images: images, caption: originalText,
+    await showPastedImagesDialog(context, images: images, caption: initialCaption ?? originalText,
+      onSendAlbum: (images, caption) async {
+        if (!mounted || _chatId != chatId) throw StateError('Conversation closed');
+        final bytes = await compute(_encodeAlbum, images);
+        if (!mounted || _chatId != chatId) throw StateError('Conversation closed');
+        await _uploadAndSend(chatId: chatId, bytes: bytes, filename: 'NiosMess-Album.niosalbum.zip',
+          mediaSubtype: 'document', fileSize: bytes.length, text: caption);
+        if (mounted && _inputController.text == originalText) _inputController.clear();
+      },
       onSend: (image, caption) async {
         if (!mounted || _chatId != chatId) throw StateError('Conversation closed');
         await _uploadAndSend(chatId: chatId, bytes: image.bytes, filename: image.name,
-          mediaSubtype: 'image', fileSize: image.bytes.length, text: caption);
+          mediaSubtype: MediaAlbum.imageExtension(image.bytes) != null ? 'image' : 'document', fileSize: image.bytes.length, text: caption);
         if (mounted && _inputController.text == originalText) _inputController.clear();
       });
     if (mounted) _inputFocusNode.requestFocus();
@@ -1109,6 +1119,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     final List<M3FilePickerResult>? results = await showM3FilePicker(context);
     if (results == null || results.isEmpty || !mounted) {
+      return;
+    }
+
+    if (results.length > 1 && results.length <= 10 && results.every((r) => !r.sendAsDocument && r.mediaSubtype == 'image')) {
+      final images = <PastedImage>[];
+      for (final result in results) {
+        final bytes = result.fileBytes ?? (result.filePath != null ? await File(result.filePath!).readAsBytes() : null);
+        if (bytes == null) return;
+        images.add(PastedImage(bytes: bytes, name: result.fileName, mimeType: 'image/unknown'));
+      }
+      if (mounted) await _previewPastedImages(images, initialCaption: results.first.caption);
       return;
     }
 
@@ -2148,7 +2169,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         : baseScheme;
 
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
-    final Widget content = BrowserImagePasteTarget(focusNode: _inputFocusNode,
+    final Widget content = ChatFileDropTarget(conversationId: chatId,
+      enabled: _editingMessageId == null && !_isAiProcessing,
+      onFiles: (files) => unawaited(_previewPastedImages(files)), child: BrowserImagePasteTarget(focusNode: _inputFocusNode,
       enabled: _editingMessageId == null && !_isAiProcessing,
       onImages: (images) => unawaited(_previewPastedImages(images)), child: CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
@@ -2303,7 +2326,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           backgroundColor: scheme.surface,
         ),
       ),
-    ));
+    )));
 
     if (scheme == baseScheme) {
       return content;
@@ -3038,3 +3061,5 @@ class _AiActionCard extends StatelessWidget {
     );
   }
 }
+
+Uint8List _encodeAlbum(List<PastedImage> images) => MediaAlbum.encode([for (final image in images) AlbumImage(image.name, image.bytes)]);

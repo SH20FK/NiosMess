@@ -1,3 +1,4 @@
+import 'call_quality.dart';
 import 'dart:typed_data';
 
 /// Direction of the call relative to the local user.
@@ -33,8 +34,10 @@ class CallSessionData {
     this.remoteParticipants = const [],
     this.verificationEmojis = const [],
     this.fatalError,
+    this.quality = const CallQuality(),
   });
 
+  final CallQuality quality;
   final CallSessionState state;
   final int callId;
   final String? roomId;
@@ -57,6 +60,7 @@ class CallSessionData {
   final String? fatalError;
 
   CallSessionData copyWith({
+    CallQuality? quality,
     CallSessionState? state,
     int? callId,
     String? roomId,
@@ -76,6 +80,7 @@ class CallSessionData {
     String? fatalError,
   }) {
     return CallSessionData(
+      quality: quality ?? this.quality,
       state: state ?? this.state,
       callId: callId ?? this.callId,
       roomId: roomId ?? this.roomId,

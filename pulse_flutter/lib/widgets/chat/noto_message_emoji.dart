@@ -188,7 +188,6 @@ class _NotoMessageEmojiState extends ConsumerState<NotoMessageEmoji>
 
   void _onVisibilityChanged(bool visible) {
     _visible = visible;
-    if (!visible) _reset();
     _syncPlayback();
   }
 
@@ -216,11 +215,21 @@ class _NotoMessageEmojiState extends ConsumerState<NotoMessageEmoji>
         _visible &&
         _motionAllowed &&
         !(_scrollPosition?.isScrollingNotifier.value ?? false);
-    if (!allowed || !_requested || widget.emoji.animationAsset == null) {
+    if (!_visible || !_motionAllowed || widget.emoji.animationAsset == null) {
       _animation.stop();
       _spring.value = 1;
       _budget.release(_token);
-      _setShowing(false);
+      // A completed frame is already static. Power-saving/reduced motion
+      // must not replace it with a different drawing from the font.
+      _setShowing(_visible && _composition != null && _started && !_requested);
+      return;
+    }
+    // Keep the same vector and its exact progress while scrolling or after
+    // completion. Swapping back to the font changes the drawing abruptly.
+    if (!allowed || !_requested) {
+      _animation.stop();
+      _budget.release(_token);
+      _setShowing(_composition != null && _started);
       return;
     }
     if (_composition == null) {
@@ -229,7 +238,7 @@ class _NotoMessageEmojiState extends ConsumerState<NotoMessageEmoji>
     }
     if (!_budget.acquire(_token, ref.read(adaptivePerformanceProvider).tier)) {
       _animation.stop();
-      _setShowing(false);
+      _setShowing(_started);
       _budget.release(_token);
       return;
     }
@@ -270,7 +279,7 @@ class _NotoMessageEmojiState extends ConsumerState<NotoMessageEmoji>
     if (status != AnimationStatus.completed) return;
     _requested = false;
     _budget.release(_token);
-    _setShowing(false);
+    _setShowing(true);
   }
 
   void _replay() {

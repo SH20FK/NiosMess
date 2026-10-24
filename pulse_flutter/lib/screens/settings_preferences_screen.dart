@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/calls/call_devices_dialog.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +27,11 @@ class SettingsPreferencesScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.settingsPrivacyNotificationsTitle,
           children: <Widget>[
+          SettingsSection(title: context.l10n.callDevicesTitle, children: [
+            SettingsListItem.nav(title: context.l10n.callDevicesTitle, subtitle: context.l10n.callDevicesLocalHint,
+              icon: Icons.headset_mic_rounded,
+              onTap: () => showCallDevicesDialog(context)),
+          ]),
             SettingsSwitchTile(
               icon: Icons.notifications_rounded,
               title: context.l10n.settingsPushNotifications,

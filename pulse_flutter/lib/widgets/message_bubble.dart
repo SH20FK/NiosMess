@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/core/media/media_album.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/media_album_bubble.dart';
 import 'dart:async';
 import 'package:pulse_flutter/widgets/chat/video_message_preview.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
@@ -913,6 +915,11 @@ class MessageBubble extends ConsumerWidget {
           wsClient: wsClient,
         ),
       );
+    }
+
+    if (MediaAlbum.isAlbum(mediaLabel) && mediaUrl != null) {
+      return MediaAlbumBubble(url: mediaUrl!, wsClient: wsClient,
+        fileKey: e2eeFileKey, encrypted: isE2ee, localBytes: uploadTask?.bytes);
     }
 
     if (mediaIsImage) {

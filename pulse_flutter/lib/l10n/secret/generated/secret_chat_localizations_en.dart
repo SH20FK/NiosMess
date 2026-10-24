@@ -497,4 +497,156 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   @override
   String get webStorageDraftsDescription =>
       'Saved in this browser. Secret drafts are stored separately.';
+
+  @override
+  String get callDevicesTitle => 'Audio and camera';
+
+  @override
+  String get callDevicesLocalHint =>
+      'Tests stay on this device: audio and video are not sent anywhere.';
+
+  @override
+  String get callDevicesUnavailable => 'Could not list devices';
+
+  @override
+  String get callDevicesPermission =>
+      'Could not open the microphone or camera. Check permissions or select another device.';
+
+  @override
+  String get callDevicesApplyFailed =>
+      'Could not switch devices. Select an available device and try again.';
+
+  @override
+  String get callDeviceDefault => 'System default';
+
+  @override
+  String get callDeviceMicrophone => 'Microphone';
+
+  @override
+  String get callDeviceCamera => 'Camera';
+
+  @override
+  String get callDeviceOutput => 'Headphones and speakers';
+
+  @override
+  String get callDeviceSpeak =>
+      'Say something: the meter shows your microphone level';
+
+  @override
+  String get callDeviceLevelUnavailable =>
+      'Microphone is open. This device does not report its input level.';
+
+  @override
+  String get callDeviceTest => 'Test microphone and camera';
+
+  @override
+  String get callDeviceTestSound => 'Test speakers';
+
+  @override
+  String get callDeviceTestSystemSound => 'Test system audio';
+
+  @override
+  String get callDeviceOutputUnavailable =>
+      'This output cannot be selected. Check your devices and browser or system sound settings.';
+
+  @override
+  String get callDeviceStart => 'Start call';
+
+  @override
+  String get callQualityReconnecting => 'Reconnecting…';
+
+  @override
+  String get callQualityMeasuring => 'Measuring connection…';
+
+  @override
+  String get callQualityGood => 'Good connection';
+
+  @override
+  String get callQualityFair => 'Unstable connection';
+
+  @override
+  String get callQualityPoor => 'Poor connection';
+
+  @override
+  String get callQualityLatency => 'high latency';
+
+  @override
+  String get callQualityLoss => 'packet loss';
+
+  @override
+  String get callQualityJitter => 'uneven packet timing';
+
+  @override
+  String get callQualityBandwidth => 'limited bandwidth';
+
+  @override
+  String get callQualityCpu => 'device is struggling to encode video';
+
+  @override
+  String get stickerHubSearch => 'Search emoji and pack names';
+
+  @override
+  String get stickerHubRecent => 'Recent';
+
+  @override
+  String get stickerHubEmpty => 'No stickers here yet';
+
+  @override
+  String get stickerHubEmptyHint =>
+      'Choose a pack or create your own. Sent stickers appear in Recent.';
+
+  @override
+  String get stickerHubLoadError => 'Could not load stickers';
+
+  @override
+  String get stickerHubCreate => 'Create pack';
+
+  @override
+  String get stickerHubAdd => 'Add stickers';
+
+  @override
+  String get stickerHubDetails => 'Pack details';
+
+  @override
+  String get stickerHubEmoji => 'Emoji';
+
+  @override
+  String get stickerHubStickers => 'Stickers';
+
+  @override
+  String get stickerHubNoResults => 'No results';
+
+  @override
+  String get chatDropFiles => 'Drop files to preview';
+
+  @override
+  String get chatDropError =>
+      'Could not read these files. Try the attachment button.';
+
+  @override
+  String get chatBatchTitle => 'Send attachments?';
+
+  @override
+  String get chatBatchAlbum => 'Group photos into an album';
+
+  @override
+  String get chatBatchSeparate => 'Send as separate files';
+
+  @override
+  String get chatBatchRemove => 'Remove attachment';
+
+  @override
+  String get chatBatchLimit => 'Add up to 10 files, totaling up to 100 MB';
+
+  @override
+  String get chatAlbumOpen => 'Open album';
+
+  @override
+  String get chatAlbumPrevious => 'Previous photo';
+
+  @override
+  String get chatAlbumNext => 'Next photo';
+
+  @override
+  String get callDeviceMissing => 'device unavailable';
 }

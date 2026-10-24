@@ -988,6 +988,294 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Saved in this browser. Secret drafts are stored separately.'**
   String get webStorageDraftsDescription;
+
+  /// No description provided for @callDevicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio and camera'**
+  String get callDevicesTitle;
+
+  /// No description provided for @callDevicesLocalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tests stay on this device: audio and video are not sent anywhere.'**
+  String get callDevicesLocalHint;
+
+  /// No description provided for @callDevicesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not list devices'**
+  String get callDevicesUnavailable;
+
+  /// No description provided for @callDevicesPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the microphone or camera. Check permissions or select another device.'**
+  String get callDevicesPermission;
+
+  /// No description provided for @callDevicesApplyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch devices. Select an available device and try again.'**
+  String get callDevicesApplyFailed;
+
+  /// No description provided for @callDeviceDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'System default'**
+  String get callDeviceDefault;
+
+  /// No description provided for @callDeviceMicrophone.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone'**
+  String get callDeviceMicrophone;
+
+  /// No description provided for @callDeviceCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get callDeviceCamera;
+
+  /// No description provided for @callDeviceOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Headphones and speakers'**
+  String get callDeviceOutput;
+
+  /// No description provided for @callDeviceSpeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Say something: the meter shows your microphone level'**
+  String get callDeviceSpeak;
+
+  /// No description provided for @callDeviceLevelUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone is open. This device does not report its input level.'**
+  String get callDeviceLevelUnavailable;
+
+  /// No description provided for @callDeviceTest.
+  ///
+  /// In en, this message translates to:
+  /// **'Test microphone and camera'**
+  String get callDeviceTest;
+
+  /// No description provided for @callDeviceTestSound.
+  ///
+  /// In en, this message translates to:
+  /// **'Test speakers'**
+  String get callDeviceTestSound;
+
+  /// No description provided for @callDeviceTestSystemSound.
+  ///
+  /// In en, this message translates to:
+  /// **'Test system audio'**
+  String get callDeviceTestSystemSound;
+
+  /// No description provided for @callDeviceOutputUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This output cannot be selected. Check your devices and browser or system sound settings.'**
+  String get callDeviceOutputUnavailable;
+
+  /// No description provided for @callDeviceStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start call'**
+  String get callDeviceStart;
+
+  /// No description provided for @callQualityReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting…'**
+  String get callQualityReconnecting;
+
+  /// No description provided for @callQualityMeasuring.
+  ///
+  /// In en, this message translates to:
+  /// **'Measuring connection…'**
+  String get callQualityMeasuring;
+
+  /// No description provided for @callQualityGood.
+  ///
+  /// In en, this message translates to:
+  /// **'Good connection'**
+  String get callQualityGood;
+
+  /// No description provided for @callQualityFair.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstable connection'**
+  String get callQualityFair;
+
+  /// No description provided for @callQualityPoor.
+  ///
+  /// In en, this message translates to:
+  /// **'Poor connection'**
+  String get callQualityPoor;
+
+  /// No description provided for @callQualityLatency.
+  ///
+  /// In en, this message translates to:
+  /// **'high latency'**
+  String get callQualityLatency;
+
+  /// No description provided for @callQualityLoss.
+  ///
+  /// In en, this message translates to:
+  /// **'packet loss'**
+  String get callQualityLoss;
+
+  /// No description provided for @callQualityJitter.
+  ///
+  /// In en, this message translates to:
+  /// **'uneven packet timing'**
+  String get callQualityJitter;
+
+  /// No description provided for @callQualityBandwidth.
+  ///
+  /// In en, this message translates to:
+  /// **'limited bandwidth'**
+  String get callQualityBandwidth;
+
+  /// No description provided for @callQualityCpu.
+  ///
+  /// In en, this message translates to:
+  /// **'device is struggling to encode video'**
+  String get callQualityCpu;
+
+  /// No description provided for @stickerHubSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search emoji and pack names'**
+  String get stickerHubSearch;
+
+  /// No description provided for @stickerHubRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get stickerHubRecent;
+
+  /// No description provided for @stickerHubEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No stickers here yet'**
+  String get stickerHubEmpty;
+
+  /// No description provided for @stickerHubEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a pack or create your own. Sent stickers appear in Recent.'**
+  String get stickerHubEmptyHint;
+
+  /// No description provided for @stickerHubLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load stickers'**
+  String get stickerHubLoadError;
+
+  /// No description provided for @stickerHubCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create pack'**
+  String get stickerHubCreate;
+
+  /// No description provided for @stickerHubAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add stickers'**
+  String get stickerHubAdd;
+
+  /// No description provided for @stickerHubDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Pack details'**
+  String get stickerHubDetails;
+
+  /// No description provided for @stickerHubEmoji.
+  ///
+  /// In en, this message translates to:
+  /// **'Emoji'**
+  String get stickerHubEmoji;
+
+  /// No description provided for @stickerHubStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Stickers'**
+  String get stickerHubStickers;
+
+  /// No description provided for @stickerHubNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results'**
+  String get stickerHubNoResults;
+
+  /// No description provided for @chatDropFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop files to preview'**
+  String get chatDropFiles;
+
+  /// No description provided for @chatDropError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read these files. Try the attachment button.'**
+  String get chatDropError;
+
+  /// No description provided for @chatBatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send attachments?'**
+  String get chatBatchTitle;
+
+  /// No description provided for @chatBatchAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Group photos into an album'**
+  String get chatBatchAlbum;
+
+  /// No description provided for @chatBatchSeparate.
+  ///
+  /// In en, this message translates to:
+  /// **'Send as separate files'**
+  String get chatBatchSeparate;
+
+  /// No description provided for @chatBatchRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove attachment'**
+  String get chatBatchRemove;
+
+  /// No description provided for @chatBatchLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Add up to 10 files, totaling up to 100 MB'**
+  String get chatBatchLimit;
+
+  /// No description provided for @chatAlbumOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open album'**
+  String get chatAlbumOpen;
+
+  /// No description provided for @chatAlbumPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous photo'**
+  String get chatAlbumPrevious;
+
+  /// No description provided for @chatAlbumNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next photo'**
+  String get chatAlbumNext;
+
+  /// No description provided for @callDeviceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'device unavailable'**
+  String get callDeviceMissing;
 }
 
 class _SecretChatLocalizationsDelegate

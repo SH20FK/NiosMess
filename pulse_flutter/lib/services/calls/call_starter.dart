@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:pulse_flutter/widgets/calls/call_devices_dialog.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -12,7 +14,7 @@ import 'package:pulse_flutter/services/calls/call_session_types.dart';
 import 'package:pulse_flutter/services/permission_service.dart';
 
 /// Why [startOutgoingCall] or [startIncomingCall] refused to start.
-enum CallStartFailure { permissions, botForbidden }
+enum CallStartFailure { permissions, botForbidden, cancelled }
 
 class CallStartException implements Exception {
   const CallStartException(this.failure, {this.cause});
@@ -45,6 +47,12 @@ Future<int> startOutgoingCall({
   );
   if (isBot) {
     throw const CallStartException(CallStartFailure.botForbidden);
+  }
+
+  if (kIsWeb || defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.linux) {
+    final proceed = await showCallDevicesDialog(ref.context, video: isVideo, preflight: true);
+    if (!proceed) throw const CallStartException(CallStartFailure.cancelled);
   }
 
   bool isListener = false;

@@ -90,7 +90,7 @@ void main() {
     }
     await tester.tap(find.byTooltip('Назад'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Эмодзи'));
+    await tester.tap(find.byTooltip('Эмодзи').first);
     // Sample the closing transition, including the spring's settling phase.
     for (var frame = 0; frame < 45; frame++) {
       await tester.pump(const Duration(milliseconds: 10));

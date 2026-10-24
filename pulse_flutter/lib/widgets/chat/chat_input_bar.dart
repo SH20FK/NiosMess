@@ -978,46 +978,27 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                           children: <Widget>[
                             const SizedBox(width: 40), // Balances backspace button
                             Expanded(
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: BoxDecoration(
-                                    color: scheme.surfaceContainerHighest
-                                        .withValues(alpha: 0.55),
-                                    borderRadius:
-                                        BorderRadius.circular(24),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: <Widget>[
-                                      _buildPickerTab(
-                                        index: 0,
-                                        label: 'Эмодзи',
-                                        icon: Icons.emoji_emotions_outlined,
-                                        scheme: scheme,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      _buildPickerTab(
-                                        index: 1,
-                                        label: 'Стикеры',
-                                        icon: Icons.sticky_note_2_outlined,
-                                        scheme: scheme,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                              child: LayoutBuilder(builder: (context, constraints) {
+                                final labels = constraints.maxWidth >= 280 && MediaQuery.textScalerOf(context).scale(14) < 20;
+                                return Center(child: SegmentedButton<int>(showSelectedIcon: false,
+                                  segments: [
+                                    ButtonSegment(value: 0, icon: const Icon(Icons.emoji_emotions_outlined),
+                                      label: labels ? Text(context.l10n.stickerHubEmoji) : null, tooltip: context.l10n.stickerHubEmoji),
+                                    ButtonSegment(value: 1, icon: const Icon(Icons.sticky_note_2_outlined),
+                                      label: labels ? Text(context.l10n.stickerHubStickers) : null, tooltip: context.l10n.stickerHubStickers),
+                                  ], selected: {_pickerTabIndex}, onSelectionChanged: (value) => _selectPickerTab(value.single)));
+                              }),
                             ),
                             // Quick backspace button for emojis
                             IconButton(
-                              onPressed: _onEmojiBackspace,
+                              onPressed: _pickerTabIndex == 0 ? _onEmojiBackspace : null,
                               icon: Icon(
                                 Icons.backspace_outlined,
                                 size: 19,
                                 color: scheme.onSurfaceVariant
                                     .withValues(alpha: 0.75),
                               ),
-                              tooltip: 'Удалить',
+                              tooltip: context.l10n.commonDelete,
                               visualDensity: VisualDensity.compact,
                             ),
                           ],
@@ -1065,75 +1046,12 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     );
   }
 
-  Widget _buildPickerTab({
-    required int index,
-    required String label,
-    required IconData icon,
-    required ColorScheme scheme,
-  }) {
-    final bool isSelected = _pickerTabIndex == index;
-    return TouchContainer(
-      onTap: () {
-        if (widget.hapticsEnabled) HapticService.tap();
-        setState(() => _pickerTabIndex = index);
-        if (_pickerPageController.hasClients) {
-          if (MediaQuery.disableAnimationsOf(context)) {
-            _pickerPageController.jumpToPage(index);
-            return;
-          }
-          _pickerPageController.animateToPage(
-            index,
-            duration: const Duration(milliseconds: 260),
-            curve: M3SpringCurves.snappy,
-          );
-        }
-      },
-      borderRadius: BorderRadius.circular(20),
-      child: AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : M3Durations.short4,
-        curve: M3SpringCurves.snappy,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? scheme.secondaryContainer
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            AnimatedScale(
-              scale: isSelected ? 1.12 : 1,
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : M3Durations.medium1,
-              curve: M3SpringCurves.snappy,
-              child: Icon(
-                icon,
-                size: 16,
-                color: isSelected
-                    ? scheme.onSecondaryContainer
-                    : scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight:
-                    isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected
-                    ? scheme.onSecondaryContainer
-                    : scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  void _selectPickerTab(int index) {
+    if (widget.hapticsEnabled) HapticService.tap();
+    setState(() => _pickerTabIndex = index);
+    if (!_pickerPageController.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) { _pickerPageController.jumpToPage(index); return; }
+    _pickerPageController.animateToPage(index, duration: M3Durations.medium1, curve: M3SpringCurves.snappy);
   }
 
   Config _getEmojiConfig(ColorScheme scheme) {

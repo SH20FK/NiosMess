@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/services/calls/call_devices.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -71,6 +73,7 @@ class CallSessionManager {
   final ApiCallGatewayInfo? gatewayInfo;
   ApiCallGatewayInfo? _gatewayInfo;
 
+  ProviderSubscription<AsyncValue<NetworkType>>? _networkSub;
   WebRtcCallSession? _session;
   StreamSubscription<CallSessionData>? _sessionSub;
   final StreamController<CallSessionData> _stateController =
@@ -159,6 +162,7 @@ class CallSessionManager {
       isListener: isListener,
       gatewayInfo:
           _gatewayInfo ?? gatewayInfo ?? ApiCallGatewayInfo.defaultFor(),
+      devices: ref.read(callDevicesProvider),
       localRenderer: _localRenderer,
       remoteRenderer: _remoteRenderer,
       onStateChanged: _onSessionData,
@@ -180,16 +184,14 @@ class CallSessionManager {
       unawaited(ref.read(appSoundProvider).stopLoop());
     }
 
-    if (data.state == CallSessionState.connected) {
-      if (data.remoteParticipants.isEmpty) {
-        _soloTimer ??= Timer(const Duration(minutes: 3), () {
-          debugPrint('[CallSessionManager] Solo timeout reached, ending call.');
-          end();
-        });
-      } else {
-        _soloTimer?.cancel();
-        _soloTimer = null;
-      }
+    if (data.remoteParticipants.isNotEmpty) {
+      _soloTimer?.cancel();
+      _soloTimer = null;
+    } else if (data.state == CallSessionState.connected && !_answerHandled) {
+      _soloTimer ??= Timer(const Duration(minutes: 3), () {
+        debugPrint('[CallSessionManager] Solo timeout reached, ending call.');
+        end();
+      });
     }
 
     final int? maxDuration = gatewayInfo?.maxDurationSeconds;
@@ -212,6 +214,10 @@ class CallSessionManager {
       return;
     }
     final WebRtcCallSession session = await _ensureSession();
+    _networkSub ??= ref.listen<AsyncValue<NetworkType>>(networkTypeProvider, (previous, next) {
+      final before = previous?.asData?.value, after = next.asData?.value;
+      if (before != null && after != null && before != after && !_ended) session.requestRecovery();
+    });
     await session.start();
   }
 
@@ -356,7 +362,14 @@ class CallSessionManager {
 
   Future<void> setSpeakerOn(bool speaker) => toggleSpeaker(speaker: speaker);
 
+  Future<void> setDevices(CallDevices devices) async {
+    await _session?.setDevices(devices);
+    ref.read(callDevicesProvider.notifier).select(devices);
+  }
+
   void _cleanup() {
+    _networkSub?.close();
+    _networkSub = null;
     _soloTimer?.cancel();
     _soloTimer = null;
     unawaited(ref.read(appSoundProvider).stopLoop());

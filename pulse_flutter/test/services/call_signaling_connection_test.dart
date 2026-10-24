@@ -28,6 +28,25 @@ void main() {
   String url([String query = '']) =>
       'ws://127.0.0.1:${server.port}/signal$query';
 
+  test('reconnect authenticates a new socket and preserves the ready stream', () async {
+    var connections = 0;
+    server.listen((request) async {
+      expect(request.uri.queryParameters['token'], 'test.token');
+      final socket = await WebSocketTransformer.upgrade(request);
+      sockets.add(socket); connections++;
+      socket.add(jsonEncode({'type':'ready', 'user_id':5, 'peers':[]}));
+    });
+    final client = WebRtcSignalingClient(signalUrl: url(), token: 'test.token');
+    var readyCount = 0;
+    final subscription = client.onMessage.listen((m) { if (m['type'] == 'ready') readyCount++; });
+    expect(await _connect(client), true);
+    final disconnected = client.onDisconnected.first;
+    await sockets.first.close(); await disconnected;
+    expect(await _connect(client), true);
+    await Future<void>.delayed(Duration.zero);
+    expect(connections, 2); expect(readyCount, 2);
+    await client.disconnect(); await subscription.cancel();
+  });
   test('authenticates the upgrade, waits for ready, and sends leave', () async {
     final requestSeen = Completer<Uri>();
     final accepted = Completer<WebSocket>();

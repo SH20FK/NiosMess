@@ -181,7 +181,7 @@ void main() {
   );
 
   testWidgets(
-    'autoplay ends once, a tap replays, parent gestures keep ownership',
+    'autoplay holds its final vector frame, a tap replays, parent gestures keep ownership',
     (tester) async {
       final composition = await _preloadRealEmoji(tester, '😀');
       final container = _container();
@@ -206,10 +206,21 @@ void main() {
         composition.duration + const Duration(milliseconds: 100),
       );
       await tester.pump();
-      expect(find.byType(Lottie), findsNothing);
-      expect(find.text('😀'), findsOneWidget);
+      expect(find.byType(Lottie), findsOneWidget);
+      expect(find.text('😀'), findsNothing);
+      expect(tester.widget<Lottie>(find.byType(Lottie)).controller!.value, 1);
+      expect((tester.widget<Lottie>(find.byType(Lottie)).controller! as AnimationController).isAnimating, false);
       await tester.pump(const Duration(seconds: 2));
-      expect(find.byType(Lottie), findsNothing);
+      expect(find.byType(Lottie), findsOneWidget);
+
+      final settings = container.read(uiSettingsProvider.notifier) as _Settings;
+      settings.setAnimateEmoji(false);
+      await tester.pump();
+      expect(find.byType(Lottie), findsOneWidget);
+      expect(tester.widget<Lottie>(find.byType(Lottie)).controller!.value, 1);
+      expect(find.text('😀'), findsNothing);
+      settings.setAnimateEmoji(true);
+      await tester.pump();
 
       await tester.tap(find.byType(NotoMessageEmoji));
       await tester.pump(const Duration(milliseconds: 350));
@@ -223,7 +234,7 @@ void main() {
       await tester.tap(find.byType(NotoMessageEmoji));
       await tester.pump(const Duration(milliseconds: 350));
       expect(doubleTaps, 1);
-      expect(find.byType(Lottie), findsNothing);
+      expect(find.byType(Lottie), findsOneWidget);
       await tester.longPress(find.byType(NotoMessageEmoji));
       await tester.pump();
       expect(longPresses, 1);
@@ -252,7 +263,7 @@ void main() {
           container.read(adaptivePerformanceProvider.notifier) as _Performance;
       performance.setMode(PerformanceMode.balanced);
       await _pumpReady(tester);
-      expect(find.byType(Lottie), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is Lottie && (w.controller! as AnimationController).isAnimating), findsOneWidget);
       performance.setMode(PerformanceMode.powerSaver);
       await _pumpReady(tester);
       expect(find.byType(Lottie), findsNothing);
@@ -297,7 +308,8 @@ void main() {
       await gesture.moveBy(const Offset(0, -20));
       await tester.pump();
       expect(scroll.position.isScrollingNotifier.value, isTrue);
-      expect(find.byType(Lottie), findsNothing);
+      expect(find.byType(Lottie), findsOneWidget);
+      expect((tester.widget<Lottie>(find.byType(Lottie)).controller! as AnimationController).isAnimating, false);
       await gesture.up();
       await tester.pumpAndSettle();
       // Start a fresh finite replay before checking each pause condition.

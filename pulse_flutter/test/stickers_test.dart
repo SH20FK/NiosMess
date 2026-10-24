@@ -54,6 +54,7 @@ Widget _wrapWidget({
   return ProviderScope(
     overrides: overrides.cast(),
     child: MaterialApp(
+      locale: const Locale('ru'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(
@@ -577,8 +578,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('У вас пока нет стикерпаков'), findsOneWidget);
-      expect(find.text('Создать стикерпак'), findsOneWidget);
+      expect(find.text('Здесь пока нет стикеров'), findsOneWidget);
+      expect(find.text('Создать набор'), findsOneWidget);
     });
 
     testWidgets('StickerPickerView renders empty pack state with add stickers button', (
@@ -606,7 +607,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Пустой пак'), findsOneWidget);
-      expect(find.text('В этом наборе пока нет стикеров'), findsOneWidget);
+      await tester.tap(find.text('Пустой пак'));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Здесь пока нет стикеров'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pump(const Duration(milliseconds: 100));
       expect(find.text('Добавить стикеры'), findsOneWidget);
     });
   });

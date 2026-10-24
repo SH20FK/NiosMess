@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/widgets/calls/call_devices_dialog.dart';
+import 'package:pulse_flutter/widgets/calls/call_quality_badge.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
@@ -56,11 +58,13 @@ class CallControlDock extends StatelessWidget {
             width: 1.0,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          CallQualityBadge(data: data), const SizedBox(height: 10),
+          Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center,
           children: <Widget>[
+            IconButton.filledTonal(tooltip: context.l10n.callDevicesTitle,
+              onPressed: () => showCallDevicesDialog(context, video: isVideoCall, onApply: session.setDevices),
+              icon: const Icon(Icons.tune_rounded)),
             // ── Mute / Unmute ──────────────────────────────────────────
             _CallDockButton(
               icon: data.isMuted
@@ -79,7 +83,6 @@ class CallControlDock extends StatelessWidget {
                 session.setMuted(!data.isMuted);
               },
             ),
-            const SizedBox(width: 12),
 
             // ── Speaker ────────────────────────────────────────────────
             if (!isVideoCall && !kIsWeb) ...[
@@ -100,8 +103,7 @@ class CallControlDock extends StatelessWidget {
                   session.setSpeakerOn(!data.isSpeakerOn);
                 },
               ),
-              const SizedBox(width: 12),
-            ],
+              ],
 
             // ── Flip Camera (Video call only) ──────────────────────────
             if (isVideoCall && onFlipCamera != null) ...[
@@ -118,8 +120,7 @@ class CallControlDock extends StatelessWidget {
                   onFlipCamera!();
                 },
               ),
-              const SizedBox(width: 12),
-            ],
+              ],
 
             // ── Video Toggle Button ────────────────────────────────────
             if (onToggleVideo != null) ...<Widget>[
@@ -140,8 +141,7 @@ class CallControlDock extends StatelessWidget {
                   onToggleVideo!();
                 },
               ),
-              const SizedBox(width: 12),
-            ],
+              ],
 
             // ── End Call Button (M3 Expressive Red Stadium Pill) ────────
             Tooltip(
@@ -169,6 +169,7 @@ class CallControlDock extends StatelessWidget {
             ),
           ],
         ),
+        ]),
       ),
     );
   }

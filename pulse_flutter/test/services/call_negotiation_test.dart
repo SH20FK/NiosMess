@@ -10,6 +10,12 @@ import 'package:pulse_flutter/services/calls/webrtc_call_session.dart';
 
 class _Peer extends Fake implements RTCPeerConnection {
   final events = <String>[];
+  void Function(RTCPeerConnectionState)? onState;
+  @override
+  RTCSignalingState? get signalingState => RTCSignalingState.RTCSignalingStateStable;
+  @override
+  Future<void> restartIce() async { events.add('restart'); }
+
   Completer<void>? remoteGate;
   bool failDescription = false;
   bool remoteReady = false;
@@ -34,7 +40,7 @@ class _Peer extends Fake implements RTCPeerConnection {
   @override
   Future<RTCSessionDescription> createOffer([
     Map<String, dynamic>? constraints,
-  ]) async => RTCSessionDescription('offer', 'offer');
+  ]) async { events.add('offer:${constraints?['iceRestart']}'); return RTCSessionDescription('offer', 'offer'); }
   @override
   Future<void> addCandidate(RTCIceCandidate candidate) async {
     if (!remoteReady) throw StateError('ICE before remote description');
@@ -46,7 +52,7 @@ class _Peer extends Fake implements RTCPeerConnection {
   @override
   set onTrack(void Function(RTCTrackEvent)? callback) {}
   @override
-  set onConnectionState(void Function(RTCPeerConnectionState)? callback) {}
+  set onConnectionState(void Function(RTCPeerConnectionState)? callback) { onState = callback; }
   @override
   Future<void> close() async {
     events.add('close');
@@ -65,6 +71,33 @@ class _Renderer extends Fake implements RTCVideoRenderer {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('a failed peer gets a recovery window, then ends after its bounded deadline', (tester) async {
+    final peer = _Peer();
+    final session = WebRtcCallSession(chatId: 1, callId: 2, roomId: 'test', isVideo: false,
+      direction: CallDirection.outgoing, displayName: 'test', gatewayInfo: ApiCallGatewayInfo.defaultFor(),
+      localRenderer: _Renderer(), remoteRenderer: _Renderer(), peerConnectionFactory: (_) async => peer);
+    await session.handleSignalingMessage({'type':'offer', 'from_id': 7, 'sdp': {'sdp':'offer', 'type':'offer'}});
+    peer.onState!(RTCPeerConnectionState.RTCPeerConnectionStateFailed);
+    expect(session.currentData.state, CallSessionState.reconnecting);
+    await tester.pump(const Duration(seconds: 41));
+    expect(session.currentData.state, CallSessionState.ended);
+    await session.dispose();
+  });
+  test('ICE restart is serialized after a pending description', () async {
+    final peer = _Peer()..remoteGate = Completer<void>();
+    final session = WebRtcCallSession(chatId: 1, callId: 2, roomId: 'test', isVideo: false,
+      direction: CallDirection.outgoing, displayName: 'test', gatewayInfo: ApiCallGatewayInfo.defaultFor(),
+      localRenderer: _Renderer(), remoteRenderer: _Renderer(), peerConnectionFactory: (_) async => peer);
+    final description = session.handleSignalingMessage({'type':'offer', 'from_id':7, 'sdp': {'sdp':'offer', 'type':'offer'}});
+    await Future<void>.delayed(Duration.zero);
+    final restart = session.handleRecoveryOffer(7, peer);
+    expect(peer.events, isNot(contains('restart')));
+    peer.remoteGate!.complete();
+    await description; await restart;
+    expect(peer.events.indexOf('restart'), greaterThan(peer.events.indexOf('remote:done')));
+    expect(peer.events, contains('offer:true'));
+    await session.dispose();
+  });
   test(
     'capture failure ends instead of silently connecting without a microphone',
     () async {

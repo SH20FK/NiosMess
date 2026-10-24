@@ -27,6 +27,7 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
   VideoPlayerController? _controller;
   ProviderSubscription<AdaptivePerformanceState>? _performanceSubscription;
   bool _isInit = false;
+  bool _failed = false;
   bool _visible = false;
   bool _starting = false;
   bool _disposing = false;
@@ -80,7 +81,7 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
   }
 
   void _syncPlayback() {
-    if (!mounted) return;
+    if (!mounted || _failed) return;
     final tier = ref.read(adaptivePerformanceProvider).tier;
     if (!_visible || !_pool.canAutoplay(tier)) {
       unawaited(_pool.release(_mediaToken));
@@ -170,6 +171,7 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
       _requestPlay();
       _capturePoster(controller, generation);
     } catch (error) {
+      _failed = true;
       debugPrint(
         'StickerVideoPlayer: DECODER_INIT_FAILED ${error.runtimeType}',
       );
@@ -232,6 +234,9 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
   void didUpdateWidget(covariant StickerVideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url) {
+      _generation++;
+      _failed = false;
+      _retryRequested = true;
       _pool.releasePoster(_mediaToken);
       _posterImage?.dispose();
       _posterImage = null;

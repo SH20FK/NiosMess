@@ -1,3 +1,4 @@
+import 'widgets/call_media_hub_test.dart' as call_media_hub;
 import 'widgets/web_settings_paste_test.dart' as web_settings_paste;
 import 'services/call_sender_quality_test.dart' as call_sender_quality;
 import 'widgets/bot_keyboard_feedback_test.dart' as bot_keyboard_feedback;
@@ -170,6 +171,7 @@ import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 
 void main() {
+  call_media_hub.main();
   group('Bluetooth encrypted fallback', () {
     mesh_preferences.main();
     mesh_access.main();

@@ -1,3 +1,5 @@
+import 'call_devices.dart';
+import 'call_quality.dart';
 import 'package:pulse_flutter/services/calls/call_capture_profile.dart';
 import 'package:pulse_flutter/services/calls/call_sender_quality.dart';
 import 'dart:async';
@@ -27,6 +29,7 @@ class WebRtcCallSession {
     this.onStateChanged,
     this.peerConnectionFactory,
     this.mediaStreamFactory,
+    this.devices = const CallDevices(),
   });
 
   final int chatId;
@@ -48,6 +51,8 @@ class WebRtcCallSession {
   peerConnectionFactory;
   final Future<MediaStream> Function(Map<String, dynamic>)? mediaStreamFactory;
 
+  CallDevices devices;
+  Future<void> _mediaChain = Future<void>.value();
   WebRtcSignalingClient? _signaling;
   StreamSubscription<Map<String, dynamic>>? _signalingSub;
   StreamSubscription<void>? _disconnectSub;
@@ -70,6 +75,13 @@ class WebRtcCallSession {
   late bool _isSelfVideoEnabled = isVideo && !isListener;
   String? _fatalError;
   bool _peerSeen = false;
+  Timer? _statsTimer, _recoveryTimer, _recoveryDeadline;
+  final _samplers = <int, CallQualitySampler>{};
+  CallQuality _quality = const CallQuality();
+  bool _sampling = false;
+  int _recoveryAttempt = 0;
+  bool _recovering = false;
+
 
   final List<RemoteParticipant> _remoteParticipants = [];
 
@@ -97,6 +109,7 @@ class WebRtcCallSession {
     isSelfVideoEnabled: _isSelfVideoEnabled,
     isListener: isListener,
     fatalError: _fatalError,
+    quality: _quality,
   );
 
   bool get wasAnswered => _peerSeen;
@@ -126,11 +139,11 @@ class WebRtcCallSession {
       _signalingSub = _signaling!.onMessage.listen(handleSignalingMessage);
       _disconnectSub = _signaling!.onDisconnected.listen((_) {
         if (!_ended) {
-          _fatalError = 'connection_lost';
-          _handleEnd();
+          requestRecovery();
         }
       });
 
+      _statsTimer = Timer.periodic(const Duration(seconds: 2), (_) => unawaited(_sampleQuality()));
       final bool connected = await _signaling!.connect();
       if (!connected) {
         _fatalError = 'connection_failed';
@@ -184,7 +197,7 @@ class WebRtcCallSession {
 
     try {
       final profile = CallCaptureProfile(gatewayInfo.maxVideoHeight);
-      final mediaConstraints = profile.constraints(isWeb: kIsWeb, video: isVideo);
+      final mediaConstraints = devices.constraints(video: isVideo, maxHeight: profile.height);
 
       final stream =
           await (mediaStreamFactory ?? navigator.mediaDevices.getUserMedia)(
@@ -292,6 +305,7 @@ class WebRtcCallSession {
       if (event.streams.isNotEmpty) {
         _remoteStream = event.streams[0];
         remoteRenderer.srcObject = _remoteStream;
+        if (devices.output.isNotEmpty) unawaited(devices.applyOutput(remoteRenderer).catchError((Object _) {}));
       }
     };
 
@@ -301,9 +315,10 @@ class WebRtcCallSession {
         _onRemotePeerJoined(peerId, peerDisplayName);
       } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
         if (!_ended) {
-          _fatalError = 'connection_failed';
-          _handleEnd();
+          requestRecovery();
         }
+      } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+        requestRecovery();
       }
     };
 
@@ -330,10 +345,15 @@ class WebRtcCallSession {
 
   void _onRemotePeerJoined(int peerId, String? name) {
     if (_ended) return;
+    _recoveryTimer?.cancel();
+    _recoveryDeadline?.cancel();
+    _recoveryDeadline = null;
+    _recoveryTimer = null;
+    _recoveryAttempt = 0;
+    _setState(CallSessionState.inCall);
     if (!_peerSeen) {
       _peerSeen = true;
       _startDurationTimer();
-      _setState(CallSessionState.inCall);
     }
 
     final String displayName = name ?? peerName ?? 'User $peerId';
@@ -534,6 +554,7 @@ class WebRtcCallSession {
 
   void _handlePeerLeft(int peerId) {
     final pc = _peerConnections.remove(peerId);
+    _samplers.remove(peerId);
     _pendingIce.remove(peerId);
     _remoteDescriptionReady.remove(peerId);
     pc?.close();
@@ -541,19 +562,157 @@ class WebRtcCallSession {
     _remoteParticipants.removeWhere((p) => p.clientId == peerId);
 
     if (_remoteParticipants.isEmpty) {
-      // Last remote peer left
-      _handleEnd();
+      // A closed signaling socket also emits peer_left. Give it time to rejoin.
+      requestRecovery();
     } else {
       _triggerStateUpdate();
     }
   }
 
+  Future<void> _sampleQuality() async {
+    if (_ended || _sampling) return;
+    _sampling = true;
+    try {
+      CallQuality? worst;
+      for (final entry in _peerConnections.entries.toList()) {
+        try {
+          final reports = await entry.value.getStats().timeout(const Duration(seconds: 2));
+          if (_ended) return;
+          final quality = _samplers.putIfAbsent(entry.key, CallQualitySampler.new).sample([
+            for (final r in reports) {'id': r.id, 'type': r.type, ...r.values},
+          ]);
+          if (worst == null || quality.level.index > worst.level.index) worst = quality;
+        } catch (_) { /* Missing stats never terminate media transport. */ }
+      }
+      if (!_ended) { _quality = worst ?? const CallQuality(); _triggerStateUpdate(); }
+    } finally { _sampling = false; }
+  }
+
+  /// Reuses the authenticated room and existing offer/answer protocol.
+  /// A bounded grace period covers both ICE migration and signaling reconnects.
+  void requestRecovery() {
+    if (_ended) return;
+    _setState(CallSessionState.reconnecting);
+    _recoveryDeadline ??= Timer(const Duration(seconds: 40), () {
+      if (_ended || _state != CallSessionState.reconnecting) return;
+      _fatalError = 'connection_lost';
+      _handleEnd();
+    });
+    if (_recoveryTimer?.isActive == true || _recovering) return;
+    final delay = [1, 2, 4, 8][_recoveryAttempt.clamp(0, 3)];
+    _recoveryTimer = Timer(Duration(seconds: delay), () => unawaited(_recover()));
+  }
+
+  Future<void> _recover() async {
+    if (_ended || _state != CallSessionState.reconnecting || _recovering) return;
+    _recovering = true;
+    _recoveryAttempt++;
+    try {
+      final signal = _signaling;
+      if (signal == null) return;
+      if (!signal.isConnected && !await signal.connect()) return;
+      if (_ended) return;
+      if (_peerConnections.isNotEmpty && _peerConnections.values.every(
+          (pc) => pc.connectionState == RTCPeerConnectionState.RTCPeerConnectionStateConnected)) {
+        _onRemotePeerJoined(_peerConnections.keys.first, peerName);
+        return;
+      }
+      // The lower user ID offers on both clients, avoiding simultaneous restart offers.
+      final localId = signal.localUserId;
+      for (final entry in _peerConnections.entries.toList()) {
+        if (_ended) return;
+        if (localId != null && localId < entry.key) {
+          await handleRecoveryOffer(entry.key, entry.value);
+        }
+      }
+    } catch (_) {
+      debugPrint('[WebRtcCallSession] RECOVERY_RETRY');
+    } finally {
+      _recovering = false;
+      if (!_ended && _state == CallSessionState.reconnecting) requestRecovery();
+    }
+  }
+
+  Future<void> handleRecoveryOffer(int peerId, RTCPeerConnection pc) async {
+    // Serialize restarts with incoming SDP and ICE, including app resume events.
+    _signalChain = _signalChain.then((_) async {
+      if (_ended || pc.signalingState != RTCSignalingState.RTCSignalingStateStable) return;
+      await pc.restartIce();
+      final offer = await pc.createOffer({'iceRestart': true,
+        'offerToReceiveAudio': 1, 'offerToReceiveVideo': isVideo ? 1 : 0});
+      if (_ended) return;
+      await pc.setLocalDescription(offer);
+      _signaling?.sendOffer(peerId, {'type': offer.type, 'sdp': offer.sdp});
+    }).catchError((Object _) { /* Retry within the recovery deadline. */ });
+    await _signalChain;
+  }
+
   void _handleEnd() {
     if (_ended) return;
     _ended = true;
+    _statsTimer?.cancel();
+    _recoveryTimer?.cancel();
+    _recoveryDeadline?.cancel();
     _durationTimer?.cancel();
     _setState(CallSessionState.ended);
     unawaited(dispose());
+  }
+
+  Future<void> setDevices(CallDevices selection) {
+    final operation = _mediaChain.catchError((Object _) {}).then((_) => _setDevices(selection));
+    _mediaChain = operation;
+    return operation;
+  }
+
+  Future<void> _setDevices(CallDevices selection) async {
+    if (_ended) throw StateError('call_ended');
+    final original = _localStream;
+    if (original == null) { await selection.applyOutput(remoteRenderer); devices = selection; return; }
+    final audioChanged = devices.microphone != selection.microphone;
+    final videoChanged = isVideo && devices.camera != selection.camera;
+    MediaStream? replacement;
+    final changed = <(RTCRtpSender, MediaStreamTrack?)>[];
+    final captured = <MediaStreamTrack>[];
+    try {
+      if (audioChanged || videoChanged) {
+        final constraints = selection.constraints(video: videoChanged, maxHeight: gatewayInfo.maxVideoHeight);
+        if (!audioChanged) constraints['audio'] = false;
+        replacement = await (mediaStreamFactory ?? navigator.mediaDevices.getUserMedia)(constraints);
+        captured.addAll(replacement.getTracks());
+        if (_ended) throw StateError('call_ended');
+        for (final track in replacement.getTracks()) {
+          track.enabled = track.kind == 'audio' ? !_isMuted : _isSelfVideoEnabled;
+          for (final peer in _peerConnections.values.toList()) {
+            for (final sender in await peer.getSenders()) {
+              if (sender.track?.kind == track.kind) {
+                final old = sender.track;
+                await sender.replaceTrack(track);
+                changed.add((sender, old));
+              }
+            }
+          }
+        }
+      }
+      if (selection.output != devices.output) await selection.applyOutput(remoteRenderer);
+      if (_ended) throw StateError('call_ended');
+      if (replacement != null) {
+        for (final track in replacement.getTracks().toList()) {
+          for (final old in original.getTracks().where((old) => old.kind == track.kind).toList()) {
+            await original.removeTrack(old); await old.stop();
+          }
+          await replacement.removeTrack(track);
+          await original.addTrack(track);
+          if (_ended) throw StateError('call_ended');
+        }
+        localRenderer.srcObject = isVideo ? original : null;
+      }
+      devices = selection;
+      for (final peer in _peerConnections.values.toList()) { await _configureSenders(peer); }
+    } catch (_) {
+      for (final (sender, old) in changed.reversed) { try { await sender.replaceTrack(old); } catch (_) {} }
+      for (final track in captured) { try { await track.stop(); } catch (_) {} }
+      rethrow;
+    } finally { await replacement?.dispose(); }
   }
 
   Future<void> setMuted(bool muted) async {
@@ -631,6 +790,9 @@ class WebRtcCallSession {
 
   Future<void> end() async {
     _ended = true;
+    _statsTimer?.cancel();
+    _recoveryTimer?.cancel();
+    _recoveryDeadline?.cancel();
     _durationTimer?.cancel();
 
     _setState(CallSessionState.ended);
@@ -641,6 +803,9 @@ class WebRtcCallSession {
 
   Future<void> _dispose() async {
     _ended = true;
+    _statsTimer?.cancel();
+    _recoveryTimer?.cancel();
+    _recoveryDeadline?.cancel();
     _durationTimer?.cancel();
     _durationTimer = null;
 

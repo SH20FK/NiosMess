@@ -1,5 +1,8 @@
 @TestOn('browser')
 library;
+import 'package:pulse_flutter/core/clipboard/pasted_image.dart';
+import 'package:pulse_flutter/core/clipboard/file_drop_web.dart';
+import 'package:pulse_flutter/services/calls/microphone_meter_web.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -67,6 +70,25 @@ Widget localized(Widget child) => MaterialApp(
   home: Scaffold(body: child),
 );
 void main() {
+  test('file drop reads real File bytes, leaves URLs alone and detaches cleanly', () async {
+    final received = Completer<List<PastedImage>>();
+    final detach = listenForFileDrop(bounds: () => const Rect.fromLTWH(0, 0, 200, 200),
+      canHandle: () => true, onHover: (_) {}, onFiles: received.complete, onError: received.completeError);
+    final data = web.DataTransfer();
+    data.items.add(web.File([base64Decode(pixel).toJS].toJS, 'screen.png', web.FilePropertyBag(type: 'image/png')));
+    final drop = web.DragEvent('drop', web.DragEventInit(dataTransfer: data, clientX: 40, clientY: 40, bubbles: true, cancelable: true));
+    web.document.dispatchEvent(drop);
+    expect(drop.defaultPrevented, true);
+    final files = await received.future.timeout(const Duration(seconds: 3));
+    expect(files.single.name, 'screen.png'); expect(files.single.bytes, base64Decode(pixel));
+    final link = web.DataTransfer()..setData('text/uri-list', 'https://example.invalid/image.png');
+    final urlDrop = web.DragEvent('drop', web.DragEventInit(dataTransfer: link, clientX: 40, clientY: 40, bubbles: true, cancelable: true));
+    web.document.dispatchEvent(urlDrop); expect(urlDrop.defaultPrevented, false);
+    detach();
+    final after = web.DragEvent('drop', web.DragEventInit(dataTransfer: data, clientX: 40, clientY: 40, bubbles: true, cancelable: true));
+    web.document.dispatchEvent(after); expect(after.defaultPrevented, false);
+  });
+
   test(
     'browser paste reads image bytes only from a claimed event and leaves plain text alone',
     () async {
@@ -187,6 +209,7 @@ void main() {
       RTCPeerConnection? caller, receiver;
       var closing = false;
       Timer? frames;
+      MicrophoneMeter? meter;
       final canvas = web.HTMLCanvasElement()
         ..width = profile.width
         ..height = profile.height;
@@ -199,6 +222,9 @@ void main() {
           profile.constraints(isWeb: true, video: true),
         );
         expect(stream.getAudioTracks(), hasLength(1));
+        meter = await openMicrophoneMeter(stream);
+        final level = await meter.readLevel();
+        expect(level, inInclusiveRange(0, 1));
         final video = stream.getVideoTracks().single.getSettings();
         expect(video['height'], lessThanOrEqualTo(480));
         expect(video['height'], greaterThan(240));
@@ -294,6 +320,27 @@ void main() {
             videoReceived |= kind == 'video';
           }
         }
+        final beforeRestart = await left.getLocalDescription();
+        leftReady = false; rightReady = false; leftIce.clear(); rightIce.clear();
+        await left.restartIce();
+        final restart = await left.createOffer({'iceRestart': true});
+        expect(restart.sdp, isNot(beforeRestart?.sdp));
+        await left.setLocalDescription(restart);
+        await right.setRemoteDescription(restart); rightReady = true;
+        for (final ice in rightIce) { await right.addCandidate(ice); }
+        final restartedAnswer = await right.createAnswer();
+        await right.setLocalDescription(restartedAnswer);
+        await left.setRemoteDescription(restartedAnswer); leftReady = true;
+        for (final ice in leftIce) { await left.addCandidate(ice); }
+        int totalBytes(List<StatsReport> reports) => reports.where((r) => r.type == 'inbound-rtp')
+          .fold<int>(0, (n, r) => n + ((r.values['bytesReceived'] as num?)?.toInt() ?? 0));
+        final beforeBytes = totalBytes(await right.getStats());
+        var recovered = false;
+        for (var i = 0; i < 40 && !recovered; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          recovered = totalBytes(await right.getStats()) > beforeBytes;
+        }
+        expect(recovered, true, reason: 'RTP must keep arriving after a real ICE restart');
         expect(
           audioReceived,
           true,
@@ -306,6 +353,7 @@ void main() {
         );
       } finally {
         closing = true;
+        await meter?.dispose();
         frames?.cancel();
         canvas.remove();
         remoteVideo.srcObject = null;

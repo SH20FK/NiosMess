@@ -52,6 +52,7 @@ class WebRtcSignalingClient {
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _sub;
   Timer? _heartbeatTimer;
+  DateTime? _lastReceived;
   bool _connected = false;
   bool _disposed = false;
   Completer<bool>? _ready;
@@ -71,9 +72,17 @@ class WebRtcSignalingClient {
 
   bool get isConnected => _connected;
 
-  Future<bool> connect() async {
+  Future<bool>? _connecting;
+
+  Future<bool> connect() => _connecting ??= _connect().whenComplete(() => _connecting = null);
+
+  Future<bool> _connect() async {
     if (_connected || _disposed) return _connected;
 
+    await _sub?.cancel();
+    _sub = null;
+    try { await _channel?.sink.close(); } catch (_) {}
+    _channel = null;
     try {
       // The gateway authenticates the HTTP upgrade, before it accepts any
       // signaling frames. Sending an `auth` frame after connecting is too late.
@@ -118,7 +127,12 @@ class WebRtcSignalingClient {
 
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_connected && _lastReceived != null && DateTime.now().difference(_lastReceived!) > const Duration(seconds: 15)) {
+        _handleDisconnect();
+        unawaited(_channel?.sink.close());
+        return;
+      }
       if (_connected) {
         send({'type': WebRtcSignalType.heartbeat});
       }
@@ -131,6 +145,7 @@ class WebRtcSignalingClient {
       final String text = raw is String ? raw : utf8.decode(raw as List<int>);
       final dynamic decoded = jsonDecode(text);
       if (decoded is! Map<String, dynamic>) return;
+      _lastReceived = DateTime.now();
 
       final String? type = decoded['type']?.toString();
       if (type == WebRtcSignalType.heartbeat) {
@@ -144,7 +159,7 @@ class WebRtcSignalingClient {
           _localUserId = rawId.toInt();
           _connected = !_disposed;
         }
-        if (_ready != null && !_ready!.isCompleted) _ready!.complete(true);
+        if (_ready != null && !_ready!.isCompleted) _ready!.complete(_connected);
       }
 
       if (!_messagesController.isClosed) {
@@ -166,7 +181,7 @@ class WebRtcSignalingClient {
   }
 
   void _handleDisconnect() {
-    if (!_connected && _disposed) return;
+    if (_disposed) return;
     _connected = false;
     if (_ready != null && !_ready!.isCompleted) _ready!.complete(false);
     _heartbeatTimer?.cancel();
