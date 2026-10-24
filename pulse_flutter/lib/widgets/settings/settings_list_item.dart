@@ -4,13 +4,7 @@ import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
 
-enum SettingsListItemType {
-  nav,
-  toggle,
-  value,
-  action,
-  danger,
-}
+enum SettingsListItemType { nav, toggle, value, action, danger }
 
 /// Unified Material 3 Expressive row for settings lists and grouped cards.
 /// Replaces fragmented SettingsTile, SettingsSwitchTile, and SettingsInfoTile
@@ -46,18 +40,18 @@ class SettingsListItem extends ConsumerWidget {
     bool isSelected = false,
     Key? key,
   }) : this(
-          icon: icon,
-          title: title,
-          subtitle: subtitle,
-          value: value,
-          type: SettingsListItemType.nav,
-          onTap: onTap,
-          trailing: trailing,
-          iconColor: iconColor,
-          enabled: enabled,
-          isSelected: isSelected,
-          key: key,
-        );
+         icon: icon,
+         title: title,
+         subtitle: subtitle,
+         value: value,
+         type: SettingsListItemType.nav,
+         onTap: onTap,
+         trailing: trailing,
+         iconColor: iconColor,
+         enabled: enabled,
+         isSelected: isSelected,
+         key: key,
+       );
 
   /// Factory for boolean switch tile (M3 Switch).
   const SettingsListItem.toggle({
@@ -70,16 +64,16 @@ class SettingsListItem extends ConsumerWidget {
     bool enabled = true,
     Key? key,
   }) : this(
-          icon: icon,
-          title: title,
-          subtitle: subtitle,
-          boolValue: value,
-          onChanged: onChanged,
-          type: SettingsListItemType.toggle,
-          iconColor: iconColor,
-          enabled: enabled,
-          key: key,
-        );
+         icon: icon,
+         title: title,
+         subtitle: subtitle,
+         boolValue: value,
+         onChanged: onChanged,
+         type: SettingsListItemType.toggle,
+         iconColor: iconColor,
+         enabled: enabled,
+         key: key,
+       );
 
   /// Factory for static informational value tile.
   const SettingsListItem.value({
@@ -92,16 +86,16 @@ class SettingsListItem extends ConsumerWidget {
     Color? iconColor,
     Key? key,
   }) : this(
-          icon: icon,
-          title: title,
-          value: value,
-          subtitle: subtitle,
-          type: SettingsListItemType.value,
-          onTap: onTap,
-          onLongPress: onLongPress,
-          iconColor: iconColor,
-          key: key,
-        );
+         icon: icon,
+         title: title,
+         value: value,
+         subtitle: subtitle,
+         type: SettingsListItemType.value,
+         onTap: onTap,
+         onLongPress: onLongPress,
+         iconColor: iconColor,
+         key: key,
+       );
 
   /// Factory for destructive action tile (styled in scheme.error).
   const SettingsListItem.danger({
@@ -111,13 +105,13 @@ class SettingsListItem extends ConsumerWidget {
     required VoidCallback onTap,
     Key? key,
   }) : this(
-          icon: icon,
-          title: title,
-          subtitle: subtitle,
-          type: SettingsListItemType.danger,
-          onTap: onTap,
-          key: key,
-        );
+         icon: icon,
+         title: title,
+         subtitle: subtitle,
+         type: SettingsListItemType.danger,
+         onTap: onTap,
+         key: key,
+       );
 
   final IconData icon;
   final String title;
@@ -146,20 +140,22 @@ class SettingsListItem extends ConsumerWidget {
     final Color effectiveIconColor = isDanger
         ? scheme.error
         : isSelected
-            ? scheme.onSecondaryContainer
-            : (iconColor ?? scheme.primary);
+        ? scheme.onSecondaryContainer
+        : (iconColor ?? scheme.primary);
 
     final Color effectiveIconBgColor = isDanger
         ? scheme.error.withValues(alpha: 0.12)
         : isSelected
-            ? scheme.primary.withValues(alpha: 0.18)
-            : effectiveIconColor.withValues(alpha: 0.12);
+        ? scheme.primary.withValues(alpha: 0.18)
+        : effectiveIconColor.withValues(alpha: 0.12);
 
     final Color effectiveTextColor = isDanger
         ? scheme.error
         : isSelected
-            ? scheme.onSecondaryContainer
-            : (enabled ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.38));
+        ? scheme.onSecondaryContainer
+        : (enabled
+              ? scheme.onSurface
+              : scheme.onSurface.withValues(alpha: 0.38));
 
     final Widget leadingIcon = Container(
       width: 40,
@@ -205,7 +201,8 @@ class SettingsListItem extends ConsumerWidget {
     Widget? trailingWidget;
     switch (type) {
       case SettingsListItemType.nav:
-        trailingWidget = trailing ??
+        trailingWidget =
+            trailing ??
             Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
@@ -235,7 +232,9 @@ class SettingsListItem extends ConsumerWidget {
         final bool isChecked = boolValue ?? false;
         trailingWidget = Switch(
           value: isChecked,
-          thumbIcon: WidgetStateProperty.resolveWith<Icon?>((Set<WidgetState> states) {
+          thumbIcon: WidgetStateProperty.resolveWith<Icon?>((
+            Set<WidgetState> states,
+          ) {
             if (states.contains(WidgetState.selected)) {
               return Icon(Icons.check_rounded, size: 14, color: scheme.primary);
             }
@@ -243,7 +242,9 @@ class SettingsListItem extends ConsumerWidget {
           }),
           onChanged: enabled && onChanged != null
               ? (bool v) {
-                  ref.read(appSoundProvider).playEvent(
+                  ref
+                      .read(appSoundProvider)
+                      .playEvent(
                         v ? SoundEvent.toggleOn : SoundEvent.toggleOff,
                       );
                   onChanged!(v);
@@ -285,18 +286,19 @@ class SettingsListItem extends ConsumerWidget {
 
     final VoidCallback? effectiveTap = type == SettingsListItemType.toggle
         ? (onChanged != null && enabled
-            ? () {
-                final bool nextVal = !(boolValue ?? false);
-                ref.read(appSoundProvider).playEvent(
-                      nextVal ? SoundEvent.toggleOn : SoundEvent.toggleOff,
-                    );
-                onChanged!(nextVal);
-              }
-            : null)
+              ? () {
+                  final bool nextVal = !(boolValue ?? false);
+                  ref
+                      .read(appSoundProvider)
+                      .playEvent(
+                        nextVal ? SoundEvent.toggleOn : SoundEvent.toggleOff,
+                      );
+                  onChanged!(nextVal);
+                }
+              : null)
         : onTap;
 
     return Semantics(
-      label: '$title${subtitle != null ? ', $subtitle' : ''}',
       button: type != SettingsListItemType.value,
       enabled: enabled,
       selected: isSelected,

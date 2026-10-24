@@ -58,7 +58,8 @@ class SettingsScaffold extends ConsumerWidget {
           contentChildren = children;
         }
 
-        final bool canSplit = isWide &&
+        final bool canSplit =
+            isWide &&
             adaptiveColumns &&
             contentChildren.length >= 2 &&
             !contentChildren.any((Widget w) => w is Row);
@@ -72,10 +73,10 @@ class SettingsScaffold extends ConsumerWidget {
               child: Text(
                 title!,
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      color: scheme.onSurface,
-                    ),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                  color: scheme.onSurface,
+                ),
               ),
             ),
           );
@@ -233,7 +234,11 @@ class SettingsNavBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             alignment: Alignment.center,
-            child: Icon(icon ?? Icons.settings_outlined, color: resolvedColor, size: 24),
+            child: Icon(
+              icon ?? Icons.settings_outlined,
+              color: resolvedColor,
+              size: 24,
+            ),
           );
 
     final bool hasTitle = title != null && title!.trim().isNotEmpty;
@@ -304,9 +309,13 @@ class SettingsSection extends StatelessWidget {
           if (title != null)
             Semantics(
               header: true,
-              label: title,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(isCard ? 12 : 8, isCard ? 8 : 0, 4, isCard ? 8 : 6),
+                padding: EdgeInsets.fromLTRB(
+                  isCard ? 12 : 8,
+                  isCard ? 8 : 0,
+                  4,
+                  isCard ? 8 : 6,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
@@ -327,7 +336,9 @@ class SettingsSection extends StatelessWidget {
                             title!,
                             style: isCard
                                 ? textTheme.labelLarge?.copyWith(
-                                    color: scheme.onSurfaceVariant.withValues(alpha: 0.90),
+                                    color: scheme.onSurfaceVariant.withValues(
+                                      alpha: 0.90,
+                                    ),
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0.1,
                                   )
@@ -364,7 +375,9 @@ class SettingsSection extends StatelessWidget {
                     color: scheme.surfaceContainerLow,
                     borderRadius: dynamicRadius,
                     border: Border.all(
-                      color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.20),
+                      color: scheme.outlineVariant.withValues(
+                        alpha: isDark ? 0.15 : 0.20,
+                      ),
                       width: 1,
                     ),
                   ),
@@ -382,10 +395,7 @@ class SettingsSection extends StatelessWidget {
               },
             )
           else
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: children,
-            ),
+            Column(mainAxisSize: MainAxisSize.min, children: children),
         ],
       ),
     );
@@ -522,5 +532,3 @@ class SettingsInfoTile extends ConsumerWidget {
     );
   }
 }
-
-

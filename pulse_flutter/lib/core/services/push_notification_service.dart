@@ -9,6 +9,9 @@ import 'package:go_router/go_router.dart';
 import 'package:open_file/open_file.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pulse_flutter/core/notifications/notification_event.dart';
+import 'package:pulse_flutter/core/notifications/notification_web_bridge.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 
 @pragma('vm:entry-point')
 Future<void> _onBackgroundMessage(RemoteMessage message) async {
@@ -26,7 +29,89 @@ class PushNotificationService {
       FlutterLocalNotificationsPlugin();
   static StreamSubscription<RemoteMessage>? _foregroundSubscription;
   static StreamSubscription<RemoteMessage>? _openedAppSubscription;
-  static int _notificationIdCounter = 0;
+  static final _messages = StreamController<Map<String, dynamic>>.broadcast();
+  static Stream<Map<String, dynamic>> get messages => _messages.stream;
+  static int? _accountId;
+  static bool _routingReady = false;
+  static final deviceRegistered = ValueNotifier<bool>(false);
+  static final _handledClicks = <String>{};
+  static bool get supportsPush =>
+      kIsWeb ||
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+  static bool get isForeground =>
+      WidgetsBinding.instance.lifecycleState == null ||
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+  static Future<void> configureAccount(
+    int? account, {
+    bool ready = true,
+  }) async {
+    if (_accountId != account) deviceRegistered.value = false;
+    _accountId = account;
+    _routingReady = ready && account != null;
+    final prefs = await SharedPreferences.getInstance();
+    if (account == null) {
+      await prefs.remove('notifications.active_account');
+    } else {
+      await prefs.setInt('notifications.active_account', account);
+    }
+    if (_accountId != account) return;
+    if (!kIsWeb && !(prefs.getBool('ui.notifications') ?? true)) {
+      try {
+        await _local.cancelAll();
+      } catch (_) {}
+    }
+    await syncNotificationWorker({
+      'account_id': account,
+      'enabled': account != null && (prefs.getBool('ui.notifications') ?? true),
+      'preferences': {
+        ...jsonDecode(
+          prefs.getString('notification_preferences_$account') ?? '{}',
+        ),
+        'muted_chat_ids': prefs
+            .getKeys()
+            .where(
+              (key) =>
+                  key.startsWith('chat_notifications_muted_${account}_') &&
+                  prefs.getBool(key) == true,
+            )
+            .map((key) => int.tryParse(key.split('_').last))
+            .whereType<int>()
+            .toList(),
+      },
+      'locale':
+          prefs.getString('ui.localeCode') ??
+          WidgetsBinding.instance.platformDispatcher.locale.languageCode,
+    }).catchError((Object _) {
+      debugPrint('[Push] WORKER_SETTINGS_UNAVAILABLE');
+    });
+    if (_routingReady) checkAndHandlePendingNotification();
+  }
+
+  static Future<void> clearAccount() async {
+    _routingReady = false;
+    _accountId = null;
+    _currentChatId = null;
+    pendingNotificationData = null;
+    _pendingLocalResponse = null;
+    await configureAccount(null);
+    if (!kIsWeb) {
+      try {
+        await _local.cancelAll();
+      } catch (_) {}
+    }
+  }
+
+  static Future<AppLocalizations> _strings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final language =
+        prefs.getString('ui.localeCode') ??
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    return lookupAppLocalizations(
+      Locale(language.startsWith('ru') ? 'ru' : 'en'),
+    );
+  }
+
   static int? _currentChatId;
   static Completer<void>? _firebaseBootstrap;
   static final _incomingCalls =
@@ -65,7 +150,7 @@ class PushNotificationService {
       return settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
     } catch (e) {
-      debugPrint('[PushNotificationService] requestPermission failed: $e');
+      debugPrint('[Push] PERMISSION_UNAVAILABLE');
       return false;
     }
   }
@@ -75,7 +160,8 @@ class PushNotificationService {
       await _firebaseBootstrap?.future;
       final NotificationSettings settings = await _fcm
           .getNotificationSettings();
-      return settings.authorizationStatus == AuthorizationStatus.authorized;
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
     } catch (_) {
       return false;
     }
@@ -103,17 +189,25 @@ class PushNotificationService {
     required String body,
     required bool isCall,
     int? chatId,
+    required AppLocalizations strings,
+    bool sound = true,
   }) {
-    final String channelId = isCall ? 'niosmess_calls' : 'niosmess_messages';
-    final String channelName = isCall ? 'NiosMess Calls' : 'NiosMess Messages';
+    final String channelId = isCall
+        ? 'niosmess_calls'
+        : sound
+        ? 'niosmess_messages'
+        : 'niosmess_messages_silent';
+    final String channelName = isCall
+        ? strings.noticeCallsChannel
+        : strings.noticeMessagesChannel;
 
     return NotificationDetails(
       android: AndroidNotificationDetails(
         channelId,
         channelName,
         channelDescription: isCall
-            ? 'Уведомления о входящих звонках NiosMess'
-            : 'Уведомления о новых сообщениях NiosMess',
+            ? strings.noticeCallsChannel
+            : strings.noticeMessagesChannel,
         importance: isCall ? Importance.max : Importance.high,
         priority: isCall ? Priority.max : Priority.high,
         icon: '@mipmap/ic_launcher',
@@ -121,36 +215,38 @@ class PushNotificationService {
         category: isCall
             ? AndroidNotificationCategory.call
             : AndroidNotificationCategory.message,
-        styleInformation: BigTextStyleInformation(
-          body,
-          htmlFormatBigText: false,
-          contentTitle: title,
-          htmlFormatContentTitle: false,
-          summaryText: isCall ? 'Звонок NiosMess' : 'NiosMess',
-          htmlFormatSummaryText: false,
-        ),
+        styleInformation: isCall
+            ? BigTextStyleInformation(body, contentTitle: title)
+            : MessagingStyleInformation(
+                const Person(name: 'NiosMess'),
+                conversationTitle: title,
+                messages: [Message(body, DateTime.now(), Person(name: title))],
+              ),
+        timeoutAfter: isCall ? 60000 : null,
+        onlyAlertOnce: true,
         groupKey: chatId != null ? 'niosmess_chat_$chatId' : 'niosmess_general',
-        subText: isCall ? 'Входящий звонок' : 'Новое сообщение',
+        subText: isCall ? strings.noticeIncomingCall : null,
         enableLights: true,
         ledColor: const Color(0xFF6750A4),
         ledOnMs: 1000,
         ledOffMs: 500,
         enableVibration: true,
-        playSound: true,
+        playSound: sound,
+        silent: !sound,
         sound: const RawResourceAndroidNotificationSound('notification'),
         ticker: title,
         actions: isCall
-            ? const <AndroidNotificationAction>[
+            ? <AndroidNotificationAction>[
                 AndroidNotificationAction(
                   'action_accept',
-                  'Принять',
+                  strings.noticeAccept,
                   showsUserInterface: true,
                   contextual: true,
                 ),
                 AndroidNotificationAction(
                   'action_decline',
-                  'Отклонить',
-                  showsUserInterface: false,
+                  strings.noticeDecline,
+                  showsUserInterface: true,
                   cancelNotification: true,
                   contextual: true,
                 ),
@@ -161,7 +257,7 @@ class PushNotificationService {
       iOS: DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
-        presentSound: true,
+        presentSound: sound,
         interruptionLevel: isCall
             ? InterruptionLevel.timeSensitive
             : InterruptionLevel.active,
@@ -171,34 +267,93 @@ class PushNotificationService {
   }
 
   static Future<void> showLocalNotification(Map<String, dynamic> data) async {
-    final String title =
-        data['title']?.toString() ?? data['route']?.toString() ?? 'NiosMess';
-    final String body = data['body']?.toString() ?? '';
-    final bool isCall = data['type'] == 'incoming_call';
-    if (_shouldIgnorePush(title, body, isCall: isCall)) return;
-
-    if (!isCall) {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final bool enabled = prefs.getBool('ui.notifications') ?? true;
-      if (!enabled) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final account = prefs.getInt('notifications.active_account');
+    final event = NotificationEvent.fromJson(data);
+    if (account == null || !event.belongsTo(account)) return;
+    if (event.isCancellation) {
+      final room = data['room_id']?.toString();
+      if (room != null) {
+        final ended = {
+          ...?prefs.getStringList('notifications.ended_calls'),
+          room,
+        }.toList();
+        await prefs.setStringList(
+          'notifications.ended_calls',
+          ended.skip(ended.length > 128 ? ended.length - 128 : 0).toList(),
+        );
+      }
+      await cancelCallNotification(roomId: data['room_id']?.toString());
+      return;
     }
-
-    final Object? chatIdRaw = data['chat_id'];
-    final int? chatId = chatIdRaw is int
-        ? chatIdRaw
-        : int.tryParse(chatIdRaw?.toString() ?? '');
-
+    if (event.isCall &&
+        (prefs.getStringList('notifications.ended_calls') ?? []).contains(
+          data['room_id']?.toString(),
+        )) {
+      return;
+    }
+    if (event.isReadReceipt) {
+      if (event.chatId != null) await cancelChatNotification(event.chatId!);
+      return;
+    }
+    if (event.expiredAt(DateTime.now())) return;
+    final options =
+        jsonDecode(prefs.getString('notification_preferences_$account') ?? '{}')
+            as Map<String, dynamic>;
+    if (!(prefs.getBool('ui.notifications') ?? true) ||
+        options[event.isCall
+                ? 'calls'
+                : event.chatId != null
+                ? 'messages'
+                : 'activity'] ==
+            false ||
+        (event.chatId != null &&
+            (prefs.getBool(
+                  'chat_notifications_muted_${account}_${event.chatId}',
+                ) ??
+                false))) {
+      return;
+    }
+    final strings = await _strings();
+    final title = event.title;
+    final body = event.isCall
+        ? strings.noticeIncomingCall
+        : options['preview'] == false
+        ? strings.noticeNewMessage
+        : event.body;
+    if (_shouldIgnorePush(title, body, isCall: event.isCall)) return;
+    if (kIsWeb) return; // The FCM worker owns background web notifications.
+    if (event.isCall && data['room_id'] != null) {
+      await prefs.setString(
+        'notifications.ringing_room',
+        data['room_id'].toString(),
+      );
+    }
+    await _local.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+      ),
+      onDidReceiveNotificationResponse: _onNotificationTap,
+    );
     await _local.show(
-      id: ++_notificationIdCounter,
+      id: event.isCall ? kCallNotificationId : notificationSystemId(event.id),
       title: title,
       body: body,
       notificationDetails: _buildNotificationDetails(
         title: title,
         body: body,
-        isCall: isCall,
-        chatId: chatId,
+        isCall: event.isCall,
+        chatId: event.chatId,
+        strings: strings,
+        sound: options['sound'] != false,
       ),
-      payload: jsonEncode(data),
+      payload: jsonEncode({...data, 'account_id': account}),
     );
   }
 
@@ -218,13 +373,15 @@ class PushNotificationService {
           requestBadgePermission: false,
           requestSoundPermission: false,
         );
-    await _local.initialize(
-      settings: const InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      ),
-      onDidReceiveNotificationResponse: _onNotificationTap,
-    );
+    if (!kIsWeb) {
+      await _local.initialize(
+        settings: const InitializationSettings(
+          android: androidSettings,
+          iOS: iosSettings,
+        ),
+        onDidReceiveNotificationResponse: _onNotificationTap,
+      );
+    }
 
     if (!kIsWeb) {
       final NotificationAppLaunchDetails? launch = await _local
@@ -234,27 +391,28 @@ class PushNotificationService {
       }
     }
 
-    const AndroidNotificationChannel messagesChannel =
+    final strings = await _strings();
+    final AndroidNotificationChannel messagesChannel =
         AndroidNotificationChannel(
           'niosmess_messages',
-          'NiosMess Messages',
-          description: 'Уведомления о новых сообщениях',
+          strings.noticeMessagesChannel,
+          description: strings.noticeMessagesChannel,
           importance: Importance.high,
           playSound: true,
         );
-    const AndroidNotificationChannel callsChannel = AndroidNotificationChannel(
+    final AndroidNotificationChannel callsChannel = AndroidNotificationChannel(
       'niosmess_calls',
-      'NiosMess Calls',
-      description: 'Уведомления о входящих звонках',
+      strings.noticeCallsChannel,
+      description: strings.noticeCallsChannel,
       importance: Importance.max,
       playSound: true,
       enableVibration: true,
     );
-    const AndroidNotificationChannel updatesChannel =
+    final AndroidNotificationChannel updatesChannel =
         AndroidNotificationChannel(
           'niosmess_updates',
-          'NiosMess Updates',
-          description: 'Уведомления о загрузке и установке обновлений',
+          strings.noticeUpdatesChannel,
+          description: strings.noticeUpdatesChannel,
           importance: Importance.low,
           playSound: false,
           enableVibration: false,
@@ -266,6 +424,14 @@ class PushNotificationService {
         >();
     if (androidPlugin != null) {
       await androidPlugin.createNotificationChannel(messagesChannel);
+      await androidPlugin.createNotificationChannel(
+        AndroidNotificationChannel(
+          'niosmess_messages_silent',
+          strings.noticeSilentMessages,
+          importance: Importance.high,
+          playSound: false,
+        ),
+      );
       await androidPlugin.createNotificationChannel(callsChannel);
       await androidPlugin.createNotificationChannel(updatesChannel);
     }
@@ -279,6 +445,11 @@ class PushNotificationService {
       _onNotificationTap2,
     );
 
+    installNotificationBridge(
+      handleNotificationData,
+      (data) => _messages.add(data),
+    );
+    await configureAccount(_accountId, ready: _routingReady);
     final RemoteMessage? initial = await _fcm.getInitialMessage();
     if (initial != null) {
       pendingNotificationData = initial.data;
@@ -289,6 +460,7 @@ class PushNotificationService {
   static NotificationResponse? _pendingLocalResponse;
 
   static void checkAndHandlePendingNotification() {
+    if (!_routingReady) return;
     final response = _pendingLocalResponse;
     _pendingLocalResponse = null;
     if (response != null) _onNotificationTap(response);
@@ -309,56 +481,57 @@ class PushNotificationService {
   static Future<String?> getToken() async {
     try {
       await _firebaseBootstrap?.future;
+      if (!await isPermissionGranted()) return null;
       if (kIsWeb) {
         return await _fcm.getToken(vapidKey: kVapidKey);
       }
       return await _fcm.getToken();
     } catch (e) {
-      debugPrint('[PushNotificationService] getToken failed: $e');
+      debugPrint('[Push] TOKEN_UNAVAILABLE');
       return null;
+    }
+  }
+
+  static Future<void> revokeToken() async {
+    if (!supportsPush) return;
+    try {
+      await _fcm.deleteToken();
+    } catch (_) {
+      debugPrint('[Push] TOKEN_REVOCATION_PENDING');
     }
   }
 
   static Stream<String> get onTokenRefresh => _fcm.onTokenRefresh;
 
   static Future<void> _onForegroundMessage(RemoteMessage message) async {
-    final Map<String, dynamic> data = message.data;
-    final String title =
-        message.notification?.title ?? data['title']?.toString() ?? 'NiosMess';
-    final String body =
-        message.notification?.body ?? data['body']?.toString() ?? '';
-    final bool isCall = data['type'] == 'incoming_call';
-    if (_shouldIgnorePush(title, body, isCall: isCall)) return;
-
-    if (isCall) {
-      _incomingCalls.add(Map<String, dynamic>.from(data));
-      // The account call handler deduplicates WebSocket and FCM delivery,
-      // then displays the actionable notification with its stable ID.
+    final data = <String, dynamic>{
+      ...message.data,
+      if (message.notification?.title != null)
+        'title': message.notification!.title,
+      if (message.notification?.body != null)
+        'body': message.notification!.body,
+    };
+    final event = NotificationEvent.fromJson(data);
+    if (_accountId == null ||
+        (event.accountId == null && data['action'] != 'install_update') ||
+        !event.belongsTo(_accountId!) ||
+        event.expiredAt(DateTime.now())) {
       return;
     }
-
-    final Object? chatIdRaw = data['chat_id'];
-    final int? chatId = chatIdRaw is int
-        ? chatIdRaw
-        : int.tryParse(chatIdRaw?.toString() ?? '');
-    if (chatId != null && chatId == _currentChatId) return;
-
-    // When the app is in the foreground, in-app banner already presents new messages.
-    // Only incoming calls require system tray notification with heads-up call actions.
-    if (!isCall) return;
-
-    await _local.show(
-      id: ++_notificationIdCounter,
-      title: title,
-      body: body,
-      notificationDetails: _buildNotificationDetails(
-        title: title,
-        body: body,
-        isCall: isCall,
-        chatId: chatId,
-      ),
-      payload: jsonEncode(data),
-    );
+    if (event.isCall) {
+      final prefs = await SharedPreferences.getInstance();
+      final options =
+          jsonDecode(
+                prefs.getString('notification_preferences_$_accountId') ?? '{}',
+              )
+              as Map<String, dynamic>;
+      if ((prefs.getBool('ui.notifications') ?? true) &&
+          options['calls'] != false) {
+        _incomingCalls.add(data);
+      }
+      return;
+    }
+    _messages.add(data);
   }
 
   static const int kCallNotificationId = 999999;
@@ -385,25 +558,75 @@ class PushNotificationService {
       'caller_nickname': callerName,
       'is_video': isVideo,
     };
-    final String callType = isVideo ? 'Видеозвонок' : 'Голосовой звонок';
+    if (kIsWeb) {
+      return; // Foreground call UI is already visible; worker handles hidden tabs.
+    }
+    final strings = await _strings();
+    final body = isVideo
+        ? strings.noticeIncomingVideo
+        : strings.noticeIncomingCall;
+    final prefs = await SharedPreferences.getInstance();
+    final options =
+        jsonDecode(
+              prefs.getString('notification_preferences_$_accountId') ?? '{}',
+            )
+            as Map<String, dynamic>;
+    await prefs.setString('notifications.ringing_room', roomId);
     await _local.show(
       id: kCallNotificationId,
       title: callerName,
-      body: '$callType...',
+      body: body,
       notificationDetails: _buildNotificationDetails(
         title: callerName,
-        body: '$callType...',
+        body: body,
         isCall: true,
         chatId: chatId,
+        strings: strings,
+        sound: options['sound'] != false,
       ),
-      payload: jsonEncode(data),
+      payload: jsonEncode({
+        ...data,
+        'account_id': _accountId,
+        'expires_at': DateTime.now()
+            .toUtc()
+            .add(const Duration(seconds: 60))
+            .toIso8601String(),
+      }),
     );
   }
 
-  static Future<void> cancelCallNotification() async {
+  static Future<void> cancelCallNotification({String? roomId}) async {
+    if (kIsWeb) return;
     try {
-      await _local.cancel(id: kCallNotificationId);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final current = prefs.getString('notifications.ringing_room');
+      final endedRoom = roomId ?? current;
+      if (endedRoom != null) {
+        final ended = {
+          ...?prefs.getStringList('notifications.ended_calls'),
+          endedRoom,
+        }.toList();
+        await prefs.setStringList(
+          'notifications.ended_calls',
+          ended.skip(ended.length > 128 ? ended.length - 128 : 0).toList(),
+        );
+        await _local.cancel(id: 0, tag: 'call-$endedRoom');
+      }
+      // A late cancellation from an old room cannot erase a newer incoming call.
+      if (roomId == null || current == roomId) {
+        await _local.cancel(id: kCallNotificationId);
+        await prefs.remove('notifications.ringing_room');
+      }
     } catch (_) {}
+  }
+
+  static Future<void> cancelChatNotification(int chatId) async {
+    if (!kIsWeb) {
+      try {
+        await _local.cancel(id: 0, tag: 'chat-$chatId');
+      } catch (_) {}
+    }
   }
 
   static void _onNotificationTap(NotificationResponse response) {
@@ -412,16 +635,9 @@ class PushNotificationService {
       final Map<String, dynamic> data =
           jsonDecode(response.payload!) as Map<String, dynamic>;
 
-      if (response.actionId == 'action_accept') {
-        unawaited(cancelCallNotification());
-        onCallAccepted?.call(data);
-        return;
-      } else if (response.actionId == 'action_decline') {
-        unawaited(cancelCallNotification());
-        onCallDeclined?.call(data);
-        return;
+      if ((response.actionId?.isNotEmpty ?? false)) {
+        data['notification_action'] = response.actionId;
       }
-
       handleNotificationData(data);
     } catch (_) {}
   }
@@ -431,8 +647,38 @@ class PushNotificationService {
   }
 
   static void handleNotificationData(Map<String, dynamic> data) {
-    if (data['type'] == 'incoming_call') {
-      _incomingCalls.add(Map<String, dynamic>.from(data));
+    if (!_routingReady) {
+      pendingNotificationData = Map.from(data);
+      return;
+    }
+    final event = NotificationEvent.fromJson(data);
+    if (_accountId == null ||
+        (event.accountId == null && data['action'] != 'install_update') ||
+        !event.belongsTo(_accountId!) ||
+        event.expiredAt(DateTime.now())) {
+      return;
+    }
+    final clickId = data['_click_id']?.toString();
+    if (clickId != null) {
+      if (!_handledClicks.add(clickId)) return;
+      if (_handledClicks.length > 128) {
+        _handledClicks.remove(_handledClicks.first);
+      }
+    }
+    if (event.isCancellation) {
+      unawaited(cancelCallNotification(roomId: data['room_id']?.toString()));
+      return;
+    }
+    if (event.isCall) {
+      unawaited(cancelCallNotification());
+      switch (data['notification_action']) {
+        case 'action_accept':
+          onCallAccepted?.call(data);
+        case 'action_decline':
+          onCallDeclined?.call(data);
+        default:
+          _incomingCalls.add(Map<String, dynamic>.from(data));
+      }
       return;
     }
     final String? action = data['action']?.toString();
@@ -444,24 +690,8 @@ class PushNotificationService {
       return;
     }
 
-    final String? route = data['route']?.toString();
-    if (route != null && route.isNotEmpty) {
-      AppRouter.navigatorKey.currentContext?.go(route);
-      return;
-    }
-
-    final Object? chatIdRaw = data['chat_id'];
-    final int? chatId = chatIdRaw is int
-        ? chatIdRaw
-        : int.tryParse(chatIdRaw?.toString() ?? '');
-    if (chatId != null) {
-      AppRouter.navigatorKey.currentContext?.go('/chat/$chatId');
-      return;
-    }
-
-    final String? username = data['username']?.toString();
-    if (username != null && username.isNotEmpty) {
-      AppRouter.navigatorKey.currentContext?.go('/profile/$username');
-    }
+    _messages.add(data);
+    final target = event.target;
+    if (target != null) AppRouter.navigatorKey.currentContext?.go(target);
   }
 }

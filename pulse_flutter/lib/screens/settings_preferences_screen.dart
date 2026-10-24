@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/notifications/notification_settings_section.dart';
 import 'package:pulse_flutter/widgets/calls/call_devices_dialog.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:flutter/material.dart';
@@ -6,7 +7,6 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -24,23 +24,15 @@ class SettingsPreferencesScreen extends ConsumerWidget {
       title: context.l10n.settingsPreferencesTitle,
       isEmbedded: isEmbedded,
       children: <Widget>[
+        const NotificationSettingsSection(),
         SettingsSection(
-          title: context.l10n.settingsPrivacyNotificationsTitle,
-          children: <Widget>[
-          SettingsSection(title: context.l10n.callDevicesTitle, children: [
-            SettingsListItem.nav(title: context.l10n.callDevicesTitle, subtitle: context.l10n.callDevicesLocalHint,
+          title: context.l10n.callDevicesTitle,
+          children: [
+            SettingsListItem.nav(
+              title: context.l10n.callDevicesTitle,
+              subtitle: context.l10n.callDevicesLocalHint,
               icon: Icons.headset_mic_rounded,
-              onTap: () => showCallDevicesDialog(context)),
-          ]),
-            SettingsSwitchTile(
-              icon: Icons.notifications_rounded,
-              title: context.l10n.settingsPushNotifications,
-              subtitle: context.l10n.settingsPushNotificationsSubtitle,
-              iconColor: scheme.primary,
-              value: settings.notifications,
-              onChanged: (bool value) async {
-                await updateNotificationPreference(ref, value);
-              },
+              onTap: () => showCallDevicesDialog(context),
             ),
           ],
         ),
@@ -50,7 +42,7 @@ class SettingsPreferencesScreen extends ConsumerWidget {
             SettingsSwitchTile(
               icon: Icons.volume_up_rounded,
               title: context.l10n.appearanceSoundEffects,
-              subtitle: context.l10n.settingsSoundEffectsSubtitle,
+              subtitle: context.l10n.noticeUiSoundsHint,
               iconColor: scheme.secondary,
               value: settings.soundEffects,
               onChanged: (bool value) {
@@ -97,8 +89,8 @@ class SettingsPreferencesScreen extends ConsumerWidget {
               ),
               SettingsTile(
                 icon: Icons.play_circle_outline_rounded,
-                title: 'Проверить звук',
-                subtitle: 'Тестовая цепочка: тап, сообщение, успех, ошибка',
+                title: context.l10n.noticeSoundTest,
+                subtitle: context.l10n.noticeSoundTestHint,
                 iconColor: scheme.primary,
                 onTap: () async {
                   final SoundService sound = ref.read(appSoundProvider);
@@ -112,16 +104,17 @@ class SettingsPreferencesScreen extends ConsumerWidget {
                 },
               ),
             ],
-            if (ref.watch(clientCapabilitiesProvider).haptics) SettingsSwitchTile(
-              icon: Icons.vibration_rounded,
-              title: context.l10n.settingsHapticFeedback,
-              subtitle: context.l10n.settingsHapticFeedbackSubtitle,
-              iconColor: scheme.tertiary,
-              value: settings.haptics,
-              onChanged: (bool value) {
-                ref.read(uiSettingsProvider.notifier).setHaptics(value);
-              },
-            ),
+            if (ref.watch(clientCapabilitiesProvider).haptics)
+              SettingsSwitchTile(
+                icon: Icons.vibration_rounded,
+                title: context.l10n.settingsHapticFeedback,
+                subtitle: context.l10n.settingsHapticFeedbackSubtitle,
+                iconColor: scheme.tertiary,
+                value: settings.haptics,
+                onChanged: (bool value) {
+                  ref.read(uiSettingsProvider.notifier).setHaptics(value);
+                },
+              ),
           ],
         ),
         SettingsSection(

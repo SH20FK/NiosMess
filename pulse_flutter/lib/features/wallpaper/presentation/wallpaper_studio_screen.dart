@@ -1,8 +1,9 @@
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/features/wallpaper/presentation/widgets/tabs/colors_tab.dart';
@@ -28,7 +29,8 @@ class WallpaperStudioScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
 
   @override
-  ConsumerState<WallpaperStudioScreen> createState() => _WallpaperStudioScreenState();
+  ConsumerState<WallpaperStudioScreen> createState() =>
+      _WallpaperStudioScreenState();
 }
 
 class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
@@ -68,7 +70,9 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
 
   void _applyWallpaper() {
     HapticService.confirm();
-    final ChatWallpaperNotifier notifier = ref.read(chatWallpaperProvider.notifier);
+    final ChatWallpaperNotifier notifier = ref.read(
+      chatWallpaperProvider.notifier,
+    );
     if (_applyToChatOnly && widget.chatId != null) {
       notifier.setChatWallpaper(widget.chatId!, _draftConfig);
     } else {
@@ -96,9 +100,7 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
       final code = base64Url.encode(utf8.encode(jsonStr));
       Clipboard.setData(ClipboardData(text: code));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Код обоев скопирован в буфер обмена')),
-        );
+        AppToast.showSuccess(context, context.l10n.noticeCopied);
       }
     } catch (_) {}
   }
@@ -132,7 +134,11 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
               if (widget.chatId != null) ...<Widget>[
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: Text(widget.chatTitle != null ? 'Для «${widget.chatTitle}»' : 'Для этого чата'),
+                  label: Text(
+                    widget.chatTitle != null
+                        ? 'Для «${widget.chatTitle}»'
+                        : 'Для этого чата',
+                  ),
                   selected: _applyToChatOnly,
                   onSelected: (bool selected) {
                     if (selected) setState(() => _applyToChatOnly = true);
@@ -164,18 +170,9 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
               currentConfig: _draftConfig,
               onSelectConfig: _updateConfig,
             ),
-            PatternTab(
-              config: _draftConfig,
-              onChanged: _updateConfig,
-            ),
-            ColorsTab(
-              config: _draftConfig,
-              onChanged: _updateConfig,
-            ),
-            EffectsTab(
-              config: _draftConfig,
-              onChanged: _updateConfig,
-            ),
+            PatternTab(config: _draftConfig, onChanged: _updateConfig),
+            ColorsTab(config: _draftConfig, onChanged: _updateConfig),
+            EffectsTab(config: _draftConfig, onChanged: _updateConfig),
           ],
         );
 
@@ -183,7 +180,11 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: scheme.surface,
-            border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.15))),
+            border: Border(
+              top: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.15),
+              ),
+            ),
           ),
           child: Row(
             children: <Widget>[
@@ -192,9 +193,14 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
                   onPressed: _applyWallpaper,
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  child: const Text('Применить', style: TextStyle(fontWeight: FontWeight.w700)),
+                  child: const Text(
+                    'Применить',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -202,7 +208,9 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
                 onPressed: () => Navigator.of(context).maybePop(),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(80, 48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: const Text('Отмена'),
               ),
@@ -254,7 +262,11 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
                   flex: 45,
                   child: Container(
                     decoration: BoxDecoration(
-                      border: Border(left: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.2))),
+                      border: Border(
+                        left: BorderSide(
+                          color: scheme.outlineVariant.withValues(alpha: 0.2),
+                        ),
+                      ),
                     ),
                     child: Column(
                       children: <Widget>[

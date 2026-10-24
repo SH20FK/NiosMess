@@ -8,29 +8,48 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
+import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 
 class CallPushHandler extends Notifier<void> {
   StreamSubscription<dynamic>? _sub;
   StreamSubscription<Map<String, dynamic>>? _pushSub;
+  StreamSubscription<Map<String, dynamic>>? _controlSub;
+  final _endedRooms = <String>{};
 
   @override
   void build() {
+    ref.watch(authProvider.select((s) => s.session?.userId));
     _sub = ref.read(webSocketClientProvider).pushStream.listen(_handlePush);
     _pushSub = PushNotificationService.incomingCalls.listen((data) {
       _handlePush({'action': 'incoming_call_push', 'payload': data});
     });
+    _controlSub = PushNotificationService.messages.listen((data) {
+      if (data['type'] == 'call_ended') {
+        final room = data['room_id']?.toString();
+        if (room == null) return;
+        _rememberEnded(room);
+        if (ref.read(incomingCallProvider)?.roomId == room) {
+          ref.read(incomingCallProvider.notifier).set(null);
+        }
+      }
+    });
     ref.onDispose(() {
+      unawaited(_controlSub?.cancel());
       unawaited(_sub?.cancel());
       unawaited(_pushSub?.cancel());
     });
   }
 
-  void _handlePush(dynamic event) {
+  Future<void> _handlePush(dynamic event) async {
     if (event is! Map) return;
     final Map<String, dynamic> msg = asStringMap(event);
     final String action = msg['action'] as String? ?? '';
 
-    if (action == 'end_call' || action == 'call_ended' || action == 'decline_call') {
+    if (action == 'end_call' ||
+        action == 'call_ended' ||
+        action == 'decline_call') {
       _handleEndCall(msg);
       return;
     }
@@ -51,25 +70,41 @@ class CallPushHandler extends Notifier<void> {
         ? asStringMap(msg['payload'] as Map)
         : msg;
 
-    final int messageId = int.tryParse(payload['message_id']?.toString() ?? '') ??
+    final int messageId =
+        int.tryParse(payload['message_id']?.toString() ?? '') ??
         int.tryParse(payload['call_id']?.toString() ?? '') ??
         int.tryParse(payload['id']?.toString() ?? '') ??
         0;
     final int? chatId = int.tryParse(payload['chat_id']?.toString() ?? '');
     final String? roomId = payload['room_id']?.toString();
-    final int initiatorId = int.tryParse(payload['caller_id']?.toString() ?? '') ??
+    final int initiatorId =
+        int.tryParse(payload['caller_id']?.toString() ?? '') ??
         int.tryParse(payload['initiator_id']?.toString() ?? '') ??
         0;
-    final bool isVideo = payload['is_video'] == true ||
+    final bool isVideo =
+        payload['is_video'] == true ||
         payload['is_video'] == 'true' ||
         payload['is_video'] == 1 ||
         payload['is_video'] == '1';
-    final String initiatorName = payload['caller_nickname']?.toString() ??
+    final String initiatorName =
+        payload['caller_nickname']?.toString() ??
         payload['caller_name']?.toString() ??
         payload['initiator_name']?.toString() ??
         'Собеседник';
 
     if (chatId == null || roomId == null || roomId.trim().isEmpty) return;
+    final account = ref.read(authProvider).session?.userId;
+    if (account == null || ref.read(authProvider.notifier).isLoggingOut) return;
+    final preferences = await ref.read(notificationPreferencesProvider.future);
+    final muted = await ref.read(chatMutedProvider(chatId).future);
+    if (!ref.mounted ||
+        ref.read(authProvider).session?.userId != account ||
+        !ref.read(uiSettingsProvider).notifications ||
+        !preferences.calls ||
+        muted ||
+        _endedRooms.contains(roomId)) {
+      return;
+    }
     if (initiatorId != 0 &&
         initiatorId == ref.read(authProvider).session?.userId) {
       return;
@@ -78,7 +113,9 @@ class CallPushHandler extends Notifier<void> {
     // Deduplication (Rule 8): if already connected to this call, ignore duplicate push
     final CallSessionManager? currentSession = ref.read(callSessionProvider);
     if (currentSession != null && currentSession.roomId == roomId) {
-      debugPrint('[CallPushHandler] Duplicate call push for current session ignored');
+      debugPrint(
+        '[CallPushHandler] Duplicate call push for current session ignored',
+      );
       return;
     }
 
@@ -90,12 +127,14 @@ class CallPushHandler extends Notifier<void> {
 
     // Busy check: if currently in another call, reject the new incoming call
     if (currentSession?.isActive ?? false) {
-      debugPrint('[CallPushHandler] User busy: declining new incoming call $roomId');
-      unawaited(ref.read(callRepositoryProvider).decline(
-            chatId: chatId,
-            roomId: roomId,
-            messageId: messageId,
-          ));
+      debugPrint(
+        '[CallPushHandler] User busy: declining new incoming call $roomId',
+      );
+      unawaited(
+        ref
+            .read(callRepositoryProvider)
+            .decline(chatId: chatId, roomId: roomId, messageId: messageId),
+      );
       return;
     }
 
@@ -111,17 +150,19 @@ class CallPushHandler extends Notifier<void> {
     ref.read(incomingCallProvider.notifier).set(incomingData);
 
     // Show actionable system notification
-    unawaited(PushNotificationService.showIncomingCallNotification(
-      chatId: chatId,
-      callId: messageId,
-      roomId: roomId,
-      callerName: initiatorName,
-      isVideo: isVideo,
-    ).catchError((Object _) {
-      // Notification plugins may be unavailable on desktop/web. The incoming
-      // overlay must still work and the stream listener must not throw.
-      debugPrint('[CallPushHandler] System notification unavailable');
-    }));
+    unawaited(
+      PushNotificationService.showIncomingCallNotification(
+        chatId: chatId,
+        callId: messageId,
+        roomId: roomId,
+        callerName: initiatorName,
+        isVideo: isVideo,
+      ).catchError((Object _) {
+        // Notification plugins may be unavailable on desktop/web. The incoming
+        // overlay must still work and the stream listener must not throw.
+        debugPrint('[CallPushHandler] System notification unavailable');
+      }),
+    );
   }
 
   void _handleCallJoined(Map<String, dynamic> msg) {
@@ -132,18 +173,26 @@ class CallPushHandler extends Notifier<void> {
 
     final CallSessionManager? manager = ref.read(callSessionProvider);
     if (manager != null && roomId != null && manager.roomId == roomId) {
-      debugPrint('[CallPushHandler] Received call_joined for room $roomId. Connecting media...');
+      debugPrint(
+        '[CallPushHandler] Received call_joined for room $roomId. Connecting media...',
+      );
       unawaited(manager.onCallJoined(payload));
     }
   }
 
   /// The other side ended/cancelled the call: dismiss the ringing banner,
   /// cancel call notification, and tear down active session if it matches.
+  void _rememberEnded(String room) {
+    _endedRooms.add(room);
+    if (_endedRooms.length > 128) _endedRooms.remove(_endedRooms.first);
+  }
+
   void _handleEndCall(Map<String, dynamic> msg) {
     final Map<String, dynamic> payload = msg['payload'] is Map
         ? asStringMap(msg['payload'] as Map)
         : msg;
     final String? roomId = payload['room_id']?.toString();
+    if (roomId != null) _rememberEnded(roomId);
 
     final IncomingCallData? incoming = ref.read(incomingCallProvider);
     if (incoming != null && (roomId == null || incoming.roomId == roomId)) {
@@ -162,8 +211,9 @@ class CallPushHandler extends Notifier<void> {
   }
 }
 
-final Provider<void> callPushHandlerProvider =
-    Provider<void>((Ref ref) => ref.watch(callPushHandlerNotifierProvider));
+final Provider<void> callPushHandlerProvider = Provider<void>(
+  (Ref ref) => ref.watch(callPushHandlerNotifierProvider),
+);
 
 final NotifierProvider<CallPushHandler, void> callPushHandlerNotifierProvider =
     NotifierProvider<CallPushHandler, void>(CallPushHandler.new);

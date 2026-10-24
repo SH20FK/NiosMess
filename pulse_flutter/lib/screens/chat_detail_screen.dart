@@ -236,7 +236,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       },
       onReachedBottom: () {
         final int? cid = _chatId;
-        if (cid != null) {
+        if (cid != null && PushNotificationService.isForeground) {
           unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
           ref.read(chatsProvider.notifier).markChatAsRead(cid);
         }
@@ -313,7 +313,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       HapticService.tap();
     }
     final int? cid = _chatId;
-    if (cid != null) {
+    if (cid != null && PushNotificationService.isForeground) {
       unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
       ref.read(chatsProvider.notifier).markChatAsRead(cid);
     }
@@ -323,7 +323,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   @override
   void dispose() {
     final int? cid = _chatId;
-    if (cid != null) {
+    if (cid != null && PushNotificationService.isForeground) {
       try {
         unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
         ref.read(chatsProvider.notifier).markChatAsRead(cid);
@@ -711,7 +711,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           .read(chatMessagesProvider(chatId).notifier)
           .window
           .followingLatest;
-      if (_isSecret || followingLatest) {
+      if ((_isSecret || followingLatest) &&
+          PushNotificationService.isForeground) {
         await ref.read(chatMessagesProvider(chatId).notifier).markRead();
         ref.read(chatsProvider.notifier).markChatAsRead(chatId);
       }

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/notifications/notification_center.dart';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -5,7 +6,6 @@ import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
@@ -71,18 +71,15 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
         title: Text(
           context.l10n.niosgramTitle,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
-                color: scheme.onSurface,
-              ),
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.6,
+            color: scheme.onSurface,
+          ),
         ),
         centerTitle: false,
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        actions: const <Widget>[
-          _NotificationsBell(),
-          SizedBox(width: 8),
-        ],
+        actions: const <Widget>[_NotificationsBell(), SizedBox(width: 8)],
       ),
       floatingActionButton: _buildFloatingActions(context, scheme),
       body: Align(
@@ -99,16 +96,16 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
             data: (NiosgramState feedState) {
               if (feedState.posts.isEmpty) {
                 return RefreshIndicator(
-                  onRefresh: () => ref.read(niosgramProvider.notifier).refresh(),
+                  onRefresh: () =>
+                      ref.read(niosgramProvider.notifier).refresh(),
                   child: ListView(
                     controller: _scrollController,
-                    padding: EdgeInsets.only(
-                      top: 4,
-                      bottom: isWide ? 84 : 96,
-                    ),
+                    padding: EdgeInsets.only(top: 4, bottom: isWide ? 84 : 96),
                     children: <Widget>[
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: horizontalGutter),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: horizontalGutter,
+                        ),
                         child: const _CompactQuickCreateBar(),
                       ),
                       const SizedBox(height: 24),
@@ -127,11 +124,9 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
                 child: ListView.builder(
                   controller: _scrollController,
                   addRepaintBoundaries: false,
-                  padding: EdgeInsets.only(
-                    top: 4,
-                    bottom: isWide ? 84 : 96,
-                  ),
-                  itemCount: 1 +
+                  padding: EdgeInsets.only(top: 4, bottom: isWide ? 84 : 96),
+                  itemCount:
+                      1 +
                       feedState.posts.length +
                       (feedState.isLoadingMore ? 1 : 0) +
                       (feedState.hasMore && !feedState.isLoadingMore ? 1 : 0),
@@ -327,8 +322,10 @@ class _NotificationsBell extends ConsumerWidget {
               duration: const Duration(milliseconds: 200),
               curve: M3SpringCurves.bouncy,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 1.5,
+                ),
                 decoration: BoxDecoration(
                   color: scheme.error,
                   borderRadius: BorderRadius.circular(10),
@@ -341,8 +338,7 @@ class _NotificationsBell extends ConsumerWidget {
                     ),
                   ],
                 ),
-                constraints:
-                    const BoxConstraints(minWidth: 18, minHeight: 16),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 16),
                 child: Text(
                   count > 99 ? '99+' : '$count',
                   style: TextStyle(
@@ -360,197 +356,9 @@ class _NotificationsBell extends ConsumerWidget {
   }
 
   void _showNotificationsSheet(BuildContext context, WidgetRef ref) {
-    ref.read(notificationsProvider.notifier).markAllRead();
-    AppBottomSheets.show<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext ctx) {
-        final notificationsState = ref.watch(notificationsProvider);
-        final scheme = Theme.of(ctx).colorScheme;
-        final bool isRu =
-            Localizations.localeOf(ctx).languageCode == 'ru';
-
-        return DraggableScrollableSheet(
-          initialChildSize: 0.65,
-          minChildSize: 0.4,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (BuildContext context, ScrollController scrollController) {
-            final list = notificationsState.notifications;
-            return Column(
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
-                  child: Row(
-                    children: <Widget>[
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: scheme.primaryContainer.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.notifications_rounded,
-                          size: 20,
-                          color: scheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        isRu ? 'Уведомления' : 'Notifications',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                            ),
-                      ),
-                      const Spacer(),
-                      if (list.isNotEmpty)
-                        TextButton(
-                          onPressed: () => ref
-                              .read(notificationsProvider.notifier)
-                              .markAllRead(),
-                          child: Text(isRu ? 'Прочитано' : 'Mark read'),
-                        ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ],
-                  ),
-                ),
-                Divider(
-                  height: 1,
-                  color: scheme.outlineVariant.withValues(alpha: 0.2),
-                ),
-                Expanded(
-                  child: list.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(28),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Container(
-                                  width: 64,
-                                  height: 64,
-                                  decoration: BoxDecoration(
-                                    color: scheme.surfaceContainerHighest
-                                        .withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Icon(
-                                    Icons.notifications_none_rounded,
-                                    size: 32,
-                                    color: scheme.onSurfaceVariant
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                Text(
-                                  isRu
-                                      ? 'Нет новых уведомлений'
-                                      : 'No notifications yet',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  isRu
-                                      ? 'Здесь будут появляться реакции на ваши посты и важные обновления'
-                                      : 'Reactions to your posts and key updates will appear here',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: scheme.onSurfaceVariant
-                                        .withValues(alpha: 0.7),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          controller: scrollController,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          itemCount: list.length,
-                          separatorBuilder: (context, index) => Divider(
-                            height: 1,
-                            indent: 68,
-                            color: scheme.outlineVariant.withValues(alpha: 0.15),
-                          ),
-                          itemBuilder: (BuildContext context, int index) {
-                            final n = list[index];
-                            final IconData icon = switch (n.type) {
-                              AppNotificationType.message =>
-                                Icons.chat_bubble_outline_rounded,
-                              AppNotificationType.postLike =>
-                                Icons.favorite_rounded,
-                              AppNotificationType.postComment =>
-                                Icons.comment_rounded,
-                              _ => Icons.notifications_none_rounded,
-                            };
-                            final Color iconColor = switch (n.type) {
-                              AppNotificationType.postLike => scheme.error,
-                              AppNotificationType.postComment => scheme.primary,
-                              AppNotificationType.message => scheme.tertiary,
-                              _ => scheme.secondary,
-                            };
-
-                            return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 18, vertical: 2),
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: iconColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Icon(icon, color: iconColor, size: 20),
-                              ),
-                              title: Text(
-                                n.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              subtitle: Text(
-                                n.body,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                final route = n.payload?['route'] as String?;
-                                if (route != null && route.isNotEmpty) {
-                                  context.push(route);
-                                }
-                              },
-                            );
-                          },
-                        ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+    showNotificationCenter(context);
   }
 }
-
-
 
 // ── Inline Quick Create Composer (Threads / X style) ───────────────────
 class _CompactQuickCreateBar extends ConsumerStatefulWidget {
@@ -561,7 +369,8 @@ class _CompactQuickCreateBar extends ConsumerStatefulWidget {
       _CompactQuickCreateBarState();
 }
 
-class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> {
+class _CompactQuickCreateBarState
+    extends ConsumerState<_CompactQuickCreateBar> {
   bool _isExpanded = false;
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
@@ -611,7 +420,9 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
     if (result.isEmpty) return;
 
     final List<PlatformFile> picked = result.take(availableSlots).toList();
-    final List<PlatformFile> validFiles = List<PlatformFile>.from(_selectedFiles);
+    final List<PlatformFile> validFiles = List<PlatformFile>.from(
+      _selectedFiles,
+    );
     final List<Uint8List> previews = List<Uint8List>.from(_previewBytesList);
 
     for (final PlatformFile file in picked) {
@@ -685,7 +496,9 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
         }
       }
 
-      await ref.read(niosgramProvider.notifier).createPost(
+      await ref
+          .read(niosgramProvider.notifier)
+          .createPost(
             text,
             uploadIds: uploadIds,
             uploadId: uploadIds?.firstOrNull,
@@ -710,7 +523,8 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
     final TextTheme textTheme = Theme.of(context).textTheme;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final AuthState auth = ref.watch(authProvider);
-    final String displayName = auth.profile?.displayName ??
+    final String displayName =
+        auth.profile?.displayName ??
         auth.session?.displayName ??
         context.l10n.profileGuestName;
 
@@ -722,9 +536,7 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
         color: isDark ? scheme.surfaceContainerLow : scheme.surface,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(
-            alpha: isDark ? 0.20 : 0.35,
-          ),
+          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.20 : 0.35),
           width: 1,
         ),
         boxShadow: isDark
@@ -773,16 +585,15 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                                 ),
                                 decoration: BoxDecoration(
                                   color: scheme.surfaceContainerHighest
-                                      .withValues(
-                                    alpha: isDark ? 0.35 : 0.45,
-                                  ),
+                                      .withValues(alpha: isDark ? 0.35 : 0.45),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
                                   context.l10n.postHint,
                                   style: TextStyle(
-                                    color: scheme.onSurfaceVariant
-                                        .withValues(alpha: 0.8),
+                                    color: scheme.onSurfaceVariant.withValues(
+                                      alpha: 0.8,
+                                    ),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -844,8 +655,9 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                                   Text(
                                     context.l10n.postNewPost,
                                     style: textTheme.bodySmall?.copyWith(
-                                      color: scheme.onSurfaceVariant
-                                          .withValues(alpha: 0.7),
+                                      color: scheme.onSurfaceVariant.withValues(
+                                        alpha: 0.7,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -878,18 +690,20 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
                             maxLines: 6,
                             minLines: 1,
                             maxLength: _maxPostLength,
-                            buildCounter: (_,
-                                    {required int currentLength,
-                                    required bool isFocused,
-                                    int? maxLength}) =>
-                                null,
-                            style:
-                                textTheme.bodyLarge?.copyWith(fontSize: 15),
+                            buildCounter:
+                                (
+                                  _, {
+                                  required int currentLength,
+                                  required bool isFocused,
+                                  int? maxLength,
+                                }) => null,
+                            style: textTheme.bodyLarge?.copyWith(fontSize: 15),
                             decoration: InputDecoration(
                               hintText: context.l10n.postHint,
                               hintStyle: TextStyle(
-                                color: scheme.onSurfaceVariant
-                                    .withValues(alpha: 0.7),
+                                color: scheme.onSurfaceVariant.withValues(
+                                  alpha: 0.7,
+                                ),
                               ),
                               border: InputBorder.none,
                               isDense: true,
@@ -958,100 +772,111 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
 
                         // Bottom toolbar
                         LayoutBuilder(
-                          builder: (BuildContext context,
-                              BoxConstraints constraints) {
-                            final bool isVeryNarrow =
-                                constraints.maxWidth < 310;
-                            final int textLength = _textController.text.length;
-                            final bool isNearLimit =
-                                textLength > (_maxPostLength - 200);
+                          builder:
+                              (
+                                BuildContext context,
+                                BoxConstraints constraints,
+                              ) {
+                                final bool isVeryNarrow =
+                                    constraints.maxWidth < 310;
+                                final int textLength =
+                                    _textController.text.length;
+                                final bool isNearLimit =
+                                    textLength > (_maxPostLength - 200);
 
-                            return Row(
-                              children: <Widget>[
-                                Tooltip(
-                                  message: _selectedFiles.isEmpty
-                                      ? context.l10n.postAttachMedia
-                                      : '${context.l10n.postAttachMedia}: ${_selectedFiles.length}/5',
-                                  child: IconButton.filledTonal(
-                                    onPressed: _isLoading ||
-                                            _selectedFiles.length >= 5
-                                        ? null
-                                        : _pickMedia,
-                                    icon: Badge(
-                                      isLabelVisible:
-                                          _selectedFiles.isNotEmpty,
-                                      label: Text('${_selectedFiles.length}'),
-                                      child: const Icon(
-                                        Icons.add_photo_alternate_outlined,
-                                        size: 20,
+                                return Row(
+                                  children: <Widget>[
+                                    Tooltip(
+                                      message: _selectedFiles.isEmpty
+                                          ? context.l10n.postAttachMedia
+                                          : '${context.l10n.postAttachMedia}: ${_selectedFiles.length}/5',
+                                      child: IconButton.filledTonal(
+                                        onPressed:
+                                            _isLoading ||
+                                                _selectedFiles.length >= 5
+                                            ? null
+                                            : _pickMedia,
+                                        icon: Badge(
+                                          isLabelVisible:
+                                              _selectedFiles.isNotEmpty,
+                                          label: Text(
+                                            '${_selectedFiles.length}',
+                                          ),
+                                          child: const Icon(
+                                            Icons.add_photo_alternate_outlined,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        style: IconButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                    style: IconButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
+                                    const SizedBox(width: 8),
+                                    if (textLength > 0 && !isVeryNarrow)
+                                      Text(
+                                        '$textLength / $_maxPostLength',
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: isNearLimit
+                                              ? scheme.error
+                                              : scheme.onSurfaceVariant
+                                                    .withValues(alpha: 0.6),
+                                          fontSize: 11,
+                                          fontWeight: isNearLimit
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                    const Spacer(),
+                                    TextButton(
+                                      onPressed: _isLoading ? null : _collapse,
+                                      style: TextButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      child: Text(
+                                        context.l10n.commonCancel,
+                                        style: const TextStyle(fontSize: 13),
                                       ),
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                if (textLength > 0 && !isVeryNarrow)
-                                  Text(
-                                    '$textLength / $_maxPostLength',
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: isNearLimit
-                                          ? scheme.error
-                                          : scheme.onSurfaceVariant
-                                              .withValues(alpha: 0.6),
-                                      fontSize: 11,
-                                      fontWeight: isNearLimit
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
+                                    const SizedBox(width: 4),
+                                    FilledButton.icon(
+                                      onPressed: _isLoading ? null : _submit,
+                                      icon: _isLoading
+                                          ? AppLoadingIndicator(
+                                              size: 14,
+                                              color: scheme.onPrimary,
+                                            )
+                                          : const Icon(
+                                              Icons.send_rounded,
+                                              size: 14,
+                                            ),
+                                      label: Text(
+                                        isVeryNarrow
+                                            ? 'Пост'
+                                            : context.l10n.postPublish,
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                      style: FilledButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: isVeryNarrow ? 10 : 14,
+                                          vertical: 0,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                const Spacer(),
-                                TextButton(
-                                  onPressed: _isLoading ? null : _collapse,
-                                  style: TextButton.styleFrom(
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                  child: Text(
-                                    context.l10n.commonCancel,
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                FilledButton.icon(
-                                  onPressed: _isLoading ? null : _submit,
-                                  icon: _isLoading
-                                      ? AppLoadingIndicator(
-                                          size: 14,
-                                          color: scheme.onPrimary,
-                                        )
-                                      : const Icon(Icons.send_rounded,
-                                          size: 14),
-                                  label: Text(
-                                    isVeryNarrow
-                                        ? 'Пост'
-                                        : context.l10n.postPublish,
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                  style: FilledButton.styleFrom(
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isVeryNarrow ? 10 : 14,
-                                      vertical: 0,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                                  ],
+                                );
+                              },
                         ),
                       ],
                     ),
@@ -1062,4 +887,3 @@ class _CompactQuickCreateBarState extends ConsumerState<_CompactQuickCreateBar> 
     );
   }
 }
-

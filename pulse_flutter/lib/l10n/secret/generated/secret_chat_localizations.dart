@@ -1276,6 +1276,330 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'device unavailable'**
   String get callDeviceMissing;
+
+  /// No description provided for @noticeOpenChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Open chat'**
+  String get noticeOpenChat;
+
+  /// No description provided for @noticeOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get noticeOpen;
+
+  /// No description provided for @noticeReadChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Read entire chat'**
+  String get noticeReadChat;
+
+  /// No description provided for @noticeMarkAllRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all read'**
+  String get noticeMarkAllRead;
+
+  /// No description provided for @noticeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get noticeTitle;
+
+  /// No description provided for @noticeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'All caught up'**
+  String get noticeEmpty;
+
+  /// No description provided for @noticeEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages and activity for this account are saved here.'**
+  String get noticeEmptyHint;
+
+  /// No description provided for @noticeClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get noticeClose;
+
+  /// No description provided for @noticeClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear history'**
+  String get noticeClear;
+
+  /// No description provided for @noticePermissionGranted.
+  ///
+  /// In en, this message translates to:
+  /// **'System notifications are allowed'**
+  String get noticePermissionGranted;
+
+  /// No description provided for @noticePermissionMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Push requires system permission'**
+  String get noticePermissionMissing;
+
+  /// No description provided for @noticePermissionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow notifications for NiosMess in your browser or device settings.'**
+  String get noticePermissionHint;
+
+  /// No description provided for @noticeDeviceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These preferences apply to this device. The open chat does not show duplicate alerts.'**
+  String get noticeDeviceHint;
+
+  /// No description provided for @noticeMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get noticeMessages;
+
+  /// No description provided for @noticeCalls.
+  ///
+  /// In en, this message translates to:
+  /// **'Incoming calls'**
+  String get noticeCalls;
+
+  /// No description provided for @noticeActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosGram activity'**
+  String get noticeActivity;
+
+  /// No description provided for @noticePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Show message preview'**
+  String get noticePreview;
+
+  /// No description provided for @noticePreviewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret message contents are always hidden in system push.'**
+  String get noticePreviewHint;
+
+  /// No description provided for @noticeSound.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification sound'**
+  String get noticeSound;
+
+  /// No description provided for @noticeSoundHint.
+  ///
+  /// In en, this message translates to:
+  /// **'System channel sounds can also be changed in OS settings.'**
+  String get noticeSoundHint;
+
+  /// No description provided for @noticeMessagesChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosMess messages'**
+  String get noticeMessagesChannel;
+
+  /// No description provided for @noticeCallsChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosMess calls'**
+  String get noticeCallsChannel;
+
+  /// No description provided for @noticeUpdatesChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosMess updates'**
+  String get noticeUpdatesChannel;
+
+  /// No description provided for @noticeIncomingCall.
+  ///
+  /// In en, this message translates to:
+  /// **'Incoming call'**
+  String get noticeIncomingCall;
+
+  /// No description provided for @noticeIncomingVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Incoming video call'**
+  String get noticeIncomingVideo;
+
+  /// No description provided for @noticeAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get noticeAccept;
+
+  /// No description provided for @noticeDecline.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get noticeDecline;
+
+  /// No description provided for @noticeNewMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'New message'**
+  String get noticeNewMessage;
+
+  /// No description provided for @noticeEncrypted.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted message'**
+  String get noticeEncrypted;
+
+  /// No description provided for @noticeBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Background operation is enabled'**
+  String get noticeBackground;
+
+  /// No description provided for @noticeEconomy.
+  ///
+  /// In en, this message translates to:
+  /// **'Save battery'**
+  String get noticeEconomy;
+
+  /// No description provided for @noticeSoundTest.
+  ///
+  /// In en, this message translates to:
+  /// **'Test sound'**
+  String get noticeSoundTest;
+
+  /// No description provided for @noticeSoundTestHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap, message, success and error'**
+  String get noticeSoundTestHint;
+
+  /// No description provided for @noticeSyncFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update push on the server. Your preference is saved and will retry on connection.'**
+  String get noticeSyncFailed;
+
+  /// No description provided for @noticeCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get noticeCopied;
+
+  /// No description provided for @noticeUpdateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading NiosMess update'**
+  String get noticeUpdateDownloading;
+
+  /// No description provided for @noticeUpdateReady.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosMess update is ready'**
+  String get noticeUpdateReady;
+
+  /// No description provided for @noticeUpdateTap.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to install'**
+  String get noticeUpdateTap;
+
+  /// No description provided for @noticeVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get noticeVersion;
+
+  /// No description provided for @noticeInAppOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This device supports in-app notifications'**
+  String get noticeInAppOnly;
+
+  /// No description provided for @noticePostLike.
+  ///
+  /// In en, this message translates to:
+  /// **'Reaction to your post'**
+  String get noticePostLike;
+
+  /// No description provided for @noticePostComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment on your post'**
+  String get noticePostComment;
+
+  /// No description provided for @noticeAttachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachment'**
+  String get noticeAttachment;
+
+  /// No description provided for @noticeReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get noticeReply;
+
+  /// No description provided for @noticeMarkRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as read'**
+  String get noticeMarkRead;
+
+  /// No description provided for @noticeReplyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get noticeReplyHint;
+
+  /// No description provided for @noticeSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get noticeSend;
+
+  /// No description provided for @noticeSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending…'**
+  String get noticeSending;
+
+  /// No description provided for @noticeReplyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send. Your text is still here — try again.'**
+  String get noticeReplyFailed;
+
+  /// No description provided for @noticeReplySaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the draft. Your text is still here.'**
+  String get noticeReplySaveFailed;
+
+  /// No description provided for @noticeDeviceRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'This device is registered for push'**
+  String get noticeDeviceRegistered;
+
+  /// No description provided for @noticeDevicePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Push registration is waiting for connection'**
+  String get noticeDevicePending;
+
+  /// No description provided for @noticeUiSoundsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap and action sounds. Notification sounds are configured separately.'**
+  String get noticeUiSoundsHint;
+
+  /// No description provided for @noticeSilentMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Silent messages'**
+  String get noticeSilentMessages;
 }
 
 class _SecretChatLocalizationsDelegate

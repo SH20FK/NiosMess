@@ -200,6 +200,23 @@ void main() {
       expect(soundService.enabled, isTrue);
     });
 
+    test(
+      'notification audio is independent of UI effects and respects call ownership',
+      () async {
+        final mock =
+            AudioplayersPlatformInterface.instance as MockAudioplayersPlatform;
+        await soundService.setEnabled(false);
+        mock.playedSources.clear();
+        await soundService.playEvent(SoundEvent.uiTap);
+        expect(mock.playedSources, isEmpty);
+        await soundService.playNotification(SoundEvent.messageReceive);
+        expect(mock.playedSources, hasLength(1));
+        await soundService.suspendForCall();
+        await soundService.playNotification(SoundEvent.messageReceive);
+        expect(mock.playedSources, hasLength(1));
+      },
+    );
+
     test('initialize completes safely', () async {
       await expectLater(soundService.initialize(), completes);
     });

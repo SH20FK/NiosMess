@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/providers/notifications_provider.dart';
+import 'package:pulse_flutter/widgets/notifications/notification_overlay_host.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/services/protocol/nios_protocol_licenses.dart';
 import 'package:flutter/material.dart';
@@ -346,6 +348,7 @@ class _PulseAppState extends ConsumerState<PulseApp> {
     );
     final GoRouter router = ref.watch(appRouterProvider);
     ref.watch(callPushHandlerProvider);
+    ref.watch(notificationsProvider);
     ref.watch(secretChatCoordinatorProvider);
     final String systemLanguageCode =
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
@@ -411,21 +414,24 @@ class _PulseAppState extends ConsumerState<PulseApp> {
                   return MediaQuery(
                     data: mediaQuery,
                     child: AppLockGate(
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          SizedBox.expand(
-                            child: child ?? const SizedBox.shrink(),
-                          ),
-                          Consumer(
-                            builder: (BuildContext context, WidgetRef ref, _) =>
-                                ref.watch(incomingCallProvider) == null
-                                ? const SizedBox.shrink()
-                                : const IncomingCallOverlay(),
-                          ),
-                          const CallOverlay(),
-                          const InAppNotificationBannerOverlay(),
-                        ],
+                      child: NotificationOverlayHost(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            SizedBox.expand(
+                              child: child ?? const SizedBox.shrink(),
+                            ),
+                            Consumer(
+                              builder:
+                                  (BuildContext context, WidgetRef ref, _) =>
+                                      ref.watch(incomingCallProvider) == null
+                                      ? const SizedBox.shrink()
+                                      : const IncomingCallOverlay(),
+                            ),
+                            const CallOverlay(),
+                            const InAppNotificationBannerOverlay(),
+                          ],
+                        ),
                       ),
                     ),
                   );

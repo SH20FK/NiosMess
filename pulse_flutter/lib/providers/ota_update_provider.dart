@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -522,6 +524,16 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
     }
   }
 
+  AppLocalizations get _notificationStrings => lookupAppLocalizations(
+    Locale(
+      ref
+          .read(uiSettingsProvider)
+          .effectiveLocaleCode(
+            WidgetsBinding.instance.platformDispatcher.locale.languageCode,
+          ),
+    ),
+  );
+
   void _showProgressNotification(AppUpdateInfo targetInfo, double progress) {
     if (kIsWeb) return;
     try {
@@ -530,16 +542,16 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
         PushNotificationService.localNotifications
             .show(
               id: _notificationId,
-              title: 'Загрузка обновления NiosMess',
-              body: 'Версия v${targetInfo.latestVersion} • $percent%',
+              title: _notificationStrings.noticeUpdateDownloading,
+              body:
+                  '${_notificationStrings.noticeVersion} v${targetInfo.latestVersion} • $percent%',
               notificationDetails: NotificationDetails(
                 android: AndroidNotificationDetails(
                   'niosmess_updates',
-                  'NiosMess Updates',
+                  _notificationStrings.noticeUpdatesChannel,
                   importance: Importance.low,
                   priority: Priority.low,
                   icon: '@mipmap/ic_launcher',
-                  color: const Color(0xFF0D6EFD),
                   showProgress: true,
                   maxProgress: 100,
                   progress: percent,
@@ -565,17 +577,16 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
         PushNotificationService.localNotifications
             .show(
               id: _notificationId,
-              title: 'Обновление NiosMess готово',
+              title: _notificationStrings.noticeUpdateReady,
               body:
-                  'Нажмите для завершения установки v${targetInfo.latestVersion}',
-              notificationDetails: const NotificationDetails(
+                  '${_notificationStrings.noticeUpdateTap} v${targetInfo.latestVersion}',
+              notificationDetails: NotificationDetails(
                 android: AndroidNotificationDetails(
                   'niosmess_updates',
-                  'NiosMess Updates',
+                  _notificationStrings.noticeUpdatesChannel,
                   importance: Importance.high,
                   priority: Priority.high,
                   icon: '@mipmap/ic_launcher',
-                  color: Color(0xFF0D6EFD),
                   autoCancel: true,
                   ongoing: false,
                   playSound: true,
@@ -597,9 +608,9 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
         .show(
           InAppNotificationItem(
             id: 'ota_ready_${targetInfo.latestVersion}',
-            title: 'Обновление загружено',
+            title: _notificationStrings.noticeUpdateReady,
             body:
-                'Версия v${targetInfo.latestVersion} готова к установке. Нажмите для обновления.',
+                '${_notificationStrings.noticeUpdateTap} v${targetInfo.latestVersion}',
             icon: Icons.system_update_rounded,
             timestamp: DateTime.now(),
           ),

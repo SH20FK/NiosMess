@@ -655,4 +655,176 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get callDeviceMissing => 'устройство недоступно';
+
+  @override
+  String get noticeOpenChat => 'Открыть чат';
+
+  @override
+  String get noticeOpen => 'Открыть';
+
+  @override
+  String get noticeReadChat => 'Прочитать весь чат';
+
+  @override
+  String get noticeMarkAllRead => 'Прочитать всё';
+
+  @override
+  String get noticeTitle => 'Уведомления';
+
+  @override
+  String get noticeEmpty => 'Пока тихо';
+
+  @override
+  String get noticeEmptyHint =>
+      'Здесь сохраняются сообщения и события этого аккаунта.';
+
+  @override
+  String get noticeClose => 'Закрыть';
+
+  @override
+  String get noticeClear => 'Очистить историю';
+
+  @override
+  String get noticePermissionGranted => 'Системные уведомления разрешены';
+
+  @override
+  String get noticePermissionMissing => 'Для push нужно разрешение системы';
+
+  @override
+  String get noticePermissionHint =>
+      'Включите уведомления для NiosMess в настройках браузера или устройства.';
+
+  @override
+  String get noticeDeviceHint =>
+      'Настройки действуют на этом устройстве. Уведомления в открытом чате не дублируются.';
+
+  @override
+  String get noticeMessages => 'Сообщения';
+
+  @override
+  String get noticeCalls => 'Входящие звонки';
+
+  @override
+  String get noticeActivity => 'Активность NiosGram';
+
+  @override
+  String get noticePreview => 'Показывать текст';
+
+  @override
+  String get noticePreviewHint =>
+      'Секретные сообщения всегда скрыты в системных push.';
+
+  @override
+  String get noticeSound => 'Звук уведомлений';
+
+  @override
+  String get noticeSoundHint =>
+      'Звук системных каналов также настраивается в ОС.';
+
+  @override
+  String get noticeMessagesChannel => 'Сообщения NiosMess';
+
+  @override
+  String get noticeCallsChannel => 'Звонки NiosMess';
+
+  @override
+  String get noticeUpdatesChannel => 'Обновления NiosMess';
+
+  @override
+  String get noticeIncomingCall => 'Входящий звонок';
+
+  @override
+  String get noticeIncomingVideo => 'Входящий видеозвонок';
+
+  @override
+  String get noticeAccept => 'Принять';
+
+  @override
+  String get noticeDecline => 'Отклонить';
+
+  @override
+  String get noticeNewMessage => 'Новое сообщение';
+
+  @override
+  String get noticeEncrypted => 'Зашифрованное сообщение';
+
+  @override
+  String get noticeBackground => 'Фоновая работа включена';
+
+  @override
+  String get noticeEconomy => 'Экономить заряд';
+
+  @override
+  String get noticeSoundTest => 'Проверить звук';
+
+  @override
+  String get noticeSoundTestHint => 'Тап, сообщение, успех и ошибка';
+
+  @override
+  String get noticeSyncFailed =>
+      'Не удалось обновить push на сервере. Настройка сохранена; повторим при подключении.';
+
+  @override
+  String get noticeCopied => 'Скопировано';
+
+  @override
+  String get noticeUpdateDownloading => 'Загрузка обновления NiosMess';
+
+  @override
+  String get noticeUpdateReady => 'Обновление NiosMess готово';
+
+  @override
+  String get noticeUpdateTap => 'Нажмите для установки';
+
+  @override
+  String get noticeVersion => 'Версия';
+
+  @override
+  String get noticeInAppOnly =>
+      'На этом устройстве доступны уведомления внутри приложения';
+
+  @override
+  String get noticePostLike => 'Реакция на вашу публикацию';
+
+  @override
+  String get noticePostComment => 'Комментарий к вашей публикации';
+
+  @override
+  String get noticeAttachment => 'Вложение';
+
+  @override
+  String get noticeReply => 'Ответить';
+
+  @override
+  String get noticeMarkRead => 'Отметить прочитанным';
+
+  @override
+  String get noticeReplyHint => 'Сообщение';
+
+  @override
+  String get noticeSend => 'Отправить';
+
+  @override
+  String get noticeSending => 'Отправка…';
+
+  @override
+  String get noticeReplyFailed =>
+      'Не удалось отправить. Текст остался в поле — можно повторить.';
+
+  @override
+  String get noticeReplySaveFailed =>
+      'Не удалось сохранить черновик. Текст остался в поле.';
+
+  @override
+  String get noticeDeviceRegistered => 'Устройство зарегистрировано для push';
+
+  @override
+  String get noticeDevicePending => 'Регистрация push ожидает подключения';
+
+  @override
+  String get noticeUiSoundsHint =>
+      'Звуки нажатий и действий. Уведомления настраиваются отдельно.';
+
+  @override
+  String get noticeSilentMessages => 'Сообщения без звука';
 }

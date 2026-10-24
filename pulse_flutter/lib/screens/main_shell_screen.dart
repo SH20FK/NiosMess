@@ -226,69 +226,28 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     if (dismissed) return;
 
     if (!mounted || !canPrompt()) return;
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
-    final radii = AppRadii.of(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: scheme.surfaceContainerHighest,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radii.card),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.2)),
-        ),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 12),
-        content: Row(
-          children: <Widget>[
-            Icon(
-              Icons.notifications_active_rounded,
-              color: scheme.primary,
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    context.l10n.shellPushNotificationsTitle,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                  Text(
-                    context.l10n.shellPushNotificationsDesc,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        action: SnackBarAction(
-          label: context.l10n.shellPushNotificationsEnable,
-          textColor: scheme.primary,
-          onPressed: () async {
-            await prefs.setBool(promptKey, true);
-            if (!canPrompt()) return;
-            final bool granted = await updateNotificationPreference(ref, true);
-            if (!mounted || !granted) return;
+    AppToast.showAction(
+      context,
+      message: context.l10n.shellPushNotificationsDesc,
+      actionLabel: context.l10n.shellPushNotificationsEnable,
+      duration: const Duration(seconds: 12),
+      onAction: () async {
+        await prefs.setBool(promptKey, true);
+        if (!canPrompt()) return;
+        try {
+          final granted = await updateNotificationPreference(ref, true);
+          if (mounted && granted) {
             AppToast.showSuccess(
               context,
               context.l10n.shellPushNotificationsSuccess,
             );
-          },
-        ),
-      ),
+          }
+        } catch (_) {
+          if (mounted) {
+            AppToast.showError(context, context.l10n.noticeSyncFailed);
+          }
+        }
+      },
     );
   }
 
@@ -562,8 +521,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                         ),
                       )
                     : const NiosgramScreen(),
-                ProfileScreen(initialSection: capabilities.browserWorkspace && widget.settingsSection != null
-                    ? SettingsSectionId.fromString(widget.settingsSection) : null),
+                ProfileScreen(
+                  initialSection:
+                      capabilities.browserWorkspace &&
+                          widget.settingsSection != null
+                      ? SettingsSectionId.fromString(widget.settingsSection)
+                      : null,
+                ),
               ];
               final PerformanceTier tier = ref.watch(
                 adaptivePerformanceProvider.select((s) => s.tier),

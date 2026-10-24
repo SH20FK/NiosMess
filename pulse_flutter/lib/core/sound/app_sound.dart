@@ -395,8 +395,20 @@ class SoundService {
   }
 
   /// Plays a semantic SoundEvent with rate-limiting, priority routing and normalized volume.
-  Future<void> playEvent(SoundEvent event, {double? volume}) async {
-    if (!_enabled || suspendedForCall) return;
+  Future<void> playEvent(SoundEvent event, {double? volume}) =>
+      _playEvent(event, volume: volume);
+
+  /// Notification preferences are independent of UI click effects. Call audio
+  /// ownership and the shared volume/cooldown rules still apply.
+  Future<void> playNotification(SoundEvent event, {double? volume}) =>
+      _playEvent(event, volume: volume, notification: true);
+
+  Future<void> _playEvent(
+    SoundEvent event, {
+    double? volume,
+    bool notification = false,
+  }) async {
+    if ((!_enabled && !notification) || suspendedForCall) return;
 
     // Check cooldown for rapid events (e.g. uiTap, uiSelect)
     if (event.cooldownMs > 0) {
@@ -410,7 +422,7 @@ class SoundService {
 
     try {
       await initialize();
-      if (!_enabled || suspendedForCall) return;
+      if ((!_enabled && !notification) || suspendedForCall) return;
       final double effectiveVol = _effectiveVolume(
         volume ?? event.defaultVolume,
       );
@@ -457,7 +469,7 @@ class SoundService {
 
       await player.stop();
       await player.setReleaseMode(ReleaseMode.stop);
-      if (!_enabled || suspendedForCall) return;
+      if ((!_enabled && !notification) || suspendedForCall) return;
       await player.play(AssetSource(event.assetPath), volume: effectiveVol);
     } catch (e, st) {
       debugPrint('[SoundService] playEvent error for ${event.name}: $e\n$st');
@@ -485,8 +497,16 @@ class SoundService {
   }
 
   /// Starts a seamless loop for either [SoundEvent] or [AppSound].
-  Future<void> startLoop(dynamic soundOrEvent, {double? volume}) async {
-    if (!_enabled || suspendedForCall) return;
+  Future<void> startLoop(dynamic soundOrEvent, {double? volume}) =>
+      _startLoop(soundOrEvent, volume: volume);
+  Future<void> startNotificationLoop(SoundEvent event) =>
+      _startLoop(event, notification: true);
+  Future<void> _startLoop(
+    dynamic soundOrEvent, {
+    double? volume,
+    bool notification = false,
+  }) async {
+    if ((!_enabled && !notification) || suspendedForCall) return;
     if (_loopingTarget == soundOrEvent) return;
     _loopingTarget = soundOrEvent;
 
@@ -504,7 +524,9 @@ class SoundService {
 
     try {
       await initialize();
-      if (!_enabled || suspendedForCall || _loopingTarget != soundOrEvent) {
+      if ((!_enabled && !notification) ||
+          suspendedForCall ||
+          _loopingTarget != soundOrEvent) {
         return;
       }
       final AudioPlayer? player = _loopPlayer;
@@ -520,7 +542,9 @@ class SoundService {
 
       await player.stop();
       await player.setReleaseMode(ReleaseMode.loop);
-      if (!_enabled || suspendedForCall || _loopingTarget != soundOrEvent) {
+      if ((!_enabled && !notification) ||
+          suspendedForCall ||
+          _loopingTarget != soundOrEvent) {
         return;
       }
       await player.play(AssetSource(assetPath), volume: effectiveVol);

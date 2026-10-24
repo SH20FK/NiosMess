@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'dart:async';
+import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'package:pulse_flutter/core/storage/message_history_snapshot.dart';
 import 'package:pulse_flutter/widgets/chat/message_layout_store.dart';
@@ -72,6 +74,8 @@ class _Chats extends ChatsNotifier {
 class _NoopSound extends SoundService {
   @override
   Future<void> playEvent(SoundEvent event, {double? volume}) async {}
+  @override
+  Future<void> playNotification(SoundEvent event, {double? volume}) async {}
 }
 
 class _NoopCache extends CacheService {
@@ -89,6 +93,7 @@ class _Socket extends WebSocketClient {
   final pages = <int>[];
   final sentMessages = <Completer<dynamic>>[];
   final outgoing = <Map<String, dynamic>>[];
+  final readChats = <int>[];
   @override
   Stream<Map<String, dynamic>> get pushStream => pushes.stream;
   @override
@@ -100,6 +105,7 @@ class _Socket extends WebSocketClient {
     Duration timeout = const Duration(seconds: 15),
     int maxRetries = 2,
   }) async {
+    if (action == 'mark_read') readChats.add(payload!['chat_id'] as int);
     if (action == 'send_message') {
       outgoing.add(Map<String, dynamic>.from(payload!));
       final result = Completer<dynamic>();
@@ -236,6 +242,7 @@ void main() {
         container.read(chatMessagesProvider(9142001)).requireValue;
 
     setUp(() async {
+      SharedPreferences.setMockInitialValues({});
       await EncryptedMessageCache.clearAll();
       await EncryptedMessageCache.clearAccount(1, []);
       await EncryptedMessageCache.clearAccount(2, []);
@@ -277,6 +284,27 @@ void main() {
       await EncryptedMessageCache.clearAccount(1, []);
       await EncryptedMessageCache.clearAccount(2, []);
       await _flush();
+    });
+
+    test('background history does not read incoming messages', () async {
+      final binding = TestWidgetsFlutterBinding.ensureInitialized();
+      socket.readChats.clear();
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      try {
+        socket.push(_message(2));
+        await _waitUntil(() => messages().any((m) => m.id == 2));
+        await container
+            .read(chatMessagesProvider(9142001).notifier)
+            .flushHistoryArchive();
+        await _flush();
+        await container.read(chatMessagesProvider(9142001).notifier).markRead();
+        expect(socket.readChats, isEmpty);
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        await container.read(chatMessagesProvider(9142001).notifier).markRead();
+        expect(socket.readChats, [9142001]);
+      } finally {
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      }
     });
 
     test(
@@ -1025,6 +1053,49 @@ void main() {
         expect(message.content, 'caption');
         expect(message.e2eeFileKey, base64Encode(List.filled(32, 77)));
         expect(message.mediaName, 'sample.txt');
+
+        // Quick reply uses the same encryption and must report a failed send
+        // back to the banner so its encrypted draft remains available.
+        final reply = notifier.sendNotificationReply(
+          'reply from notification',
+          localId: '-987654321',
+        );
+        final failedReply = expectLater(reply, throwsStateError);
+        await _waitUntil(() => socket.sentMessages.length == 4);
+        expect(
+          jsonEncode(socket.outgoing[3]),
+          isNot(contains('reply from notification')),
+        );
+        socket.sentMessages[3].completeError(StateError('fixture_send_failed'));
+        await failedReply;
+        expect(
+          messages().singleWhere((m) => m.id == -987654321).isFailed,
+          isTrue,
+        );
+        final retry = notifier.sendNotificationReply(
+          'reply from notification',
+          localId: '-987654321',
+        );
+        await _waitUntil(() => socket.sentMessages.length == 5);
+        final replyCipher = socket.outgoing[4]['e2ee_content'] as String;
+        expect(
+          (await OrdinaryCodec.decrypt(
+            bob,
+            alicePublic,
+            replyCipher,
+            9142001,
+            1,
+          ))['text'],
+          'reply from notification',
+        );
+        socket.sentMessages[4].complete(ack(14, replyCipher));
+        await retry;
+        expect(
+          messages().where((m) => m.content == 'reply from notification'),
+          hasLength(1),
+        );
+        expect(messages().any((m) => m.id == -987654321), isFalse);
+        expect(messages().singleWhere((m) => m.id == 14).isFailed, isFalse);
       },
     );
   });

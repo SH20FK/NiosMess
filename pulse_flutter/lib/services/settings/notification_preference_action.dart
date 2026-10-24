@@ -4,6 +4,7 @@ import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:universal_io/io.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 int _latestNotificationAction = 0;
 
@@ -17,12 +18,16 @@ Future<bool> updateNotificationPreference(WidgetRef ref, bool enabled) async {
   }
   if (!ref.context.mounted || action != _latestNotificationAction) return false;
   if (!identical(ref.read(authProvider).session, session)) return false;
-  ref.read(uiSettingsProvider.notifier).setNotifications(granted);
-  if (granted && ref.read(authProvider).isAuthenticated) {
+  ref.read(uiSettingsProvider.notifier).setNotifications(enabled);
+  await (await SharedPreferences.getInstance()).setBool(
+    'ui.notifications',
+    enabled,
+  );
+  if (ref.read(authProvider).isAuthenticated) {
     await ref.read(authProvider.notifier).refreshFcmTokenRegistration();
   }
   if (!ref.context.mounted || action != _latestNotificationAction) return false;
   if (!identical(ref.read(authProvider).session, session)) return false;
-  if (ref.read(uiSettingsProvider).notifications != granted) return false;
+  if (ref.read(uiSettingsProvider).notifications != enabled) return false;
   return granted;
 }

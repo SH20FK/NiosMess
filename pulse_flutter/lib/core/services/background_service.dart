@@ -1,4 +1,6 @@
-import 'dart:math';
+import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
@@ -105,24 +107,6 @@ class BackgroundService {
     }
   }
 
-  static final List<String> _titles = <String>[
-    'NiosMess рядом с вами ✨',
-    'Мяу~ Жду твоих сообщений 🐱',
-    'Соединение активно 💕',
-    'Твои чаты под защитой 🌸',
-    'Пуши летают быстро~ 🕊️',
-  ];
-
-  static final List<String> _texts = <String>[
-    'Все сообщения доставляются в реальном времени',
-    'Секретные чаты защищены end-to-end 🔒',
-    'Пуши работают исправно~',
-    'Никто не пропадёт из виду 💌',
-  ];
-
-  static String _randomTitle() => _titles[Random().nextInt(_titles.length)];
-  static String _randomText() => _texts[Random().nextInt(_texts.length)];
-
   static void init({bool allowWakeLock = false}) {
     if (kIsWeb) return;
     FlutterForegroundTask.init(
@@ -151,13 +135,20 @@ class BackgroundService {
   static Future<void> _startReliable() async {
     if (kIsWeb) return;
     try {
-      final String title = _randomTitle();
-      final String text = _randomText();
+      final prefs = await SharedPreferences.getInstance();
+      final locale =
+          prefs.getString('ui.localeCode') ??
+          WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+      final strings = lookupAppLocalizations(
+        Locale(locale.startsWith('ru') ? 'ru' : 'en'),
+      );
+      final title = 'NiosMess';
+      final text = strings.noticeBackground;
       await FlutterForegroundTask.startService(
         notificationTitle: title,
         notificationText: text,
         notificationButtons: <NotificationButton>[
-          const NotificationButton(id: 'stop', text: '💤 Спать'),
+          NotificationButton(id: 'stop', text: strings.noticeEconomy),
         ],
       );
     } catch (e) {

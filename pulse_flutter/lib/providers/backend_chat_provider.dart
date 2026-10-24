@@ -20,7 +20,10 @@ import 'package:pulse_flutter/core/storage/message_history_snapshot.dart';
 import 'package:pulse_flutter/core/storage/chat_media_cache.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
-import 'package:pulse_flutter/core/storage/notification_storage.dart';
+import 'package:pulse_flutter/providers/notifications_provider.dart';
+import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
@@ -29,7 +32,6 @@ import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/chat_muted_provider.dart';
-import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/sticker_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -412,6 +414,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     );
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
     final bool isCurrentChatOpen =
+        PushNotificationService.isForeground &&
         PushNotificationService.currentChatId == message.chatId;
 
     if (index != -1) {
@@ -452,65 +455,54 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       }
 
       if (message.senderId != myUserId) {
-        final String chatName = chat.name.isNotEmpty ? chat.name : 'NiosMess';
-        final String body = message.e2eeContent != null || message.isE2ee
-            ? 'Зашифрованное сообщение'
-            : message.content.isNotEmpty
-            ? (InteractiveMessage.parse(message.content)?.preview ??
-                  message.content)
-            : (message.msgType == 'media' ? '📎 Media' : '...');
-        NotificationStorage.createAndSave(
-          title: chatName,
-          body: body,
-          route: '/chat/${message.chatId}',
-        );
-
-        final bool isMuted =
-            ref.read(chatMutedProvider(chat.id)).value ?? false;
-        if (!isCurrentChatOpen && !isMuted) {
-          ref
-              .read(inAppNotificationProvider.notifier)
-              .show(
-                InAppNotificationItem(
-                  id: 'msg_${message.id}',
-                  title: chatName,
-                  body: body,
-                  avatarUrl: chat.avatarUrl,
-                  chatId: message.chatId,
-                  route: '/chat/${message.chatId}',
-                  timestamp: message.sentAt,
-                ),
-              );
-        }
+        _notifyMessage(message, chat: chat, present: !isCurrentChatOpen);
       }
     } else {
       refresh();
-      if (message.senderId != myUserId && !isCurrentChatOpen) {
-        final String body = message.e2eeContent != null || message.isE2ee
-            ? 'Зашифрованное сообщение'
-            : message.content.isNotEmpty
-            ? (InteractiveMessage.parse(message.content)?.preview ??
-                  message.content)
-            : (message.msgType == 'media' ? '📎 Media' : '...');
-        NotificationStorage.createAndSave(
-          title: 'NiosMess',
-          body: body,
-          route: '/chat/${message.chatId}',
-        );
-        ref
-            .read(inAppNotificationProvider.notifier)
-            .show(
-              InAppNotificationItem(
-                id: 'msg_${message.id}',
-                title: 'NiosMess',
-                body: body,
-                chatId: message.chatId,
-                route: '/chat/${message.chatId}',
-                timestamp: message.sentAt,
-              ),
-            );
+      if (message.senderId != myUserId) {
+        _notifyMessage(message, present: !isCurrentChatOpen);
       }
     }
+  }
+
+  void _notifyMessage(
+    ApiMessage message, {
+    ApiChatSummary? chat,
+    bool present = true,
+  }) {
+    final encrypted = message.e2eeContent != null || message.isE2ee;
+    final locale = ref
+        .read(uiSettingsProvider)
+        .effectiveLocaleCode(PlatformDispatcher.instance.locale.languageCode);
+    final strings = lookupAppLocalizations(Locale(locale));
+    final sender = message.senderDisplayName.isNotEmpty
+        ? message.senderDisplayName
+        : message.senderUsername;
+    final title = chat?.name.isNotEmpty == true
+        ? chat!.name
+        : sender.isNotEmpty
+        ? sender
+        : 'NiosMess';
+    final text = encrypted
+        ? strings.noticeEncrypted
+        : message.content.isNotEmpty
+        ? (InteractiveMessage.parse(message.content)?.preview ??
+              message.content)
+        : strings.noticeAttachment;
+    unawaited(
+      ref.read(notificationsProvider.notifier).accept({
+        'event_id': 'message:${message.chatId}:${message.id}',
+        'type': 'new_message',
+        'chat_id': message.chatId,
+        'message_id': message.id,
+        'title': title,
+        'body': sender.isNotEmpty && sender != title && !encrypted
+            ? '$sender: $text'
+            : text,
+        'avatar_url': chat?.avatarUrl ?? message.senderAvatarUrl,
+        'created_at': message.sentAt.toIso8601String(),
+      }, present: present),
+    );
   }
 
   Future<List<ApiChatSummary>> _fetch({bool allowStale = true}) async {
@@ -2092,15 +2084,39 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     bool isMention = false,
   }) async {
     final UiSettingsState settings = ref.read(uiSettingsProvider);
-    if (!settings.soundEffects) return;
-    final bool isMuted = ref.read(chatMutedProvider(_chatId)).value ?? false;
-    if (isMuted) return;
-    await ref
-        .read(appSoundProvider)
-        .playEvent(
-          isMention ? SoundEvent.mention : SoundEvent.messageReceive,
-          volume: volume,
-        );
+    if (!settings.notifications ||
+        !PushNotificationService.isForeground ||
+        PushNotificationService.currentChatId != _chatId) {
+      return;
+    }
+    final generation = _generation;
+    try {
+      final options = await ref.read(notificationPreferencesProvider.future);
+      if (!ref.mounted ||
+          generation != _generation ||
+          !options.sound ||
+          !options.messages) {
+        return;
+      }
+      final bool isMuted = await ref.read(chatMutedProvider(_chatId).future);
+      if (!ref.mounted ||
+          generation != _generation ||
+          isMuted ||
+          !PushNotificationService.isForeground ||
+          PushNotificationService.currentChatId != _chatId) {
+        return;
+      }
+      await ref
+          .read(appSoundProvider)
+          .playNotification(
+            isMention ? SoundEvent.mention : SoundEvent.messageReceive,
+            volume: volume,
+          );
+    } catch (_) {
+      // Sound is best effort; a disposed account/preferences load must never
+      // turn an otherwise delivered message into an unhandled async error.
+      debugPrint('[Notifications] MESSAGE_SOUND_UNAVAILABLE');
+    }
   }
 
   Future<void> refresh() {
@@ -2322,6 +2338,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> markRead({bool reportFailure = false}) async {
+    // A kept-alive route is not proof that the user can see the conversation.
+    // Otherwise background WS delivery cancels the system push as already read.
+    if (!PushNotificationService.isForeground) return;
     try {
       final generation = _generation;
       final secret = _secret;
@@ -2408,6 +2427,24 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     ),
   );
 
+  Future<void> sendNotificationReply(String text, {required String localId}) =>
+      _retainOperation(() async {
+        final account = ref.read(authProvider).session?.userId;
+        await _buildReady?.future;
+        if (!ref.mounted ||
+            account == null ||
+            ref.read(authProvider).session?.userId != account) {
+          throw StateError('NOTIFICATION_ACCOUNT_CHANGED');
+        }
+        final generation = _generation;
+        await _send(text, localId: localId, propagateFailure: true);
+        if (!ref.mounted ||
+            generation != _generation ||
+            ref.read(authProvider).session?.userId != account) {
+          throw StateError('NOTIFICATION_ACCOUNT_CHANGED');
+        }
+      });
+
   Future<void> _send(
     String content, {
     int? replyToId,
@@ -2417,6 +2454,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     String? e2eePlaintext,
     String? e2eeFileKey,
     bool requestAi = true,
+    bool propagateFailure = false,
   }) async {
     final generation = _generation;
     if (ref.read(chatByIdProvider(_chatId)) == null && _secret == null) {
@@ -2753,6 +2791,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         // Persist its final status even though its bubble is outside the window.
         await _historyArchive?.write([failed]);
       }
+      if (propagateFailure) rethrow;
     }
   }
 

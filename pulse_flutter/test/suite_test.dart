@@ -1,3 +1,5 @@
+import 'notifications/notification_reliability_test.dart'
+    as notification_reliability;
 import 'widgets/call_media_hub_test.dart' as call_media_hub;
 import 'widgets/web_settings_paste_test.dart' as web_settings_paste;
 import 'services/call_sender_quality_test.dart' as call_sender_quality;
@@ -188,6 +190,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Aggregated Test Suite', () {
+    group('notification_reliability', notification_reliability.main);
     group('app_startup_gate', app_startup_gate.main);
     group('app_toast', app_toast.main);
     group('noto_emoji', noto_emoji.main);

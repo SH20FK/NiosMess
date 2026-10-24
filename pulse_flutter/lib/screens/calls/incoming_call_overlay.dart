@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
@@ -20,7 +23,8 @@ class IncomingCallOverlay extends ConsumerStatefulWidget {
   const IncomingCallOverlay({super.key});
 
   @override
-  ConsumerState<IncomingCallOverlay> createState() => _IncomingCallOverlayState();
+  ConsumerState<IncomingCallOverlay> createState() =>
+      _IncomingCallOverlayState();
 }
 
 class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
@@ -47,13 +51,13 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
       vsync: this,
       duration: CallTokens.incomingOverlayAnimationDuration,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: CallTokens.incomingOverlayCurve,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, -1.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _slideController,
+            curve: CallTokens.incomingOverlayCurve,
+          ),
+        );
     _fadeAnimation = CurvedAnimation(
       parent: _slideController,
       curve: Curves.easeInOutCubic,
@@ -67,9 +71,13 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     _pulseScale = Tween<double>(begin: 1.0, end: 1.45).animate(
       CurvedAnimation(parent: _pulseController, curve: M3SpringCurves.gentle),
     );
-    _pulseOpacity = Tween<double>(begin: 0.45, end: 0.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
-    );
+    _pulseOpacity = Tween<double>(
+      begin: 0.45,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
+    ref.listenManual(notificationPreferencesProvider, (_, next) {
+      if (next.value?.sound == false) unawaited(_sound.stopLoop());
+    });
     _incomingSubscription = ref.listenManual(
       incomingCallProvider,
       (_, incoming) => _onIncomingChanged(incoming),
@@ -83,8 +91,8 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
       setState(() => _lastIncoming = incoming);
       if (startRinging) {
         _slideController.forward();
-        HapticService.notification();
-        unawaited(_sound.startLoop(SoundEvent.callIncoming));
+        if (ref.read(uiSettingsProvider).haptics) HapticService.notification();
+        unawaited(_startNotificationRingtone(incoming));
       }
     } else if (_lastIncoming != null) {
       unawaited(_sound.stopLoop());
@@ -92,6 +100,29 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         if (mounted) setState(() => _lastIncoming = null);
       });
     }
+  }
+
+  Future<void> _startNotificationRingtone(IncomingCallData incoming) async {
+    final options = await ref.read(notificationPreferencesProvider.future);
+    if (!mounted ||
+        _lastIncoming?.roomId != incoming.roomId ||
+        !options.sound) {
+      return;
+    }
+    // Native call notifications already own the ringtone when OS permission is
+    // granted. Web/desktop and denied-permission foreground calls use app audio.
+    final nativeSound =
+        !kIsWeb &&
+        PushNotificationService.supportsPush &&
+        await PushNotificationService.isPermissionGranted();
+    if (!mounted ||
+        _lastIncoming?.roomId != incoming.roomId ||
+        nativeSound ||
+        ref.read(notificationPreferencesProvider).value?.sound == false ||
+        !PushNotificationService.isForeground) {
+      return;
+    }
+    await _sound.startNotificationLoop(SoundEvent.callIncoming);
   }
 
   @override
@@ -123,7 +154,9 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
             child: Container(
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(CallTokens.cardBorderRadius),
+                borderRadius: BorderRadius.circular(
+                  CallTokens.cardBorderRadius,
+                ),
                 border: Border.all(
                   color: scheme.outlineVariant.withValues(alpha: 0.35),
                   width: 1.0,
@@ -168,7 +201,9 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                                 ? context.l10n.callIncomingVideo
                                 : context.l10n.callIncomingVoice,
                             style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                              color: scheme.onSurfaceVariant.withValues(
+                                alpha: 0.8,
+                              ),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -212,7 +247,9 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                         ),
                         child: Center(
                           child: Icon(
-                            data.isVideo ? Icons.videocam_rounded : Icons.phone_rounded,
+                            data.isVideo
+                                ? Icons.videocam_rounded
+                                : Icons.phone_rounded,
                             color: scheme.onPrimary,
                             size: 24,
                           ),
@@ -234,17 +271,24 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     ref.read(incomingCallProvider.notifier).set(null);
     unawaited(PushNotificationService.cancelCallNotification());
     unawaited(
-      ref.read(callRepositoryProvider).decline(
-        chatId: incoming.chatId,
-        roomId: incoming.roomId,
-        messageId: incoming.callId,
-      ).catchError((Object e) {
-        debugPrint('[IncomingCallOverlay] decline signal failed: $e');
-      }),
+      ref
+          .read(callRepositoryProvider)
+          .decline(
+            chatId: incoming.chatId,
+            roomId: incoming.roomId,
+            messageId: incoming.callId,
+          )
+          .catchError((Object e) {
+            debugPrint('[IncomingCallOverlay] decline signal failed: $e');
+          }),
     );
   }
 
-  Future<void> _acceptCall(BuildContext context, WidgetRef ref, IncomingCallData incoming) async {
+  Future<void> _acceptCall(
+    BuildContext context,
+    WidgetRef ref,
+    IncomingCallData incoming,
+  ) async {
     final router = ref.read(appRouterProvider);
     HapticService.confirm();
     ref.read(incomingCallProvider.notifier).set(null);
@@ -283,8 +327,10 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
           ? context
           : AppRouter.navigatorKey.currentContext;
       if (errorContext != null && errorContext.mounted) {
-        AppToast.showError(errorContext,
-          errorContext.l10n.callFailureMessage('connection_failed'));
+        AppToast.showError(
+          errorContext,
+          errorContext.l10n.callFailureMessage('connection_failed'),
+        );
       }
     }
   }

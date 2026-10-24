@@ -649,4 +649,176 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get callDeviceMissing => 'device unavailable';
+
+  @override
+  String get noticeOpenChat => 'Open chat';
+
+  @override
+  String get noticeOpen => 'Open';
+
+  @override
+  String get noticeReadChat => 'Read entire chat';
+
+  @override
+  String get noticeMarkAllRead => 'Mark all read';
+
+  @override
+  String get noticeTitle => 'Notifications';
+
+  @override
+  String get noticeEmpty => 'All caught up';
+
+  @override
+  String get noticeEmptyHint =>
+      'Messages and activity for this account are saved here.';
+
+  @override
+  String get noticeClose => 'Close';
+
+  @override
+  String get noticeClear => 'Clear history';
+
+  @override
+  String get noticePermissionGranted => 'System notifications are allowed';
+
+  @override
+  String get noticePermissionMissing => 'Push requires system permission';
+
+  @override
+  String get noticePermissionHint =>
+      'Allow notifications for NiosMess in your browser or device settings.';
+
+  @override
+  String get noticeDeviceHint =>
+      'These preferences apply to this device. The open chat does not show duplicate alerts.';
+
+  @override
+  String get noticeMessages => 'Messages';
+
+  @override
+  String get noticeCalls => 'Incoming calls';
+
+  @override
+  String get noticeActivity => 'NiosGram activity';
+
+  @override
+  String get noticePreview => 'Show message preview';
+
+  @override
+  String get noticePreviewHint =>
+      'Secret message contents are always hidden in system push.';
+
+  @override
+  String get noticeSound => 'Notification sound';
+
+  @override
+  String get noticeSoundHint =>
+      'System channel sounds can also be changed in OS settings.';
+
+  @override
+  String get noticeMessagesChannel => 'NiosMess messages';
+
+  @override
+  String get noticeCallsChannel => 'NiosMess calls';
+
+  @override
+  String get noticeUpdatesChannel => 'NiosMess updates';
+
+  @override
+  String get noticeIncomingCall => 'Incoming call';
+
+  @override
+  String get noticeIncomingVideo => 'Incoming video call';
+
+  @override
+  String get noticeAccept => 'Accept';
+
+  @override
+  String get noticeDecline => 'Decline';
+
+  @override
+  String get noticeNewMessage => 'New message';
+
+  @override
+  String get noticeEncrypted => 'Encrypted message';
+
+  @override
+  String get noticeBackground => 'Background operation is enabled';
+
+  @override
+  String get noticeEconomy => 'Save battery';
+
+  @override
+  String get noticeSoundTest => 'Test sound';
+
+  @override
+  String get noticeSoundTestHint => 'Tap, message, success and error';
+
+  @override
+  String get noticeSyncFailed =>
+      'Could not update push on the server. Your preference is saved and will retry on connection.';
+
+  @override
+  String get noticeCopied => 'Copied';
+
+  @override
+  String get noticeUpdateDownloading => 'Downloading NiosMess update';
+
+  @override
+  String get noticeUpdateReady => 'NiosMess update is ready';
+
+  @override
+  String get noticeUpdateTap => 'Tap to install';
+
+  @override
+  String get noticeVersion => 'Version';
+
+  @override
+  String get noticeInAppOnly => 'This device supports in-app notifications';
+
+  @override
+  String get noticePostLike => 'Reaction to your post';
+
+  @override
+  String get noticePostComment => 'Comment on your post';
+
+  @override
+  String get noticeAttachment => 'Attachment';
+
+  @override
+  String get noticeReply => 'Reply';
+
+  @override
+  String get noticeMarkRead => 'Mark as read';
+
+  @override
+  String get noticeReplyHint => 'Message';
+
+  @override
+  String get noticeSend => 'Send';
+
+  @override
+  String get noticeSending => 'Sending…';
+
+  @override
+  String get noticeReplyFailed =>
+      'Could not send. Your text is still here — try again.';
+
+  @override
+  String get noticeReplySaveFailed =>
+      'Could not save the draft. Your text is still here.';
+
+  @override
+  String get noticeDeviceRegistered => 'This device is registered for push';
+
+  @override
+  String get noticeDevicePending =>
+      'Push registration is waiting for connection';
+
+  @override
+  String get noticeUiSoundsHint =>
+      'Tap and action sounds. Notification sounds are configured separately.';
+
+  @override
+  String get noticeSilentMessages => 'Silent messages';
 }

@@ -67,6 +67,16 @@ jobs:
         run: |
           python -c "import os,sys; from pathlib import Path; p=Path(os.environ['GITHUB_ENV']); p.open('a').write('NIOS_PROTOCOL_TEST_PYTHON='+sys.executable+'\nNIOS_PROTOCOL_BACKEND_PATH='+str(Path('../backend_changes/protocol_v1').resolve())+'\n')"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Notification delivery and worker contracts
+        run: |
+          dart test test/pure_dart/notification_event_test.dart
+          node --test test/notifications/worker_contract_test.cjs
+          python -m unittest discover -s ../backend_changes/notifications_v2/tests -v
+
       - name: Static Analysis
         run: flutter analyze --fatal-infos
 
