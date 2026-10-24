@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -339,7 +340,7 @@ class _ChatTileState extends State<ChatTile>
                                   const SizedBox(width: 6),
                                 ],
                                 Expanded(
-                                  child: Text(
+                                  child: CustomEmojiText(
                                     widget.subtitle,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,

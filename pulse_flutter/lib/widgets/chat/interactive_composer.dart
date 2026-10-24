@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
@@ -48,9 +50,9 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
   final _titleFocus = FocusNode();
   Animation<double>? _entrance;
   bool _focusScheduled = false;
-  final _title = TextEditingController();
-  final _explanation = TextEditingController();
-  final _items = [TextEditingController(), TextEditingController()];
+  final _title = CustomEmojiTextController();
+  final _explanation = CustomEmojiTextController();
+  final _items = [CustomEmojiTextController(), CustomEmojiTextController()];
   final _removed = <TextEditingController>[];
   bool _multiple = false;
   int _correct = 0;
@@ -141,7 +143,9 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                       child: Text(_label, style: theme.textTheme.titleLarge),
                     ),
                     IconButton(
-                      tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
                       onPressed: () => Navigator.pop(context),
                       icon: const InteractiveIcon('close'),
                     ),
@@ -156,8 +160,11 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                       TextFormField(
                         controller: _title,
                         focusNode: _titleFocus,
-                        maxLength: 180,
+                        inputFormatters: [CustomEmojiLengthFormatter(180)],
                         decoration: InputDecoration(
+                          suffixIcon: CustomEmojiComposerButton(
+                            controller: _title,
+                          ),
                           labelText: _list
                               ? context.l10n.interactiveTitleField
                               : context.l10n.interactiveQuestion,
@@ -209,8 +216,13 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                 child: TextFormField(
                                   key: ObjectKey(_items[i]),
                                   controller: _items[i],
-                                  maxLength: 100,
+                                  inputFormatters: [
+                                    CustomEmojiLengthFormatter(100),
+                                  ],
                                   decoration: InputDecoration(
+                                    suffixIcon: CustomEmojiComposerButton(
+                                      controller: _items[i],
+                                    ),
                                     labelText: _list
                                         ? context.l10n.interactiveItemNumber(
                                             i + 1,
@@ -249,7 +261,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
                             onPressed: () => setState(
-                              () => _items.add(TextEditingController()),
+                              () => _items.add(CustomEmojiTextController()),
                             ),
                             icon: const InteractiveIcon('add'),
                             label: Text(
@@ -270,9 +282,12 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _explanation,
-                          maxLength: 500,
+                          inputFormatters: [CustomEmojiLengthFormatter(500)],
                           maxLines: 3,
                           decoration: InputDecoration(
+                            suffixIcon: CustomEmojiComposerButton(
+                              controller: _explanation,
+                            ),
                             labelText: context.l10n.interactiveExplanation,
                             helperText: context.l10n.interactiveExplanationHint,
                             counterText: '',

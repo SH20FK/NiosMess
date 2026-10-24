@@ -8,6 +8,7 @@ import 'package:pulse_flutter/providers/custom_emoji_provider.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';
 import 'package:pulse_flutter/widgets/feed_poll_card.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 
 class _Catalog extends CustomEmojiCatalog {
   final requested = <String>[];
@@ -20,6 +21,97 @@ class _Catalog extends CustomEmojiCatalog {
 }
 
 void main() {
+  test(
+    'custom emoji count and length limit treat each token as one character',
+    () {
+      expect(customEmojiLength('a:nios_check:👨‍👩‍👧‍👦:nios_star:'), 4);
+      final formatter = CustomEmojiLengthFormatter(2);
+      const old = TextEditingValue(text: 'a');
+      const next = TextEditingValue(text: 'a:nios_check:');
+      expect(formatter.formatEditUpdate(old, next), next);
+      expect(
+        formatter.formatEditUpdate(
+          next,
+          const TextEditingValue(text: 'a:nios_check:b'),
+        ),
+        next,
+      );
+    },
+  );
+  test(
+    'custom emoji controller deletes whole token and snaps cursor boundaries',
+    () {
+      final c = CustomEmojiTextController(text: 'a:nios_check:b');
+      c.selection = const TextSelection.collapsed(offset: 5);
+      expect(c.selection.extentOffset, 13);
+      c.value = const TextEditingValue(
+        text: 'a:nios_checkb',
+        selection: TextSelection.collapsed(offset: 12),
+      );
+      expect(c.text, 'ab');
+      expect(c.selection.extentOffset, 1);
+      c.text = 'a:nios_check:b';
+      c.value = const TextEditingValue(
+        text: 'anios_check:b',
+        selection: TextSelection.collapsed(offset: 1),
+      );
+      expect(c.text, 'ab');
+      c.dispose();
+    },
+  );
+  testWidgets(
+    'editable emoji paints inline, copies wire text and keeps typed text',
+    (tester) async {
+      final c = CustomEmojiTextController(text: 'a:nios_check:b');
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [customEmojiCatalogProvider.overrideWith(_Catalog.new)],
+          child: MaterialApp(
+            home: Scaffold(body: TextField(controller: c)),
+          ),
+        ),
+      );
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      expect(find.byType(CustomEmojiInline), findsOneWidget);
+      expect(c.text, 'a:nios_check:b');
+      await tester.enterText(find.byType(TextField), 'a:nios_check:bc');
+      await tester.pump();
+      expect(c.text, 'a:nios_check:bc');
+      expect(find.byType(CustomEmojiInline), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+    },
+  );
+  testWidgets('poll question, choices and quiz explanation all render emoji', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [customEmojiCatalogProvider.overrideWith(_Catalog.new)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: FeedPollCard(
+              postId: 1,
+              poll: {
+                'kind': 'quiz',
+                'title': 'Q :nios_check:',
+                'items': ['A :nios_star:', 'B'],
+                'my_choices': [0],
+                'correct': 0,
+                'counts': [1, 0],
+                'total_voters': 1,
+                'explanation': 'E :nios_check:',
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.byType(CustomEmojiInline), findsNWidgets(3));
+    expect(tester.takeException(), isNull);
+  });
   test(
     'shared feed cache excludes account-specific ballot answers and selections',
     () {

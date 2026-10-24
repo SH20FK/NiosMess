@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/core/media/media_album.dart';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/core/clipboard/pasted_image.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
@@ -41,7 +42,7 @@ class PastedImagesDialog extends StatefulWidget {
 }
 
 class _PastedImagesDialogState extends State<PastedImagesDialog> {
-  late final _caption = TextEditingController(text: widget.initialCaption);
+  late final _caption = CustomEmojiTextController(text: widget.initialCaption);
   late final _remaining = List<PastedImage>.of(widget.images);
   bool _busy = false;
   bool _album = true;

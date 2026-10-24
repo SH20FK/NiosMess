@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
+import 'package:pulse_flutter/widgets/feed_poll_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,7 +45,7 @@ class PostCommentsScreen extends ConsumerStatefulWidget {
 }
 
 class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
-  final _inputController = TextEditingController();
+  final _inputController = CustomEmojiTextController();
   final _inputFocus = FocusNode();
   final _scroll = ScrollController();
   final _collapsed = <int>{};
@@ -233,6 +235,8 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
           authorAvatarUrl: niosgramPost.author.avatarUrl,
           createdAt: niosgramPost.createdAt,
           content: niosgramPost.content,
+          poll: niosgramPost.poll,
+          postId: widget.postId,
           mediaUrl: mediaUrl,
           hasMedia: mediaUrl != null && mediaUrl.isNotEmpty,
         );
@@ -430,7 +434,9 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                                 enabled: !_busy,
                                 minLines: 1,
                                 maxLines: 6,
-                                maxLength: 10000,
+                                inputFormatters: [
+                                  CustomEmojiLengthFormatter(10000),
+                                ],
                                 textCapitalization:
                                     TextCapitalization.sentences,
                                 decoration: const InputDecoration(
@@ -483,6 +489,8 @@ class _PinnedPostData {
     required this.content,
     this.mediaUrl,
     this.hasMedia = false,
+    this.poll,
+    this.postId = 0,
   });
 
   final String authorName;
@@ -492,6 +500,8 @@ class _PinnedPostData {
   final String content;
   final String? mediaUrl;
   final bool hasMedia;
+  final Map<String, dynamic>? poll;
+  final int postId;
 }
 
 class _PinnedPostHeader extends StatelessWidget {
@@ -540,7 +550,7 @@ class _PinnedPostHeader extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
+                  CustomEmojiText(
                     data.content.isNotEmpty
                         ? data.content
                         : (data.hasMedia ? 'Медиафайл' : ''),
@@ -548,6 +558,29 @@ class _PinnedPostHeader extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (data.poll != null) ...[
+                    const SizedBox(height: 8),
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: CustomEmojiText(
+                        data.poll!['title'] as String? ?? '',
+                      ),
+                      subtitle: Text(
+                        data.poll!['kind'] == 'quiz' ? 'Викторина' : 'Опрос',
+                      ),
+                      children: [
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 240),
+                          child: SingleChildScrollView(
+                            child: FeedPollCard(
+                              postId: data.postId,
+                              poll: data.poll!,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

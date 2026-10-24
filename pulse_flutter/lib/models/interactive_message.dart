@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:pulse_flutter/models/api/custom_emoji_model.dart';
 import 'package:crypto/crypto.dart';
 
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -65,12 +66,15 @@ class InteractiveMessage {
         final title = raw['title'], items = raw['items'];
         if (title is! String ||
             title.trim().isEmpty ||
-            title.length > 180 ||
+            customEmojiLength(title) > 180 ||
             items is! List ||
             items.length < (kind == 'list' ? 1 : 2) ||
             items.length > (kind == 'list' ? 20 : 10) ||
             items.any(
-              (v) => v is! String || v.trim().isEmpty || v.length > 100,
+              (v) =>
+                  v is! String ||
+                  v.trim().isEmpty ||
+                  customEmojiLength(v) > 100,
             ) ||
             items.toSet().length != items.length) {
           return null;
@@ -84,7 +88,7 @@ class InteractiveMessage {
         }
         if (raw['explanation'] != null &&
             (raw['explanation'] is! String ||
-                raw['explanation'].length > 500)) {
+                customEmojiLength(raw['explanation'] as String) > 500)) {
           return null;
         }
       }

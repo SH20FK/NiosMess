@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/chat/chat_file_drop_target.dart';
 import 'package:pulse_flutter/core/media/media_album.dart';
 import 'package:pulse_flutter/core/clipboard/pasted_image.dart';
@@ -93,7 +94,7 @@ class ChatDetailScreen extends ConsumerStatefulWidget {
 
 class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     with WidgetsBindingObserver {
-  final TextEditingController _inputController = TextEditingController();
+  final TextEditingController _inputController = CustomEmojiTextController();
   late final ChatScrollCoordinator _scrollCoordinator;
   late final FocusNode _inputFocusNode;
 
@@ -1090,25 +1091,56 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  Future<void> _previewPastedImages(List<PastedImage> images, {String? initialCaption}) async {
+  Future<void> _previewPastedImages(
+    List<PastedImage> images, {
+    String? initialCaption,
+  }) async {
     if (!mounted || _chatId == null || _editingMessageId != null) return;
     final chatId = _chatId!;
     final originalText = _inputController.text;
-    await showPastedImagesDialog(context, images: images, caption: initialCaption ?? originalText,
+    await showPastedImagesDialog(
+      context,
+      images: images,
+      caption: initialCaption ?? originalText,
       onSendAlbum: (images, caption) async {
-        if (!mounted || _chatId != chatId) throw StateError('Conversation closed');
+        if (!mounted || _chatId != chatId) {
+          throw StateError('Conversation closed');
+        }
         final bytes = await compute(_encodeAlbum, images);
-        if (!mounted || _chatId != chatId) throw StateError('Conversation closed');
-        await _uploadAndSend(chatId: chatId, bytes: bytes, filename: 'NiosMess-Album.niosalbum.zip',
-          mediaSubtype: 'document', fileSize: bytes.length, text: caption);
-        if (mounted && _inputController.text == originalText) _inputController.clear();
+        if (!mounted || _chatId != chatId) {
+          throw StateError('Conversation closed');
+        }
+        await _uploadAndSend(
+          chatId: chatId,
+          bytes: bytes,
+          filename: 'NiosMess-Album.niosalbum.zip',
+          mediaSubtype: 'document',
+          fileSize: bytes.length,
+          text: caption,
+        );
+        if (mounted && _inputController.text == originalText) {
+          _inputController.clear();
+        }
       },
       onSend: (image, caption) async {
-        if (!mounted || _chatId != chatId) throw StateError('Conversation closed');
-        await _uploadAndSend(chatId: chatId, bytes: image.bytes, filename: image.name,
-          mediaSubtype: MediaAlbum.imageExtension(image.bytes) != null ? 'image' : 'document', fileSize: image.bytes.length, text: caption);
-        if (mounted && _inputController.text == originalText) _inputController.clear();
-      });
+        if (!mounted || _chatId != chatId) {
+          throw StateError('Conversation closed');
+        }
+        await _uploadAndSend(
+          chatId: chatId,
+          bytes: image.bytes,
+          filename: image.name,
+          mediaSubtype: MediaAlbum.imageExtension(image.bytes) != null
+              ? 'image'
+              : 'document',
+          fileSize: image.bytes.length,
+          text: caption,
+        );
+        if (mounted && _inputController.text == originalText) {
+          _inputController.clear();
+        }
+      },
+    );
     if (mounted) _inputFocusNode.requestFocus();
   }
 
@@ -1123,14 +1155,31 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
-    if (results.length > 1 && results.length <= 10 && results.every((r) => !r.sendAsDocument && r.mediaSubtype == 'image')) {
+    if (results.length > 1 &&
+        results.length <= 10 &&
+        results.every((r) => !r.sendAsDocument && r.mediaSubtype == 'image')) {
       final images = <PastedImage>[];
       for (final result in results) {
-        final bytes = result.fileBytes ?? (result.filePath != null ? await File(result.filePath!).readAsBytes() : null);
+        final bytes =
+            result.fileBytes ??
+            (result.filePath != null
+                ? await File(result.filePath!).readAsBytes()
+                : null);
         if (bytes == null) return;
-        images.add(PastedImage(bytes: bytes, name: result.fileName, mimeType: 'image/unknown'));
+        images.add(
+          PastedImage(
+            bytes: bytes,
+            name: result.fileName,
+            mimeType: 'image/unknown',
+          ),
+        );
       }
-      if (mounted) await _previewPastedImages(images, initialCaption: results.first.caption);
+      if (mounted) {
+        await _previewPastedImages(
+          images,
+          initialCaption: results.first.caption,
+        );
+      }
       return;
     }
 
@@ -2170,164 +2219,182 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         : baseScheme;
 
     final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
-    final Widget content = ChatFileDropTarget(conversationId: chatId,
+    final Widget content = ChatFileDropTarget(
+      conversationId: chatId,
       enabled: _editingMessageId == null && !_isAiProcessing,
-      onFiles: (files) => unawaited(_previewPastedImages(files)), child: BrowserImagePasteTarget(focusNode: _inputFocusNode,
-      enabled: _editingMessageId == null && !_isAiProcessing,
-      onImages: (images) => unawaited(_previewPastedImages(images)), child: CallbackShortcuts(
-      bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.escape): () {
-          final composer = _composerNotifier.value;
-          if (composer.editingMessageId != null) {
-            _cancelEdit();
-          } else if (composer.replyToMessageId != null) {
-            _clearReply();
-          } else if (!widget.isDesktopSplit && canRoutePop) {
-            _goBack();
-          }
-        },
-        if (DesktopPasteboardService.isDesktop) const SingleActivator(LogicalKeyboardKey.keyV, control: true): () {
-          unawaited(() async {
-            final List<String> files =
-                await DesktopPasteboardService.getClipboardFilesOrImage();
-            if (files.isNotEmpty && mounted) {
-              _uploadDesktopFiles(files);
-            }
-          }());
-        },
-        if (DesktopPasteboardService.isDesktop) const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () {
-          unawaited(() async {
-            final List<String> files =
-                await DesktopPasteboardService.getClipboardFilesOrImage();
-            if (files.isNotEmpty && mounted) {
-              _uploadDesktopFiles(files);
-            }
-          }());
-        },
-        if (isSecret) ...<ShortcutActivator, VoidCallback>{
-          const SingleActivator(LogicalKeyboardKey.printScreen):
-              _handleScreenshotAction,
-          const SingleActivator(
-            LogicalKeyboardKey.keyS,
-            shift: true,
-            meta: true,
-          ): _handleScreenshotAction,
-          const SingleActivator(
-            LogicalKeyboardKey.keyS,
-            shift: true,
-            control: true,
-          ): _handleScreenshotAction,
-          const SingleActivator(
-            LogicalKeyboardKey.digit3,
-            shift: true,
-            meta: true,
-          ): _handleScreenshotAction,
-          const SingleActivator(
-            LogicalKeyboardKey.digit4,
-            shift: true,
-            meta: true,
-          ): _handleScreenshotAction,
-        },
-      },
-      child: PopScope(
-        canPop: !widget.isDesktopSplit && canRoutePop,
-        onPopInvokedWithResult: (bool didPop, Object? result) {
-          if (didPop) return;
-          _goBack();
-        },
-        child: Scaffold(
-          appBar: _ChatHeaderScope(
-            chatId: chatId,
-            isDesktopSplit: widget.isDesktopSplit,
-            isSecret: isSecret,
-            onBack: () {
-              if (ref.read(uiSettingsProvider).haptics) {
-                HapticService.reaction();
+      onFiles: (files) => unawaited(_previewPastedImages(files)),
+      child: BrowserImagePasteTarget(
+        focusNode: _inputFocusNode,
+        enabled: _editingMessageId == null && !_isAiProcessing,
+        onImages: (images) => unawaited(_previewPastedImages(images)),
+        child: CallbackShortcuts(
+          bindings: <ShortcutActivator, VoidCallback>{
+            const SingleActivator(LogicalKeyboardKey.escape): () {
+              final composer = _composerNotifier.value;
+              if (composer.editingMessageId != null) {
+                _cancelEdit();
+              } else if (composer.replyToMessageId != null) {
+                _clearReply();
+              } else if (!widget.isDesktopSplit && canRoutePop) {
+                _goBack();
               }
+            },
+            if (DesktopPasteboardService.isDesktop)
+              const SingleActivator(
+                LogicalKeyboardKey.keyV,
+                control: true,
+              ): () {
+                unawaited(() async {
+                  final List<String> files =
+                      await DesktopPasteboardService.getClipboardFilesOrImage();
+                  if (files.isNotEmpty && mounted) {
+                    _uploadDesktopFiles(files);
+                  }
+                }());
+              },
+            if (DesktopPasteboardService.isDesktop)
+              const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () {
+                unawaited(() async {
+                  final List<String> files =
+                      await DesktopPasteboardService.getClipboardFilesOrImage();
+                  if (files.isNotEmpty && mounted) {
+                    _uploadDesktopFiles(files);
+                  }
+                }());
+              },
+            if (isSecret) ...<ShortcutActivator, VoidCallback>{
+              const SingleActivator(LogicalKeyboardKey.printScreen):
+                  _handleScreenshotAction,
+              const SingleActivator(
+                LogicalKeyboardKey.keyS,
+                shift: true,
+                meta: true,
+              ): _handleScreenshotAction,
+              const SingleActivator(
+                LogicalKeyboardKey.keyS,
+                shift: true,
+                control: true,
+              ): _handleScreenshotAction,
+              const SingleActivator(
+                LogicalKeyboardKey.digit3,
+                shift: true,
+                meta: true,
+              ): _handleScreenshotAction,
+              const SingleActivator(
+                LogicalKeyboardKey.digit4,
+                shift: true,
+                meta: true,
+              ): _handleScreenshotAction,
+            },
+          },
+          child: PopScope(
+            canPop: !widget.isDesktopSplit && canRoutePop,
+            onPopInvokedWithResult: (bool didPop, Object? result) {
+              if (didPop) return;
               _goBack();
             },
-            onVoiceCall: _startVoiceCall,
-            onVideoCall: _startVideoCall,
-            onSecurityTap: _showE2eeVerification,
-          ),
-          body: DesktopDragDropArea(
-            onFilesDropped: _uploadDesktopFiles,
-            child: ChatViewport(
-              wallpaper: ChatWallpaperBackground(
-                chatId: widget.chatId.toString(),
-              ),
-              topBanner: ChatTopBannerLayer(
+            child: Scaffold(
+              appBar: _ChatHeaderScope(
                 chatId: chatId,
+                isDesktopSplit: widget.isDesktopSplit,
                 isSecret: isSecret,
-                loadingOlderNotifier: _loadingOlderNotifier,
-                onE2eeTap: _showE2eeVerification,
-              ),
-              messagesBuilder: (BuildContext context, double composerHeight) {
-                return _ChatMessagesScope(
-                  chatId: chatId,
-                  highlightMessageId: widget.highlightMessageId,
-                  scrollCoordinator: _scrollCoordinator,
-                  inputFocusNode: _inputFocusNode,
-                  composerHeight: composerHeight,
-                  onOpenComments: (ApiMessage msg) {
-                    context.push('/channel/$chatId/post/${msg.id}/comments');
-                  },
-                  onReactionTap: (ApiMessage msg, String emoji) =>
-                      _react(msg, emoji),
-                  onOpenMedia: _handleOpenMediaFor,
-                  onLongPressMedia: _handleLongPressMediaFor,
-                  onLongPress: _handleLongPressFor,
-                  onSwipeToReply: _setReply,
-                  onRetrySend: _retrySend,
-                  displayTextBuilder: _displayText,
-                  mediaUrlBuilder: _mediaUrlFor,
-                  isImageMediaBuilder: _isImageMedia,
-                  mediaLabelBuilder: _mediaLabel,
-                  replyPreviewBuilder: _replyPreviewFor,
-                  dateSeparatorBuilder: _dateSeparator,
-                );
-              },
-              floatingActionButton: _scrollCoordinator.buildFab(chatId: chatId),
-              composer: _ChatComposerScope(
-                chatId: chatId,
-                composerNotifier: _composerNotifier,
-                inputController: _inputController,
-                inputFocusNode: _inputFocusNode,
-                showDraftRestoredBanner: _showDraftRestoredBanner,
-                onClearDraft: () {
-                  final int? cid = _chatId;
-                  if (cid != null) {
-                    if (_isSecret) {
-                      unawaited(_secretCoordinator?.engine.saveDraft(cid, ''));
-                    } else {
-                      _draftStorage.remove(cid);
-                    }
+                onBack: () {
+                  if (ref.read(uiSettingsProvider).haptics) {
+                    HapticService.reaction();
                   }
-                  _inputController.clear();
-                  setState(() {
-                    _showDraftRestoredBanner = false;
-                  });
+                  _goBack();
                 },
-                onSend: _sendMessage,
-                onCommitEdit: _commitEdit,
-                onCancelEdit: _cancelEdit,
-                onClearReply: _clearReply,
-                onAttachMedia: _pickAndUploadMedia,
-                onAiPressed: (ctx, sc) => _showAiBottomSheet(ctx, sc),
-                onVoiceSend: (p) => unawaited(_sendVoiceMessage(p)),
-                onCircleSend: (p) => unawaited(_sendCircleVideo(p)),
-                onCancelAi: _cancelAiProcessing,
-                onSendSticker: (s) => unawaited(_sendSticker(s)),
-                onEditLastMessage: _editLastMessage,
-                onAttachFiles: _uploadDesktopFiles,
-                scheme: scheme,
+                onVoiceCall: _startVoiceCall,
+                onVideoCall: _startVideoCall,
+                onSecurityTap: _showE2eeVerification,
               ),
+              body: DesktopDragDropArea(
+                onFilesDropped: _uploadDesktopFiles,
+                child: ChatViewport(
+                  wallpaper: ChatWallpaperBackground(
+                    chatId: widget.chatId.toString(),
+                  ),
+                  topBanner: ChatTopBannerLayer(
+                    chatId: chatId,
+                    isSecret: isSecret,
+                    loadingOlderNotifier: _loadingOlderNotifier,
+                    onE2eeTap: _showE2eeVerification,
+                  ),
+                  messagesBuilder:
+                      (BuildContext context, double composerHeight) {
+                        return _ChatMessagesScope(
+                          chatId: chatId,
+                          highlightMessageId: widget.highlightMessageId,
+                          scrollCoordinator: _scrollCoordinator,
+                          inputFocusNode: _inputFocusNode,
+                          composerHeight: composerHeight,
+                          onOpenComments: (ApiMessage msg) {
+                            context.push(
+                              '/channel/$chatId/post/${msg.id}/comments',
+                            );
+                          },
+                          onReactionTap: (ApiMessage msg, String emoji) =>
+                              _react(msg, emoji),
+                          onOpenMedia: _handleOpenMediaFor,
+                          onLongPressMedia: _handleLongPressMediaFor,
+                          onLongPress: _handleLongPressFor,
+                          onSwipeToReply: _setReply,
+                          onRetrySend: _retrySend,
+                          displayTextBuilder: _displayText,
+                          mediaUrlBuilder: _mediaUrlFor,
+                          isImageMediaBuilder: _isImageMedia,
+                          mediaLabelBuilder: _mediaLabel,
+                          replyPreviewBuilder: _replyPreviewFor,
+                          dateSeparatorBuilder: _dateSeparator,
+                        );
+                      },
+                  floatingActionButton: _scrollCoordinator.buildFab(
+                    chatId: chatId,
+                  ),
+                  composer: _ChatComposerScope(
+                    chatId: chatId,
+                    composerNotifier: _composerNotifier,
+                    inputController: _inputController,
+                    inputFocusNode: _inputFocusNode,
+                    showDraftRestoredBanner: _showDraftRestoredBanner,
+                    onClearDraft: () {
+                      final int? cid = _chatId;
+                      if (cid != null) {
+                        if (_isSecret) {
+                          unawaited(
+                            _secretCoordinator?.engine.saveDraft(cid, ''),
+                          );
+                        } else {
+                          _draftStorage.remove(cid);
+                        }
+                      }
+                      _inputController.clear();
+                      setState(() {
+                        _showDraftRestoredBanner = false;
+                      });
+                    },
+                    onSend: _sendMessage,
+                    onCommitEdit: _commitEdit,
+                    onCancelEdit: _cancelEdit,
+                    onClearReply: _clearReply,
+                    onAttachMedia: _pickAndUploadMedia,
+                    onAiPressed: (ctx, sc) => _showAiBottomSheet(ctx, sc),
+                    onVoiceSend: (p) => unawaited(_sendVoiceMessage(p)),
+                    onCircleSend: (p) => unawaited(_sendCircleVideo(p)),
+                    onCancelAi: _cancelAiProcessing,
+                    onSendSticker: (s) => unawaited(_sendSticker(s)),
+                    onEditLastMessage: _editLastMessage,
+                    onAttachFiles: _uploadDesktopFiles,
+                    scheme: scheme,
+                  ),
+                ),
+              ),
+              backgroundColor: scheme.surface,
             ),
           ),
-          backgroundColor: scheme.surface,
         ),
       ),
-    )));
+    );
 
     if (scheme == baseScheme) {
       return content;
@@ -3063,4 +3130,6 @@ class _AiActionCard extends StatelessWidget {
   }
 }
 
-Uint8List _encodeAlbum(List<PastedImage> images) => MediaAlbum.encode([for (final image in images) AlbumImage(image.name, image.bytes)]);
+Uint8List _encodeAlbum(List<PastedImage> images) => MediaAlbum.encode([
+  for (final image in images) AlbumImage(image.name, image.bytes),
+]);

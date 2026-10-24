@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/core/notifications/notification_reply_service.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'dart:async';
@@ -32,7 +33,7 @@ class _InAppNotificationBannerOverlayState
   late final Animation<Offset> _slideAnimation;
   late final Animation<double> _fadeAnimation;
   InAppNotificationItem? _currentItem;
-  final _replyController = TextEditingController();
+  final _replyController = CustomEmojiTextController();
   final _replyFocus = FocusNode();
   Timer? _draftTimer;
   bool _replying = false, _sending = false, _hovered = false, _focused = false;
@@ -463,7 +464,7 @@ class _InAppNotificationBannerOverlayState
                                             ],
                                           ),
                                           const SizedBox(height: 8),
-                                          Text(
+                                          CustomEmojiText(
                                             item.body,
                                             maxLines: 3,
                                             overflow: TextOverflow.ellipsis,

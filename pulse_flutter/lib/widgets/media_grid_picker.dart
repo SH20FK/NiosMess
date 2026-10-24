@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
@@ -30,10 +31,7 @@ class MediaGridPickerResult {
 }
 
 class MediaGridPicker extends StatefulWidget {
-  const MediaGridPicker({
-    this.onSelected,
-    super.key,
-  });
+  const MediaGridPicker({this.onSelected, super.key});
 
   final ValueChanged<List<MediaGridPickerResult>>? onSelected;
 
@@ -48,7 +46,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
   List<AssetEntity> _allAssets = <AssetEntity>[];
   final List<String> _selectedIds = <String>[];
   final ScrollController _scrollController = ScrollController();
-  final TextEditingController _captionController = TextEditingController();
+  final TextEditingController _captionController = CustomEmojiTextController();
 
   List<AssetPathEntity> _albums = <AssetPathEntity>[];
   AssetPathEntity? _recentAlbum;
@@ -136,29 +134,35 @@ class _MediaGridPickerState extends State<MediaGridPicker>
     try {
       PermissionState perm = PermissionState.denied;
       try {
-        perm = await PhotoManager.requestPermissionExtend(
-          requestOption: const PermissionRequestOption(
-            androidPermission: AndroidPermission(
-              type: RequestType.common,
-              mediaLocation: false,
-            ),
-          ),
-        ).timeout(const Duration(seconds: 15),
-            onTimeout: () => PermissionState.denied);
+        perm =
+            await PhotoManager.requestPermissionExtend(
+              requestOption: const PermissionRequestOption(
+                androidPermission: AndroidPermission(
+                  type: RequestType.common,
+                  mediaLocation: false,
+                ),
+              ),
+            ).timeout(
+              const Duration(seconds: 15),
+              onTimeout: () => PermissionState.denied,
+            );
       } catch (_) {}
 
       // Fallback: If common request failed or was denied, try image-only
       if (!perm.hasAccess && !perm.isAuth) {
         try {
-          perm = await PhotoManager.requestPermissionExtend(
-            requestOption: const PermissionRequestOption(
-              androidPermission: AndroidPermission(
-                type: RequestType.image,
-                mediaLocation: false,
-              ),
-            ),
-          ).timeout(const Duration(seconds: 10),
-              onTimeout: () => PermissionState.denied);
+          perm =
+              await PhotoManager.requestPermissionExtend(
+                requestOption: const PermissionRequestOption(
+                  androidPermission: AndroidPermission(
+                    type: RequestType.image,
+                    mediaLocation: false,
+                  ),
+                ),
+              ).timeout(
+                const Duration(seconds: 10),
+                onTimeout: () => PermissionState.denied,
+              );
         } catch (_) {}
       }
 
@@ -167,9 +171,11 @@ class _MediaGridPickerState extends State<MediaGridPicker>
       // Fallback: Verify via permission_handler if permissions were granted in system settings
       if (!hasAccess && (Platform.isAndroid || Platform.isIOS)) {
         try {
-          final bool photosOk = await Permission.photos.isGranted ||
+          final bool photosOk =
+              await Permission.photos.isGranted ||
               await Permission.photos.isLimited;
-          final bool videosOk = await Permission.videos.isGranted ||
+          final bool videosOk =
+              await Permission.videos.isGranted ||
               await Permission.videos.isLimited;
           final bool storageOk = await Permission.storage.isGranted;
           if (photosOk || videosOk || storageOk) {
@@ -200,75 +206,93 @@ class _MediaGridPickerState extends State<MediaGridPicker>
 
       // Stage 1: RequestType.common with creation date sorting filter
       try {
-        albums = await PhotoManager.getAssetPathList(
-          type: RequestType.common,
-          hasAll: true,
-          filterOption: FilterOptionGroup(
-            orders: const <OrderOption>[
-              OrderOption(type: OrderOptionType.createDate, asc: false),
-            ],
-          ),
-        ).timeout(const Duration(seconds: 12),
-            onTimeout: () => <AssetPathEntity>[]);
+        albums =
+            await PhotoManager.getAssetPathList(
+              type: RequestType.common,
+              hasAll: true,
+              filterOption: FilterOptionGroup(
+                orders: const <OrderOption>[
+                  OrderOption(type: OrderOptionType.createDate, asc: false),
+                ],
+              ),
+            ).timeout(
+              const Duration(seconds: 12),
+              onTimeout: () => <AssetPathEntity>[],
+            );
       } catch (_) {}
 
       // Stage 2: RequestType.common without filter (in case MediaStore order option failed)
       if (albums.isEmpty) {
         try {
-          albums = await PhotoManager.getAssetPathList(
-            type: RequestType.common,
-            hasAll: true,
-          ).timeout(const Duration(seconds: 10),
-              onTimeout: () => <AssetPathEntity>[]);
+          albums =
+              await PhotoManager.getAssetPathList(
+                type: RequestType.common,
+                hasAll: true,
+              ).timeout(
+                const Duration(seconds: 10),
+                onTimeout: () => <AssetPathEntity>[],
+              );
         } catch (_) {}
       }
 
       // Stage 3: RequestType.image with filter
       if (albums.isEmpty) {
         try {
-          albums = await PhotoManager.getAssetPathList(
-            type: RequestType.image,
-            hasAll: true,
-            filterOption: FilterOptionGroup(
-              orders: const <OrderOption>[
-                OrderOption(type: OrderOptionType.createDate, asc: false),
-              ],
-            ),
-          ).timeout(const Duration(seconds: 10),
-              onTimeout: () => <AssetPathEntity>[]);
+          albums =
+              await PhotoManager.getAssetPathList(
+                type: RequestType.image,
+                hasAll: true,
+                filterOption: FilterOptionGroup(
+                  orders: const <OrderOption>[
+                    OrderOption(type: OrderOptionType.createDate, asc: false),
+                  ],
+                ),
+              ).timeout(
+                const Duration(seconds: 10),
+                onTimeout: () => <AssetPathEntity>[],
+              );
         } catch (_) {}
       }
 
       // Stage 4: RequestType.image without filter
       if (albums.isEmpty) {
         try {
-          albums = await PhotoManager.getAssetPathList(
-            type: RequestType.image,
-            hasAll: true,
-          ).timeout(const Duration(seconds: 10),
-              onTimeout: () => <AssetPathEntity>[]);
+          albums =
+              await PhotoManager.getAssetPathList(
+                type: RequestType.image,
+                hasAll: true,
+              ).timeout(
+                const Duration(seconds: 10),
+                onTimeout: () => <AssetPathEntity>[],
+              );
         } catch (_) {}
       }
 
       // Stage 5: onlyAll common (fast single-query for main album)
       if (albums.isEmpty) {
         try {
-          albums = await PhotoManager.getAssetPathList(
-            type: RequestType.common,
-            onlyAll: true,
-          ).timeout(const Duration(seconds: 8),
-              onTimeout: () => <AssetPathEntity>[]);
+          albums =
+              await PhotoManager.getAssetPathList(
+                type: RequestType.common,
+                onlyAll: true,
+              ).timeout(
+                const Duration(seconds: 8),
+                onTimeout: () => <AssetPathEntity>[],
+              );
         } catch (_) {}
       }
 
       // Stage 6: onlyAll image
       if (albums.isEmpty) {
         try {
-          albums = await PhotoManager.getAssetPathList(
-            type: RequestType.image,
-            onlyAll: true,
-          ).timeout(const Duration(seconds: 8),
-              onTimeout: () => <AssetPathEntity>[]);
+          albums =
+              await PhotoManager.getAssetPathList(
+                type: RequestType.image,
+                onlyAll: true,
+              ).timeout(
+                const Duration(seconds: 8),
+                onTimeout: () => <AssetPathEntity>[],
+              );
         } catch (_) {}
       }
 
@@ -292,12 +316,11 @@ class _MediaGridPickerState extends State<MediaGridPicker>
       _currentPage = 0;
 
       List<AssetEntity> assets = await recent
-          .getAssetListPaged(
-            page: 0,
-            size: _pageSize,
-          )
-          .timeout(const Duration(seconds: 15),
-              onTimeout: () => <AssetEntity>[]);
+          .getAssetListPaged(page: 0, size: _pageSize)
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => <AssetEntity>[],
+          );
 
       // Fallback: If primary album returned 0 assets, look for a non-empty alternative album
       if (assets.isEmpty && albums.length > 1) {
@@ -305,12 +328,11 @@ class _MediaGridPickerState extends State<MediaGridPicker>
           if (alt.id == recent.id) continue;
           try {
             final List<AssetEntity> altAssets = await alt
-                .getAssetListPaged(
-                  page: 0,
-                  size: _pageSize,
-                )
-                .timeout(const Duration(seconds: 8),
-                    onTimeout: () => <AssetEntity>[]);
+                .getAssetListPaged(page: 0, size: _pageSize)
+                .timeout(
+                  const Duration(seconds: 8),
+                  onTimeout: () => <AssetEntity>[],
+                );
             if (altAssets.isNotEmpty) {
               recent = alt;
               _recentAlbum = alt;
@@ -361,10 +383,12 @@ class _MediaGridPickerState extends State<MediaGridPicker>
     });
 
     try {
-      final List<AssetEntity> assets = await album.getAssetListPaged(
-        page: 0,
-        size: _pageSize,
-      ).timeout(const Duration(seconds: 15), onTimeout: () => <AssetEntity>[]);
+      final List<AssetEntity> assets = await album
+          .getAssetListPaged(page: 0, size: _pageSize)
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => <AssetEntity>[],
+          );
 
       assets.sort((AssetEntity a, AssetEntity b) {
         final DateTime da = a.createDateTime;
@@ -399,10 +423,12 @@ class _MediaGridPickerState extends State<MediaGridPicker>
 
     try {
       final int nextPage = _currentPage + 1;
-      final List<AssetEntity> nextBatch = await album.getAssetListPaged(
-        page: nextPage,
-        size: _pageSize,
-      ).timeout(const Duration(seconds: 5), onTimeout: () => <AssetEntity>[]);
+      final List<AssetEntity> nextBatch = await album
+          .getAssetListPaged(page: nextPage, size: _pageSize)
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => <AssetEntity>[],
+          );
 
       nextBatch.sort((AssetEntity a, AssetEntity b) {
         final DateTime da = a.createDateTime;
@@ -437,8 +463,9 @@ class _MediaGridPickerState extends State<MediaGridPicker>
 
   Future<void> _openCameraCapture() async {
     HapticService.tap();
-    final String? photoPath =
-        await QuickCameraCaptureScreen.capturePhoto(context);
+    final String? photoPath = await QuickCameraCaptureScreen.capturePhoto(
+      context,
+    );
     if (photoPath == null || !mounted) return;
 
     final File file = File(photoPath);
@@ -472,25 +499,26 @@ class _MediaGridPickerState extends State<MediaGridPicker>
           initialIndex: initialIndex,
           selectedIds: _selectedIds,
           onToggleSelection: _toggleSelection,
-          onSendDirect: (AssetEntity asset, String caption, bool asDocument) async {
-            File? file = await asset.file;
-            file ??= await asset.originFile;
-            if (file == null || !mounted) return;
-            final MediaGridPickerResult result = MediaGridPickerResult(
-              filePath: file.path,
-              fileName: (asset.title != null && asset.title!.isNotEmpty)
-                  ? asset.title!
-                  : file.path.split('/').last.split('\\').last,
-              fileSize: await file.length(),
-              caption: caption.isNotEmpty ? caption : null,
-              sendAsDocument: asDocument,
-            );
-            if (!mounted) return;
-            if (widget.onSelected != null) {
-              widget.onSelected!(<MediaGridPickerResult>[result]);
-            }
-            Navigator.of(context).pop(<MediaGridPickerResult>[result]);
-          },
+          onSendDirect:
+              (AssetEntity asset, String caption, bool asDocument) async {
+                File? file = await asset.file;
+                file ??= await asset.originFile;
+                if (file == null || !mounted) return;
+                final MediaGridPickerResult result = MediaGridPickerResult(
+                  filePath: file.path,
+                  fileName: (asset.title != null && asset.title!.isNotEmpty)
+                      ? asset.title!
+                      : file.path.split('/').last.split('\\').last,
+                  fileSize: await file.length(),
+                  caption: caption.isNotEmpty ? caption : null,
+                  sendAsDocument: asDocument,
+                );
+                if (!mounted) return;
+                if (widget.onSelected != null) {
+                  widget.onSelected!(<MediaGridPickerResult>[result]);
+                }
+                Navigator.of(context).pop(<MediaGridPickerResult>[result]);
+              },
           scheme: Theme.of(context).colorScheme,
         ),
       ),
@@ -561,24 +589,18 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: _AlbumLeadingThumbnail(
-                  album: album,
-                  scheme: scheme,
-                ),
+                child: _AlbumLeadingThumbnail(album: album, scheme: scheme),
               ),
               title: Text(
                 album.name,
                 style: textTheme.bodyLarge?.copyWith(
-                  fontWeight:
-                      isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color:
-                      isSelected ? scheme.primary : scheme.onSurface,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? scheme.primary : scheme.onSurface,
                 ),
               ),
               trailing: FutureBuilder<int>(
                 future: album.assetCountAsync,
-                builder:
-                    (BuildContext context, AsyncSnapshot<int> snapshot) {
+                builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
                   return Text(
                     snapshot.hasData ? '${snapshot.data}' : '',
                     style: textTheme.bodySmall?.copyWith(
@@ -653,9 +675,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
       height: 26,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: selected
-            ? scheme.primary
-            : scheme.scrim.withValues(alpha: 0.38),
+        color: selected ? scheme.primary : scheme.scrim.withValues(alpha: 0.38),
         border: Border.all(
           color: selected
               ? scheme.primary
@@ -764,8 +784,10 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                   if (_isLimited)
                     FilledButton.tonalIcon(
                       onPressed: _manageLimitedSelection,
-                      icon: const Icon(Icons.add_photo_alternate_rounded,
-                          size: 16),
+                      icon: const Icon(
+                        Icons.add_photo_alternate_rounded,
+                        size: 16,
+                      ),
                       label: const Text('Выбрать фото'),
                     ),
                   FilledButton.tonalIcon(
@@ -892,10 +914,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
               child: Container(
                 color: scheme.surface.withValues(alpha: 0.75),
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: AppLoadingIndicator(
-                  size: 20,
-                  color: scheme.primary,
-                ),
+                child: AppLoadingIndicator(size: 20, color: scheme.primary),
               ),
             ),
         ],
@@ -911,163 +930,172 @@ class _MediaGridPickerState extends State<MediaGridPicker>
           children: <Widget>[
             Container(
               padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
-            child: Row(
-              children: <Widget>[
-                InkWell(
-                  onTap: _showAlbumSelector,
+              child: Row(
+                children: <Widget>[
+                  InkWell(
+                    onTap: _showAlbumSelector,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            _recentAlbum?.name ??
+                                context.l10n.filePickerGallery,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  FilledButton.tonalIcon(
+                    onPressed: _openFilePicker,
+                    icon: const Icon(Icons.folder_open_rounded, size: 18),
+                    label: const Text('Проводник'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            if (_isLimited)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      size: 16,
+                      color: scheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Ограниченный доступ к фото',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      onPressed: _manageLimitedSelection,
+                      child: const Text('Выбрать ещё'),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(child: body),
+            if (_selectedIds.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHigh,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  border: Border(
+                    top: BorderSide(
+                      color: scheme.outlineVariant.withValues(alpha: 0.25),
+                    ),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Row(
                       children: <Widget>[
-                        Text(
-                          _recentAlbum?.name ?? context.l10n.filePickerGallery,
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: TextField(
+                            controller: _captionController,
+                            decoration: InputDecoration(
+                              hintText: 'Добавить подпись...',
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                              ),
+                              hintStyle: TextStyle(
+                                color: scheme.onSurfaceVariant.withValues(
+                                  alpha: 0.6,
+                                ),
+                                fontSize: 14,
+                              ),
+                            ),
+                            style: TextStyle(
+                              color: scheme.onSurface,
+                              fontSize: 14,
+                            ),
+                            maxLines: 2,
+                            minLines: 1,
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: scheme.onSurfaceVariant,
+                        FilterChip(
+                          label: Text(_sendAsDocument ? 'Как файл' : 'Фото'),
+                          selected: _sendAsDocument,
+                          showCheckmark: false,
+                          avatar: Icon(
+                            _sendAsDocument
+                                ? Icons.insert_drive_file_outlined
+                                : Icons.photo_outlined,
+                            size: 16,
+                          ),
+                          onSelected: (bool val) {
+                            HapticService.tap();
+                            setState(() => _sendAsDocument = val);
+                          },
                         ),
                       ],
                     ),
-                  ),
-                ),
-                const Spacer(),
-                FilledButton.tonalIcon(
-                  onPressed: _openFilePicker,
-                  icon: const Icon(Icons.folder_open_rounded, size: 18),
-                  label: const Text('Проводник'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          if (_isLimited)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Icon(
-                    Icons.lock_outline_rounded,
-                    size: 16,
-                    color: scheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Ограниченный доступ к фото',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    onPressed: _manageLimitedSelection,
-                    child: const Text('Выбрать ещё'),
-                  ),
-                ],
-              ),
-            ),
-          Expanded(child: body),
-          if (_selectedIds.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
-                border: Border(
-                  top: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.25),
-                  ),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: TextField(
-                          controller: _captionController,
-                          decoration: InputDecoration(
-                            hintText: 'Добавить подпись...',
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 8),
-                            hintStyle: TextStyle(
-                              color: scheme.onSurfaceVariant
-                                  .withValues(alpha: 0.6),
-                              fontSize: 14,
-                            ),
-                          ),
-                          style: TextStyle(
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Text(
+                          'Выбрано: ${_selectedIds.length}',
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
                             color: scheme.onSurface,
-                            fontSize: 14,
                           ),
-                          maxLines: 2,
-                          minLines: 1,
                         ),
-                      ),
-                      FilterChip(
-                        label: Text(_sendAsDocument ? 'Как файл' : 'Фото'),
-                        selected: _sendAsDocument,
-                        showCheckmark: false,
-                        avatar: Icon(
-                          _sendAsDocument
-                              ? Icons.insert_drive_file_outlined
-                              : Icons.photo_outlined,
-                          size: 16,
+                        FilledButton.icon(
+                          onPressed: _sendSelected,
+                          icon: const Icon(Icons.send_rounded, size: 18),
+                          label: Text('Отправить (${_selectedIds.length})'),
                         ),
-                        onSelected: (bool val) {
-                          HapticService.tap();
-                          setState(() => _sendAsDocument = val);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Text(
-                        'Выбрано: ${_selectedIds.length}',
-                        style: textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                      FilledButton.icon(
-                        onPressed: _sendSelected,
-                        icon: const Icon(Icons.send_rounded, size: 18),
-                        label: Text('Отправить (${_selectedIds.length})'),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   String _formatDuration(Duration d) {
     final String minutes = d.inMinutes.toString().padLeft(2, '0');
@@ -1087,14 +1115,17 @@ class _AlbumLeadingThumbnail extends StatelessWidget {
       future: album.getAssetListPaged(page: 0, size: 1),
       builder:
           (BuildContext context, AsyncSnapshot<List<AssetEntity>> snapshot) {
-        if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-          return _AssetThumbnail(asset: snapshot.data!.first, scheme: scheme);
-        }
-        return Icon(
-          Icons.photo_library_outlined,
-          color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
-        );
-      },
+            if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+              return _AssetThumbnail(
+                asset: snapshot.data!.first,
+                scheme: scheme,
+              );
+            }
+            return Icon(
+              Icons.photo_library_outlined,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+            );
+          },
     );
   }
 }
@@ -1113,7 +1144,8 @@ class _MediaPreviewScreen extends StatefulWidget {
   final int initialIndex;
   final List<String> selectedIds;
   final void Function(String id) onToggleSelection;
-  final void Function(AssetEntity asset, String caption, bool asDocument) onSendDirect;
+  final void Function(AssetEntity asset, String caption, bool asDocument)
+  onSendDirect;
   final ColorScheme scheme;
 
   @override
@@ -1123,7 +1155,7 @@ class _MediaPreviewScreen extends StatefulWidget {
 class _MediaPreviewScreenState extends State<_MediaPreviewScreen> {
   late final PageController _pageController;
   late int _currentIndex;
-  final TextEditingController _captionController = TextEditingController();
+  final TextEditingController _captionController = CustomEmojiTextController();
   bool _sendAsDocument = false;
 
   @override
@@ -1268,13 +1300,15 @@ class _MediaPreviewScreenState extends State<_MediaPreviewScreen> {
                           decoration: InputDecoration(
                             hintText: 'Добавить подпись...',
                             hintStyle: TextStyle(
-                              color: widget.scheme.onSurface
-                                  .withValues(alpha: 0.6),
+                              color: widget.scheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
                             ),
                             border: InputBorder.none,
                             isDense: true,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 10),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                            ),
                           ),
                         ),
                       ),
@@ -1334,18 +1368,12 @@ class _AssetFullView extends StatelessWidget {
   Widget build(BuildContext context) {
     return FutureBuilder<Uint8List?>(
       future: asset.thumbnailDataWithSize(const ThumbnailSize(1920, 1920)),
-      builder:
-          (BuildContext context, AsyncSnapshot<Uint8List?> snapshot) {
+      builder: (BuildContext context, AsyncSnapshot<Uint8List?> snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             snapshot.data != null) {
-          return Image.memory(
-            snapshot.data!,
-            fit: BoxFit.contain,
-          );
+          return Image.memory(snapshot.data!, fit: BoxFit.contain);
         }
-        return Center(
-          child: AppLoadingIndicator(color: scheme.onSurface),
-        );
+        return Center(child: AppLoadingIndicator(color: scheme.onSurface));
       },
     );
   }

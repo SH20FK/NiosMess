@@ -84,7 +84,9 @@ jobs:
         run: flutter test test/suite_test.dart --timeout 90s
 
       - name: Test browser layout and real encrypted media playback
-        run: flutter test test/web/browser_media_test.dart --platform chrome --timeout 90s
+        run: |
+          flutter test test/web/browser_media_test.dart --platform chrome --timeout 90s
+          flutter test test/widgets/feed_features_test.dart --platform chrome --timeout 90s
 
       - name: Test paste, browser settings and synthetic WebRTC media
         run: |

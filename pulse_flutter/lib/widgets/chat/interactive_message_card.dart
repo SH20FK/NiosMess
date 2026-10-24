@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
@@ -150,14 +151,14 @@ class _InteractiveMessageCardState
                         avatarUrl: state.avatars[entry.key],
                         radius: 20,
                       ),
-                      title: Text(
+                      title: CustomEmojiText(
                         state.names[entry.key]?.trim().isNotEmpty == true
                             ? state.names[entry.key]!
                             : context.l10n.interactiveParticipantNumber(
                                 entry.key,
                               ),
                       ),
-                      subtitle: Text(
+                      subtitle: CustomEmojiText(
                         entry.value
                             .map((i) => widget.definition.items[i])
                             .join(', '),
@@ -271,7 +272,7 @@ class _InteractiveMessageCardState
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
+                CustomEmojiText(
                   definition.title,
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: foreground,
@@ -279,7 +280,7 @@ class _InteractiveMessageCardState
                 ),
                 const SizedBox(height: 8),
               ] else ...[
-                Text(
+                CustomEmojiText(
                   definition.title,
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: foreground,
@@ -400,7 +401,7 @@ class _InteractiveMessageCardState
                 if (definition.explanation.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: Text(definition.explanation),
+                    child: CustomEmojiText(definition.explanation),
                   ),
               ],
               if (!list && !quiz && !state.closed)
@@ -571,7 +572,7 @@ class _InteractiveMessageCardState
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            CustomEmojiText(
                               label,
                               style: TextStyle(
                                 color: foreground,
@@ -681,7 +682,7 @@ class _InteractiveMessageCardState
                       IgnorePointer(
                         child: Checkbox(value: selected, onChanged: (_) {}),
                       ),
-                      Expanded(child: Text(label)),
+                      Expanded(child: CustomEmojiText(label)),
                       if (percentage != null)
                         Padding(
                           padding: const EdgeInsets.only(left: 8),
@@ -701,10 +702,10 @@ class _InteractiveMessageCardState
                                   radius: 10,
                                 ),
                                 const SizedBox(width: 6),
-                                Expanded(child: Text(helper)),
+                                Expanded(child: CustomEmojiText(helper)),
                               ],
                             )
-                          : Text(helper),
+                          : CustomEmojiText(helper),
                     ),
                   if (percentage != null)
                     Padding(

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/widgets/feed_poll_card.dart';
@@ -1090,7 +1091,7 @@ class _PostMenu extends ConsumerWidget {
   }
 
   void _showEditSheet(BuildContext context, WidgetRef ref) {
-    final TextEditingController ctrl = TextEditingController(
+    final TextEditingController ctrl = CustomEmojiTextController(
       text: post.content,
     );
     AppBottomSheets.show<void>(

@@ -1,3 +1,8 @@
+import 'package:characters/characters.dart';
+
+int customEmojiLength(String text) =>
+    text.replaceAll(customEmojiPattern, '\uFFFC').characters.length;
+
 class ApiCustomEmoji {
   const ApiCustomEmoji({
     required this.id,

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'dart:typed_data';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
@@ -32,7 +33,7 @@ class CreatePostScreen extends ConsumerStatefulWidget {
 }
 
 class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
-  final TextEditingController _textController = TextEditingController();
+  final TextEditingController _textController = CustomEmojiTextController();
   PlatformFile? _selectedFile;
   List<PlatformFile> _selectedFiles = <PlatformFile>[];
   List<Uint8List> _previewBytesList = <Uint8List>[];
@@ -406,7 +407,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                           controller: _textController,
                           maxLines: 8,
                           minLines: 1,
-                          maxLength: _maxPostLength,
+                          inputFormatters: [
+                            CustomEmojiLengthFormatter(_maxPostLength),
+                          ],
                           buildCounter:
                               (
                                 _, {
@@ -602,10 +605,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       Padding(
                         padding: const EdgeInsets.only(right: 10),
                         child: Text(
-                          '${_textController.text.length} / $_maxPostLength',
+                          '${customEmojiLength(_textController.text)} / $_maxPostLength',
                           style: textTheme.bodySmall?.copyWith(
                             color:
-                                _textController.text.length >
+                                customEmojiLength(_textController.text) >
                                     (_maxPostLength - 200)
                                 ? scheme.error
                                 : scheme.onSurfaceVariant.withValues(
@@ -613,7 +616,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                   ),
                             fontSize: 11,
                             fontWeight:
-                                _textController.text.length >
+                                customEmojiLength(_textController.text) >
                                     (_maxPostLength - 200)
                                 ? FontWeight.w700
                                 : FontWeight.w500,

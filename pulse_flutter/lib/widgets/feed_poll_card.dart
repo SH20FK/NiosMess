@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -66,7 +67,7 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        CustomEmojiText(
           _poll['title'] as String? ?? '',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
@@ -180,7 +181,7 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
         if (quiz && voted && (_poll['explanation'] as String? ?? '').isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
+            child: CustomEmojiText(
               _poll['explanation'] as String,
               style: theme.textTheme.bodySmall,
             ),
