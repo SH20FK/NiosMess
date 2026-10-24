@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -82,7 +83,10 @@ class AccountSecuritySection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final appLock = ref.watch(appLockProvider);
+    final isBrowser = ref.watch(clientCapabilitiesProvider).isWeb;
+    final appLock = isBrowser
+        ? const AppLockState()
+        : ref.watch(appLockProvider);
     final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -115,7 +119,7 @@ class AccountSecuritySection extends ConsumerWidget {
           title: context.l10n.settingsProtectionTitle,
           subtitle: context.l10n.settingsProtectionSubtitle,
           children: <Widget>[
-            if (!kIsWeb && appLock.isSupported) ...<Widget>[
+            if (!isBrowser && appLock.isSupported) ...<Widget>[
               SettingsRow(
                 anchor: SettingId.securityAppLock.value,
                 leading: Icon(

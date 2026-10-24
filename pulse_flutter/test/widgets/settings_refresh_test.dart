@@ -1,3 +1,7 @@
+import 'package:pulse_flutter/features/security/application/app_lock_controller.dart';
+import 'package:pulse_flutter/features/security/domain/app_lock_policy.dart';
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
+import 'package:pulse_flutter/widgets/settings/account_security_section.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' show Tristate;
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
@@ -31,6 +35,12 @@ class _Performance extends AdaptivePerformanceNotifier {
     recentJankRatio: 0,
     isDegraded: false,
   );
+}
+
+class _ForbiddenAppLock extends AppLockNotifier {
+  @override
+  AppLockState build() =>
+      throw StateError('Native biometrics must not initialize in a browser');
 }
 
 class _Video extends VideoPlayerPlatform {
@@ -102,6 +112,34 @@ Widget _app(
 
 void main() {
   group('Settings refresh', () {
+    testWidgets(
+      'browser security settings do not initialize native biometrics',
+      (tester) async {
+        await tester.pumpWidget(
+          _app(
+            ProviderScope(
+              overrides: [
+                clientCapabilitiesProvider.overrideWithValue(
+                  const ClientCapabilities(
+                    isWeb: true,
+                    platform: TargetPlatform.windows,
+                  ),
+                ),
+                appLockProvider.overrideWith(_ForbiddenAppLock.new),
+              ],
+              child: const SingleChildScrollView(
+                child: AccountSecuritySection(isEmbedded: true),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(find.byType(Switch), findsNothing);
+        expect(find.textContaining('2FA'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('navigation rows activate with a keyboard', (tester) async {
       var taps = 0;
       await tester.pumpWidget(
