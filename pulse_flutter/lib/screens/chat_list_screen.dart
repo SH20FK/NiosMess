@@ -142,9 +142,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       chatListSearchProvider,
     );
     final filter = ref.watch(chatFilterProvider);
-    final browserWorkspace = ref.watch(clientCapabilitiesProvider).browserWorkspace;
+    final browserWorkspace = ref
+        .watch(clientCapabilitiesProvider)
+        .browserWorkspace;
     final int? desktopChatId = browserWorkspace
-        ? int.tryParse(GoRouterState.of(context).uri.queryParameters['chat'] ?? '')
+        ? int.tryParse(
+            GoRouterState.of(context).uri.queryParameters['chat'] ?? '',
+          )
         : ref.watch(desktopSelectedChatProvider);
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -466,7 +470,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           chatId: chat.id,
                           isSelected: desktopChatId == chat.id,
                           onTap: () {
-                            if (ref.read(clientCapabilitiesProvider).browserWorkspace) {
+                            if (ref
+                                .read(clientCapabilitiesProvider)
+                                .browserWorkspace) {
                               context.go('/main/chats?chat=${chat.id}');
                             } else if (MediaQuery.sizeOf(context).width >=
                                 Breakpoints.medium) {
@@ -557,6 +563,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   }
 
   IconData? _chatPreviewIcon(ApiChatSummary chat) {
+    if (chat.isSecret) return null;
     final _LastMessageKind? kind = _lastMessageKind(chat.lastMessage);
     if (kind == null) return null;
     return switch (kind) {
@@ -569,10 +576,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   String _chatPreview(ApiChatSummary chat) {
     final message = chat.lastMessage;
+    if (chat.isSecret) return context.l10n.inboxEncryptedPreview;
     if (message != null &&
         !message.isDecrypted &&
         (message.e2eeContent != null || message.isE2ee)) {
-      return context.l10n.inboxEncryptedPreview;
+      return context.l10n.noticeNewMessage;
     }
     final ApiMessage? lastMessage = chat.lastMessage;
     final String preview = _previewText(

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/screens/feed_post_screen.dart';
 import 'package:pulse_flutter/router/web_settings_location.dart';
 import 'package:pulse_flutter/core/services/incoming_app_route.dart';
 import 'package:flutter/foundation.dart';
@@ -60,13 +61,14 @@ class AppRouter {
 }
 
 Page<void> _page(GoRouterState state, Widget child, {LocalKey? pageKey}) {
-  return MaterialPage<void>(
-    key: pageKey ?? state.pageKey,
-    child: child,
-  );
+  return MaterialPage<void>(key: pageKey ?? state.pageKey, child: child);
 }
 
-Page<void> _m3eEntryPage(GoRouterState state, Widget child, {LocalKey? pageKey}) {
+Page<void> _m3eEntryPage(
+  GoRouterState state,
+  Widget child, {
+  LocalKey? pageKey,
+}) {
   return CustomTransitionPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
@@ -92,21 +94,28 @@ Page<void> _m3eEntryPage(GoRouterState state, Widget child, {LocalKey? pageKey})
   );
 }
 
-Page<void> _chatDetailPage(GoRouterState state, Widget child, {LocalKey? pageKey}) {
+Page<void> _chatDetailPage(
+  GoRouterState state,
+  Widget child, {
+  LocalKey? pageKey,
+}) {
   return CustomTransitionPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
     transitionDuration: const Duration(milliseconds: 240),
     reverseTransitionDuration: const Duration(milliseconds: 240),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final Animation<Offset> slideAnim = Tween<Offset>(
-        begin: const Offset(0.03, 0.0), // ~12dp subtle translation
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
-        parent: animation,
-        curve: M3SpringCurves.expressiveDecel,
-        reverseCurve: Curves.easeInCubic,
-      ));
+      final Animation<Offset> slideAnim =
+          Tween<Offset>(
+            begin: const Offset(0.03, 0.0), // ~12dp subtle translation
+            end: Offset.zero,
+          ).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: M3SpringCurves.expressiveDecel,
+              reverseCurve: Curves.easeInCubic,
+            ),
+          );
 
       final Animation<double> fadeAnim = CurvedAnimation(
         parent: animation,
@@ -116,10 +125,7 @@ Page<void> _chatDetailPage(GoRouterState state, Widget child, {LocalKey? pageKey
 
       return SlideTransition(
         position: slideAnim,
-        child: FadeTransition(
-          opacity: fadeAnim,
-          child: child,
-        ),
+        child: FadeTransition(opacity: fadeAnim, child: child),
       );
     },
   );
@@ -138,7 +144,9 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
 
   void refreshIncomingRoute() => refreshListenable.value++;
   AppRouter.incomingRoute.addListener(refreshIncomingRoute);
-  ref.onDispose(() => AppRouter.incomingRoute.removeListener(refreshIncomingRoute));
+  ref.onDispose(
+    () => AppRouter.incomingRoute.removeListener(refreshIncomingRoute),
+  );
 
   String? savedDeepLink;
 
@@ -151,7 +159,9 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       if (!authState.hydrated) return null;
       final bool isAuth = authState.isAuthenticated;
       final Uri uri = state.uri;
-      final incoming = AppRouter.incomingRoute.take(hydrated: authState.hydrated);
+      final incoming = AppRouter.incomingRoute.take(
+        hydrated: authState.hydrated,
+      );
       if (incoming != null) {
         if (!isAuth) {
           savedDeepLink = incoming;
@@ -161,12 +171,14 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         if (incoming != state.uri.toString()) return incoming;
       }
 
-
       // Handle custom scheme (niosmess://...) or absolute web URLs (https://ni-os.ru/...)
       if (uri.scheme == 'niosmess' ||
-          (uri.hasScheme && (uri.host == 'ni-os.ru' || uri.host == 'www.ni-os.ru'))) {
+          (uri.hasScheme &&
+              (uri.host == 'ni-os.ru' || uri.host == 'www.ni-os.ru'))) {
         final String? resolved = AppUrlLauncher.resolveInternalAppRoute(uri);
-        if (resolved != null && resolved != uri.toString() && resolved != uri.path) {
+        if (resolved != null &&
+            resolved != uri.toString() &&
+            resolved != uri.path) {
           if (!isAuth) {
             savedDeepLink = resolved;
             return '/login';
@@ -177,7 +189,8 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
 
       final String path = state.uri.path;
 
-      final bool isPublic = path == '/' ||
+      final bool isPublic =
+          path == '/' ||
           path == '/web' ||
           path == '/login' ||
           path == '/onboarding' ||
@@ -211,11 +224,13 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
     routes: <RouteBase>[
       GoRoute(
         path: '/plus/activate',
-        builder: (context, state) => PlusActivationScreen(code: state.uri.fragment),
+        builder: (context, state) =>
+            PlusActivationScreen(code: state.uri.fragment),
       ),
       GoRoute(
         path: '/',
-        pageBuilder: (context, state) => _m3eEntryPage(state, const SplashScreen()),
+        pageBuilder: (context, state) =>
+            _m3eEntryPage(state, const SplashScreen()),
       ),
       GoRoute(
         path: '/web',
@@ -225,13 +240,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             initialCode: state.uri.queryParameters['code'],
             initialState: state.uri.queryParameters['state'],
             initialError: state.uri.queryParameters['error'],
-            initialErrorDescription: state.uri.queryParameters['error_description'],
+            initialErrorDescription:
+                state.uri.queryParameters['error_description'],
           ),
         ),
       ),
       GoRoute(
         path: '/onboarding',
-        pageBuilder: (context, state) => _m3eEntryPage(state, const OnboardingScreen()),
+        pageBuilder: (context, state) =>
+            _m3eEntryPage(state, const OnboardingScreen()),
       ),
       GoRoute(
         path: '/login',
@@ -241,13 +258,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             initialCode: state.uri.queryParameters['code'],
             initialState: state.uri.queryParameters['state'],
             initialError: state.uri.queryParameters['error'],
-            initialErrorDescription: state.uri.queryParameters['error_description'],
+            initialErrorDescription:
+                state.uri.queryParameters['error_description'],
           ),
         ),
       ),
       GoRoute(
         path: '/contacts',
-        pageBuilder: (context, state) => _page(state, const ContactsScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) =>
+            _page(state, const ContactsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/main/contacts',
@@ -263,11 +282,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           state,
           MainShellScreen(
             tab: state.pathParameters['tab'] ?? 'chats',
-            selectedChatId: int.tryParse(state.uri.queryParameters['chat'] ?? ''),
-            highlightMessageId: int.tryParse(state.uri.queryParameters['highlight'] ?? ''),
+            selectedChatId: int.tryParse(
+              state.uri.queryParameters['chat'] ?? '',
+            ),
+            highlightMessageId: int.tryParse(
+              state.uri.queryParameters['highlight'] ?? '',
+            ),
             settingsSection: state.uri.queryParameters['section'],
           ),
-          pageKey: kIsWeb ? state.pageKey : const ValueKey<String>('main-shell'),
+          pageKey: kIsWeb
+              ? state.pageKey
+              : const ValueKey<String>('main-shell'),
         ),
       ),
       GoRoute(
@@ -311,11 +336,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/join',
-        pageBuilder: (context, state) => _page(state, JoinChatScreen(initialSlug: state.uri.queryParameters['slug'])),
+        pageBuilder: (context, state) => _page(
+          state,
+          JoinChatScreen(initialSlug: state.uri.queryParameters['slug']),
+        ),
       ),
       GoRoute(
         path: '/join/:slug',
-        redirect: (context, state) => '/join?slug=${state.pathParameters['slug']}',
+        redirect: (context, state) =>
+            '/join?slug=${state.pathParameters['slug']}',
       ),
       GoRoute(
         path: '/c/:slug',
@@ -330,14 +359,18 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: '/w',
         redirect: (context, state) {
           final String? code = state.uri.queryParameters['code'];
-          return code != null ? '/settings/wallpaper?code=$code' : '/settings/wallpaper';
+          return code != null
+              ? '/settings/wallpaper?code=$code'
+              : '/settings/wallpaper';
         },
       ),
       GoRoute(
         path: '/wallpaper',
         redirect: (context, state) {
           final String? code = state.uri.queryParameters['code'];
-          return code != null ? '/settings/wallpaper?code=$code' : '/settings/wallpaper';
+          return code != null
+              ? '/settings/wallpaper?code=$code'
+              : '/settings/wallpaper';
         },
       ),
       GoRoute(
@@ -356,7 +389,9 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           state,
           ChatDetailScreen(
             chatId: state.pathParameters['chatId']!,
-            highlightMessageId: int.tryParse(state.uri.queryParameters['highlight'] ?? ''),
+            highlightMessageId: int.tryParse(
+              state.uri.queryParameters['highlight'] ?? '',
+            ),
           ),
           pageKey: state.pageKey,
         ),
@@ -373,13 +408,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/media-viewer',
         pageBuilder: (context, state) {
-          final String url = Uri.decodeComponent(state.uri.queryParameters['url'] ?? '');
+          final String url = Uri.decodeComponent(
+            state.uri.queryParameters['url'] ?? '',
+          );
           final String typeRaw = state.uri.queryParameters['type'] ?? '';
           final MediaType mediaType = typeRaw == 'image'
               ? MediaType.image
               : typeRaw == 'video'
-                  ? MediaType.video
-                  : MediaType.other;
+              ? MediaType.video
+              : MediaType.other;
           final Object? extra = state.extra;
           List<MediaViewerItem>? playlist;
           int initialIndex = 0;
@@ -399,12 +436,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             barrierColor: Colors.transparent,
             transitionDuration: const Duration(milliseconds: 250),
             reverseTransitionDuration: const Duration(milliseconds: 200),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
             child: MediaViewerScreen(
               url: url,
-              title: Uri.decodeComponent(state.uri.queryParameters['title'] ?? 'Attachment'),
+              title: Uri.decodeComponent(
+                state.uri.queryParameters['title'] ?? 'Attachment',
+              ),
               mediaType: mediaType,
               e2eeFileKey: e2eeKey,
               playlist: playlist,
@@ -415,31 +455,54 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/channel/:channelId/post/:postId/comments',
-        pageBuilder: (context, state) => _page(state, PostCommentsScreen(channelId: int.tryParse(state.pathParameters['channelId'] ?? '') ?? 0, postId: int.tryParse(state.pathParameters['postId'] ?? '') ?? 0)),
+        pageBuilder: (context, state) => _page(
+          state,
+          PostCommentsScreen(
+            channelId:
+                int.tryParse(state.pathParameters['channelId'] ?? '') ?? 0,
+            postId: int.tryParse(state.pathParameters['postId'] ?? '') ?? 0,
+          ),
+        ),
       ),
       GoRoute(
         path: '/chat/:chatId/members',
-        pageBuilder: (context, state) => _page(state, ChatMembersScreen(chatId: int.tryParse(state.pathParameters['chatId'] ?? '') ?? 0)),
+        pageBuilder: (context, state) => _page(
+          state,
+          ChatMembersScreen(
+            chatId: int.tryParse(state.pathParameters['chatId'] ?? '') ?? 0,
+          ),
+        ),
       ),
       GoRoute(
         path: '/chat/:chatId/manage',
-        pageBuilder: (context, state) => _page(state, ChatManageScreen(chatId: int.tryParse(state.pathParameters['chatId'] ?? '') ?? 0)),
+        pageBuilder: (context, state) => _page(
+          state,
+          ChatManageScreen(
+            chatId: int.tryParse(state.pathParameters['chatId'] ?? '') ?? 0,
+          ),
+        ),
       ),
       GoRoute(
         path: '/chat/:chatId/profile',
-        pageBuilder: (context, state) => _page(state, GroupProfileScreen(chatId: int.tryParse(state.pathParameters['chatId'] ?? '') ?? 0)),
+        pageBuilder: (context, state) => _page(
+          state,
+          GroupProfileScreen(
+            chatId: int.tryParse(state.pathParameters['chatId'] ?? '') ?? 0,
+          ),
+        ),
       ),
       GoRoute(
         path: '/profile/:username',
-        pageBuilder: (context, state) => _page(state, PublicProfileScreen(username: state.pathParameters['username']!)),
+        pageBuilder: (context, state) => _page(
+          state,
+          PublicProfileScreen(username: state.pathParameters['username']!),
+        ),
       ),
       GoRoute(
         path: '/g/:username',
         pageBuilder: (context, state) => _page(
           state,
-          PublicProfileScreen(
-            username: state.pathParameters['username']!,
-          ),
+          PublicProfileScreen(username: state.pathParameters['username']!),
         ),
       ),
       GoRoute(
@@ -449,7 +512,9 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           if (slug.startsWith('+')) {
             return '/join?slug=${Uri.encodeComponent(slug)}';
           }
-          final String cleanSlug = slug.startsWith('@') ? slug.substring(1) : slug;
+          final String cleanSlug = slug.startsWith('@')
+              ? slug.substring(1)
+              : slug;
           return '/profile/$cleanSlug';
         },
       ),
@@ -478,23 +543,37 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/energy-saving',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsEnergySavingScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsEnergySavingScreen(),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/settings/plus',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsPlusScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) =>
+            _page(state, const SettingsPlusScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/appearance',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsAppearanceScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsAppearanceScreen(),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/settings/chats',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsChatsScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) =>
+            _page(state, const SettingsChatsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/wallpaper',
@@ -510,18 +589,27 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/language-region',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsLanguageRegionScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsLanguageRegionScreen(),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/settings/account',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsAccountScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) =>
+            _page(state, const SettingsAccountScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/privacy',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsPrivacyScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) =>
+            _page(state, const SettingsPrivacyScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/privacy/rule/:key',
@@ -533,25 +621,27 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/settings/privacy/blocked-users',
-        pageBuilder: (context, state) => _page(
-          state,
-          const BlockedUsersScreen(),
-          pageKey: state.pageKey,
-        ),
+        pageBuilder: (context, state) =>
+            _page(state, const BlockedUsersScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/storage',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsStorageScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) =>
+            _page(state, const SettingsStorageScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/about',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsAboutScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) =>
+            _page(state, const SettingsAboutScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/help/faq',
-        pageBuilder: (context, state) => _page(state, const HelpFaqScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) =>
+            _page(state, const HelpFaqScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/system-device',
@@ -559,38 +649,67 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           if (kIsWeb) return '/settings/about';
           return null;
         },
-        pageBuilder: (context, state) => _page(state, const SettingsSystemDeviceScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsSystemDeviceScreen(),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/settings/e2ee',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const E2eeSettingsScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) =>
+            _page(state, const E2eeSettingsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/settings/preferences',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SettingsPreferencesScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsPreferencesScreen(),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/settings/sessions',
-        redirect: (context, state) => kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(state, const SessionsScreen(), pageKey: state.pageKey),
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) =>
+            _page(state, const SessionsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/legal/privacy',
-        pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.privacy), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(
+          state,
+          const LegalViewerScreen(docType: LegalDocType.privacy),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/legal/tos',
-        pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.tos), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(
+          state,
+          const LegalViewerScreen(docType: LegalDocType.tos),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/legal/terms',
-        pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.tos), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(
+          state,
+          const LegalViewerScreen(docType: LegalDocType.tos),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/legal/consent',
-        pageBuilder: (context, state) => _page(state, const LegalViewerScreen(docType: LegalDocType.consent), pageKey: state.pageKey),
+        pageBuilder: (context, state) => _page(
+          state,
+          const LegalViewerScreen(docType: LegalDocType.consent),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/file-viewer',
@@ -631,16 +750,34 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/niosgram/create',
         pageBuilder: (context, state) {
-          final bool autoPick = state.extra is bool ? state.extra as bool : false;
-          return _page(state, CreatePostScreen(autoPickMedia: autoPick), pageKey: state.pageKey);
+          final bool autoPick = state.extra is bool
+              ? state.extra as bool
+              : false;
+          return _page(
+            state,
+            CreatePostScreen(autoPickMedia: autoPick),
+            pageKey: state.pageKey,
+          );
         },
       ),
       GoRoute(
+        path: '/niosgram/post/:postId',
+        pageBuilder: (context, state) => _page(
+          state,
+          FeedPostScreen(
+            postId: int.tryParse(state.pathParameters['postId'] ?? '') ?? 0,
+          ),
+        ),
+      ),
+      GoRoute(
         path: '/niosgram/post/:postId/comments',
-        pageBuilder: (context, state) => _page(state, PostCommentsScreen(
-          channelId: 0,
-          postId: int.tryParse(state.pathParameters['postId'] ?? '') ?? 0,
-        )),
+        pageBuilder: (context, state) => _page(
+          state,
+          PostCommentsScreen(
+            channelId: 0,
+            postId: int.tryParse(state.pathParameters['postId'] ?? '') ?? 0,
+          ),
+        ),
       ),
       GoRoute(
         path: '/call/outgoing',
@@ -682,13 +819,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/call/:callId',
-        pageBuilder: (context, state) => _page(state, const ActiveCallScreen(), pageKey: state.pageKey),
+        pageBuilder: (context, state) =>
+            _page(state, const ActiveCallScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
         path: '/:pathMatch(.*)',
-        pageBuilder: (context, state) => _page(state, Scaffold(
-          body: Center(child: Text(context.l10n.routerNotFound)),
-        )),
+        pageBuilder: (context, state) => _page(
+          state,
+          Scaffold(body: Center(child: Text(context.l10n.routerNotFound))),
+        ),
       ),
     ],
   );

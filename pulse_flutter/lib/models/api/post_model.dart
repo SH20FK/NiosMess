@@ -10,6 +10,7 @@ class NgPost {
     required this.dislikesCount,
     required this.commentsCount,
     this.mediaUrl,
+    this.poll,
     this.mediaUrls = const <String>[],
     this.aiTags = const <String>[],
     this.mediaType,
@@ -18,6 +19,7 @@ class NgPost {
   });
 
   final int id;
+  final Map<String, dynamic>? poll;
   final String content;
   final String? mediaUrl;
   final List<String> mediaUrls;
@@ -26,6 +28,7 @@ class NgPost {
   final int likesCount;
   final int dislikesCount;
   final int commentsCount;
+
   /// true = liked, false = disliked, null = no reaction
   final bool? myReaction;
   final bool isFollowing;
@@ -38,16 +41,9 @@ class NgPost {
     final dynamic authorRaw = json['author'];
     final ApiProfile author = authorRaw is Map
         ? ApiProfile.fromJson(
-            authorRaw.map(
-              (dynamic k, dynamic v) => MapEntry(k.toString(), v),
-            ),
+            authorRaw.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
           )
-        : const ApiProfile(
-            id: 0,
-            username: '',
-            displayName: '',
-            bio: '',
-          );
+        : const ApiProfile(id: 0, username: '', displayName: '', bio: '');
 
     final dynamic reactionRaw = json['my_reaction'];
     bool? myReaction;
@@ -70,7 +66,8 @@ class NgPost {
           })
           .where((String s) => s.isNotEmpty)
           .toList(growable: false);
-    } else if (json['media_url'] != null && json['media_url'].toString().isNotEmpty) {
+    } else if (json['media_url'] != null &&
+        json['media_url'].toString().isNotEmpty) {
       mediaUrls = <String>[json['media_url'].toString()];
     } else {
       mediaUrls = const <String>[];
@@ -79,18 +76,22 @@ class NgPost {
     final dynamic aiTagsRaw = json['ai_tags'];
     final List<String> aiTags = aiTagsRaw is List
         ? aiTagsRaw
-            .whereType<Object>()
-            .map((Object e) => e.toString())
-            .toList(growable: false)
+              .whereType<Object>()
+              .map((Object e) => e.toString())
+              .toList(growable: false)
         : const <String>[];
 
-    final String? primaryMediaUrl = (json['media_url'] as String?)?.isNotEmpty == true
+    final String? primaryMediaUrl =
+        (json['media_url'] as String?)?.isNotEmpty == true
         ? json['media_url'] as String
         : (mediaUrls.isNotEmpty ? mediaUrls.first : null);
 
     return NgPost(
       id: json['id'] as int? ?? 0,
       content: json['content'] as String? ?? '',
+      poll: json['poll'] is Map
+          ? Map<String, dynamic>.from(json['poll'] as Map)
+          : null,
       mediaUrl: primaryMediaUrl,
       mediaUrls: mediaUrls,
       aiTags: aiTags,
@@ -109,24 +110,38 @@ class NgPost {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'content': content,
-        'media_url': mediaUrl,
-        'media_urls': mediaUrls,
-        'ai_tags': aiTags,
-        if (mediaType != null) 'media_type': mediaType,
-        'likes_count': likesCount,
-        'dislikes_count': dislikesCount,
-        'comments_count': commentsCount,
-        'my_reaction': myReaction == null
-            ? null
-            : (myReaction! ? 'like' : 'dislike'),
-        'is_following': isFollowing,
-        'author': author.toJson(),
-        'created_at': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'poll': poll,
+    'content': content,
+    'media_url': mediaUrl,
+    'media_urls': mediaUrls,
+    'ai_tags': aiTags,
+    if (mediaType != null) 'media_type': mediaType,
+    'likes_count': likesCount,
+    'dislikes_count': dislikesCount,
+    'comments_count': commentsCount,
+    'my_reaction': myReaction == null
+        ? null
+        : (myReaction! ? 'like' : 'dislike'),
+    'is_following': isFollowing,
+    'author': author.toJson(),
+    'created_at': createdAt.toIso8601String(),
+  };
+
+  Map<String, dynamic> toPublicCacheJson() {
+    final data = toJson();
+    if (poll != null) {
+      final publicPoll = Map<String, dynamic>.from(poll!)
+        ..remove('correct')
+        ..remove('explanation');
+      publicPoll['my_choices'] = <int>[];
+      data['poll'] = publicPoll;
+    }
+    return data;
+  }
 
   NgPost copyWith({
+    Map<String, dynamic>? poll,
     int? id,
     String? content,
     String? mediaUrl,
@@ -143,6 +158,7 @@ class NgPost {
   }) {
     return NgPost(
       id: id ?? this.id,
+      poll: poll ?? this.poll,
       content: content ?? this.content,
       mediaUrl: mediaUrl ?? this.mediaUrl,
       mediaUrls: mediaUrls ?? this.mediaUrls,

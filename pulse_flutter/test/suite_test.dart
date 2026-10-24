@@ -1,4 +1,5 @@
 import 'widgets/settings_refresh_test.dart' as settings_refresh;
+import 'widgets/feed_features_test.dart' as feed_features;
 import 'unit/settings_registry_test.dart' as settings_registry_navigation;
 import 'unit/comment_thread_test.dart' as comment_threads;
 import 'widgets/comment_item_test.dart' as comment_items;
@@ -178,6 +179,7 @@ import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 
 void main() {
+  feed_features.main();
   comment_threads.main();
   comment_items.main();
   comment_provider.main();

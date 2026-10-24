@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
@@ -171,16 +172,20 @@ class InteractiveMessageTextState extends State<InteractiveMessageText> {
         ? widget.scheme.onPrimaryContainer
         : widget.scheme.primary;
 
-    final List<TextSpan> spans = <TextSpan>[];
+    final List<InlineSpan> spans = <InlineSpan>[];
 
     int recognizerIndex = 0;
     for (int i = 0; i < _tokens.length; i++) {
       final ParsedTextToken t = _tokens[i];
       if (t.prefix.isNotEmpty) {
-        spans.add(
-          TextSpan(
-            text: t.prefix,
-            style: t.bold ? const TextStyle(fontWeight: FontWeight.w700) : null,
+        spans.addAll(
+          customEmojiSpans(
+            t.prefix,
+            widget.baseStyle.copyWith(
+              fontWeight: t.bold
+                  ? FontWeight.w700
+                  : widget.baseStyle.fontWeight,
+            ),
           ),
         );
       }

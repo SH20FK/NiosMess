@@ -116,6 +116,21 @@ async def main():
             saved=await db.scalar(select(PostComment).where(PostComment.ai_source==f"1:{follow['id']}"))
             assert saved and saved.reply_to_id==follow['id'] and saved.author_id==9
         checks.append('reply to NiosAI triggers once without mention and includes thread context; human reply does not trigger')
+        prompt, context_history=f.feed_request('Original post','а где же «круто»',[('assistant','Previous answer')])
+        assert prompt=='а где же «круто»' and context_history[0][1].endswith('Original post')
+        regeneration=AsyncMock(return_value=('@ai Круто! @niosai — полезное обновление.',10))
+        async with factory() as db:
+            before_count=await db.scalar(select(Post.comments_count).where(Post.id==1))
+        with patch('app.database.AsyncSessionLocal',factory), patch('app.services.ai_svc.call_glm',regeneration):
+            await f.answer_feed_ai(1,1,source['id'],0,replace_id=answer.id)
+        async with factory() as db:
+            replaced=await db.get(PostComment,answer.id)
+            assert replaced and replaced.edited_at and '@ai' not in replaced.content.lower() and '@niosai' not in replaced.content.lower()
+            assert replaced.content.startswith('Круто!') and replaced.reply_to_id==source['id']
+            assert await db.scalar(select(Post.comments_count).where(Post.id==1))==before_count
+            assert (await db.get(PostComment,follow['id'])).reply_to_id==answer.id
+        checks.append('post context stays separate from latest reply; regeneration preserves message IDs, counts and child replies; forbidden self-mentions removed')
+
         async with factory() as db:
             channel=Chat(id=20,chat_type=ChatType.CHANNEL,name='Fixture channel',created_by=1,comments_enabled=True,comments_chat_id=21)
             group=Chat(id=21,chat_type=ChatType.GROUP,name='Fixture replies',created_by=1)
@@ -164,6 +179,19 @@ async def main():
         assert all(c.args[1]['model']==ai_svc.settings.POLZA_STRONG_MODEL and c.args[1]['max_tokens']<=512 for c in provider.call_args_list)
         assert users[0].ai_model=='nios_prime'
         checks.append('actual tool round keeps fixed Lite Strong provider and output cap without changing saved model')
+        provider = AsyncMock(side_effect=[
+            {'choices':[{'message':{'content':None,'tool_calls':[{'id':'lookup','function':{'name':'web_search','arguments':'{"query":"fixture"}'}}]}}]},
+            {'choices':[{'message':{'content':'Evidence checked.'}}]},
+        ])
+        scoped_search=AsyncMock(return_value='Combined web and post evidence')
+        default_tool=AsyncMock()
+        with patch.object(ai_svc,'credit_request',credit),patch.object(ai_svc,'model_slot',slot),patch.object(ai_svc,'_post_chat',provider),patch.object(ai_svc,'run_tool',default_tool):
+            await ai_svc.call_glm('fixture',user=None,model_key='nios_lite_strong',allow_fallback=False,
+                system=f.FEED_SYSTEM,replace_system=True,max_tokens=512,strict_max_tokens=True,use_tools=True,
+                tool_names=('web_search',),local_tool_runner=scoped_search,local_tool_names=('web_search',))
+        assert scoped_search.await_count==1 and default_tool.await_count==0
+        assert provider.call_args_list[0].args[1]['messages'][0]['content']==f.FEED_SYSTEM
+        checks.append('real generation dispatches feed web search through combined evidence runner and uses one nonconflicting system prompt')
         launch = AsyncMock()
         with patch.object(f,'answer_feed_ai',launch):
             async with factory() as db:
@@ -183,12 +211,95 @@ async def main():
                 await asyncio.sleep(0)
                 assert launch.await_count==1
         checks.append('AI launches after commit; rollback never calls provider')
+    from app.services import feed_polls, custom_emojis, feed_post_search
+    from app.models.models import CustomEmojiSet, CustomEmoji
+    async with factory() as db:
+        await feed_polls.migrate(db)
+        await feed_polls.migrate(db)
+        quiz = Post(id=50,author_id=1,content='Quiz',interactive_json=json.dumps(feed_polls.validate(
+            {'kind':'quiz','title':'Question?','items':['A','B'],'correct':1,'explanation':'Because B'})))
+        poll = Post(id=51,author_id=1,content='Poll',interactive_json=json.dumps(feed_polls.validate(
+            {'kind':'poll','title':'Choose','items':['A','B','C'],'multiple':True})))
+        db.add_all([quiz,poll]);await db.flush()
+        hidden=await feed_polls.payload(db,quiz,1)
+        assert hidden['anonymous'] and 'correct' not in hidden and 'explanation' not in hidden
+        chosen=await feed_polls.vote({'post_id':50,'choices':[0]},db,users[1])
+        assert chosen['poll']['correct']==1 and chosen['poll']['my_choices']==[0]
+        again=await feed_polls.vote({'post_id':50,'choices':[1]},db,users[1])
+        assert again['poll']['my_choices']==[0] and again['poll']['total_voters']==1
+        author_view=await feed_polls.payload(db,quiz,1)
+        assert 'correct' not in author_view and author_view['my_choices']==[]
+        assert set(author_view)=={'kind','title','items','multiple','anonymous','counts','total_voters','my_choices'}
+        checks.append('anonymous quiz exposes no voters/correct answer before voting; first vote cannot be changed')
+        await feed_polls.vote({'post_id':51,'choices':[0,1]},db,users[1])
+        changed_vote=await feed_polls.vote({'post_id':51,'choices':[2]},db,users[1])
+        assert changed_vote['poll']['counts']==[0,0,1] and changed_vote['poll']['total_voters']==1
+        for invalid in ([],[True],[4],[0,0]):
+            try: await feed_polls.vote({'post_id':51,'choices':invalid},db,users[1])
+            except ValueError: pass
+            else: raise AssertionError('Invalid ballot accepted')
+        checks.append('anonymous multiple-choice polls atomically replace own selection without duplicating totals; malformed votes rejected')
+        db.add_all([CustomEmojiSet(id=30,owner_id=2,name='public_pack',title='Public',is_public=True),
+                    CustomEmojiSet(id=31,owner_id=3,name='private_pack',title='Private',is_public=False)])
+        await db.flush()
+        db.add_all([CustomEmoji(id=30,set_id=30,shortcode='public_test',file_path='emoji/a.png',media_type='image/png',is_adaptive=True,width=128,height=128,file_size=123),
+                    CustomEmoji(id=31,set_id=31,shortcode='private_test',file_path='emoji/b.png',media_type='image/png',width=128,height=128,file_size=123)])
+        await db.flush()
+        resolved=await custom_emojis.resolve_emojis({'shortcodes':['public_test','private_test']},db,users[0])
+        assert len(resolved['emojis'])==1 and resolved['emojis'][0]['is_adaptive']
+        for data in ({'shortcodes':['x']*101},{'shortcodes':['../secret']}):
+            try: await custom_emojis.resolve_emojis(data,db,users[0])
+            except ValueError: pass
+            else: raise AssertionError('Unbounded emoji lookup accepted')
+        checks.append('public custom emoji resolve for nonsubscribers; private pack metadata remains hidden; bounded validated batch')
+        verified=await db.get(User,2);verified.is_verified=True
+        db.add_all([Post(id=60,author_id=1,content='Bluetooth author update'),
+                    Post(id=61,author_id=2,content='Bluetooth verified update'),
+                    Post(id=62,author_id=3,content='Bluetooth unrelated author')])
+        await db.flush()
+        await feed_post_search.migrate(db);await feed_post_search.migrate(db)
+        search=await feed_post_search.search_posts(db,1,'Bluetooth')
+        assert {p['id'] for p in search['posts']}=={60,61}
+        assert all(p['url'].endswith('/'+str(p['id'])) and p['published_at'] for p in search['posts'])
+        checks.append('NiosGram search returns dated source-author/verified public posts and real links, excludes unrelated authors')
+        russian=Post(id=63,author_id=1,content='ОБНОВЛЕНИЕ мессенджера')
+        db.add(russian);await db.flush()
+        assert (await feed_post_search.search_posts(db,1,'обновление'))['posts'][0]['id']==63
+        russian.content='ДРУГАЯ публикация';await db.flush()
+        assert not (await feed_post_search.search_posts(db,1,'обновление'))['posts']
+        await db.delete(russian);await db.flush()
+        assert not (await feed_post_search.search_posts(db,1,'другая'))['posts']
+        checks.append('indexed Cyrillic search is case-insensitive and follows post creation, edits and deletion without rebuilding on every request')
+
+        links=[]
+        web=AsyncMock(return_value=[{'title':'External evidence','snippet':'Fixture','link':'https://example.invalid/source'}])
+        with patch('app.database.AsyncSessionLocal',factory),patch('app.services.search_svc.web_search',web):
+            run=feed_post_search.runner(1,links)
+            combined=json.loads(await run('web_search','{"query":"Bluetooth"}'))
+            repeated=await run('search_niosgram_posts','{"query":"Bluetooth"}')
+        assert combined['posts'] and combined['web_results'] and web.await_count==1
+        assert links and json.loads(repeated)==combined
+        answer=f.public_answer('@ai '+('Text '*100),links)
+        assert len(answer)<=300 and answer.endswith(links[0]) and '@ai' not in answer
+        assert '/post/999' not in f.public_answer('Invented https://ni-os.ru/web/#/niosgram/post/999')
+        checks.append('evidence search always checks web and NiosGram, caches duplicate query, preserves complete validated post link within 300 characters')
+        valid=b'<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L1 1"/></svg>'
+        assert custom_emojis.validate_image(valid,'svg')[:2]==(128,128)
+        for invalid in (b'<svg><script>alert(1)</script></svg>',b'<svg><image href="https://example.invalid/x"/></svg>',b'not png'):
+            try: custom_emojis.validate_image(invalid,'svg' if invalid.startswith(b'<') else 'png')
+            except ValueError: pass
+            else: raise AssertionError('Invalid/active emoji image accepted')
+        checks.append('custom emoji upload inspects actual bytes and rejects active SVG/external resources and invalid raster content')
+
+        db.info.pop('feed_changes',None);await db.commit()
     legacy = create_async_engine('sqlite+aiosqlite:///:memory:')
     async with legacy.begin() as db:
         for statement in [
             'CREATE TABLE post_comments (id INTEGER PRIMARY KEY,post_id INTEGER,author_id INTEGER,content TEXT,created_at TIMESTAMP)',
             'CREATE TABLE messages (id INTEGER PRIMARY KEY,chat_id INTEGER,reply_to_id INTEGER)',
             'CREATE TABLE chats (id INTEGER PRIMARY KEY,comments_chat_id INTEGER)',
+            'CREATE TABLE posts (id INTEGER PRIMARY KEY, content TEXT)',
+            "INSERT INTO posts VALUES(1,'Existing post')",
             "INSERT INTO post_comments VALUES(1,1,1,'Existing comment',NULL)",
             'INSERT INTO chats VALUES(20,21)',
             'INSERT INTO messages VALUES(100,20,NULL)',
@@ -198,6 +309,8 @@ async def main():
         await f.migrate_comments(db)
         assert (await db.execute(text('SELECT content,reply_to_id,is_deleted FROM post_comments'))).one()==('Existing comment',None,0)
         assert (await db.execute(text('SELECT comment_post_id FROM messages WHERE id=101'))).scalar()==100
+        await feed_polls.migrate(db);await feed_polls.migrate(db)
+        assert (await db.execute(text('SELECT content,interactive_json FROM posts'))).one()==('Existing post',None)
     await legacy.dispose()
     checks.append('legacy additive migration preserves comments and backfills channel roots; repeatable')
     for task in list(f._tasks):

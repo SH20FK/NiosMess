@@ -1,46 +1,45 @@
-# Feed discussion threads
+# NiosGram discussions, custom emoji and anonymous ballots
 
-Host baseline: `notifications-v2-20261024T200000Z` (preserves unified notification delivery).
+Host baseline: `notifications-v2-20261024T200000Z`. Apply `host.patch` only to that
+reviewed tree and copy `services/*.py` into `app/services/`. The root
+`feed_comments.py` is the same module retained for compatibility with the previous
+package. Run `tests/check_host.py` against a synthetic in-memory DATABASE_URL;
+take a SQLite backup before switching the release. Migrations are additive and repeatable.
+No personal conversations, credentials or production database are included here.
 
-Apply `host.patch` to that reviewed host tree and install `feed_comments.py` as
-`app/services/feed_comments.py`. Run the in-memory integration checker with the
-host virtual environment and a synthetic `DATABASE_URL`, then take a SQLite backup
-and switch the release atomically. Runtime migrations are additive and repeatable.
-Never apply the patch blindly to a different host revision.
+- Discussion comments have stable parent IDs, metadata, deletion tombstones and emoji
+  reactions. Private-channel membership is checked; pagination and metadata lookups are bounded.
+- NiosAI replies to mentions and direct replies to its own comments. Generation is pinned
+  to Lite Strong without fallback; output is limited to 512 provider tokens and 300 public
+  Unicode codepoints. No hardcoded identity answer: one feed system prompt defines NiosAI
+  and distinguishes it from the NiosMess messenger. Post background and the last reply
+  are separate messages. Public output strips @ai/@niosai.
+- Feed search tools check both web evidence and public NiosGram posts from the source
+  author or verified authors. Duplicate queries are cached within the generation. Results
+  include dates and actual post links; final internal citations are validated against
+  retrieved URLs and remain complete within the output cap. Website/post text is untrusted
+  evidence; prompt injection resistance is not an absolute guarantee.
+- Quality feedback uses SupportTicket type `ai_quality` and a dedicated NiosAdmin queue,
+  with selected post/request/answer evidence, idempotency and a daily abuse limit.
+  It never enters account-sanction workflows. Client action is in the three-dot menu.
+- Public/official emoji are readable without saving their pack. Private metadata requires
+  ownership or membership. Resolution batches are capped at 100 codes. The public media
+  route checks actual public pack ownership before serving emoji, isolates SVG content
+  through CSP, and inspects uploaded image bytes rather than trusting client metadata.
+- Inline :shortcode: emoji use the same rendering in messages, posts and comments.
+  Adaptive PNG/SVG assets inherit text/theme color. The official PNG replacements in
+  `official_emoji/` retain the existing `nios_check` and `nios_star` shortcodes and row IDs;
+  install them as versioned paths, with is_adaptive=true, without deleting the old assets.
+- NiosGram polls and quizzes expose only aggregate counts and the requesting user's
+  own selection. Quiz answers/explanations remain hidden before that user votes, and
+  the first quiz vote is immutable. Normal poll selections can be changed atomically.
+  No voter list or voter ID is returned to post authors or other viewers.
+- Notification metadata distinguishes ordinary E2E from secret chats. Ciphertext and
+  key protocols are unchanged. Client-local ordinary previews use existing decryption;
+  secret previews remain hidden. If decryption is unavailable, the ordinary fallback
+  is a generic new-message label. Decrypted previews/attachment keys are not written
+  into the plain chat-summary cache.
 
-- Feed comments retain a parent ID, edited time, deletion tombstone and one reaction per user.
-- Channel comments retain a separate post root, so replies do not disappear from the discussion.
-- Legacy channel roots are backfilled once. All reads are bounded and indexed.
-- Reply parents must belong to the same post; private channels require membership.
-- Sender presentation uses the same batched user/badge/status loader as ordinary messages.
-- New post/comment mentions accept @ai and @niosai with token boundaries. AI is queued
-  only after commit and replies under the NiosAI account. No automatic AI replies to AI replies.
-- Feed generation pins `nios_lite_strong`, disables stronger-model fallback, keeps a 512-token
-  generation ceiling for all plans and hard-truncates the public answer to 300 Unicode
-  codepoints. Web search, safe website reading and calculator tools are available;
-  code execution/moderation tools are not available in this mode.
-- All provider attempts/context/tool output use existing quota reservations and cost accounting.
-  The user's saved model is not changed. Personal-chat AI behavior is preserved.
-- Active viewers receive metadata-only invalidation after commit; bounded polling repairs
-  missed events and reconnects. The UI displays theme colors and SVG action icons.
-
-Limitations: queued AI work follows the existing in-process post-commit task lifecycle;
-a process crash during generation does not automatically repeat a paid request.
-The public 300-character reply may be shortened with an ellipsis; it is not a token budget.
-
-Synthetic integration: `tests/check_host.py` (no live user data or paid API calls).
-Flutter coverage: comment thread traversal, 10,000 nested replies, deleted/missing/cyclic
-parents, page cursor after sending, failed deletion, 320px layout in both themes and
-200% text. Included in the normal release suite.
-
-NiosAI identity and the rule against unsolicited post rewriting are defined in the system
-prompt, not a canned identity response. Direct replies to the canonical system bot trigger
-generation with a bounded thread history. Server model, tool allowlist and length limits
-cannot be overridden by comment text. Prompt injection resistance is not an absolute guarantee.
-
-Quality complaints use the authenticated `report_ai_comment_quality` action and capture
-only the selected post, parent request and AI answer. Membership and target identity are
-checked server-side. Claims are idempotent per reporter/target, with a daily abuse limit.
-They enter SupportTicket type `ai_quality`, accessible through NiosAdmin's dedicated quality
-menu, with reply/close actions and no account sanctions. Reactions use color emoji; other
-actions retain SVG icons and app theme colors.
+AI work follows the existing in-process after-commit task lifecycle; process failure
+does not automatically repeat a paid generation. Maintenance regeneration preserves
+comment IDs, replies, reactions and counts, and does not charge user quotas.

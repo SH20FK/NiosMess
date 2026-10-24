@@ -57,6 +57,7 @@ class CommentItem extends StatelessWidget {
     this.onDelete,
     this.onQualityReport,
     this.qualityReported = false,
+    this.continueParentLine = false,
   });
   final ApiMessage comment;
   final ApiMessage? parent;
@@ -72,6 +73,7 @@ class CommentItem extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onQualityReport;
   final bool qualityReported;
+  final bool continueParentLine;
   final ValueChanged<String> onReact;
 
   @override
@@ -89,233 +91,304 @@ class CommentItem extends StatelessWidget {
       '😮': 'surprise',
       '😢': 'sad',
     };
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16 + depth.clamp(0, 3) * 12.0, 12, 12, 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Semantics(
-            button: true,
-            label: 'Профиль $name',
-            child: InkWell(
-              onTap: onAuthorTap,
-              borderRadius: BorderRadius.circular(20),
-              child: PulseAvatar(
-                name: name,
-                avatarUrl: comment.senderAvatarUrl,
-                radius: depth == 0 ? 18 : 15,
+    return CustomPaint(
+      painter: CommentBranchPainter(
+        depth: depth,
+        hasReplies: replyCount > 0 && !collapsed,
+        continueParent: continueParentLine,
+        color: scheme.outlineVariant,
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16 + depth.clamp(0, 3) * 24.0, 12, 12, 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              button: true,
+              label: 'Профиль $name',
+              child: InkWell(
+                onTap: onAuthorTap,
+                borderRadius: BorderRadius.circular(20),
+                child: PulseAvatar(
+                  name: name,
+                  avatarUrl: comment.senderAvatarUrl,
+                  radius: depth == 0 ? 18 : 15,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    InkWell(
-                      onTap: onAuthorTap,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      InkWell(
+                        onTap: onAuthorTap,
+                        child: Text(
+                          name.isEmpty ? 'Удалённый аккаунт' : name,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      ...comment.senderBadges.map(
+                        (badge) => BadgeChip(
+                          id: badge.id,
+                          name: badge.name,
+                          icon: badge.icon,
+                          color: badge.color,
+                          interactive: false,
+                        ),
+                      ),
+                      if (isPostAuthor)
+                        Text(
+                          'Автор',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: scheme.primary,
+                          ),
+                        ),
+                      if (username.isNotEmpty)
+                        Text(
+                          '@$username',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      Tooltip(
+                        message: comment.sentAt.toLocal().toString(),
+                        child: Text(
+                          formatMessageTime(comment.sentAt),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      if (comment.isEdited && !comment.isDeleted)
+                        Text(
+                          'изменено',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (parent != null && depth > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
                       child: Text(
-                        name.isEmpty ? 'Удалённый аккаунт' : name,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    ...comment.senderBadges.map(
-                      (badge) => BadgeChip(
-                        id: badge.id,
-                        name: badge.name,
-                        icon: badge.icon,
-                        color: badge.color,
-                        interactive: false,
-                      ),
-                    ),
-                    if (isPostAuthor)
-                      Text(
-                        'Автор',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: scheme.primary,
-                        ),
-                      ),
-                    if (username.isNotEmpty)
-                      Text(
-                        '@$username',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    Tooltip(
-                      message: comment.sentAt.toLocal().toString(),
-                      child: Text(
-                        formatMessageTime(comment.sentAt),
+                        'В ответ ${parent!.senderDisplayName.isNotEmpty ? parent!.senderDisplayName : parent!.senderUsername}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ),
-                    if (comment.isEdited && !comment.isDeleted)
-                      Text(
-                        'изменено',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-                if (parent != null && depth > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Text(
-                      'В ответ ${parent!.senderDisplayName.isNotEmpty ? parent!.senderDisplayName : parent!.senderUsername}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
+                  const SizedBox(height: 5),
+                  if (comment.isDeleted)
+                    Text(
+                      'Комментарий удалён',
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
-                    ),
-                  ),
-                const SizedBox(height: 5),
-                if (comment.isDeleted)
-                  Text(
-                    'Комментарий удалён',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  )
-                else
-                  InteractiveMessageText(
-                    text: comment.content,
-                    baseStyle: theme.textTheme.bodyMedium!.copyWith(
-                      color: scheme.onSurface,
-                      height: 1.4,
-                    ),
-                    isMine: false,
-                    scheme: scheme,
-                  ),
-                if (!comment.isDeleted &&
-                    (onQualityReport != null || qualityReported))
-                  TextButton(
-                    onPressed: qualityReported ? null : onQualityReport,
-                    child: Text(
-                      qualityReported
-                          ? 'Жалоба на качество отправлена'
-                          : 'Пожаловаться на качество ответа модели',
-                    ),
-                  ),
-                Wrap(
-                  spacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (!comment.isDeleted) ...[
-                      TextButton(
-                        onPressed: onReply,
-                        child: const Text('Ответить'),
+                    )
+                  else
+                    InteractiveMessageText(
+                      text: comment.content,
+                      baseStyle: theme.textTheme.bodyMedium!.copyWith(
+                        color: scheme.onSurface,
+                        height: 1.4,
                       ),
-                      TextButton.icon(
-                        onPressed: () => onReact('like'),
-                        icon: const Text(
-                          '👍',
-                          style: TextStyle(
-                            fontFamily: NotoEmoji.fontFamily,
-                            fontSize: 18,
-                          ),
+                      isMine: false,
+                      scheme: scheme,
+                    ),
+                  Wrap(
+                    spacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (!comment.isDeleted) ...[
+                        TextButton(
+                          onPressed: onReply,
+                          child: const Text('Ответить'),
                         ),
-                        label: Text(count > 0 ? '$count' : 'Нравится'),
-                      ),
-                      for (final entry in comment.reactions.entries)
-                        if (entry.key != '👍' && entry.value > 0)
-                          TextButton.icon(
-                            onPressed: () =>
-                                onReact(reactionKinds[entry.key] ?? 'like'),
-                            icon: Text(
-                              entry.key,
-                              style: const TextStyle(
-                                fontFamily: NotoEmoji.fontFamily,
-                                fontSize: 18,
-                              ),
+                        TextButton.icon(
+                          onPressed: () => onReact('like'),
+                          icon: const Text(
+                            '👍',
+                            style: TextStyle(
+                              fontFamily: NotoEmoji.fontFamily,
+                              fontSize: 18,
                             ),
-                            label: Text('${entry.value}'),
                           ),
-                      PopupMenuButton<String>(
-                        tooltip: 'Действия с комментарием',
-                        icon: const CommentIcon('more'),
-                        onSelected: (action) {
-                          if (action == 'copy') {
-                            Clipboard.setData(
-                              ClipboardData(text: comment.content),
-                            );
-                          }
-                          if (action == 'edit') onEdit?.call();
-                          if (action == 'delete') onDelete?.call();
-                          if (action.startsWith('reaction:')) {
-                            onReact(action.substring(9));
-                          }
-                        },
-                        itemBuilder: (_) => [
-                          const PopupMenuItem(
-                            value: 'copy',
-                            child: Text('Копировать'),
-                          ),
-                          for (final reaction in const {
-                            'heart': 'Люблю',
-                            'laugh': 'Смешно',
-                            'surprise': 'Удивительно',
-                            'sad': 'Грустно',
-                          }.entries)
-                            PopupMenuItem(
-                              value: 'reaction:${reaction.key}',
-                              child: Row(
-                                children: [
-                                  Text(
-                                    const {
-                                      'heart': '❤️',
-                                      'laugh': '😂',
-                                      'surprise': '😮',
-                                      'sad': '😢',
-                                    }[reaction.key]!,
-                                    style: const TextStyle(
-                                      fontFamily: NotoEmoji.fontFamily,
-                                      fontSize: 20,
+                          label: Text(count > 0 ? '$count' : 'Нравится'),
+                        ),
+                        for (final entry in comment.reactions.entries)
+                          if (entry.key != '👍' && entry.value > 0)
+                            TextButton.icon(
+                              onPressed: () =>
+                                  onReact(reactionKinds[entry.key] ?? 'like'),
+                              icon: Text(
+                                entry.key,
+                                style: const TextStyle(
+                                  fontFamily: NotoEmoji.fontFamily,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              label: Text('${entry.value}'),
+                            ),
+                        PopupMenuButton<String>(
+                          tooltip: 'Действия с комментарием',
+                          icon: const CommentIcon('more'),
+                          onSelected: (action) {
+                            if (action == 'copy') {
+                              Clipboard.setData(
+                                ClipboardData(text: comment.content),
+                              );
+                            }
+                            if (action == 'quality') onQualityReport?.call();
+                            if (action == 'edit') onEdit?.call();
+                            if (action == 'delete') onDelete?.call();
+                            if (action.startsWith('reaction:')) {
+                              onReact(action.substring(9));
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            if (onQualityReport != null || qualityReported)
+                              PopupMenuItem(
+                                value: 'quality',
+                                enabled: !qualityReported,
+                                child: Text(
+                                  qualityReported
+                                      ? 'Жалоба на качество отправлена'
+                                      : 'Пожаловаться на качество ответа модели',
+                                ),
+                              ),
+
+                            const PopupMenuItem(
+                              value: 'copy',
+                              child: Text('Копировать'),
+                            ),
+                            for (final reaction in const {
+                              'heart': 'Люблю',
+                              'laugh': 'Смешно',
+                              'surprise': 'Удивительно',
+                              'sad': 'Грустно',
+                            }.entries)
+                              PopupMenuItem(
+                                value: 'reaction:${reaction.key}',
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      const {
+                                        'heart': '❤️',
+                                        'laugh': '😂',
+                                        'surprise': '😮',
+                                        'sad': '😢',
+                                      }[reaction.key]!,
+                                      style: const TextStyle(
+                                        fontFamily: NotoEmoji.fontFamily,
+                                        fontSize: 20,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(reaction.value),
-                                ],
+                                    const SizedBox(width: 10),
+                                    Text(reaction.value),
+                                  ],
+                                ),
                               ),
-                            ),
-                          if (isMine)
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Text('Редактировать'),
-                            ),
-                          if (isMine)
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Удалить'),
-                            ),
-                        ],
-                      ),
-                    ],
-                    if (replyCount > 0)
-                      TextButton.icon(
-                        onPressed: onToggleReplies,
-                        icon: CommentIcon(collapsed ? 'down' : 'up', size: 16),
-                        label: Text(
-                          '${collapsed ? 'Показать' : 'Скрыть'} ответы ($replyCount)',
+                            if (isMine)
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Редактировать'),
+                              ),
+                            if (isMine)
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Удалить'),
+                              ),
+                          ],
                         ),
-                      ),
-                  ],
-                ),
-              ],
+                      ],
+                      if (replyCount > 0)
+                        TextButton.icon(
+                          onPressed: onToggleReplies,
+                          icon: CommentIcon(
+                            collapsed ? 'down' : 'up',
+                            size: 16,
+                          ),
+                          label: Text(
+                            '${collapsed ? 'Показать' : 'Скрыть'} ответы ($replyCount)',
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+class CommentBranchPainter extends CustomPainter {
+  const CommentBranchPainter({
+    required this.depth,
+    required this.hasReplies,
+    required this.continueParent,
+    required this.color,
+  });
+  final int depth;
+  final bool hasReplies, continueParent;
+  final Color color;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final visible = depth.clamp(0, 3), left = 16 + visible * 24.0;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    if (depth > 0) {
+      final x = depth > 3
+          ? left - 10
+          : 16 + (visible - 1) * 24.0 + (depth == 1 ? 18 : 15);
+      canvas.drawPath(
+        Path()
+          ..moveTo(x, 0)
+          ..lineTo(x, 21)
+          ..quadraticBezierTo(x, 27, left - 3, 27),
+        paint,
+      );
+      if (continueParent) {
+        canvas.drawLine(Offset(x, 21), Offset(x, size.height), paint);
+      }
+    }
+    if (hasReplies) {
+      final x = depth >= 3 ? left - 10 : left + (depth == 0 ? 18 : 15);
+      canvas.drawLine(
+        Offset(
+          x,
+          depth >= 3
+              ? 40
+              : depth == 0
+              ? 48
+              : 42,
+        ),
+        Offset(x, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(CommentBranchPainter old) =>
+      old.depth != depth ||
+      old.hasReplies != hasReplies ||
+      old.continueParent != continueParent ||
+      old.color != color;
 }

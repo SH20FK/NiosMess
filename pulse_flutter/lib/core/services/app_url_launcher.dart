@@ -43,10 +43,14 @@ class AppUrlLauncher {
     String slug = trimmed;
 
     // Handle full URLs
-    if (slug.startsWith('http://') || slug.startsWith('https://') || slug.startsWith('niosmess://')) {
+    if (slug.startsWith('http://') ||
+        slug.startsWith('https://') ||
+        slug.startsWith('niosmess://')) {
       final Uri? uri = Uri.tryParse(slug);
       if (uri != null) {
-        final List<String> segments = uri.pathSegments.where((String s) => s.isNotEmpty).toList();
+        final List<String> segments = uri.pathSegments
+            .where((String s) => s.isNotEmpty)
+            .toList();
         if (segments.isNotEmpty) {
           final int joinIdx = segments.indexOf('join');
           if (joinIdx != -1 && joinIdx + 1 < segments.length) {
@@ -107,7 +111,10 @@ class AppUrlLauncher {
     }
 
     // Auto-prepend https if user clicked e.g. "t.me/something" or "ni-os.ru/something"
-    if (!parsedUri.hasScheme && (trimmed.startsWith('t.me/') || trimmed.startsWith('telegram.me/') || trimmed.startsWith('ni-os.ru/'))) {
+    if (!parsedUri.hasScheme &&
+        (trimmed.startsWith('t.me/') ||
+            trimmed.startsWith('telegram.me/') ||
+            trimmed.startsWith('ni-os.ru/'))) {
       parsedUri = Uri.parse('https://$trimmed');
     }
 
@@ -160,8 +167,10 @@ class AppUrlLauncher {
     if (niosLink != null && niosLink.isValid) {
       final BuildContext? ctx = AppRouter.navigatorKey.currentContext;
       if (ctx != null) {
-        final ProviderContainer container =
-            ProviderScope.containerOf(ctx, listen: false);
+        final ProviderContainer container = ProviderScope.containerOf(
+          ctx,
+          listen: false,
+        );
         container
             .read(niosLinkServiceProvider)
             .handleIncomingLink(ctx, uri.toString());
@@ -172,7 +181,8 @@ class AppUrlLauncher {
     String path = uri.path;
 
     // Support URLs with hash routing (e.g. 'https://ni-os.ru/#/u/alice' or '/web#/u/alice')
-    if (uri.fragment.isNotEmpty && (path.isEmpty || path == '/' || path == '/web')) {
+    if (uri.fragment.isNotEmpty &&
+        (path.isEmpty || path == '/' || path == '/web' || path == '/web/')) {
       path = uri.fragment.startsWith('/') ? uri.fragment : '/${uri.fragment}';
     }
 
@@ -235,6 +245,10 @@ class AppUrlLauncher {
       if (username.isNotEmpty) return '/g/$username';
     }
 
+    if (RegExp(r'^/niosgram/post/[1-9][0-9]*(?:/comments)?$').hasMatch(path)) {
+      return path;
+    }
+
     // /stickers/{setId} (sticker pack view and save)
     if (path.startsWith('/stickers/')) {
       final String setId = path.substring(10);
@@ -245,7 +259,9 @@ class AppUrlLauncher {
     if (path.startsWith('/w/')) {
       final String code = path.substring(3);
       if (code.isNotEmpty) {
-        final Map<String, String> qp = Map<String, String>.from(uri.queryParameters);
+        final Map<String, String> qp = Map<String, String>.from(
+          uri.queryParameters,
+        );
         qp['code'] = code;
         return Uri(path: '/settings/wallpaper', queryParameters: qp).toString();
       }
@@ -253,7 +269,9 @@ class AppUrlLauncher {
     if (path == '/wallpaper') {
       final String? code = uri.queryParameters['code'];
       if (code != null && code.isNotEmpty) {
-        final Map<String, String> qp = Map<String, String>.from(uri.queryParameters);
+        final Map<String, String> qp = Map<String, String>.from(
+          uri.queryParameters,
+        );
         return Uri(path: '/settings/wallpaper', queryParameters: qp).toString();
       }
       return '/settings/wallpaper';
@@ -280,7 +298,10 @@ class AppUrlLauncher {
     }
 
     // 8. Standard app shells
-    if (path.startsWith('/main') || path == '/login' || path == '/web' || path == '/onboarding') {
+    if (path.startsWith('/main') ||
+        path == '/login' ||
+        path == '/web' ||
+        path == '/onboarding') {
       return path + (uri.query.isNotEmpty ? '?${uri.query}' : '');
     }
 
@@ -291,16 +312,16 @@ class AppUrlLauncher {
   static bool isTelegramLink(Uri uri) {
     if (uri.scheme == 'tg') return true;
     final String host = uri.host.toLowerCase();
-    return host == 't.me' ||
-        host == 'telegram.me' ||
-        host == 'telegram.dog';
+    return host == 't.me' || host == 'telegram.me' || host == 'telegram.dog';
   }
 
   /// Converts a Telegram web URL (`https://t.me/...`) into a native `tg://` URI.
   static Uri? convertTelegramToNativeScheme(Uri uri) {
     if (uri.scheme == 'tg') return uri;
 
-    final List<String> segments = uri.pathSegments.where((String s) => s.isNotEmpty).toList();
+    final List<String> segments = uri.pathSegments
+        .where((String s) => s.isNotEmpty)
+        .toList();
     if (segments.isEmpty) {
       return Uri.parse('tg://');
     }
@@ -334,9 +355,12 @@ class AppUrlLauncher {
   }
 
   static bool _routeInternally(BuildContext? context, String route) {
-    final BuildContext? targetContext = context ?? AppRouter.navigatorKey.currentContext;
+    final BuildContext? targetContext =
+        context ?? AppRouter.navigatorKey.currentContext;
     if (targetContext == null || !targetContext.mounted) {
-      debugPrint('[AppUrlLauncher] Cannot route internally: no active BuildContext');
+      debugPrint(
+        '[AppUrlLauncher] Cannot route internally: no active BuildContext',
+      );
       return false;
     }
 

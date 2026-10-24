@@ -4,6 +4,7 @@ class ApiStatusEmoji {
     required this.url,
     this.mediaType,
     this.isAnimated = false,
+    this.isAdaptive = false,
     this.width,
     this.height,
   });
@@ -12,11 +13,13 @@ class ApiStatusEmoji {
   final String url;
   final String? mediaType;
   final bool isAnimated;
+  final bool isAdaptive;
   final int? width;
   final int? height;
 
   bool get isSvg =>
-      (mediaType?.contains('svg') == true) || url.toLowerCase().endsWith('.svg');
+      (mediaType?.contains('svg') == true) ||
+      url.toLowerCase().endsWith('.svg');
 
   factory ApiStatusEmoji.fromJson(Map<String, dynamic> json) {
     return ApiStatusEmoji(
@@ -24,6 +27,7 @@ class ApiStatusEmoji {
       url: json['url'] as String? ?? '',
       mediaType: json['media_type'] as String?,
       isAnimated: json['is_animated'] == true || json['is_animated'] == 1,
+      isAdaptive: json['is_adaptive'] == true || json['is_adaptive'] == 1,
       width: (json['width'] as num?)?.toInt(),
       height: (json['height'] as num?)?.toInt(),
     );
@@ -35,6 +39,7 @@ class ApiStatusEmoji {
       'url': url,
       if (mediaType != null) 'media_type': mediaType,
       'is_animated': isAnimated,
+      'is_adaptive': isAdaptive,
       if (width != null) 'width': width,
       if (height != null) 'height': height,
     };

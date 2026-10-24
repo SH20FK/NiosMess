@@ -1,17 +1,60 @@
+--- a/app/main.py
++++ b/app/main.py
+@@ -851,7 +851,7 @@
+     try:
+         normalized_path = _normalise_relative_path(file_path)
+         public_area, relative_file = normalized_path.split("/", 1)
+-        if public_area not in {"avatars", "posts", "stickers"}:
++        if public_area not in {"avatars", "posts", "stickers", "emoji"}:
+             raise ValueError("private media area")
+         full_path = _resolve_under(
+             Path(settings.UPLOAD_DIR) / public_area,
+@@ -861,6 +861,19 @@
+         raise HTTPException(status_code=404, detail="File not found")
+     if not full_path.is_file():
+         raise HTTPException(status_code=404, detail="File not found")
++    if public_area == "emoji":
++        from sqlalchemy import or_
++        from app.models.models import CustomEmoji, CustomEmojiSet
++        async with AsyncSessionLocal() as db:
++            emoji = await db.scalar(select(CustomEmoji).join(CustomEmojiSet).where(
++                CustomEmoji.file_path == normalized_path,
++                or_(CustomEmojiSet.is_public == True, CustomEmojiSet.is_official == True)))
++            if not emoji:
++                raise HTTPException(status_code=404, detail="File not found")
++            media_type = emoji.media_type
++        return FileResponse(full_path, media_type=media_type, headers={
++            "Cache-Control": "public, max-age=86400", "X-Content-Type-Options": "nosniff",
++            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox"})
+     return FileResponse(full_path)
+ 
+ 
 --- a/app/migrations.py
 +++ b/app/migrations.py
-@@ -517,6 +517,8 @@
+@@ -517,6 +517,12 @@
              await db.execute(text("INSERT INTO migration_flags (name) VALUES ('ai_bot_enabled_default_off')"))
              print("[MIGRATION] Reset chats.ai_bot_enabled to off (one-time default flip)")
  
 +        from app.services.feed_comments import migrate_comments
 +        await migrate_comments(db)
++        from app.services.feed_polls import migrate as migrate_polls
++        await migrate_polls(db)
++        from app.services.feed_post_search import migrate as migrate_post_search
++        await migrate_post_search(db)
          from app.services.performance_migrations import upgrade
          await upgrade(db)
          await db.commit()
 --- a/app/models/models.py
 +++ b/app/models/models.py
-@@ -85,8 +85,19 @@
+@@ -69,6 +69,7 @@
+     media_path = Column(String, nullable=True)
+     media_json = Column(Text, nullable=True)
+     ai_tags_json = Column(Text, nullable=True)
++    interactive_json = Column(Text, nullable=True)
+     likes_count = Column(Integer, default=0)
+     dislikes_count = Column(Integer, default=0)
+     comments_count = Column(Integer, default=0)
+@@ -85,8 +86,19 @@
      created_at = Column(DateTime(timezone=True), server_default=func.now())
  
  
@@ -31,7 +74,7 @@
  
      id = Column(Integer, primary_key=True, index=True)
      post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
-@@ -281,6 +292,7 @@
+@@ -281,6 +293,7 @@
  
  class Message(Base):
      __tablename__ = "messages"
@@ -41,16 +84,17 @@
      chat_id = Column(Integer, ForeignKey("chats.id"), nullable=False)
 --- a/app/services/ai_svc.py
 +++ b/app/services/ai_svc.py
-@@ -94,6 +94,8 @@
+@@ -94,6 +94,9 @@
  async def call_glm(
      prompt: str, *, user=None, system: str | None = None,
      history: list[tuple[str, str]] | None = None, max_tokens: int = 4096, use_tools: bool = False, on_wait=None,
 +    model_key: str | None = None, allow_fallback: bool = True, strict_max_tokens: bool = False,
 +    tool_names: tuple[str, ...] | None = None,
++    replace_system: bool = False, extra_tools: list[dict] | None = None, local_tool_runner=None, local_tool_names: tuple[str, ...] = (),
  ) -> tuple[str, int]:
      if not settings.POLZA_API_KEY:
          raise ValueError("AI provider is not configured")
-@@ -101,11 +103,13 @@
+@@ -101,16 +104,18 @@
      async with lock, credit_request(user) as credit:
          plus = user is not None and is_plus_active(user)
          model, mult = ai_model_for(user)
@@ -66,16 +110,24 @@
          max_tokens = legacy_output_limit(persona, max_tokens)
          if persona.legacy:
              await asyncio.sleep(.7)
-@@ -118,6 +122,8 @@
+-        system_content = model_prompt(persona)
+-        if system:
++        system_content = system if replace_system and system else model_prompt(persona)
++        if system and not replace_system:
+             system_content += "\n\n" + system
+         messages = [{"role": "system", "content": system_content}]
+         for role, turn_content in (history or []):
+@@ -118,6 +123,9 @@
          messages.append({"role": "user", "content": prompt})
          endpoint = settings.POLZA_API_URL.rstrip("/") + "/chat/completions"
          specs = tool_specs(plus) if use_tools else []
++        specs += extra_tools or []
 +        if tool_names is not None:
 +            specs = [spec for spec in specs if spec['function']['name'] in tool_names]
          fallback_used = False
          content = ""
          for round_no in range(MAX_TOOL_ROUNDS + 1):
-@@ -143,7 +149,7 @@
+@@ -143,7 +151,7 @@
                  calls = message.get("tool_calls") or []
                  content = message.get("content") or ""
                  from app.services.ai_fallback import fallback_model
@@ -84,18 +136,82 @@
                  if not target:
                      break
                  model, fallback_used = target, True
-@@ -154,7 +160,7 @@
+@@ -154,7 +162,11 @@
              messages.append({"role": "assistant", "content": content or None, "tool_calls": calls})
              for call in calls:
                  fn = call.get("function") or {}
 -                result = await run_tool(fn.get("name", ""), fn.get("arguments", ""), plus,
++                if local_tool_runner and fn.get('name') in ({spec['function']['name'] for spec in (extra_tools or [])} | set(local_tool_names)) and (tool_names is None or fn.get('name') in tool_names):
++                    result = await local_tool_runner(fn.get('name'), fn.get('arguments', '{}'))
++                    messages.append({'role': 'tool', 'tool_call_id': call.get('id', ''), 'content': result})
++                    continue
 +                result = 'error: tool unavailable' if tool_names is not None and fn.get('name') not in tool_names else await run_tool(fn.get("name", ""), fn.get("arguments", ""), plus,
                      moderation_context={"source":"messenger","user_id":user.id,"conversation":messages} if user else None)
                  messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": result})
          if not content.strip():
+--- a/app/services/notification_delivery.py
++++ b/app/services/notification_delivery.py
+@@ -52,7 +52,7 @@
+         data.setdefault('event_id', f"message:{data.get('chat_id')}:{data.get('message_id')}")
+         if data.get('is_secret') == 'true':
+             body = 'Зашифрованное сообщение' if ru else 'Encrypted message'
+-        elif options.get('preview') is False:
++        elif options.get('preview') is False or body in ('Encrypted message', 'Зашифрованное сообщение'):
+             body = 'Новое сообщение' if ru else 'New message'
+         elif kind in ('post_like', 'post_comment'):
+             actor = data.get('actor_name', 'NiosGram')
+--- a/app/services/utils.py
++++ b/app/services/utils.py
+@@ -97,6 +97,7 @@
+         "url": static_url(emoji.file_path),
+         "media_type": emoji.media_type,
+         "is_animated": emoji.is_animated,
++        "is_adaptive": emoji.is_adaptive,
+         "width": emoji.width,
+         "height": emoji.height,
+     }
+@@ -126,7 +127,7 @@
+     for uid, user in users.items():
+         emoji = emojis.get(user.status_emoji_shortcode) if is_plus_active(user) else None
+         statuses[uid] = ({'shortcode': emoji.shortcode, 'url': static_url(emoji.file_path),
+-                          'media_type': emoji.media_type, 'is_animated': emoji.is_animated,
++                          'media_type': emoji.media_type, 'is_animated': emoji.is_animated, 'is_adaptive': emoji.is_adaptive,
+                           'width': emoji.width, 'height': emoji.height} if emoji else None)
+     return users, badges, statuses
+ 
 --- a/app/ws/router.py
 +++ b/app/ws/router.py
-@@ -577,6 +577,14 @@
+@@ -561,6 +561,10 @@
+                     elif action == "delete_custom_emoji":
+                         if not user: raise ValueError("Unauthorized")
+                         result = await handle_delete_custom_emoji(payload, db, user)
++                    elif action in ("resolve_custom_emojis", "get_emoji_set"):
++                        if not user: raise ValueError("Unauthorized")
++                        from app.services.custom_emojis import resolve_emojis, get_emoji_set
++                        result = await (resolve_emojis if action == "resolve_custom_emojis" else get_emoji_set)(payload, db, user)
+                     elif action == "list_emoji_sets":
+                         if not user: raise ValueError("Unauthorized")
+                         result = await handle_list_emoji_sets(payload, db, user)
+@@ -568,6 +572,18 @@
+                     elif action == "create_post":
+                         if not user: raise ValueError("Unauthorized")
+                         result = await handle_create_post(payload, db, user)
++                    elif action == "vote_feed_poll":
++                        if not user: raise ValueError("Unauthorized")
++                        from app.services.feed_polls import vote
++                        result = await vote(payload, db, user)
++                    elif action == "get_feed_post":
++                        if not user: raise ValueError("Unauthorized")
++                        from app.services.feed_comments import integer
++                        from app.models.models import Post as FeedPost
++                        from app.ws.handlers.post_handler import _format_posts_for_feed
++                        post = await db.get(FeedPost, integer(payload.get('post_id'), 'post_id'))
++                        if not post: raise ValueError('Post not found')
++                        result = await _format_posts_for_feed([post], user, db, 1, 1, set())
+                     elif action == "get_feed":
+                         if not user: raise ValueError("Unauthorized")
+                         result = await handle_get_feed(payload, db, user)
+@@ -577,6 +593,14 @@
                      elif action == "comment_post":
                          if not user: raise ValueError("Unauthorized")
                          result = await handle_comment_post(payload, db, user)
@@ -152,6 +268,15 @@
              if not ai_mention_allowed(chat):
                  return {"error": "@ai is not available in this chat"}
              ai_mention_active = True
+@@ -1155,7 +1155,7 @@
+                     "chat_id": str(chat_id),
+                     "message_id": str(msg.id),
+                     "sender_name": user.display_name,
+-                    "is_secret": "true" if is_secret or e2ee_content else "false",
++                    "is_secret": "true" if is_secret else "false",
+                     "created_at": msg.sent_at.replace(tzinfo=msg.sent_at.tzinfo or timezone.utc).isoformat(),
+                     "type": "new_message",
+                     "body": body_text,
 @@ -1214,6 +1214,9 @@
          await _maybe_botcreator_reply(db, user, chat_id, msg, content or "")
          await _maybe_adminbot_reply(db, user, chat_id, content or "")
@@ -162,9 +287,116 @@
      if ai_mention_active:
          # Fire-and-forget in its own DB session: the AI call/Google search must never
          # delay delivery of the user's own message or the send_message response.
+--- a/app/ws/handlers/media_handler.py
++++ b/app/ws/handlers/media_handler.py
+@@ -441,8 +441,15 @@
+     if not data or len(data) > settings.CUSTOM_EMOJI_MAX_BYTES:
+         return {"error": f"Emoji file is empty or exceeds {settings.CUSTOM_EMOJI_MAX_BYTES // 1024} KB"}
+ 
+-    is_adaptive = ext in adaptive_exts
+-    if is_adaptive:
++    from app.services.custom_emojis import validate_image
++    try:
++        inspected = validate_image(data, ext, settings.CUSTOM_EMOJI_MAX_SECONDS)
++    except ValueError as exc:
++        return {"error": str(exc)}
++    if inspected:
++        width, height, actual_animated, actual_duration = inspected
++    is_adaptive = ext in adaptive_exts or (ext in image_exts and payload.get('is_adaptive') is True)
++    if ext in adaptive_exts:
+         # Rendered client-side as a CSS mask (recolourable, adapts to theme/accent) —
+         # never embedded inline, so no script-execution surface even from untrusted SVG.
+         try:
+@@ -452,8 +459,8 @@
+         if "<svg" not in text_head:
+             return {"error": "Adaptive emoji must be a valid SVG file"}
+ 
+-    is_animated = ext in video_exts or ext == "gif"
+-    duration = payload.get("duration_seconds")
++    is_animated = actual_animated if inspected else ext in video_exts
++    duration = actual_duration if inspected else payload.get("duration_seconds")
+     if is_animated:
+         if not isinstance(duration, (int, float)) or duration <= 0 or duration > settings.CUSTOM_EMOJI_MAX_SECONDS:
+             return {"error": f"Animated emoji duration must be 1-{settings.CUSTOM_EMOJI_MAX_SECONDS} seconds"}
+@@ -473,7 +480,7 @@
+         media_type=mime,
+         is_animated=is_animated,
+         is_adaptive=is_adaptive,
+-        duration_seconds=int(duration) if duration else None,
++        duration_seconds=max(1, math.ceil(duration)) if duration else None,
+         width=width,
+         height=height,
+         file_size=len(data),
+@@ -584,6 +591,7 @@
+             "id": emoji_set.id,
+             "name": emoji_set.name,
+             "title": emoji_set.title,
++            "owner_id": emoji_set.owner_id,
+             "is_public": emoji_set.is_public,
+             "is_official": emoji_set.is_official,
+             "emojis": [
 --- a/app/ws/handlers/post_handler.py
 +++ b/app/ws/handlers/post_handler.py
-@@ -241,6 +241,8 @@
+@@ -122,12 +122,15 @@
+ async def _format_posts_for_feed(posts, user, db, page, limit, followed_ids):
+     posts = list(posts)
+     author_ids = {p.author_id for p in posts}
+-    authors = {u.id: u for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()} if author_ids else {}
++    from app.services.utils import load_user_presentation
++    authors, author_badges, author_statuses = await load_user_presentation(db, author_ids) if author_ids else ({},{},{})
+     post_ids = [p.id for p in posts]
+     reactions = {r.post_id: r for r in (await db.scalars(select(PostReaction).where(
+         PostReaction.post_id.in_(post_ids), PostReaction.user_id == user.id))).all()} if post_ids else {}
+     result = []
+     for p in posts:
++        from app.services.feed_polls import payload as poll_payload
++        poll = await poll_payload(db, p, user.id)
+         author = authors.get(p.author_id)
+         react = reactions.get(p.id)
+         my_react = "like" if react and react.is_like else ("dislike" if react else None)
+@@ -139,6 +142,7 @@
+         result.append({
+             "id": p.id,
+             "content": p.content,
++            "poll": poll,
+             "media_url": static_url(p.media_path) if p.media_path else None,
+             "media": [
+                 {**item, "url": static_url(item.get("path"))}
+@@ -155,6 +159,8 @@
+                 "username": author.username,
+                 "display_name": author.display_name,
+                 "avatar_url": static_url(author.avatar_path),
++                "badges": author_badges.get(author.id, []),
++                "status_emoji": author_statuses.get(author.id),
+                 "is_followed": (author.id in followed_ids) if author else False,
+             } if author else None,
+         })
+@@ -162,6 +168,8 @@
+ 
+ 
+ async def handle_create_post(payload: dict, db: AsyncSession, user: User) -> dict:
++    from app.services.feed_polls import validate as validate_poll
++    poll = validate_poll(payload.get('poll'))
+     if user.is_bot:
+         return {"error": "Bots do not have NiosGram profiles"}
+     content = payload.get("content", "")
+@@ -227,9 +235,9 @@
+         if generated:
+             ai_tags = list(dict.fromkeys(tag.casefold() for tag in re.findall(r"#?[\w-]+", generated)))[:20]
+ 
+-    if not content and not media_path:
++    if not content and not media_path and not poll:
+         return {"error": "Post must have content or media"}
+-    if not media_path and len(content.strip()) < 10:
++    if not media_path and not poll and len(content.strip()) < 10:
+         return {"error": "A text-only post must contain at least 10 characters"}
+ 
+     post = Post(
+@@ -238,9 +246,12 @@
+         media_path=media_path,
+         media_json=json.dumps(media_items, ensure_ascii=False) if media_items else None,
+         ai_tags_json=json.dumps(ai_tags, ensure_ascii=False) if ai_tags else None,
++        interactive_json=json.dumps(poll, ensure_ascii=False) if poll else None,
      )
      db.add(post)
      await db.flush()
@@ -173,7 +405,7 @@
      rendered = await _format_posts_for_feed([post], user, db, 1, 1, set())
      return {"message": "Post created successfully", "post_id": post.id, **rendered['posts'][0]}
  
-@@ -437,45 +439,13 @@
+@@ -437,45 +448,13 @@
  
  
  async def handle_comment_post(payload: dict, db: AsyncSession, user: User) -> dict:
@@ -223,7 +455,7 @@
  
  
  async def handle_edit_post(payload: dict, db: AsyncSession, user: User) -> dict:
-@@ -501,6 +471,9 @@
+@@ -501,6 +480,9 @@
          return {"error": "Post not found or not yours"}
  
      await db.execute(delete(PostReaction).where(PostReaction.post_id == post_id))
@@ -233,7 +465,7 @@
      await db.execute(delete(PostComment).where(PostComment.post_id == post_id))
  
      paths = [post.media_path] if post.media_path else []
-@@ -522,61 +495,10 @@
+@@ -522,61 +504,10 @@
  
  
  async def handle_post_comment(payload: dict, db: AsyncSession, user: User) -> dict:

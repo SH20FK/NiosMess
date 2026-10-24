@@ -109,6 +109,7 @@ _E2eeHelo? _parseHeloMessage(ApiMessage message) {
 class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   final _seenOperations = <String>{};
   Timer? _persistTimer;
+  final _previewDecryptions = <String>{};
   List<ApiChatSummary>? _pendingChats;
 
   void _persistChats(List<ApiChatSummary> chats) {
@@ -142,6 +143,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         if (current != 'locked' && current != previousEpoch && ref.mounted) {
           previousEpoch = current;
           ref.invalidate(chatMessagesProvider);
+          unawaited(_hydrateInboxPreviews(state.value ?? const []));
         }
       }
 
@@ -187,6 +189,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         state = AsyncData<List<ApiChatSummary>>(
           secret?.mergeChats(chats) ?? chats,
         );
+        unawaited(_hydrateInboxPreviews(chats));
       }
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Cache load error: $e');
@@ -404,9 +407,76 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     updated[index] = chat.copyWith(lastMessage: message);
     state = AsyncData<List<ApiChatSummary>>(updated);
     _persistChats(updated);
+    if (!message.isDecrypted &&
+        message.e2eeContent != null &&
+        OrdinaryCodec.recognises(message.e2eeContent!)) {
+      unawaited(_decryptInboxPreview(message));
+    }
   }
 
   void _handleNewMessagePush(ApiMessage message) {
+    final ordinary =
+        message.e2eeContent != null &&
+        OrdinaryCodec.recognises(message.e2eeContent!);
+    if (ordinary && !message.isDecrypted) {
+      _applyNewMessagePush(message, notify: false);
+      unawaited(_decryptInboxPreview(message, notify: true));
+    } else {
+      _applyNewMessagePush(message);
+    }
+  }
+
+  Future<void> _decryptInboxPreview(
+    ApiMessage message, {
+    bool notify = false,
+  }) async {
+    final account = ref.read(authProvider).session?.userId;
+    final key = '${message.chatId}:${message.id}:${message.editedAt}';
+    if (!_previewDecryptions.add(key)) return;
+    try {
+      final decoded =
+          await ref.read(ordinaryE2eeProvider)?.decrypt(message) ?? message;
+      if (!ref.mounted || account != ref.read(authProvider).session?.userId) {
+        return;
+      }
+      _handleEditedPush(decoded);
+      if (notify && decoded.senderId != account) {
+        final chat = state.value
+            ?.where((c) => c.id == message.chatId)
+            .firstOrNull;
+        final open =
+            PushNotificationService.isForeground &&
+            PushNotificationService.currentChatId == message.chatId;
+        _notifyMessage(decoded, chat: chat, present: !open);
+      }
+    } finally {
+      _previewDecryptions.remove(key);
+    }
+  }
+
+  Future<void> _hydrateInboxPreviews(List<ApiChatSummary> chats) async {
+    final account = ref.read(authProvider).session?.userId;
+    for (var offset = 0; offset < chats.length; offset += 4) {
+      if (!ref.mounted || account != ref.read(authProvider).session?.userId) {
+        return;
+      }
+      await Future.wait(
+        chats
+            .skip(offset)
+            .take(4)
+            .where(
+              (c) =>
+                  !c.isSecret &&
+                  c.lastMessage?.e2eeContent != null &&
+                  !c.lastMessage!.isDecrypted &&
+                  OrdinaryCodec.recognises(c.lastMessage!.e2eeContent!),
+            )
+            .map((c) => _decryptInboxPreview(c.lastMessage!)),
+      );
+    }
+  }
+
+  void _applyNewMessagePush(ApiMessage message, {bool notify = true}) {
     final List<ApiChatSummary>? currentChats = state.value;
     if (currentChats == null) return;
 
@@ -455,12 +525,12 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         unawaited(ref.read(chatRepositoryProvider).markRead(message.chatId));
       }
 
-      if (message.senderId != myUserId) {
+      if (notify && message.senderId != myUserId) {
         _notifyMessage(message, chat: chat, present: !isCurrentChatOpen);
       }
     } else {
       refresh();
-      if (message.senderId != myUserId) {
+      if (notify && message.senderId != myUserId) {
         _notifyMessage(message, present: !isCurrentChatOpen);
       }
     }
@@ -471,7 +541,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     ApiChatSummary? chat,
     bool present = true,
   }) {
-    final encrypted = message.e2eeContent != null || message.isE2ee;
+    final encrypted =
+        chat?.isSecret == true ||
+        ((message.e2eeContent != null || message.isE2ee) &&
+            !OrdinaryCodec.recognises(message.e2eeContent ?? ''));
     final locale = ref
         .read(uiSettingsProvider)
         .effectiveLocaleCode(PlatformDispatcher.instance.locale.languageCode);
@@ -486,24 +559,33 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         : 'NiosMess';
     final text = encrypted
         ? strings.noticeEncrypted
+        : (message.isE2ee && !message.isDecrypted)
+        ? strings.noticeNewMessage
         : message.content.isNotEmpty
         ? (InteractiveMessage.parse(message.content)?.preview ??
               message.content)
         : strings.noticeAttachment;
+    final notification = <String, dynamic>{
+      'event_id': 'message:${message.chatId}:${message.id}',
+      'type': 'new_message',
+      'chat_id': message.chatId,
+      'message_id': message.id,
+      'title': title,
+      'body': sender.isNotEmpty && sender != title && !encrypted
+          ? '$sender: $text'
+          : text,
+      'avatar_url': chat?.avatarUrl ?? message.senderAvatarUrl,
+      'created_at': message.sentAt.toIso8601String(),
+      'is_secret': encrypted ? 'true' : 'false',
+    };
     unawaited(
-      ref.read(notificationsProvider.notifier).accept({
-        'event_id': 'message:${message.chatId}:${message.id}',
-        'type': 'new_message',
-        'chat_id': message.chatId,
-        'message_id': message.id,
-        'title': title,
-        'body': sender.isNotEmpty && sender != title && !encrypted
-            ? '$sender: $text'
-            : text,
-        'avatar_url': chat?.avatarUrl ?? message.senderAvatarUrl,
-        'created_at': message.sentAt.toIso8601String(),
-      }, present: present),
+      ref
+          .read(notificationsProvider.notifier)
+          .accept(notification, present: present),
     );
+    if (present && !PushNotificationService.isForeground) {
+      unawaited(PushNotificationService.showLocalNotification(notification));
+    }
   }
 
   Future<List<ApiChatSummary>> _fetch({bool allowStale = true}) async {
@@ -516,6 +598,14 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       if (secret != null) await secret.importChats(remote);
       final chats = secret?.mergeChats(remote) ?? remote;
       ref.read(bluetoothMeshProvider)?.warmChats(chats);
+      // Hydrate presentation after returning the list; never block the inbox on key/network repair.
+      final previewAccount = ref.read(authProvider).session?.userId;
+      Timer.run(() {
+        if (ref.mounted &&
+            previewAccount == ref.read(authProvider).session?.userId) {
+          unawaited(_hydrateInboxPreviews(chats));
+        }
+      });
       // Save cache
       _persistChats(chats);
       return chats;

@@ -13,8 +13,22 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/comment_item.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+
+final feedPostByIdProvider = FutureProvider.family<NgPost, int>((
+  ref,
+  id,
+) async {
+  ref.watch(authProvider.select((a) => a.session?.userId));
+  final data = await ref
+      .read(postCommentsRepositoryProvider)
+      .request('get_feed_post', 0, id, {});
+  final posts = data['posts'] as List? ?? [];
+  if (posts.isEmpty) throw StateError('Публикация не найдена');
+  return NgPost.fromJson(Map<String, dynamic>.from(posts.first as Map));
+});
 
 class PostCommentsScreen extends ConsumerStatefulWidget {
   const PostCommentsScreen({
@@ -199,9 +213,11 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
       }
     } else {
       final NiosgramState? ngState = ref.watch(niosgramProvider).value;
-      final NgPost? niosgramPost = ngState?.posts
+      final NgPost? cachedPost = ngState?.posts
           .where((NgPost p) => p.id == widget.postId)
           .firstOrNull;
+      final niosgramPost =
+          cachedPost ?? ref.watch(feedPostByIdProvider(widget.postId)).value;
       if (niosgramPost != null) {
         postAuthorId = niosgramPost.author.id;
         final String? mediaUrl = niosgramPost.mediaUrls.isNotEmpty
@@ -310,6 +326,9 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                             key: ValueKey(comment.id),
                             comment: comment,
                             depth: row.depth,
+                            continueParentLine:
+                                index + 1 < rows.length &&
+                                rows[index + 1].depth >= row.depth,
                             parent: byId[comment.replyToId],
                             isMine: comment.senderId == auth.session?.userId,
                             isPostAuthor: comment.senderId == postAuthorId,
@@ -420,6 +439,9 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                                   border: InputBorder.none,
                                 ),
                               ),
+                            ),
+                            CustomEmojiComposerButton(
+                              controller: _inputController,
                             ),
                             const SizedBox(width: 8),
                             IconButton.filled(

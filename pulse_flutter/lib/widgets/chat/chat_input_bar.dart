@@ -18,6 +18,8 @@ import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
 import 'package:pulse_flutter/widgets/chat/m3_emoji_search_view.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_picker_view.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
@@ -72,7 +74,8 @@ class ChatInputBar extends ConsumerStatefulWidget {
   final int? chatId;
   final void Function(ApiSticker sticker)? onSendSticker;
   final VoidCallback? onEditLastMessage;
-  final void Function(List<String> filePaths, {bool sendAsDocument})? onAttachFiles;
+  final void Function(List<String> filePaths, {bool sendAsDocument})?
+  onAttachFiles;
   final bool hapticsEnabled;
   final bool sendOnEnter;
 
@@ -84,8 +87,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     with WidgetsBindingObserver {
   bool _showEmojiPicker = false;
   int _pickerTabIndex = 0;
-  late final PageController _pickerPageController =
-      PageController(initialPage: _pickerTabIndex);
+  late final PageController _pickerPageController = PageController(
+    initialPage: _pickerTabIndex,
+  );
 
   double _cachedKeyboardHeight = 310.0;
   bool _isFocused = false;
@@ -93,11 +97,13 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   bool _isInputEmpty = true;
   bool _isRecording = false;
   bool _isVideoMode = false;
-  final ValueNotifier<Offset> _dragOffsetNotifier =
-      ValueNotifier<Offset>(Offset.zero);
+  final ValueNotifier<Offset> _dragOffsetNotifier = ValueNotifier<Offset>(
+    Offset.zero,
+  );
   bool _isRecordingLocked = false;
-  final ValueNotifier<Duration> _elapsedNotifier =
-      ValueNotifier<Duration>(Duration.zero);
+  final ValueNotifier<Duration> _elapsedNotifier = ValueNotifier<Duration>(
+    Duration.zero,
+  );
   final ValueNotifier<List<double>> _amplitudeNotifier =
       ValueNotifier<List<double>>(<double>[]);
   static const int _kWaveformSampleCount = 48;
@@ -122,14 +128,24 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   @override
   void didChangeMetrics() {
     super.didChangeMetrics();
-    final double bottom = WidgetsBinding
-            .instance.platformDispatcher.views.firstOrNull?.viewInsets.bottom ??
+    final double bottom =
+        WidgetsBinding
+            .instance
+            .platformDispatcher
+            .views
+            .firstOrNull
+            ?.viewInsets
+            .bottom ??
         0.0;
-    final double pixelRatio = WidgetsBinding.instance.platformDispatcher
-            .views.firstOrNull?.devicePixelRatio ??
+    final double pixelRatio =
+        WidgetsBinding
+            .instance
+            .platformDispatcher
+            .views
+            .firstOrNull
+            ?.devicePixelRatio ??
         1.0;
-    final double logicalBottom =
-        bottom / (pixelRatio > 0 ? pixelRatio : 1.0);
+    final double logicalBottom = bottom / (pixelRatio > 0 ? pixelRatio : 1.0);
     if (logicalBottom > 0) {
       final double clamped = logicalBottom.clamp(260.0, 440.0);
       if ((_cachedKeyboardHeight - clamped).abs() > 1.0) {
@@ -192,7 +208,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
       // Switching to emoji panel
       final bool keyboardOpen =
           MediaQuery.viewInsetsOf(context).bottom > 0 ||
-              widget.inputFocusNode.hasFocus;
+          widget.inputFocusNode.hasFocus;
       setState(() {
         _showEmojiPicker = true;
       });
@@ -210,8 +226,11 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     if (text.isEmpty) return;
 
     if (selection.isValid && selection.start != selection.end) {
-      final String newText =
-          text.replaceRange(selection.start, selection.end, '');
+      final String newText = text.replaceRange(
+        selection.start,
+        selection.end,
+        '',
+      );
       widget.inputController.value = TextEditingValue(
         text: newText,
         selection: TextSelection.collapsed(offset: selection.start),
@@ -219,8 +238,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
       return;
     }
 
-    final int cursorOffset =
-        selection.isValid ? selection.start : text.length;
+    final int cursorOffset = selection.isValid ? selection.start : text.length;
     if (cursorOffset <= 0) return;
 
     final Characters chars = text.characters;
@@ -263,36 +281,41 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   }
 
   Widget _buildAttachButton(BuildContext context, ColorScheme scheme) {
-    final bool isDesktop = !kIsWeb &&
+    final bool isDesktop =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.linux ||
             defaultTargetPlatform == TargetPlatform.macOS);
 
     if (isDesktop) {
       return MenuAnchor(
-        builder: (BuildContext context, MenuController controller, Widget? child) {
-          return Tooltip(
-            message: context.l10n.chatAttachMedia,
-            child: TouchContainer(
-              borderRadius: AppRadii.fullRadius,
-              onTap: () {
-                if (controller.isOpen) {
-                  controller.close();
-                } else {
-                  controller.open();
-                }
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                child: Icon(
-                  Icons.add_rounded,
-                  size: 24,
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+        builder:
+            (BuildContext context, MenuController controller, Widget? child) {
+              return Tooltip(
+                message: context.l10n.chatAttachMedia,
+                child: TouchContainer(
+                  borderRadius: AppRadii.fullRadius,
+                  onTap: () {
+                    if (controller.isOpen) {
+                      controller.close();
+                    } else {
+                      controller.open();
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 12,
+                    ),
+                    child: Icon(
+                      Icons.add_rounded,
+                      size: 24,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.75),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            },
         menuChildren: <Widget>[
           MenuItemButton(
             leadingIcon: const Icon(Icons.image_outlined, size: 20),
@@ -313,10 +336,8 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           ),
           MenuItemButton(
             leadingIcon: const Icon(Icons.description_outlined, size: 20),
-            onPressed: () => _pickDesktopFiles(
-              type: FileType.any,
-              sendAsDocument: true,
-            ),
+            onPressed: () =>
+                _pickDesktopFiles(type: FileType.any, sendAsDocument: true),
             child: Text(context.l10n.attachmentDocument),
           ),
           MenuItemButton(
@@ -499,18 +520,23 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: scheme.primaryContainer.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(12),
                         border: Border(
-                            left:
-                                BorderSide(color: scheme.primary, width: 3)),
+                          left: BorderSide(color: scheme.primary, width: 3),
+                        ),
                       ),
                       child: Row(
                         children: <Widget>[
-                          Icon(Icons.edit_rounded,
-                              size: 16, color: scheme.primary),
+                          Icon(
+                            Icons.edit_rounded,
+                            size: 16,
+                            color: scheme.primary,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
@@ -531,7 +557,8 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: textTheme.bodySmall?.copyWith(
-                                      color: scheme.onSurfaceVariant),
+                                    color: scheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ],
                             ),
@@ -555,23 +582,27 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: scheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(12),
                         border: Border(
-                            left: BorderSide(
-                                color: scheme.secondary, width: 3)),
+                          left: BorderSide(color: scheme.secondary, width: 3),
+                        ),
                       ),
                       child: Row(
                         children: <Widget>[
-                          Icon(Icons.reply_rounded,
-                              size: 16, color: scheme.secondary),
+                          Icon(
+                            Icons.reply_rounded,
+                            size: 16,
+                            color: scheme.secondary,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              widget.replyPreviewText ??
-                                  context.l10n.chatReply,
+                              widget.replyPreviewText ?? context.l10n.chatReply,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: textTheme.bodySmall,
@@ -597,21 +628,31 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                       builder: (BuildContext context, Duration elapsed, _) {
                         return ValueListenableBuilder<List<double>>(
                           valueListenable: _amplitudeNotifier,
-                          builder: (BuildContext context, List<double> amplitudes, _) {
-                            return ValueListenableBuilder<Offset>(
-                              valueListenable: _dragOffsetNotifier,
-                              builder: (BuildContext context, Offset dragOffset, _) {
-                                return VoiceRecordingPanel(
-                                  elapsed: elapsed,
-                                  dragOffset: dragOffset,
-                                  isLocked: _isRecordingLocked,
-                                  amplitudeHistory: amplitudes,
-                                  onSend: _sendVoiceRecording,
-                                  onCancel: _cancelVoiceRecording,
+                          builder:
+                              (
+                                BuildContext context,
+                                List<double> amplitudes,
+                                _,
+                              ) {
+                                return ValueListenableBuilder<Offset>(
+                                  valueListenable: _dragOffsetNotifier,
+                                  builder:
+                                      (
+                                        BuildContext context,
+                                        Offset dragOffset,
+                                        _,
+                                      ) {
+                                        return VoiceRecordingPanel(
+                                          elapsed: elapsed,
+                                          dragOffset: dragOffset,
+                                          isLocked: _isRecordingLocked,
+                                          amplitudeHistory: amplitudes,
+                                          onSend: _sendVoiceRecording,
+                                          onCancel: _cancelVoiceRecording,
+                                        );
+                                      },
                                 );
                               },
-                            );
-                          },
                         );
                       },
                     ),
@@ -627,24 +668,29 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                       Expanded(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(
-                              minHeight: 52, maxHeight: 140),
+                            minHeight: 52,
+                            maxHeight: 140,
+                          ),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             curve: M3SpringCurves.spatial,
                             decoration: BoxDecoration(
                               color: _isFocused
                                   ? scheme.surfaceContainerHighest
-                                  : scheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.8),
-                              borderRadius: (theme.inputDecorationTheme.border
+                                  : scheme.surfaceContainerHighest.withValues(
+                                      alpha: 0.8,
+                                    ),
+                              borderRadius:
+                                  (theme.inputDecorationTheme.border
                                           as OutlineInputBorder?)
                                       ?.borderRadius ??
                                   BorderRadius.circular(28),
                               border: Border.all(
                                 color: _isFocused
                                     ? scheme.primary.withValues(alpha: 0.45)
-                                    : scheme.outlineVariant
-                                        .withValues(alpha: 0.18),
+                                    : scheme.outlineVariant.withValues(
+                                        alpha: 0.18,
+                                      ),
                                 width: 1.4,
                               ),
                             ),
@@ -659,35 +705,44 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                     onTap: _toggleEmojiPicker,
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 12),
+                                        horizontal: 12,
+                                        vertical: 12,
+                                      ),
                                       child: AnimatedSwitcher(
-                                        duration: MediaQuery.disableAnimationsOf(context)
+                                        duration:
+                                            MediaQuery.disableAnimationsOf(
+                                              context,
+                                            )
                                             ? Duration.zero
                                             : M3Durations.medium1,
                                         switchInCurve: M3SpringCurves.snappy,
                                         switchOutCurve: M3SpringCurves.snappy,
-                                        transitionBuilder: (Widget child,
-                                            Animation<double> anim) {
-                                          return RotationTransition(
-                                            turns: Tween<double>(
-                                                    begin: 0.88, end: 1.0)
-                                                .animate(anim),
-                                            child: ScaleTransition(
-                                                scale: anim, child: child),
-                                          );
-                                        },
+                                        transitionBuilder:
+                                            (
+                                              Widget child,
+                                              Animation<double> anim,
+                                            ) {
+                                              return RotationTransition(
+                                                turns: Tween<double>(
+                                                  begin: 0.88,
+                                                  end: 1.0,
+                                                ).animate(anim),
+                                                child: ScaleTransition(
+                                                  scale: anim,
+                                                  child: child,
+                                                ),
+                                              );
+                                            },
                                         child: Icon(
                                           _showEmojiPicker
                                               ? Icons.keyboard_rounded
-                                              : Icons
-                                                  .emoji_emotions_outlined,
-                                          key: ValueKey<bool>(
-                                              _showEmojiPicker),
+                                              : Icons.emoji_emotions_outlined,
+                                          key: ValueKey<bool>(_showEmojiPicker),
                                           size: 22,
                                           color: _showEmojiPicker
                                               ? scheme.primary
                                               : scheme.onSurfaceVariant
-                                                  .withValues(alpha: 0.75),
+                                                    .withValues(alpha: 0.75),
                                         ),
                                       ),
                                     ),
@@ -697,15 +752,15 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                 // Text Field
                                 Expanded(
                                   child: Focus(
-                                    onKeyEvent: (FocusNode node,
-                                        KeyEvent event) {
+                                    onKeyEvent: (FocusNode node, KeyEvent event) {
                                       if (event is KeyDownEvent) {
                                         // 1. Enter: send message or commit edit
                                         if (event.logicalKey ==
                                             LogicalKeyboardKey.enter) {
                                           if (!widget.sendOnEnter ||
                                               HardwareKeyboard
-                                                  .instance.isShiftPressed) {
+                                                  .instance
+                                                  .isShiftPressed) {
                                             return KeyEventResult.ignored;
                                           } else {
                                             if (widget.editingMessageId !=
@@ -722,7 +777,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                         if (event.logicalKey ==
                                             LogicalKeyboardKey.escape) {
                                           if (_showEmojiPicker) {
-                                            setState(() => _showEmojiPicker = false);
+                                            setState(
+                                              () => _showEmojiPicker = false,
+                                            );
                                             return KeyEventResult.handled;
                                           }
                                           if (widget.editingMessageId != null) {
@@ -742,17 +799,24 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                                 .trim()
                                                 .isEmpty &&
                                             widget.editingMessageId == null) {
-                                          if (widget.onEditLastMessage != null) {
+                                          if (widget.onEditLastMessage !=
+                                              null) {
                                             widget.onEditLastMessage!();
                                             return KeyEventResult.handled;
                                           }
                                         }
 
                                         // 4. Ctrl+V / Cmd+V: check for clipboard images or files on desktop
-                                        if ((HardwareKeyboard.instance.isControlPressed ||
-                                                HardwareKeyboard.instance.isMetaPressed) &&
-                                            event.logicalKey == LogicalKeyboardKey.keyV &&
-                                            DesktopPasteboardService.isDesktop) {
+                                        if ((HardwareKeyboard
+                                                    .instance
+                                                    .isControlPressed ||
+                                                HardwareKeyboard
+                                                    .instance
+                                                    .isMetaPressed) &&
+                                            event.logicalKey ==
+                                                LogicalKeyboardKey.keyV &&
+                                            DesktopPasteboardService
+                                                .isDesktop) {
                                           unawaited(() async {
                                             final List<String> files =
                                                 await DesktopPasteboardService.getClipboardFilesOrImage();
@@ -783,22 +847,21 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                           : null,
                                       maxLines: 5,
                                       minLines: 1,
-                                      keyboardType:
-                                          TextInputType.multiline,
+                                      keyboardType: TextInputType.multiline,
                                       textCapitalization:
                                           TextCapitalization.sentences,
-                                      style: textTheme.bodyMedium
-                                          ?.copyWith(fontSize: 15),
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        fontSize: 15,
+                                      ),
                                       decoration: InputDecoration(
-                                        hintText:
-                                            context.l10n.chatMessageHint,
+                                        hintText: context.l10n.chatMessageHint,
                                         hintMaxLines: 1,
                                         hintStyle: textTheme.bodyMedium
                                             ?.copyWith(
-                                          fontSize: 15,
-                                          color: scheme.onSurfaceVariant
-                                              .withValues(alpha: 0.50),
-                                        ),
+                                              fontSize: 15,
+                                              color: scheme.onSurfaceVariant
+                                                  .withValues(alpha: 0.50),
+                                            ),
                                         filled: false,
                                         fillColor: Colors.transparent,
                                         border: InputBorder.none,
@@ -806,7 +869,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                         focusedBorder: InputBorder.none,
                                         contentPadding:
                                             const EdgeInsets.symmetric(
-                                                horizontal: 4, vertical: 10),
+                                              horizontal: 4,
+                                              vertical: 10,
+                                            ),
                                         isDense: true,
                                         alignLabelWithHint: false,
                                       ),
@@ -853,13 +918,15 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                       onTap: widget.onAiPressed,
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 12),
+                                          horizontal: 10,
+                                          vertical: 12,
+                                        ),
                                         child: Icon(
                                           Icons.auto_awesome_rounded,
                                           size: 20,
                                           color: _isInputEmpty
                                               ? scheme.onSurfaceVariant
-                                                  .withValues(alpha: 0.4)
+                                                    .withValues(alpha: 0.4)
                                               : scheme.primary,
                                         ),
                                       ),
@@ -881,16 +948,12 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                         switchOutCurve: M3SpringCurves.snappy,
                         transitionBuilder:
                             (Widget child, Animation<double> anim) {
-                          return ScaleTransition(
-                            scale: anim,
-                            child: child,
-                          );
-                        },
-                        child: (_isInputEmpty &&
-                                widget.editingMessageId == null)
+                              return ScaleTransition(scale: anim, child: child);
+                            },
+                        child:
+                            (_isInputEmpty && widget.editingMessageId == null)
                             ? KeyedSubtree(
-                                key: const ValueKey<String>(
-                                    'record_action'),
+                                key: const ValueKey<String>('record_action'),
                                 child: _buildRecordButton(scheme),
                               )
                             : KeyedSubtree(
@@ -916,8 +979,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             clipBehavior: Clip.hardEdge,
             decoration: BoxDecoration(
               color: scheme.surfaceContainerLow,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               border: effectivePanelHeight > 0
                   ? Border(
                       top: BorderSide(
@@ -933,8 +997,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                       // Drag handle for smooth pull-down to dismiss
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onVerticalDragUpdate:
-                            (DragUpdateDetails details) {
+                        onVerticalDragUpdate: (DragUpdateDetails details) {
                           if (details.primaryDelta != null &&
                               details.primaryDelta! > 5) {
                             if (widget.hapticsEnabled) {
@@ -952,8 +1015,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                               width: 38,
                               height: 4,
                               decoration: BoxDecoration(
-                                color: scheme.onSurfaceVariant
-                                    .withValues(alpha: 0.3),
+                                color: scheme.onSurfaceVariant.withValues(
+                                  alpha: 0.3,
+                                ),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),
@@ -968,35 +1032,86 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                           color: scheme.surfaceContainerLow,
                           border: Border(
                             bottom: BorderSide(
-                              color: scheme.outlineVariant
-                                  .withValues(alpha: 0.15),
+                              color: scheme.outlineVariant.withValues(
+                                alpha: 0.15,
+                              ),
                               width: 0.5,
                             ),
                           ),
                         ),
                         child: Row(
                           children: <Widget>[
-                            const SizedBox(width: 40), // Balances backspace button
+                            const SizedBox(
+                              width: 40,
+                            ), // Balances backspace button
                             Expanded(
-                              child: LayoutBuilder(builder: (context, constraints) {
-                                final labels = constraints.maxWidth >= 280 && MediaQuery.textScalerOf(context).scale(14) < 20;
-                                return Center(child: SegmentedButton<int>(showSelectedIcon: false,
-                                  segments: [
-                                    ButtonSegment(value: 0, icon: const Icon(Icons.emoji_emotions_outlined),
-                                      label: labels ? Text(context.l10n.stickerHubEmoji) : null, tooltip: context.l10n.stickerHubEmoji),
-                                    ButtonSegment(value: 1, icon: const Icon(Icons.sticky_note_2_outlined),
-                                      label: labels ? Text(context.l10n.stickerHubStickers) : null, tooltip: context.l10n.stickerHubStickers),
-                                  ], selected: {_pickerTabIndex}, onSelectionChanged: (value) => _selectPickerTab(value.single)));
-                              }),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final labels =
+                                      constraints.maxWidth >= 420 &&
+                                      MediaQuery.textScalerOf(
+                                            context,
+                                          ).scale(14) <
+                                          20;
+                                  return Center(
+                                    child: SegmentedButton<int>(
+                                      showSelectedIcon: false,
+                                      segments: [
+                                        ButtonSegment(
+                                          value: 0,
+                                          icon: const Icon(
+                                            Icons.emoji_emotions_outlined,
+                                          ),
+                                          label: labels
+                                              ? Text(
+                                                  context.l10n.stickerHubEmoji,
+                                                )
+                                              : null,
+                                          tooltip: context.l10n.stickerHubEmoji,
+                                        ),
+                                        ButtonSegment(
+                                          value: 1,
+                                          icon: const Icon(
+                                            Icons.sticky_note_2_outlined,
+                                          ),
+                                          label: labels
+                                              ? Text(
+                                                  context
+                                                      .l10n
+                                                      .stickerHubStickers,
+                                                )
+                                              : null,
+                                          tooltip:
+                                              context.l10n.stickerHubStickers,
+                                        ),
+                                        ButtonSegment(
+                                          value: 2,
+                                          icon: const CustomEmojiIcon(),
+                                          label: labels
+                                              ? const Text('Кастомные')
+                                              : null,
+                                          tooltip: 'Кастомные эмодзи',
+                                        ),
+                                      ],
+                                      selected: {_pickerTabIndex},
+                                      onSelectionChanged: (value) =>
+                                          _selectPickerTab(value.single),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                             // Quick backspace button for emojis
                             IconButton(
-                              onPressed: _pickerTabIndex == 0 ? _onEmojiBackspace : null,
+                              onPressed: _pickerTabIndex == 0
+                                  ? _onEmojiBackspace
+                                  : null,
                               icon: Icon(
                                 Icons.backspace_outlined,
                                 size: 19,
-                                color: scheme.onSurfaceVariant
-                                    .withValues(alpha: 0.75),
+                                color: scheme.onSurfaceVariant.withValues(
+                                  alpha: 0.75,
+                                ),
                               ),
                               tooltip: context.l10n.commonDelete,
                               visualDensity: VisualDensity.compact,
@@ -1009,8 +1124,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                       Expanded(
                         child: PageView(
                           controller: _pickerPageController,
-                          physics: ScrollConfiguration.of(context)
-                              .getScrollPhysics(context),
+                          physics: ScrollConfiguration.of(
+                            context,
+                          ).getScrollPhysics(context),
                           onPageChanged: (int page) {
                             if (widget.hapticsEnabled) {
                               HapticService.tap();
@@ -1020,8 +1136,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                           children: <Widget>[
                             // Page 0: Emoji Picker
                             EmojiPicker(
-                              textEditingController:
-                                  widget.inputController,
+                              textEditingController: widget.inputController,
                               config: _getEmojiConfig(scheme),
                             ),
 
@@ -1033,6 +1148,12 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                   widget.onSendSticker!(sticker);
                                 }
                               },
+                            ),
+                            CustomEmojiPicker(
+                              onSelected: (emoji) => insertCustomEmoji(
+                                widget.inputController,
+                                emoji,
+                              ),
                             ),
                           ],
                         ),
@@ -1050,8 +1171,15 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     if (widget.hapticsEnabled) HapticService.tap();
     setState(() => _pickerTabIndex = index);
     if (!_pickerPageController.hasClients) return;
-    if (MediaQuery.disableAnimationsOf(context)) { _pickerPageController.jumpToPage(index); return; }
-    _pickerPageController.animateToPage(index, duration: M3Durations.medium1, curve: M3SpringCurves.snappy);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pickerPageController.jumpToPage(index);
+      return;
+    }
+    _pickerPageController.animateToPage(
+      index,
+      duration: M3Durations.medium1,
+      curve: M3SpringCurves.snappy,
+    );
   }
 
   Config _getEmojiConfig(ColorScheme scheme) {
@@ -1108,18 +1236,19 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     if (!ref.watch(clientCapabilitiesProvider).nativeRecording) {
       return const SizedBox.shrink();
     }
-    final bool isDesktop = !kIsWeb &&
+    final bool isDesktop =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.linux ||
             defaultTargetPlatform == TargetPlatform.macOS);
 
     final String tooltipMessage = isDesktop
         ? (_isVideoMode
-            ? context.l10n.recordCircleDesktopHint
-            : context.l10n.recordVoiceDesktopHint)
+              ? context.l10n.recordCircleDesktopHint
+              : context.l10n.recordVoiceDesktopHint)
         : (_isVideoMode
-            ? context.l10n.chatCircleVideo
-            : context.l10n.chatVoiceMessage);
+              ? context.l10n.chatCircleVideo
+              : context.l10n.chatVoiceMessage);
 
     final Widget mainRecordBtn = Tooltip(
       message: tooltipMessage,
@@ -1218,10 +1347,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
             transitionBuilder: (Widget child, Animation<double> anim) {
-              return ScaleTransition(
-                scale: anim,
-                child: child,
-              );
+              return ScaleTransition(scale: anim, child: child);
             },
             child: Icon(
               _isVideoMode ? Icons.videocam_rounded : Icons.mic_rounded,
@@ -1254,7 +1380,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                   height: 32,
                   margin: const EdgeInsets.only(right: 6),
                   decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.8),
+                    color: scheme.surfaceContainerHighest.withValues(
+                      alpha: 0.8,
+                    ),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

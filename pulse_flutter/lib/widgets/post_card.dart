@@ -1,7 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/feed_poll_card.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -70,20 +73,22 @@ class _PostCardState extends ConsumerState<PostCard>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _heartScale = TweenSequence<double>(<TweenSequenceItem<double>>[
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 0.0, end: 1.4),
-        weight: 25,
-      ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.4, end: 1.0),
-        weight: 25,
-      ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.0, end: 0.0),
-        weight: 50,
-      ),
-    ]).animate(CurvedAnimation(parent: _heartController, curve: Curves.easeOut));
+    _heartScale = TweenSequence<double>(
+      <TweenSequenceItem<double>>[
+        TweenSequenceItem<double>(
+          tween: Tween<double>(begin: 0.0, end: 1.4),
+          weight: 25,
+        ),
+        TweenSequenceItem<double>(
+          tween: Tween<double>(begin: 1.4, end: 1.0),
+          weight: 25,
+        ),
+        TweenSequenceItem<double>(
+          tween: Tween<double>(begin: 1.0, end: 0.0),
+          weight: 50,
+        ),
+      ],
+    ).animate(CurvedAnimation(parent: _heartController, curve: Curves.easeOut));
     _heartOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _heartController,
@@ -181,8 +186,8 @@ class _PostCardState extends ConsumerState<PostCard>
       final List<String> list = widget.post.mediaUrls.isNotEmpty
           ? widget.post.mediaUrls
           : (widget.post.mediaUrl != null && widget.post.mediaUrl!.isNotEmpty
-              ? <String>[widget.post.mediaUrl!]
-              : const <String>[]);
+                ? <String>[widget.post.mediaUrl!]
+                : const <String>[]);
       if (list.isNotEmpty) {
         _openFullScreen(
           context,
@@ -204,8 +209,8 @@ class _PostCardState extends ConsumerState<PostCard>
     final List<String> effectiveMediaUrls = post.mediaUrls.isNotEmpty
         ? post.mediaUrls
         : (post.mediaUrl != null && post.mediaUrl!.isNotEmpty
-            ? <String>[post.mediaUrl!]
-            : const <String>[]);
+              ? <String>[post.mediaUrl!]
+              : const <String>[]);
 
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -213,321 +218,343 @@ class _PostCardState extends ConsumerState<PostCard>
       child: GestureDetector(
         onDoubleTap: _onDoubleTapLike,
         child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 0,
-        color: scheme.surfaceContainer,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadii.lgRadius,
-          side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.20 : 0.35),
-            width: 1,
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: scheme.surfaceContainer,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppRadii.lgRadius,
+            side: BorderSide(
+              color: scheme.outlineVariant.withValues(
+                alpha: isDark ? 0.20 : 0.35,
+              ),
+              width: 1,
+            ),
           ),
-        ),
-        child: Stack(
-          children: <Widget>[
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                // ── Header ──────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 10, 0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      GestureDetector(
-                        onTap: _handleAuthorTap,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: <Widget>[
-                            PulseAvatar(
-                              name: post.author.displayName,
-                              avatarUrl: post.author.avatarUrl,
-                              radius: 20,
-                            ),
-                            if (post.author.badges.isNotEmpty &&
-                                post.author.badges.any(
-                                  (ApiBadge b) => !BadgeResolver.isStatusBadge(b),
-                                ))
-                              Positioned(
-                                right: -2,
-                                bottom: -2,
-                                child: BadgeChip(
-                                  id: post.author.badges.first.id,
-                                  name: post.author.badges.first.name,
-                                  icon: post.author.badges.first.icon,
-                                  color: post.author.badges.first.color,
-                                  mode: BadgeDisplayMode.avatarBadge,
-                                  interactive: false,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: GestureDetector(
+          child: Stack(
+            children: <Widget>[
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  // ── Header ──────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 10, 0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        GestureDetector(
                           onTap: _handleAuthorTap,
-                          behavior: HitTestBehavior.opaque,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Stack(
+                            clipBehavior: Clip.none,
                             children: <Widget>[
-                              // Display Name + Status Badges (Verified, Founder, Admin)
-                              Row(
-                                children: <Widget>[
-                                  Flexible(
-                                    child: Text(
-                                      post.author.displayName.isNotEmpty
-                                          ? post.author.displayName
-                                          : post.author.username,
-                                      style: textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                        color: scheme.onSurface,
-                                        letterSpacing: -0.2,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                              PulseAvatar(
+                                name: post.author.displayName,
+                                avatarUrl: post.author.avatarUrl,
+                                radius: 20,
+                              ),
+                              if (post.author.badges.isNotEmpty &&
+                                  post.author.badges.any(
+                                    (ApiBadge b) =>
+                                        !BadgeResolver.isStatusBadge(b),
+                                  ))
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: BadgeChip(
+                                    id: post.author.badges.first.id,
+                                    name: post.author.badges.first.name,
+                                    icon: post.author.badges.first.icon,
+                                    color: post.author.badges.first.color,
+                                    mode: BadgeDisplayMode.avatarBadge,
+                                    interactive: false,
                                   ),
-                                  if (post.author.badges
-                                      .where(BadgeResolver.isStatusBadge)
-                                      .isNotEmpty) ...<Widget>[
-                                    const SizedBox(width: 4),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _handleAuthorTap,
+                            behavior: HitTestBehavior.opaque,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                // Display Name + Status Badges (Verified, Founder, Admin)
+                                Row(
+                                  children: <Widget>[
                                     Flexible(
-                                      fit: FlexFit.loose,
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerLeft,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: post.author.badges
-                                              .where(BadgeResolver.isStatusBadge)
-                                              .take(2)
-                                              .map(
-                                                (ApiBadge b) => Padding(
-                                                  padding: const EdgeInsets.only(left: 2),
-                                                  child: BadgeChip(
-                                                    id: b.id,
-                                                    name: b.name,
-                                                    icon: b.icon,
-                                                    color: b.color,
-                                                    mode: BadgeDisplayMode.statusIcon,
-                                                    interactive: false,
+                                      child: Text(
+                                        post.author.displayName.isNotEmpty
+                                            ? post.author.displayName
+                                            : post.author.username,
+                                        style: textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                          color: scheme.onSurface,
+                                          letterSpacing: -0.2,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (post.author.badges
+                                        .where(BadgeResolver.isStatusBadge)
+                                        .isNotEmpty) ...<Widget>[
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        fit: FlexFit.loose,
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: post.author.badges
+                                                .where(
+                                                  BadgeResolver.isStatusBadge,
+                                                )
+                                                .take(2)
+                                                .map(
+                                                  (ApiBadge b) => Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          left: 2,
+                                                        ),
+                                                    child: BadgeChip(
+                                                      id: b.id,
+                                                      name: b.name,
+                                                      icon: b.icon,
+                                                      color: b.color,
+                                                      mode: BadgeDisplayMode
+                                                          .statusIcon,
+                                                      interactive: false,
+                                                    ),
                                                   ),
-                                                ),
-                                              )
-                                              .toList(growable: false),
+                                                )
+                                                .toList(growable: false),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              // Handle + Dot + Relative Time Badge (Overflow-safe inline text)
-                              Text.rich(
-                                TextSpan(
-                                  children: <InlineSpan>[
-                                    TextSpan(
-                                      text: '@${post.author.username}',
-                                      style: textTheme.bodySmall?.copyWith(
-                                        color: scheme.onSurfaceVariant,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: '  •  ',
-                                      style: TextStyle(
-                                        color: scheme.outlineVariant,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: formatRelativeTime(post.createdAt),
-                                      style: textTheme.labelSmall?.copyWith(
-                                        color: scheme.onSurfaceVariant,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                                    ],
                                   ],
                                 ),
+                                const SizedBox(height: 2),
+                                // Handle + Dot + Relative Time Badge (Overflow-safe inline text)
+                                Text.rich(
+                                  TextSpan(
+                                    children: <InlineSpan>[
+                                      TextSpan(
+                                        text: '@${post.author.username}',
+                                        style: textTheme.bodySmall?.copyWith(
+                                          color: scheme.onSurfaceVariant,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: '  •  ',
+                                        style: TextStyle(
+                                          color: scheme.outlineVariant,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: formatRelativeTime(
+                                          post.createdAt,
+                                        ),
+                                        style: textTheme.labelSmall?.copyWith(
+                                          color: scheme.onSurfaceVariant,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (!isOwn)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: TextButton(
+                              onPressed: () {
+                                ref
+                                    .read(niosgramProvider.notifier)
+                                    .toggleFollow(post.author.username);
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              child: Text(
+                                post.isFollowing
+                                    ? context.l10n.niosgramUnfollow
+                                    : context.l10n.niosgramFollow,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
+                                style: textTheme.labelMedium?.copyWith(
+                                  color: post.isFollowing
+                                      ? scheme.onSurfaceVariant
+                                      : scheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        _PostMenu(post: post, isOwn: isOwn),
+                      ],
+                    ),
+                  ),
+
+                  // ── Content ─────────────────────────────────────────
+                  if (post.content.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: MarkdownBody(
+                          data: post.content,
+                          inlineSyntaxes: [CustomEmojiSyntax()],
+                          builders: {
+                            'nios-emoji': CustomEmojiMarkdownBuilder(),
+                          },
+                          styleSheet:
+                              MarkdownStyleSheet.fromTheme(
+                                Theme.of(context),
+                              ).copyWith(
+                                p: textTheme.bodyMedium?.copyWith(
+                                  fontSize: 15,
+                                  height: 1.45,
+                                ),
+                                code: TextStyle(
+                                  backgroundColor:
+                                      scheme.surfaceContainerHighest,
+                                  fontFamily: 'monospace',
+                                  fontSize: 13,
+                                ),
+                              ),
+                          onTapLink: (String text, String? href, String title) {
+                            if (href != null) {
+                              AppUrlLauncher.openUrl(context, href);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+
+                  if (post.poll != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: FeedPollCard(postId: post.id, poll: post.poll!),
+                    ),
+                  // ── Media Viewport ──────────────────────────────────
+                  if (effectiveMediaUrls.isNotEmpty)
+                    _PostMediaViewport(
+                      post: post,
+                      mediaUrls: effectiveMediaUrls,
+                      onDoubleTapLike: _onDoubleTapLike,
+                      onMediaTap: _handleMediaTap,
+                    ),
+
+                  // ── Action bar ──────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                    child: Row(
+                      children: <Widget>[
+                        _ActionChip(
+                          icon: Icons.favorite_border_rounded,
+                          activeIcon: Icons.favorite_rounded,
+                          count: post.likesCount,
+                          active: post.myReaction == true,
+                          activeColor: scheme.error,
+                          onTap: _handleLike,
+                          scheme: scheme,
+                        ),
+                        const SizedBox(width: 4),
+                        _ActionChip(
+                          icon: Icons.sentiment_dissatisfied_outlined,
+                          activeIcon: Icons.sentiment_dissatisfied_rounded,
+                          count: post.dislikesCount,
+                          active: post.myReaction == false,
+                          activeColor: scheme.error,
+                          onTap: _handleDislike,
+                          scheme: scheme,
+                        ),
+                        const SizedBox(width: 4),
+                        _ActionChip(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          activeIcon: Icons.chat_bubble_rounded,
+                          count: post.commentsCount,
+                          active: false,
+                          activeColor: scheme.primary,
+                          onTap: _handleComment,
+                          scheme: scheme,
+                        ),
+                        const Spacer(),
+                        _ActionChip(
+                          icon: Icons.share_outlined,
+                          activeIcon: Icons.share_rounded,
+                          count: 0,
+                          active: false,
+                          activeColor: scheme.onSurfaceVariant,
+                          onTap: _handleShare,
+                          scheme: scheme,
+                        ),
+                        const SizedBox(width: 4),
+                        _ActionChip(
+                          icon: Icons.bookmark_outline_rounded,
+                          activeIcon: Icons.bookmark_rounded,
+                          count: 0,
+                          active: _isBookmarked,
+                          activeColor: scheme.primary,
+                          onTap: _handleBookmark,
+                          scheme: scheme,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (_showHeart)
+                Positioned.fill(
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _heartController,
+                      builder: (_, Widget? anim) => Transform.scale(
+                        scale: _heartScale.value,
+                        child: Opacity(
+                          opacity: _heartOpacity.value,
+                          child: Icon(
+                            Icons.favorite_rounded,
+                            color: scheme.error,
+                            size: 100,
+                            shadows: <Shadow>[
+                              Shadow(
+                                blurRadius: 24,
+                                color: scheme.scrim.withValues(alpha: 0.45),
                               ),
                             ],
                           ),
                         ),
                       ),
-                      if (!isOwn)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: TextButton(
-                            onPressed: () {
-                              ref
-                                  .read(niosgramProvider.notifier)
-                                  .toggleFollow(post.author.username);
-                            },
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            child: Text(
-                              post.isFollowing
-                                  ? context.l10n.niosgramUnfollow
-                                  : context.l10n.niosgramFollow,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.labelMedium?.copyWith(
-                                color: post.isFollowing
-                                    ? scheme.onSurfaceVariant
-                                    : scheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      _PostMenu(post: post, isOwn: isOwn),
-                    ],
-                  ),
-                ),
-
-                // ── Content ─────────────────────────────────────────
-                if (post.content.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: MarkdownBody(
-                        data: post.content,
-                        styleSheet: MarkdownStyleSheet.fromTheme(
-                          Theme.of(context),
-                        ).copyWith(
-                          p: textTheme.bodyMedium?.copyWith(
-                            fontSize: 15,
-                            height: 1.45,
-                          ),
-                          code: TextStyle(
-                            backgroundColor: scheme.surfaceContainerHighest,
-                            fontFamily: 'monospace',
-                            fontSize: 13,
-                          ),
-                        ),
-                        onTapLink: (String text, String? href, String title) {
-                          if (href != null) {
-                            AppUrlLauncher.openUrl(context, href);
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-
-                // ── Media Viewport ──────────────────────────────────
-                if (effectiveMediaUrls.isNotEmpty)
-                  _PostMediaViewport(
-                    post: post,
-                    mediaUrls: effectiveMediaUrls,
-                    onDoubleTapLike: _onDoubleTapLike,
-                    onMediaTap: _handleMediaTap,
-                  ),
-
-                // ── Action bar ──────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                  child: Row(
-                    children: <Widget>[
-                      _ActionChip(
-                        icon: Icons.favorite_border_rounded,
-                        activeIcon: Icons.favorite_rounded,
-                        count: post.likesCount,
-                        active: post.myReaction == true,
-                        activeColor: scheme.error,
-                        onTap: _handleLike,
-                        scheme: scheme,
-                      ),
-                      const SizedBox(width: 4),
-                      _ActionChip(
-                        icon: Icons.sentiment_dissatisfied_outlined,
-                        activeIcon: Icons.sentiment_dissatisfied_rounded,
-                        count: post.dislikesCount,
-                        active: post.myReaction == false,
-                        activeColor: scheme.error,
-                        onTap: _handleDislike,
-                        scheme: scheme,
-                      ),
-                      const SizedBox(width: 4),
-                      _ActionChip(
-                        icon: Icons.chat_bubble_outline_rounded,
-                        activeIcon: Icons.chat_bubble_rounded,
-                        count: post.commentsCount,
-                        active: false,
-                        activeColor: scheme.primary,
-                        onTap: _handleComment,
-                        scheme: scheme,
-                      ),
-                      const Spacer(),
-                      _ActionChip(
-                        icon: Icons.share_outlined,
-                        activeIcon: Icons.share_rounded,
-                        count: 0,
-                        active: false,
-                        activeColor: scheme.onSurfaceVariant,
-                        onTap: _handleShare,
-                        scheme: scheme,
-                      ),
-                      const SizedBox(width: 4),
-                      _ActionChip(
-                        icon: Icons.bookmark_outline_rounded,
-                        activeIcon: Icons.bookmark_rounded,
-                        count: 0,
-                        active: _isBookmarked,
-                        activeColor: scheme.primary,
-                        onTap: _handleBookmark,
-                        scheme: scheme,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (_showHeart)
-              Positioned.fill(
-                child: Center(
-                  child: AnimatedBuilder(
-                    animation: _heartController,
-                    builder: (_, Widget? anim) => Transform.scale(
-                      scale: _heartScale.value,
-                      child: Opacity(
-                        opacity: _heartOpacity.value,
-                        child: Icon(
-                          Icons.favorite_rounded,
-                          color: scheme.error,
-                          size: 100,
-                          shadows: <Shadow>[
-                            Shadow(
-                              blurRadius: 24,
-                              color: scheme.scrim.withValues(alpha: 0.45),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 void _openFullScreen(BuildContext context, String url, int postId) {
@@ -575,67 +602,69 @@ class _FullScreenImageState extends State<_FullScreenImage> {
       child: ColoredBox(
         color: scheme.surface,
         child: Stack(
-        children: <Widget>[
-          Positioned.fill(
-            child: Hero(
-              tag: 'post_media_${widget.postId}',
-              child: InteractiveViewer(
-                minScale: 0.8,
-                maxScale: 5.0,
+          children: <Widget>[
+            Positioned.fill(
+              child: Hero(
+                tag: 'post_media_${widget.postId}',
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 5.0,
+                  child: Center(
+                    child: AnimatedOpacity(
+                      opacity: _visible ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 250),
+                      child: CachedNetworkImage(
+                        imageUrl: widget.url,
+                        httpHeaders: cachedAuthHeaders(),
+                        fit: BoxFit.contain,
+                        memCacheWidth: 1600,
+                        placeholder: (_, _) => const Center(
+                          child: MediaPlaceholderIllustration(
+                            width: 220,
+                            height: 180,
+                          ),
+                        ),
+                        errorWidget: (_, _, _) => Center(
+                          child: MediaErrorIllustration(
+                            width: 260,
+                            height: 180,
+                            message: context.l10n.niosgramFailedLoad,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 4,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
                 child: Center(
-                  child: AnimatedOpacity(
-                    opacity: _visible ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 250),
-                    child: CachedNetworkImage(
-                      imageUrl: widget.url,
-                      httpHeaders: cachedAuthHeaders(),
-                      fit: BoxFit.contain,
-                      memCacheWidth: 1600,
-                      placeholder: (_, _) => const Center(
-                        child: MediaPlaceholderIllustration(
-                          width: 220,
-                          height: 180,
-                        ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest.withValues(
+                        alpha: 0.8,
                       ),
-                      errorWidget: (_, _, _) => Center(
-                        child: MediaErrorIllustration(
-                          width: 260,
-                          height: 180,
-                          message: context.l10n.niosgramFailedLoad,
-                        ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: scheme.onSurface,
+                        size: 22,
                       ),
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            top: MediaQuery.paddingOf(context).top + 4,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.close_rounded,
-                      color: scheme.onSurface,
-                      size: 22,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -732,7 +761,9 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                       child: Hero(
                         tag: 'post_media_${widget.post.id}',
                         child: CachedNetworkImage(
-                          imageUrl: ApiConstants.resolve(widget.mediaUrls.first),
+                          imageUrl: ApiConstants.resolve(
+                            widget.mediaUrls.first,
+                          ),
                           httpHeaders: cachedAuthHeaders(),
                           fit: BoxFit.cover,
                           width: double.infinity,
@@ -773,9 +804,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                             const SizedBox(width: 4),
                             Text(
                               'VIDEO',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
                                     color: scheme.onSurface,
                                     fontWeight: FontWeight.w700,
@@ -804,9 +833,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                         ),
                         child: Text(
                           '${_currentPage + 1}/${widget.mediaUrls.length}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
+                          style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
                                 color: scheme.onSurface,
                                 fontWeight: FontWeight.w600,
@@ -827,7 +854,9 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                             final bool active = idx == _currentPage;
                             return AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
-                              margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 2.5,
+                              ),
                               width: active ? 16 : 6,
                               height: 6,
                               decoration: BoxDecoration(
@@ -890,13 +919,17 @@ class _ActionChipState extends State<_ActionChip>
     );
     _scale = TweenSequence<double>(<TweenSequenceItem<double>>[
       TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.0, end: 1.32)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        tween: Tween<double>(
+          begin: 1.0,
+          end: 1.32,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
         weight: 35,
       ),
       TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.32, end: 1.0)
-            .chain(CurveTween(curve: M3SpringCurves.bouncy)),
+        tween: Tween<double>(
+          begin: 1.32,
+          end: 1.0,
+        ).chain(CurveTween(curve: M3SpringCurves.bouncy)),
         weight: 65,
       ),
     ]).animate(_ctrl);
@@ -923,8 +956,9 @@ class _ActionChipState extends State<_ActionChip>
 
   @override
   Widget build(BuildContext context) {
-    final Color effectiveColor =
-        widget.active ? widget.activeColor : widget.scheme.onSurfaceVariant;
+    final Color effectiveColor = widget.active
+        ? widget.activeColor
+        : widget.scheme.onSurfaceVariant;
     final Color bgColor = widget.active
         ? widget.activeColor.withValues(alpha: 0.14)
         : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.45);
@@ -946,10 +980,7 @@ class _ActionChipState extends State<_ActionChip>
               AnimatedBuilder(
                 animation: _scale,
                 builder: (_, Widget? child) {
-                  return Transform.scale(
-                    scale: _scale.value,
-                    child: child,
-                  );
+                  return Transform.scale(scale: _scale.value, child: child);
                 },
                 child: Icon(
                   widget.active ? widget.activeIcon : widget.icon,
@@ -962,11 +993,12 @@ class _ActionChipState extends State<_ActionChip>
                 Text(
                   _formatCount(widget.count),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: effectiveColor,
-                        fontWeight:
-                            widget.active ? FontWeight.w700 : FontWeight.w600,
-                        fontSize: 13,
-                      ),
+                    color: effectiveColor,
+                    fontWeight: widget.active
+                        ? FontWeight.w700
+                        : FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ],
@@ -997,23 +1029,23 @@ class _PostMenu extends ConsumerWidget {
     return MenuAnchor(
       builder:
           (BuildContext context, MenuController controller, Widget? child) {
-        return IconButton(
-          icon: Icon(
-            Icons.more_horiz_rounded,
-            size: 20,
-            color: scheme.onSurfaceVariant,
-          ),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          onPressed: () {
-            if (controller.isOpen) {
-              controller.close();
-            } else {
-              controller.open();
-            }
+            return IconButton(
+              icon: Icon(
+                Icons.more_horiz_rounded,
+                size: 20,
+                color: scheme.onSurfaceVariant,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              onPressed: () {
+                if (controller.isOpen) {
+                  controller.close();
+                } else {
+                  controller.open();
+                }
+              },
+            );
           },
-        );
-      },
       menuChildren: <Widget>[
         if (isOwn) ...<Widget>[
           MenuItemButton(
@@ -1058,12 +1090,13 @@ class _PostMenu extends ConsumerWidget {
   }
 
   void _showEditSheet(BuildContext context, WidgetRef ref) {
-    final TextEditingController ctrl =
-        TextEditingController(text: post.content);
+    final TextEditingController ctrl = TextEditingController(
+      text: post.content,
+    );
     AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
-      
+
       builder: (_) => Padding(
         padding: EdgeInsets.only(
           left: 16,
@@ -1082,6 +1115,7 @@ class _PostMenu extends ConsumerWidget {
                 border: OutlineInputBorder(),
               ),
             ),
+            CustomEmojiComposerButton(controller: ctrl),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -1141,4 +1175,3 @@ class _MediaErrorPlaceholder extends StatelessWidget {
     );
   }
 }
-

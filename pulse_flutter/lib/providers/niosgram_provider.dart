@@ -336,9 +336,11 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     dynamic uploadId,
     List<dynamic>? uploadIds,
     List<String>? aiTags,
+    Map<String, dynamic>? poll,
   }) async {
     final Map<String, dynamic> payload = <String, dynamic>{
       'content': text.trim(),
+      'poll': ?poll,
     };
     final List<dynamic> effectiveUploadIds = <dynamic>[
       ...?uploadIds,

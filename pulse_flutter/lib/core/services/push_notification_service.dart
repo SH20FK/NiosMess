@@ -321,6 +321,11 @@ class PushNotificationService {
         ? strings.noticeIncomingCall
         : options['preview'] == false
         ? strings.noticeNewMessage
+        : data['is_secret']?.toString() == 'true'
+        ? strings.noticeEncrypted
+        : (event.body.toLowerCase() == 'encrypted message' ||
+              event.body == 'Зашифрованное сообщение')
+        ? strings.noticeNewMessage
         : event.body;
     if (_shouldIgnorePush(title, body, isCall: event.isCall)) return;
     if (kIsWeb) return; // The FCM worker owns background web notifications.

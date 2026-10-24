@@ -1,6 +1,10 @@
 import 'dart:typed_data';
+import 'package:pulse_flutter/models/interactive_message.dart';
+import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
+import 'package:pulse_flutter/widgets/feed_poll_card.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -33,6 +37,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   List<PlatformFile> _selectedFiles = <PlatformFile>[];
   List<Uint8List> _previewBytesList = <Uint8List>[];
   bool _isLoading = false;
+  Map<String, dynamic>? _poll;
   String? _error;
 
   static const int _maxPostLength = 2000;
@@ -56,7 +61,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   bool _isVideoFile(String name) {
     final String ext = name.split('.').last.toLowerCase();
-    return ext == 'mp4' || ext == 'mov' || ext == 'mkv' || ext == 'webm' || ext == 'avi' || ext == '3gp';
+    return ext == 'mp4' ||
+        ext == 'mov' ||
+        ext == 'mkv' ||
+        ext == 'webm' ||
+        ext == 'avi' ||
+        ext == '3gp';
   }
 
   Future<void> _pickMedia() async {
@@ -72,7 +82,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     if (result.isEmpty) return;
 
     final List<PlatformFile> picked = result.take(availableSlots).toList();
-    final List<PlatformFile> validFiles = List<PlatformFile>.from(_selectedFiles);
+    final List<PlatformFile> validFiles = List<PlatformFile>.from(
+      _selectedFiles,
+    );
     final List<Uint8List> previews = List<Uint8List>.from(_previewBytesList);
 
     for (final PlatformFile file in picked) {
@@ -108,7 +120,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Future<void> _submit() async {
     final String text = _textController.text.trim();
-    if (text.isEmpty && _selectedFiles.isEmpty && _selectedFile == null) {
+    if (text.isEmpty &&
+        _poll == null &&
+        _selectedFiles.isEmpty &&
+        _selectedFile == null) {
       setState(() => _error = context.l10n.postEmptyContent);
       return;
     }
@@ -169,9 +184,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         }
       }
 
-      await ref.read(niosgramProvider.notifier).createPost(
+      await ref
+          .read(niosgramProvider.notifier)
+          .createPost(
             text,
             uploadIds: uploadIds,
+            poll: _poll,
             uploadId: uploadIds?.firstOrNull,
           );
 
@@ -200,7 +218,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final bool isWide = screenWidth >= Breakpoints.medium;
 
     final AuthState auth = ref.watch(authProvider);
-    final String displayName = auth.profile?.displayName ??
+    final String displayName =
+        auth.profile?.displayName ??
         auth.session?.displayName ??
         context.l10n.profileGuestName;
 
@@ -209,7 +228,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       builder: (BuildContext context, Widget? child) {
         final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
         final bool hasDraft =
-            _textController.text.trim().isNotEmpty || _selectedFile != null;
+            _textController.text.trim().isNotEmpty ||
+            _selectedFile != null ||
+            _poll != null;
         return PopScope(
           canPop: canRoutePop && !hasDraft,
           onPopInvokedWithResult: (bool didPop, Object? result) async {
@@ -261,7 +282,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () async {
-              if (_textController.text.trim().isEmpty && _selectedFile == null) {
+              if (_textController.text.trim().isEmpty &&
+                  _poll == null &&
+                  _selectedFile == null) {
                 if (context.canPop()) {
                   context.pop();
                 } else {
@@ -309,9 +332,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: isWide
-                        ? (isDark
-                            ? scheme.surfaceContainerLow
-                            : scheme.surface)
+                        ? (isDark ? scheme.surfaceContainerLow : scheme.surface)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(24),
                     border: isWide
@@ -357,8 +378,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                 Text(
                                   'Публикация в NiosGram',
                                   style: textTheme.bodySmall?.copyWith(
-                                    color: scheme.onSurfaceVariant
-                                        .withValues(alpha: 0.75),
+                                    color: scheme.onSurfaceVariant.withValues(
+                                      alpha: 0.75,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -385,17 +407,20 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                           maxLines: 8,
                           minLines: 1,
                           maxLength: _maxPostLength,
-                          buildCounter: (_,
-                                  {required int currentLength,
-                                  required bool isFocused,
-                                  int? maxLength}) =>
-                              null,
+                          buildCounter:
+                              (
+                                _, {
+                                required int currentLength,
+                                required bool isFocused,
+                                int? maxLength,
+                              }) => null,
                           style: textTheme.bodyLarge?.copyWith(fontSize: 15),
                           decoration: InputDecoration(
                             hintText: context.l10n.postHint,
                             hintStyle: TextStyle(
-                              color: scheme.onSurfaceVariant
-                                  .withValues(alpha: 0.70),
+                              color: scheme.onSurfaceVariant.withValues(
+                                alpha: 0.70,
+                              ),
                             ),
                             border: InputBorder.none,
                             isDense: true,
@@ -409,6 +434,53 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       ),
                       const SizedBox(height: 16),
 
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: CustomEmojiComposerButton(
+                          controller: _textController,
+                        ),
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          for (final kind in ['poll', 'quiz'])
+                            TextButton.icon(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () async {
+                                      final result =
+                                          await showInteractiveComposer(
+                                            context,
+                                            kind,
+                                          );
+                                      final parsed = result == null
+                                          ? null
+                                          : InteractiveMessage.parse(result);
+                                      if (parsed != null && mounted) {
+                                        setState(
+                                          () =>
+                                              _poll = Map<String, dynamic>.from(
+                                                parsed.data,
+                                              ),
+                                        );
+                                      }
+                                    },
+                              icon: InteractiveIcon(kind),
+                              label: Text(
+                                kind == 'quiz'
+                                    ? 'Анонимная викторина'
+                                    : 'Анонимный опрос',
+                              ),
+                            ),
+                          if (_poll != null)
+                            TextButton(
+                              onPressed: () => setState(() => _poll = null),
+                              child: const Text('Убрать опрос'),
+                            ),
+                        ],
+                      ),
+                      if (_poll != null)
+                        FeedPollCard(postId: 0, poll: _poll!, preview: true),
                       // Media preview (reusable PostMediaStrip)
                       if (_previewBytesList.isNotEmpty) ...<Widget>[
                         Padding(
@@ -484,8 +556,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             color: isDark ? scheme.surfaceContainerLow : scheme.surface,
             border: Border(
               top: BorderSide(
-                color: scheme.outlineVariant
-                    .withValues(alpha: isDark ? 0.20 : 0.35),
+                color: scheme.outlineVariant.withValues(
+                  alpha: isDark ? 0.20 : 0.35,
+                ),
               ),
             ),
           ),
@@ -498,8 +571,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 return Row(
                   children: <Widget>[
                     FilledButton.tonalIcon(
-                      onPressed:
-                          _selectedFiles.length >= 5 ? null : _pickMedia,
+                      onPressed: _selectedFiles.length >= 5 ? null : _pickMedia,
                       icon: Badge(
                         isLabelVisible: _selectedFiles.isNotEmpty,
                         label: Text('${_selectedFiles.length}'),
@@ -512,8 +584,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         _selectedFiles.isEmpty
                             ? (isNarrow ? 'Фото' : context.l10n.postAttachMedia)
                             : (isNarrow
-                                ? '${_selectedFiles.length}/5'
-                                : '${context.l10n.postAttachMedia} (${_selectedFiles.length}/5)'),
+                                  ? '${_selectedFiles.length}/5'
+                                  : '${context.l10n.postAttachMedia} (${_selectedFiles.length}/5)'),
                       ),
                       style: FilledButton.styleFrom(
                         shape: RoundedRectangleBorder(
@@ -532,13 +604,16 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         child: Text(
                           '${_textController.text.length} / $_maxPostLength',
                           style: textTheme.bodySmall?.copyWith(
-                            color: _textController.text.length >
+                            color:
+                                _textController.text.length >
                                     (_maxPostLength - 200)
                                 ? scheme.error
-                                : scheme.onSurfaceVariant
-                                    .withValues(alpha: 0.6),
+                                : scheme.onSurfaceVariant.withValues(
+                                    alpha: 0.6,
+                                  ),
                             fontSize: 11,
-                            fontWeight: _textController.text.length >
+                            fontWeight:
+                                _textController.text.length >
                                     (_maxPostLength - 200)
                                 ? FontWeight.w700
                                 : FontWeight.w500,
@@ -553,9 +628,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                               color: scheme.onPrimary,
                             )
                           : const Icon(Icons.send_rounded, size: 16),
-                      label: Text(
-                        isNarrow ? 'Пост' : context.l10n.postPublish,
-                      ),
+                      label: Text(isNarrow ? 'Пост' : context.l10n.postPublish),
                       style: FilledButton.styleFrom(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),

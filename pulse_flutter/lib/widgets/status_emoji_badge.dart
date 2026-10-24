@@ -4,11 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pulse_flutter/models/api/status_emoji_model.dart';
 
 class StatusEmojiBadge extends StatelessWidget {
-  const StatusEmojiBadge({
-    required this.emoji,
-    this.size = 18.0,
-    super.key,
-  });
+  const StatusEmojiBadge({required this.emoji, this.size = 18.0, super.key});
 
   final ApiStatusEmoji emoji;
   final double size;
@@ -20,6 +16,12 @@ class StatusEmojiBadge extends StatelessWidget {
     final Widget imageWidget = emoji.isSvg
         ? SvgPicture.network(
             emoji.url,
+            colorFilter: emoji.isAdaptive
+                ? ColorFilter.mode(
+                    Theme.of(context).colorScheme.onSurface,
+                    BlendMode.srcIn,
+                  )
+                : null,
             width: size,
             height: size,
             fit: BoxFit.contain,
@@ -27,6 +29,10 @@ class StatusEmojiBadge extends StatelessWidget {
           )
         : CachedNetworkImage(
             imageUrl: emoji.url,
+            color: emoji.isAdaptive
+                ? Theme.of(context).colorScheme.onSurface
+                : null,
+            colorBlendMode: emoji.isAdaptive ? BlendMode.srcIn : null,
             width: size,
             height: size,
             fit: BoxFit.contain,
@@ -40,11 +46,7 @@ class StatusEmojiBadge extends StatelessWidget {
       padding: const EdgeInsets.only(left: 4.0),
       child: Tooltip(
         message: emoji.shortcode,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: imageWidget,
-        ),
+        child: SizedBox(width: size, height: size, child: imageWidget),
       ),
     );
   }

@@ -217,9 +217,15 @@ void main() {
       ),
     );
     await tester.pumpWidget(view(false));
+    expect(find.text('Пожаловаться на качество ответа модели'), findsNothing);
+    await tester.tap(find.byTooltip('Действия с комментарием'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Пожаловаться на качество ответа модели'));
+    await tester.pumpAndSettle();
     expect(reported, isTrue);
     await tester.pumpWidget(view(true));
+    await tester.tap(find.byTooltip('Действия с комментарием'));
+    await tester.pumpAndSettle();
     expect(find.text('Жалоба на качество отправлена'), findsOneWidget);
     expect(find.text('Пожаловаться на качество ответа модели'), findsNothing);
   });

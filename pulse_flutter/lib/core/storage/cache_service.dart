@@ -154,7 +154,23 @@ class CacheService {
       if (box == null) return;
       final List<Map<String, dynamic>> jsonList = chats.map((e) {
         final data = e.toJson();
-        if (e.isSecret) data['last_message'] = null;
+        if (e.isSecret) {
+          data['last_message'] = null;
+        } else if (e.lastMessage?.isE2ee == true) {
+          // Persist the existing ciphertext envelope, not decrypted ordinary previews.
+          data['last_message'] = {
+            ...e.lastMessage!.toJson(),
+            'content': '',
+            'is_decrypted': false,
+            'e2ee_file_key': null,
+            'sticker': null,
+            'reply_markup': null,
+            'system_event': null,
+            'system_event_type': null,
+            'media_name': null,
+            'media_size': null,
+          };
+        }
         return data;
       }).toList();
       await box.put('list', jsonList);
@@ -214,7 +230,7 @@ class CacheService {
       if (box == null) return;
       final List<Map<String, dynamic>> jsonList = posts
           .take(60)
-          .map((NgPost p) => p.toJson())
+          .map((NgPost p) => p.toPublicCacheJson())
           .toList(growable: false);
       await box.put('feed', jsonList);
     } catch (e) {
