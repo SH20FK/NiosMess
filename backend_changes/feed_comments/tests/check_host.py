@@ -55,8 +55,8 @@ async def main():
             assert len(db.info['feed_ai_jobs'])==1
             db.info.pop('feed_ai_jobs', None); db.info.pop('feed_changes', None)
             await db.commit()
-        call = AsyncMock(return_value=('Я'*130, 40))
-        bot = User(id=9, username='niosai', display_name='NiosAI', email='bot@example.invalid',hashed_password='unused', is_active=True)
+        call = AsyncMock(return_value=('Я'*330, 40))
+        bot = User(id=9, username='nios_ai', display_name='NiosAI', email='niosai@nios.mess',hashed_password='unused', is_active=True, is_bot=True)
         async with factory() as db:
             db.add(bot); await db.commit()
         with patch('app.database.AsyncSessionLocal',factory), patch('app.services.ai_svc.call_glm',call), patch('app.services.bot_svc.ensure_niosai',AsyncMock(return_value=bot)):
@@ -64,11 +64,58 @@ async def main():
             await f.answer_feed_ai(1,1,source['id'],0)
         assert call.await_count==1
         kwargs=call.call_args.kwargs
-        assert kwargs['model_key']=='nios_lite' and kwargs['allow_fallback'] is False and kwargs['strict_max_tokens'] and kwargs['use_tools']
+        assert kwargs['model_key']=='nios_lite_strong' and kwargs['allow_fallback'] is False and kwargs['strict_max_tokens'] and kwargs['use_tools']
         async with factory() as db:
             answer=await db.scalar(select(PostComment).where(PostComment.ai_source==f"1:{source['id']}"))
-            assert answer and answer.author_id==9 and len(answer.content)==100 and answer.reply_to_id==source['id']
-        checks.append('only Lite Light, web tools enabled, 100-character hard cap, NiosAI author, idempotent answer')
+            assert answer and answer.author_id==9 and len(answer.content)==300 and answer.reply_to_id==source['id']
+        checks.append('only Lite Strong, web tools enabled, 300-character hard cap, NiosAI author, idempotent answer')
+        assert 'Не переписывай' in kwargs['system'] and 'прямой просьбе' in kwargs['system']
+        async with factory() as db:
+            from app.models.models import SupportTicket
+            data = {'post_id':1,'comment_id':answer.id}
+            report = await f.report_ai_quality(data, db, users[0])
+            repeated = await f.report_ai_quality(data, db, users[0])
+            assert repeated['already_reported'] and repeated['ticket_id']==report['ticket_id']
+            ticket = await db.get(SupportTicket, report['ticket_id'])
+            assert ticket.ticket_type=='ai_quality' and answer.content in ticket.body and 'Fixture post' in ticket.body
+            assert (await f.payloads([answer],db,1))[0]['system_event']['is_niosai_reply']
+            for invalid in ({'post_id':1,'comment_id':a['id']}, {'post_id':2,'comment_id':answer.id}):
+                try: await f.report_ai_quality(invalid,db,users[0])
+                except ValueError: pass
+                else: raise AssertionError('Non-AI or cross-post quality report accepted')
+            await db.commit()
+        checks.append('quality complaints capture selected evidence once in support queue, reject human/cross-post targets; no abuse sanctions')
+
+        async with factory() as db:
+            identity_source = await f.create_comment({'post_id':1,'content':'@ai КТО ТЫ?'},db,users[0])
+            db.info.pop('feed_ai_jobs',None);db.info.pop('feed_changes',None)
+            await db.commit()
+        identity_call = AsyncMock(return_value=('Я NiosAI. Чем помочь?', 10))
+        with patch('app.database.AsyncSessionLocal',factory), patch('app.services.ai_svc.call_glm',identity_call), patch('app.services.bot_svc.ensure_niosai',AsyncMock(return_value=bot)):
+            await f.answer_feed_ai(1,1,identity_source['id'],0)
+        async with factory() as db:
+            identity_reply = await db.scalar(select(PostComment).where(PostComment.ai_source==f"1:{identity_source['id']}"))
+            assert identity_reply and identity_reply.content=='Я NiosAI. Чем помочь?' and identity_reply.author_id==9
+        assert identity_call.await_count==1 and 'NiosAI' in identity_call.call_args.kwargs['system']
+        checks.append('identity is defined in the model prompt; identity questions still call the model')
+        async with factory() as db:
+            follow = await f.create_comment({'post_id':1,'content':'А подробнее?','reply_to_id':answer.id}, db, users[0])
+            assert len(db.info.get('feed_ai_jobs',[]))==1
+            db.info.pop('feed_ai_jobs',None);db.info.pop('feed_changes',None)
+            human_reply = await f.create_comment({'post_id':1,'content':'Обычный ответ','reply_to_id':a['id']}, db, users[1])
+            assert not db.info.get('feed_ai_jobs')
+            db.info.pop('feed_changes',None)
+            await db.commit()
+        follow_call=AsyncMock(return_value=('Продолжение ответа.',20))
+        with patch('app.database.AsyncSessionLocal',factory), patch('app.services.ai_svc.call_glm',follow_call), patch('app.services.bot_svc.ensure_niosai',AsyncMock(return_value=bot)):
+            await f.answer_feed_ai(1,1,follow['id'],0)
+        assert follow_call.await_count==1
+        history=follow_call.call_args.kwargs['history']
+        assert history[-1]==('assistant',answer.content) and history[0][0]=='user'
+        async with factory() as db:
+            saved=await db.scalar(select(PostComment).where(PostComment.ai_source==f"1:{follow['id']}"))
+            assert saved and saved.reply_to_id==follow['id'] and saved.author_id==9
+        checks.append('reply to NiosAI triggers once without mention and includes thread context; human reply does not trigger')
         async with factory() as db:
             channel=Chat(id=20,chat_type=ChatType.CHANNEL,name='Fixture channel',created_by=1,comments_enabled=True,comments_chat_id=21)
             group=Chat(id=21,chat_type=ChatType.GROUP,name='Fixture replies',created_by=1)
@@ -81,6 +128,12 @@ async def main():
             assert b['reply_to_id']==a['id']
             result=await f.get_channel_comments({'channel_id':20,'post_id':100},db,users[0])
             assert len(result['comments'])==2
+            enc=f.encrypt_text('Ответ бота в канале')
+            bot_comment=Message(chat_id=21,sender_id=9,comment_post_id=100,encrypted_content=enc['ciphertext'],content_iv=enc['iv'],content_tag=enc['tag'])
+            db.add(bot_comment);await db.flush()
+            await f.create_channel_comment({'channel_id':20,'post_id':100,'content':'Продолжи','reply_to_id':bot_comment.id},db,users[0])
+            assert len(db.info.get('feed_ai_jobs',[]))==1
+            db.info.pop('feed_ai_jobs',None)
             try: await f.get_channel_comments({'channel_id':20,'post_id':100},db,users[1])
             except ValueError: pass
             else: raise AssertionError('Private channel leaked')
@@ -105,12 +158,12 @@ async def main():
         tool = AsyncMock(return_value='Synthetic search result')
         users[0].ai_model='nios_prime'
         with patch.object(ai_svc,'credit_request',credit), patch.object(ai_svc,'model_slot',slot), patch.object(ai_svc,'_post_chat',provider), patch.object(ai_svc,'run_tool',tool):
-            result,_ = await ai_svc.call_glm('fixture',user=users[0],model_key='nios_lite',allow_fallback=False,
-                max_tokens=160,strict_max_tokens=True,use_tools=True)
+            result,_ = await ai_svc.call_glm('fixture',user=users[0],model_key='nios_lite_strong',allow_fallback=False,
+                max_tokens=512,strict_max_tokens=True,use_tools=True)
         assert result=='Короткий ответ.' and tool.call_args.args[0]=='web_search'
-        assert all(c.args[1]['model']==ai_svc.settings.POLZA_FREE_MODEL and c.args[1]['max_tokens']<=160 for c in provider.call_args_list)
+        assert all(c.args[1]['model']==ai_svc.settings.POLZA_STRONG_MODEL and c.args[1]['max_tokens']<=512 for c in provider.call_args_list)
         assert users[0].ai_model=='nios_prime'
-        checks.append('actual tool round keeps fixed Lite provider and output cap without changing saved model')
+        checks.append('actual tool round keeps fixed Lite Strong provider and output cap without changing saved model')
         launch = AsyncMock()
         with patch.object(f,'answer_feed_ai',launch):
             async with factory() as db:

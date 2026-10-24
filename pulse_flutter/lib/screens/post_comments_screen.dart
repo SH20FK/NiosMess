@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/models/comment_thread.dart';
+import 'package:pulse_flutter/repositories/post_comments_repository.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
@@ -32,6 +33,8 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
   final _inputFocus = FocusNode();
   final _scroll = ScrollController();
   final _collapsed = <int>{};
+  final _qualityReported = <int>{};
+  final _qualityPending = <int>{};
   ApiMessage? _reply;
   ApiMessage? _editing;
   bool _busy = false;
@@ -75,6 +78,26 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
       await action();
     } catch (error) {
       if (mounted) AppToast.showError(context, error);
+    }
+  }
+
+  Future<void> _reportQuality(ApiMessage comment) async {
+    if (!_qualityPending.add(comment.id)) return;
+    try {
+      await ref.read(postCommentsRepositoryProvider).request(
+        'report_ai_comment_quality',
+        widget.channelId,
+        widget.postId,
+        {'comment_id': comment.id},
+      );
+      if (mounted) {
+        setState(() => _qualityReported.add(comment.id));
+        AppToast.showSuccess(context, 'Жалоба на качество отправлена');
+      }
+    } catch (error) {
+      if (mounted) AppToast.showError(context, error);
+    } finally {
+      _qualityPending.remove(comment.id);
     }
   }
 
@@ -313,6 +336,15 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                               _inputFocus.requestFocus();
                             },
                             onDelete: () => _delete(comment),
+                            qualityReported: _qualityReported.contains(
+                              comment.id,
+                            ),
+                            onQualityReport:
+                                comment.systemEvent?['is_niosai_reply'] ==
+                                        true ||
+                                    comment.senderUsername == 'nios_ai'
+                                ? () => _reportQuality(comment)
+                                : null,
                             onReact: (reaction) => _perform(
                               () => _notifier.react(comment.id, reaction),
                             ),

@@ -95,7 +95,7 @@
          if not content.strip():
 --- a/app/ws/router.py
 +++ b/app/ws/router.py
-@@ -577,6 +577,10 @@
+@@ -577,6 +577,14 @@
                      elif action == "comment_post":
                          if not user: raise ValueError("Unauthorized")
                          result = await handle_comment_post(payload, db, user)
@@ -103,9 +103,44 @@
 +                        if not user: raise ValueError("Unauthorized")
 +                        from app.services.feed_comments import mutate_comment
 +                        result = await mutate_comment(action, payload, db, user)
++                    elif action == "report_ai_comment_quality":
++                        if not user: raise ValueError("Unauthorized")
++                        from app.services.feed_comments import report_ai_quality
++                        result = await report_ai_quality(payload, db, user)
                      elif action == "get_post_comments":
                          if not user: raise ValueError("Unauthorized")
                          result = await handle_get_post_comments(payload, db, user)
+--- a/app/ws/handlers/bot_handler.py
++++ b/app/ws/handlers/bot_handler.py
+@@ -615,6 +615,7 @@
+         [{"text": "Reports", "callback_data": "na:reports"}, {"text": "Tickets", "callback_data": "na:tickets"}],
+         [{"text": "Accounts", "callback_data": "na:users"}],
+         [{"text":"Проверка NiosAI","callback_data":"na:aireview:list"}],
++        [{"text": "Качество NiosAI", "callback_data": "na:aiquality"}],
+         [{"text": "Ссылки Nios+", "callback_data": "na:plus"}],
+         [{"text": "Refresh", "callback_data": "na:home"}],
+     ]}
+@@ -653,9 +654,9 @@
+     await _send_adminbot_message(db, chat_id, "Latest NiosMess accounts:", {"inline_keyboard": keyboard})
+ 
+ 
+-async def _adminbot_tickets(db: AsyncSession, chat_id: int):
++async def _adminbot_tickets(db: AsyncSession, chat_id: int, quality_only=False):
+     rows = (await db.execute(
+-        select(SupportTicket).where(SupportTicket.status == "open").order_by(SupportTicket.id.desc()).limit(12)
++        select(SupportTicket).where(SupportTicket.status == "open", SupportTicket.ticket_type == "ai_quality" if quality_only else SupportTicket.ticket_type != "ai_quality").order_by(SupportTicket.id.desc()).limit(12)
+     )).scalars().all()
+     if not rows:
+         await _send_adminbot_message(db, chat_id, "No open tickets.", _adminbot_menu())
+@@ -897,6 +898,8 @@
+                 await _adminbot_reports(db, chat_id)
+             elif data == "na:users":
+                 await _adminbot_users(db, chat_id)
++            elif data == "na:aiquality":
++                await _adminbot_tickets(db, chat_id, quality_only=True)
+             elif data == "na:tickets":
+                 await _adminbot_tickets(db, chat_id)
+             elif data.startswith("na:ticket:"):
 --- a/app/ws/handlers/chat_handler.py
 +++ b/app/ws/handlers/chat_handler.py
 @@ -1008,7 +1008,7 @@

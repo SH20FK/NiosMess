@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/noto_emoji.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -54,6 +55,8 @@ class CommentItem extends StatelessWidget {
     this.onToggleReplies,
     this.onEdit,
     this.onDelete,
+    this.onQualityReport,
+    this.qualityReported = false,
   });
   final ApiMessage comment;
   final ApiMessage? parent;
@@ -67,6 +70,8 @@ class CommentItem extends StatelessWidget {
   final VoidCallback? onToggleReplies;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onQualityReport;
+  final bool qualityReported;
   final ValueChanged<String> onReact;
 
   @override
@@ -192,6 +197,16 @@ class CommentItem extends StatelessWidget {
                     isMine: false,
                     scheme: scheme,
                   ),
+                if (!comment.isDeleted &&
+                    (onQualityReport != null || qualityReported))
+                  TextButton(
+                    onPressed: qualityReported ? null : onQualityReport,
+                    child: Text(
+                      qualityReported
+                          ? 'Жалоба на качество отправлена'
+                          : 'Пожаловаться на качество ответа модели',
+                    ),
+                  ),
                 Wrap(
                   spacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
@@ -203,7 +218,13 @@ class CommentItem extends StatelessWidget {
                       ),
                       TextButton.icon(
                         onPressed: () => onReact('like'),
-                        icon: const CommentIcon('like', size: 17),
+                        icon: const Text(
+                          '👍',
+                          style: TextStyle(
+                            fontFamily: NotoEmoji.fontFamily,
+                            fontSize: 18,
+                          ),
+                        ),
                         label: Text(count > 0 ? '$count' : 'Нравится'),
                       ),
                       for (final entry in comment.reactions.entries)
@@ -211,9 +232,12 @@ class CommentItem extends StatelessWidget {
                           TextButton.icon(
                             onPressed: () =>
                                 onReact(reactionKinds[entry.key] ?? 'like'),
-                            icon: CommentIcon(
-                              reactionKinds[entry.key] ?? 'laugh',
-                              size: 17,
+                            icon: Text(
+                              entry.key,
+                              style: const TextStyle(
+                                fontFamily: NotoEmoji.fontFamily,
+                                fontSize: 18,
+                              ),
                             ),
                             label: Text('${entry.value}'),
                           ),
@@ -247,7 +271,18 @@ class CommentItem extends StatelessWidget {
                               value: 'reaction:${reaction.key}',
                               child: Row(
                                 children: [
-                                  CommentIcon(reaction.key, size: 18),
+                                  Text(
+                                    const {
+                                      'heart': '❤️',
+                                      'laugh': '😂',
+                                      'surprise': '😮',
+                                      'sad': '😢',
+                                    }[reaction.key]!,
+                                    style: const TextStyle(
+                                      fontFamily: NotoEmoji.fontFamily,
+                                      fontSize: 20,
+                                    ),
+                                  ),
                                   const SizedBox(width: 10),
                                   Text(reaction.value),
                                 ],

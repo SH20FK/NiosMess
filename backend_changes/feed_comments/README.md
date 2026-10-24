@@ -15,8 +15,8 @@ Never apply the patch blindly to a different host revision.
 - Sender presentation uses the same batched user/badge/status loader as ordinary messages.
 - New post/comment mentions accept @ai and @niosai with token boundaries. AI is queued
   only after commit and replies under the NiosAI account. No automatic AI replies to AI replies.
-- Feed generation pins `nios_lite`, disables stronger-model fallback, keeps a 160-token
-  generation ceiling for all plans and hard-truncates the public answer to 100 Unicode
+- Feed generation pins `nios_lite_strong`, disables stronger-model fallback, keeps a 512-token
+  generation ceiling for all plans and hard-truncates the public answer to 300 Unicode
   codepoints. Web search, safe website reading and calculator tools are available;
   code execution/moderation tools are not available in this mode.
 - All provider attempts/context/tool output use existing quota reservations and cost accounting.
@@ -26,9 +26,21 @@ Never apply the patch blindly to a different host revision.
 
 Limitations: queued AI work follows the existing in-process post-commit task lifecycle;
 a process crash during generation does not automatically repeat a paid request.
-The public 100-character reply may be shortened with an ellipsis; it is not a token budget.
+The public 300-character reply may be shortened with an ellipsis; it is not a token budget.
 
 Synthetic integration: `tests/check_host.py` (no live user data or paid API calls).
 Flutter coverage: comment thread traversal, 10,000 nested replies, deleted/missing/cyclic
 parents, page cursor after sending, failed deletion, 320px layout in both themes and
 200% text. Included in the normal release suite.
+
+NiosAI identity and the rule against unsolicited post rewriting are defined in the system
+prompt, not a canned identity response. Direct replies to the canonical system bot trigger
+generation with a bounded thread history. Server model, tool allowlist and length limits
+cannot be overridden by comment text. Prompt injection resistance is not an absolute guarantee.
+
+Quality complaints use the authenticated `report_ai_comment_quality` action and capture
+only the selected post, parent request and AI answer. Membership and target identity are
+checked server-side. Claims are idempotent per reporter/target, with a daily abuse limit.
+They enter SupportTicket type `ai_quality`, accessible through NiosAdmin's dedicated quality
+menu, with reply/close actions and no account sanctions. Reactions use color emoji; other
+actions retain SVG icons and app theme colors.

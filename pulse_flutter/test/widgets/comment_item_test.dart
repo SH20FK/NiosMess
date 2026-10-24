@@ -120,6 +120,7 @@ void main() {
         expect(tester.takeException(), isNull);
         expect(find.text('изменено'), findsOneWidget);
         expect(find.text('NiosAI'), findsOneWidget);
+        expect(find.text('👍'), findsNWidgets(3));
         await tester.tap(find.text('Ответить').first);
         expect(replied, isTrue);
         await tester.pumpAndSettle();
@@ -164,5 +165,62 @@ void main() {
     expect(find.text('Комментарий удалён'), findsOneWidget);
     expect(find.byType(PopupMenuButton<String>), findsNothing);
     expect(find.text('Скрыть ответы (1)'), findsOneWidget);
+  });
+  testWidgets(
+    'reaction menu and counters display emoji and preserve the selected reaction',
+    (tester) async {
+      String? selected;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CommentItem(
+              comment: fixture(
+                1,
+                'Автор',
+                'Комментарий',
+              ).copyWith(reactions: const {'👍': 3, '❤️': 2}),
+              isMine: false,
+              onReply: () {},
+              onAuthorTap: () {},
+              onReact: (value) => selected = value,
+            ),
+          ),
+        ),
+      );
+      expect(find.text('👍'), findsOneWidget);
+      expect(find.text('❤️'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      await tester.tap(find.byTooltip('Действия с комментарием'));
+      await tester.pumpAndSettle();
+      expect(find.text('😂'), findsOneWidget);
+      await tester.tap(find.text('Люблю'));
+      await tester.pumpAndSettle();
+      expect(selected, 'heart');
+    },
+  );
+  testWidgets('quality report action is explicit and can be marked sent', (
+    tester,
+  ) async {
+    var reported = false;
+    Widget view(bool sent) => MaterialApp(
+      home: Scaffold(
+        body: CommentItem(
+          comment: fixture(3, 'NiosAI', 'Ответ по существу'),
+          isMine: false,
+          onReply: () {},
+          onAuthorTap: () {},
+          onReact: (_) {},
+          onQualityReport: () => reported = true,
+          qualityReported: sent,
+        ),
+      ),
+    );
+    await tester.pumpWidget(view(false));
+    await tester.tap(find.text('Пожаловаться на качество ответа модели'));
+    expect(reported, isTrue);
+    await tester.pumpWidget(view(true));
+    expect(find.text('Жалоба на качество отправлена'), findsOneWidget);
+    expect(find.text('Пожаловаться на качество ответа модели'), findsNothing);
   });
 }
