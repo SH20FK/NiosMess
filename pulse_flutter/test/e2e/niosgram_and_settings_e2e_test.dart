@@ -289,7 +289,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // Switch to Appearance section in master pane
-      final appearanceTile = find.widgetWithText(SettingsTile, 'Внешний вид');
+      final appearanceTile = find.widgetWithText(SettingsTile, 'Оформление');
       expect(appearanceTile, findsWidgets);
       await tester.tap(appearanceTile.first);
       await tester.pump();
@@ -481,7 +481,7 @@ void main() {
       expect(find.byType(SettingsAccountScreen), findsOneWidget);
 
       // 1. Switch to Appearance & adjust font scale
-      final appearanceTile = find.widgetWithText(SettingsTile, 'Внешний вид');
+      final appearanceTile = find.widgetWithText(SettingsTile, 'Оформление');
       await tester.tap(appearanceTile.first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -490,14 +490,14 @@ void main() {
       // The Font Scale section is beyond the initial 900px viewport of the detail pane.
       // Scroll until the SegmentedButton is visible before asserting.
       await tester.scrollUntilVisible(
-        find.byType(SegmentedButton<AppFontScale>),
+        find.byType(SettingsChoiceButtons<AppFontScale>),
         100.0,
         scrollable: find.descendant(
           of: find.byType(SettingsAppearanceScreen),
           matching: find.byType(Scrollable),
         ).first,
       );
-      expect(find.byType(SegmentedButton<AppFontScale>), findsOneWidget);
+      expect(find.byType(SettingsChoiceButtons<AppFontScale>), findsOneWidget);
 
       // 2. Switch to Preferences & adjust volume slider
       final prefFinder = find.byIcon(Icons.notifications_active_rounded);
@@ -592,7 +592,7 @@ void main() {
       expect(find.byType(VerticalDivider), findsNothing);
 
       // Tap Appearance tile -> navigate full-screen
-      final appearanceTile = find.text('Внешний вид');
+      final appearanceTile = find.text('Оформление');
       await tester.ensureVisible(appearanceTile.first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

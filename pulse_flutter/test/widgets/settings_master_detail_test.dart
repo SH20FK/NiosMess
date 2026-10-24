@@ -51,9 +51,7 @@ class _FakeAuthNotifier extends AuthNotifier {
   Future<void> refreshProfile() async {}
 }
 
-Widget _buildProfileScreenTestHarness({
-  required Size surfaceSize,
-}) {
+Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
   final ThemeData theme = AppTheme.themed(
     const VisualThemeSettings(
       seedColor: Color(0xFF6750A4),
@@ -126,9 +124,7 @@ Widget _buildProfileScreenTestHarness({
   );
 
   return ProviderScope(
-    overrides: [
-      authProvider.overrideWith(() => _FakeAuthNotifier()),
-    ],
+    overrides: [authProvider.overrideWith(() => _FakeAuthNotifier())],
     child: MaterialApp.router(
       theme: theme,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -188,80 +184,83 @@ void main() {
     const Size desktopSize = Size(1024, 800);
 
     testWidgets(
-        '1.3 Renders 2-pane Master-Detail layout on wide viewports with account screen embedded',
-        (WidgetTester tester) async {
-      tester.view.physicalSize = desktopSize;
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+      '1.3 Renders 2-pane Master-Detail layout on wide viewports with account screen embedded',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = desktopSize;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        _buildProfileScreenTestHarness(surfaceSize: desktopSize),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpWidget(
+          _buildProfileScreenTestHarness(surfaceSize: desktopSize),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      // Master pane elements
-      expect(find.text('Alex Test'), findsWidgets);
-      expect(find.text('@alex_test'), findsWidgets);
-      expect(find.text('Testing Master-Detail settings layout'), findsWidgets);
+        // Master pane elements
+        expect(find.text('Alex Test'), findsWidgets);
+        expect(find.text('@alex_test'), findsWidgets);
+        expect(
+          find.text('Testing Master-Detail settings layout'),
+          findsNothing,
+        ); // Bio belongs in profile editing.
 
-      // Verify master list tiles exist
-      expect(find.byType(SettingsSection), findsWidgets);
-      expect(find.byType(SettingsTile), findsWidgets);
+        // Verify master list tiles exist
+        expect(find.byType(SettingsSection), findsWidgets);
+        expect(find.byType(SettingsTile), findsWidgets);
 
-      // Verify VerticalDivider exists between panes
-      expect(find.byType(VerticalDivider), findsOneWidget);
+        // Verify VerticalDivider exists between panes
+        expect(find.byType(VerticalDivider), findsOneWidget);
 
-      // Default embedded detail pane is SettingsAccountScreen
-      expect(find.byType(SettingsAccountScreen), findsOneWidget);
-      final SettingsAccountScreen accountScreen =
-          tester.widget<SettingsAccountScreen>(
-        find.byType(SettingsAccountScreen),
-      );
-      expect(accountScreen.isEmbedded, isTrue);
-    });
-
-    testWidgets(
-        '1.4 Switching master pane section updates detail pane to target sub-screen in-place',
-        (WidgetTester tester) async {
-      tester.view.physicalSize = desktopSize;
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        _buildProfileScreenTestHarness(surfaceSize: desktopSize),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Initially on Account
-      expect(find.byType(SettingsAccountScreen), findsOneWidget);
-      expect(find.byType(SettingsAppearanceScreen), findsNothing);
-
-      // Find and tap Appearance section in master pane
-      final Finder appearanceTile = find.widgetWithText(
-        SettingsTile,
-        'Внешний вид',
-      );
-      expect(appearanceTile, findsWidgets);
-      await tester.tap(appearanceTile.first);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Detail pane now renders SettingsAppearanceScreen with isEmbedded: true
-      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
-      final SettingsAppearanceScreen appearanceScreen =
-          tester.widget<SettingsAppearanceScreen>(
-        find.byType(SettingsAppearanceScreen),
-      );
-      expect(appearanceScreen.isEmbedded, isTrue);
-    });
+        // Default embedded detail pane is SettingsAccountScreen
+        expect(find.byType(SettingsAccountScreen), findsOneWidget);
+        final SettingsAccountScreen accountScreen = tester
+            .widget<SettingsAccountScreen>(find.byType(SettingsAccountScreen));
+        expect(accountScreen.isEmbedded, isTrue);
+      },
+    );
 
     testWidgets(
-        '1.5 Selected master tile is styled with isSelected = true',
-        (WidgetTester tester) async {
+      '1.4 Switching master pane section updates detail pane to target sub-screen in-place',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = desktopSize;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          _buildProfileScreenTestHarness(surfaceSize: desktopSize),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Initially on Account
+        expect(find.byType(SettingsAccountScreen), findsOneWidget);
+        expect(find.byType(SettingsAppearanceScreen), findsNothing);
+
+        // Find and tap Appearance section in master pane
+        final Finder appearanceTile = find.widgetWithText(
+          SettingsTile,
+          'Оформление',
+        );
+        expect(appearanceTile, findsWidgets);
+        await tester.tap(appearanceTile.first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Detail pane now renders SettingsAppearanceScreen with isEmbedded: true
+        expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
+        final SettingsAppearanceScreen appearanceScreen = tester
+            .widget<SettingsAppearanceScreen>(
+              find.byType(SettingsAppearanceScreen),
+            );
+        expect(appearanceScreen.isEmbedded, isTrue);
+      },
+    );
+
+    testWidgets('1.5 Selected master tile is styled with isSelected = true', (
+      WidgetTester tester,
+    ) async {
       tester.view.physicalSize = desktopSize;
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -273,78 +272,110 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      final Finder accountTiles = find.byWidgetPredicate(
-        (Widget widget) => widget is SettingsTile && widget.isSelected == true,
+      // Profile moved into the header; it still identifies the active account pane.
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is SettingsTile && widget.isSelected,
+        ),
+        findsNothing,
       );
-      expect(accountTiles, findsOneWidget);
-      final SettingsTile selectedTile =
-          tester.widget<SettingsTile>(accountTiles);
-      expect(selectedTile.title, equals('Аккаунт'));
+      final header = tester.widget<Semantics>(
+        find.byKey(const ValueKey('settings-profile-header')),
+      );
+      expect(header.properties.selected, isTrue);
     });
   });
 
   group('Tier 1: ProfileScreen Mobile Fallback Tests (<760dp)', () {
     const Size mobileSize = Size(400, 800);
 
-    testWidgets('1.6 Renders single-column stacked layout without VerticalDivider',
-        (WidgetTester tester) async {
-      tester.view.physicalSize = mobileSize;
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        _buildProfileScreenTestHarness(surfaceSize: mobileSize),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Mobile view uses CustomScrollView
-      expect(find.byType(CustomScrollView), findsOneWidget);
-      expect(find.byType(VerticalDivider), findsNothing);
-
-      // User info present in mobile header
-      expect(find.text('Alex Test'), findsWidgets);
-      expect(find.text('@alex_test'), findsWidgets);
-    });
-  });
-
-  group('Tier 2: Master-Detail Boundary Viewports (360dp to 3840dp 4K)', () {
-    final List<Map<String, dynamic>> testViewports = [
-      {'name': 'Compact Mobile 360x640', 'size': const Size(360, 640), 'isWide': false},
-      {'name': 'Standard Mobile 390x844', 'size': const Size(390, 844), 'isWide': false},
-      {'name': 'Breakpoint Threshold 840x1024', 'size': const Size(840, 1024), 'isWide': true},
-      {'name': 'Laptop 1366x768', 'size': const Size(1366, 768), 'isWide': true},
-      {'name': 'Desktop Full HD 1920x1080', 'size': const Size(1920, 1080), 'isWide': true},
-      {'name': 'Desktop 4K 3840x2160', 'size': const Size(3840, 2160), 'isWide': true},
-    ];
-
-    for (final vp in testViewports) {
-      testWidgets('2.1 Master-detail layout on ${vp['name']} renders without overflow',
-          (WidgetTester tester) async {
-        final Size size = vp['size'] as Size;
-        final bool isWide = vp['isWide'] as bool;
-
-        tester.view.physicalSize = size;
+    testWidgets(
+      '1.6 Renders single-column stacked layout without VerticalDivider',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = mobileSize;
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
         await tester.pumpWidget(
-          _buildProfileScreenTestHarness(surfaceSize: size),
+          _buildProfileScreenTestHarness(surfaceSize: mobileSize),
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        expect(tester.takeException(), isNull);
-        if (isWide) {
-          expect(find.byType(VerticalDivider), findsOneWidget);
-          expect(find.byType(SettingsAccountScreen), findsOneWidget);
-        } else {
-          expect(find.byType(VerticalDivider), findsNothing);
-          expect(find.byType(CustomScrollView), findsOneWidget);
-        }
-      });
+        // Mobile view uses CustomScrollView
+        expect(find.byType(CustomScrollView), findsOneWidget);
+        expect(find.byType(VerticalDivider), findsNothing);
+
+        // User info present in mobile header
+        expect(find.text('Alex Test'), findsWidgets);
+        expect(find.text('@alex_test'), findsWidgets);
+      },
+    );
+  });
+
+  group('Tier 2: Master-Detail Boundary Viewports (360dp to 3840dp 4K)', () {
+    final List<Map<String, dynamic>> testViewports = [
+      {
+        'name': 'Compact Mobile 360x640',
+        'size': const Size(360, 640),
+        'isWide': false,
+      },
+      {
+        'name': 'Standard Mobile 390x844',
+        'size': const Size(390, 844),
+        'isWide': false,
+      },
+      {
+        'name': 'Breakpoint Threshold 840x1024',
+        'size': const Size(840, 1024),
+        'isWide': true,
+      },
+      {
+        'name': 'Laptop 1366x768',
+        'size': const Size(1366, 768),
+        'isWide': true,
+      },
+      {
+        'name': 'Desktop Full HD 1920x1080',
+        'size': const Size(1920, 1080),
+        'isWide': true,
+      },
+      {
+        'name': 'Desktop 4K 3840x2160',
+        'size': const Size(3840, 2160),
+        'isWide': true,
+      },
+    ];
+
+    for (final vp in testViewports) {
+      testWidgets(
+        '2.1 Master-detail layout on ${vp['name']} renders without overflow',
+        (WidgetTester tester) async {
+          final Size size = vp['size'] as Size;
+          final bool isWide = vp['isWide'] as bool;
+
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          await tester.pumpWidget(
+            _buildProfileScreenTestHarness(surfaceSize: size),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+
+          expect(tester.takeException(), isNull);
+          if (isWide) {
+            expect(find.byType(VerticalDivider), findsOneWidget);
+            expect(find.byType(SettingsAccountScreen), findsOneWidget);
+          } else {
+            expect(find.byType(VerticalDivider), findsNothing);
+            expect(find.byType(CustomScrollView), findsOneWidget);
+          }
+        },
+      );
     }
   });
 }

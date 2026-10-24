@@ -9,10 +9,15 @@ import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
 import 'package:pulse_flutter/core/media/media_playback_visibility.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 class StickerVideoPlayer extends ConsumerStatefulWidget {
-  const StickerVideoPlayer({required this.url, this.placeholder,
-    this.fit = BoxFit.contain, super.key});
+  const StickerVideoPlayer({
+    required this.url,
+    this.placeholder,
+    this.fit = BoxFit.contain,
+    super.key,
+  });
   final String url;
   final Widget? placeholder;
   final BoxFit fit;
@@ -26,6 +31,7 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
   final _pool = AnimatedMediaControllerPool.instance;
   VideoPlayerController? _controller;
   ProviderSubscription<AdaptivePerformanceState>? _performanceSubscription;
+  ProviderSubscription<bool>? _autoplaySubscription;
   bool _isInit = false;
   bool _failed = false;
   bool _visible = false;
@@ -44,6 +50,10 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
   void initState() {
     super.initState();
     _pool.addListener(_syncPlayback);
+    _autoplaySubscription = ref.listenManual(
+      uiSettingsProvider.select((s) => s.animateStickers),
+      (_, _) => _syncPlayback(),
+    );
     _performanceSubscription = ref.listenManual(adaptivePerformanceProvider, (
       previous,
       next,
@@ -97,6 +107,12 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
   void _requestPlay() {
     final controller = _controller;
     if ((controller == null && !_imageFallback) || !_visible) return;
+    if (!ref.read(uiSettingsProvider).animateStickers) {
+      _pool.notifyPaused(_mediaToken);
+      if (controller != null) unawaited(controller.pause());
+      if (_imagePlaying) setState(() => _imagePlaying = false);
+      return;
+    }
     final allowed = _pool.requestPlay(
       id: _mediaToken,
       tier: ref.read(adaptivePerformanceProvider).tier,
@@ -250,6 +266,7 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
     _visible = false;
     _pool.removeListener(_syncPlayback);
     _performanceSubscription?.close();
+    _autoplaySubscription?.close();
     _scrollPosition?.isScrollingNotifier.removeListener(_onScrollingChanged);
     _pool.releasePoster(_mediaToken);
     _posterImage?.dispose();
@@ -277,9 +294,12 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
               fit: widget.fit,
               memCacheWidth: 400,
               memCacheHeight: 400,
-              placeholder: (_, _) => widget.placeholder ?? const Icon(Icons.sticky_note_2_outlined),
+              placeholder: (_, _) =>
+                  widget.placeholder ??
+                  const Icon(Icons.sticky_note_2_outlined),
               errorWidget: (_, _, _) =>
-                  widget.placeholder ?? const Icon(Icons.sticky_note_2_outlined),
+                  widget.placeholder ??
+                  const Icon(Icons.sticky_note_2_outlined),
             )
           : _posterImage != null
           ? RawImage(image: _posterImage, fit: widget.fit)

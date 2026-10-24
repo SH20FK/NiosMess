@@ -1,3 +1,5 @@
+import 'widgets/settings_refresh_test.dart' as settings_refresh;
+import 'unit/settings_registry_test.dart' as settings_registry_navigation;
 import 'unit/comment_thread_test.dart' as comment_threads;
 import 'widgets/comment_item_test.dart' as comment_items;
 import 'providers/post_comments_provider_test.dart' as comment_provider;
@@ -331,6 +333,8 @@ void main() {
     widgets_create_post_screen.main();
     widgets_niosgram_feed_m3.main();
     widgets_public_profile_gallery.main();
+    settings_refresh.main();
+    settings_registry_navigation.main();
     widgets_settings_about_screen.main();
     widgets_settings_desktop_restructure.main();
     widgets_settings_master_detail.main();

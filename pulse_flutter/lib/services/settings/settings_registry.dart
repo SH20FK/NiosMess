@@ -67,8 +67,8 @@ class SettingsRegistry {
     // 2. Appearance
     SettingsNavNode(
       id: 'appearance',
-      title: (AppLocalizations l) => l.profileAppearance,
-      subtitle: (AppLocalizations l) => 'Тема, палитра, геометрия и шрифты',
+      title: (AppLocalizations l) => l.settingsV2Appearance,
+      subtitle: (AppLocalizations l) => l.settingsV2AppearanceHint,
       icon: Icons.palette_rounded,
       group: SettingsGroup.appearance,
       route: '/settings/appearance',
@@ -90,29 +90,26 @@ class SettingsRegistry {
         'font',
         'contrast',
         'oled',
-        'mesh',
       ],
     ),
 
     // 3. Chats & Media
     SettingsNavNode(
       id: 'chats',
-      title: (AppLocalizations l) => l.settingsChatsTitle,
-      subtitle: (AppLocalizations l) => 'Обои чатов, автозагрузка и камера',
+      title: (AppLocalizations l) => l.settingsV2Chats,
+      subtitle: (AppLocalizations l) => l.settingsV2ChatsHint,
       icon: Icons.chat_bubble_outline_rounded,
       group: SettingsGroup.chats,
       route: '/settings/chats',
       sectionId: SettingsSectionId.chats,
       keywords: const <String>[
         'чаты',
-        'обои',
         'медиа',
         'автозагрузка',
         'вайфай',
         'камера',
         'enter',
         'chats',
-        'wallpaper',
         'media',
         'download',
         'wifi',
@@ -125,8 +122,8 @@ class SettingsRegistry {
     // 4. Notifications & Sounds
     SettingsNavNode(
       id: 'notifications',
-      title: (AppLocalizations l) => l.settingsPreferencesTitle,
-      subtitle: (AppLocalizations l) => 'Push-уведомления, звуки и вибрация',
+      title: (AppLocalizations l) => l.settingsV2Notifications,
+      subtitle: (AppLocalizations l) => l.settingsV2NotificationsHint,
       icon: Icons.notifications_active_rounded,
       group: SettingsGroup.notifications,
       route: '/settings/preferences',
@@ -149,8 +146,8 @@ class SettingsRegistry {
     // 5. Privacy & Security
     SettingsNavNode(
       id: 'privacy',
-      title: (AppLocalizations l) => l.settingsPrivacyTitle,
-      subtitle: (AppLocalizations l) => 'Секретные чаты, сессии, черный список',
+      title: (AppLocalizations l) => l.settingsV2Privacy,
+      subtitle: (AppLocalizations l) => l.settingsV2PrivacyHint,
       icon: Icons.security_rounded,
       group: SettingsGroup.privacy,
       route: '/settings/privacy',
@@ -178,8 +175,8 @@ class SettingsRegistry {
     // 6. Storage & Data
     SettingsNavNode(
       id: 'storage',
-      title: (AppLocalizations l) => l.settingsStorageTitle,
-      subtitle: (AppLocalizations l) => 'Очистка кэша и управление памятью',
+      title: (AppLocalizations l) => l.settingsV2Storage,
+      subtitle: (AppLocalizations l) => l.settingsV2StorageHint,
       icon: Icons.sd_storage_rounded,
       group: SettingsGroup.storage,
       route: '/settings/storage',
@@ -201,8 +198,8 @@ class SettingsRegistry {
     // 7. Language & Region
     SettingsNavNode(
       id: 'language',
-      title: (AppLocalizations l) => l.profileLanguage,
-      subtitle: (AppLocalizations l) => 'Язык интерфейса, время и регион',
+      title: (AppLocalizations l) => l.settingsV2Language,
+      subtitle: (AppLocalizations l) => l.settingsV2LanguageHint,
       icon: Icons.language_rounded,
       group: SettingsGroup.language,
       route: '/settings/language-region',
@@ -252,8 +249,8 @@ class SettingsRegistry {
     SettingsNavNode(
       id: 'energy_saving',
       title: (AppLocalizations l) =>
-          kIsWeb ? l.webMotionTitle : 'Энергосбережение',
-      subtitle: (AppLocalizations l) => 'Батарея, анимации стикеров и эмодзи',
+          kIsWeb ? l.webMotionTitle : l.settingsV2Motion,
+      subtitle: (AppLocalizations l) => l.settingsV2MotionHint,
       icon: Icons.battery_saver_rounded,
       group: SettingsGroup.motion,
       route: '/settings/energy-saving',
@@ -300,8 +297,8 @@ class SettingsRegistry {
     // 11. About App
     SettingsNavNode(
       id: 'about',
-      title: (AppLocalizations l) => l.settingsSupportAboutTitle,
-      subtitle: (AppLocalizations l) => 'Версия NiosMess, документы и справка',
+      title: (AppLocalizations l) => l.settingsV2About,
+      subtitle: (AppLocalizations l) => l.settingsV2AboutHint,
       icon: Icons.info_outline_rounded,
       group: SettingsGroup.about,
       route: '/settings/about',
@@ -349,34 +346,11 @@ class SettingsRegistry {
         'geometry',
       ],
     ),
-    SettingsSliderNode(
-      id: 'bubble_radius',
-      parentNavId: 'appearance',
-      title: (AppLocalizations l) => l.appearanceMessageRounding,
-      subtitle: (AppLocalizations l) => l.appearanceMessageRoundingDesc,
-      icon: Icons.bubble_chart_rounded,
-      group: SettingsGroup.appearance,
-      min: 4.0,
-      max: 28.0,
-      divisions: 24,
-      unit: 'dp',
-      valueSelector: (UiSettingsState s) => s.messageBubbleRadius,
-      onChanged: (WidgetRef ref, double v) =>
-          ref.read(uiSettingsProvider.notifier).setMessageBubbleRadius(v),
-      keywords: const <String>[
-        'пузыри',
-        'сообщения',
-        'баблы',
-        'радиус сообщений',
-        'bubble radius',
-        'chat bubbles',
-      ],
-    ),
     SettingsChoiceNode<AppFontScale>(
       id: 'font_scale',
       parentNavId: 'appearance',
-      title: (AppLocalizations l) => 'Масштаб шрифта',
-      subtitle: (AppLocalizations l) => 'Размер текста во всем приложении',
+      title: (AppLocalizations l) => l.appearanceFontSize,
+      subtitle: (AppLocalizations l) => l.appearanceFontSizeSubtitle,
       icon: Icons.format_size_rounded,
       group: SettingsGroup.appearance,
       options: AppFontScale.values,
@@ -397,6 +371,7 @@ class SettingsRegistry {
 
     SettingsToggleNode(
       id: 'system_dynamic_colors',
+      availability: () => !kIsWeb,
       parentNavId: 'appearance',
       title: (AppLocalizations l) => l.appearanceSystemColors,
       subtitle: (AppLocalizations l) => l.appearanceSystemColorsSubtitle,
@@ -434,11 +409,12 @@ class SettingsRegistry {
     ),
     SettingsToggleNode(
       id: 'auto_download_wifi',
-      parentNavId: 'chats',
-      title: (AppLocalizations l) => kIsWeb ? l.webAutoDownload : l.settingsChatsAutoDownloadWifi,
+      parentNavId: 'storage',
+      title: (AppLocalizations l) =>
+          kIsWeb ? l.webAutoDownload : l.settingsChatsAutoDownloadWifi,
       subtitle: (AppLocalizations l) => l.settingsChatsAutoDownloadWifiDesc,
       icon: Icons.wifi_rounded,
-      group: SettingsGroup.chats,
+      group: SettingsGroup.storage,
       valueSelector: (UiSettingsState s) => s.autoDownloadWifi,
       onChanged: (WidgetRef ref, bool v) =>
           ref.read(uiSettingsProvider.notifier).setAutoDownloadWifi(v),
@@ -454,11 +430,11 @@ class SettingsRegistry {
     SettingsToggleNode(
       id: 'auto_download_cellular',
       availability: () => !kIsWeb,
-      parentNavId: 'chats',
+      parentNavId: 'storage',
       title: (AppLocalizations l) => l.settingsChatsAutoDownloadCellular,
       subtitle: (AppLocalizations l) => l.settingsChatsAutoDownloadCellularDesc,
       icon: Icons.signal_cellular_alt_rounded,
-      group: SettingsGroup.chats,
+      group: SettingsGroup.storage,
       valueSelector: (UiSettingsState s) => s.autoDownloadCellular,
       onChanged: (WidgetRef ref, bool v) =>
           ref.read(uiSettingsProvider.notifier).setAutoDownloadCellular(v),
@@ -475,9 +451,8 @@ class SettingsRegistry {
     SettingsToggleNode(
       id: 'push_notifications',
       parentNavId: 'notifications',
-      title: (AppLocalizations l) => 'Push-уведомления',
-      subtitle: (AppLocalizations l) =>
-          'Всплывающие оповещения о новых сообщениях',
+      title: (AppLocalizations l) => l.settingsPushNotifications,
+      subtitle: (AppLocalizations l) => l.settingsPushNotificationsSubtitle,
       icon: Icons.notifications_active_rounded,
       group: SettingsGroup.notifications,
       valueSelector: (UiSettingsState s) => s.notifications,
@@ -495,9 +470,8 @@ class SettingsRegistry {
     SettingsSliderNode(
       id: 'sound_volume',
       parentNavId: 'notifications',
-      title: (AppLocalizations l) => 'Громкость звуков',
-      subtitle: (AppLocalizations l) =>
-          'Уровень громкости уведомлений и эффектов',
+      title: (AppLocalizations l) => l.settingsVolume,
+      subtitle: (AppLocalizations l) => l.noticeUiSoundsHint,
       icon: Icons.volume_up_rounded,
       group: SettingsGroup.notifications,
       min: 0.0,
@@ -517,23 +491,19 @@ class SettingsRegistry {
     ),
 
     // Privacy & Security items
-    SettingsToggleNode(
-      id: 'hide_online',
+    SettingsNavNode(
+      id: 'privacy.lastSeen',
       parentNavId: 'privacy',
-      title: (AppLocalizations l) => 'Скрывать статус онлайн',
-      subtitle: (AppLocalizations l) =>
-          'Не показывать собеседникам ваше присутствие в сети',
-      icon: Icons.visibility_off_rounded,
+      title: (l) => l.privacyRuleLastSeen,
+      icon: Icons.visibility_outlined,
       group: SettingsGroup.privacy,
-      valueSelector: (UiSettingsState s) => s.hideOnline,
-      onChanged: (WidgetRef ref, bool v) =>
-          ref.read(uiSettingsProvider.notifier).setHideOnline(v),
-      keywords: const <String>[
+      route: '/settings/privacy',
+      sectionId: SettingsSectionId.privacy,
+      keywords: [
         'онлайн',
         'скрывать онлайн',
-        'активность',
-        'last seen',
         'online',
+        'last seen',
         'invisible',
       ],
     ),
@@ -611,12 +581,131 @@ class SettingsRegistry {
         'clear',
       ],
     ),
+    SettingsNavNode(
+      id: 'chats.callDevices',
+      parentNavId: 'chats',
+      title: (l) => l.callDevicesTitle,
+      icon: Icons.headset_mic_rounded,
+      group: SettingsGroup.chats,
+      route: '/settings/chats',
+      sectionId: SettingsSectionId.chats,
+      keywords: [
+        "микрофон",
+        "камера",
+        "наушники",
+        "microphone",
+        "camera",
+        "headphones",
+        "speaker",
+      ],
+    ),
+    SettingsNavNode(
+      id: 'appearance.compact',
+      parentNavId: 'appearance',
+      title: (l) => l.appearanceCompactMode,
+      icon: Icons.density_small_rounded,
+      group: SettingsGroup.appearance,
+      route: '/settings/appearance',
+      sectionId: SettingsSectionId.appearance,
+      keywords: ["плотность", "компактность", "compact", "density"],
+    ),
+    SettingsNavNode(
+      id: 'motion.optimization',
+      parentNavId: 'energy_saving',
+      title: (l) => l.appearanceOptimizeWeakDevices,
+      icon: Icons.speed_rounded,
+      group: SettingsGroup.motion,
+      route: '/settings/energy-saving',
+      sectionId: SettingsSectionId.energySaving,
+      keywords: ["оптимизация", "fps", "слабые", "performance", "optimize"],
+    ),
+    SettingsNavNode(
+      id: 'notifications.preview',
+      parentNavId: 'notifications',
+      title: (l) => l.settingsV2Preview,
+      icon: Icons.visibility_outlined,
+      group: SettingsGroup.notifications,
+      route: '/settings/preferences',
+      sectionId: SettingsSectionId.preferences,
+      keywords: ["превью", "текст уведомления", "preview"],
+    ),
+    SettingsNavNode(
+      id: 'security.twoFactor',
+      parentNavId: 'privacy',
+      title: (l) => l.settingsTwoFactor,
+      icon: Icons.key_outlined,
+      group: SettingsGroup.privacy,
+      route: '/settings/privacy',
+      sectionId: SettingsSectionId.privacy,
+      keywords: ['2fa', 'двухэтапная', 'пароль', 'two factor', 'password'],
+    ),
+    SettingsNavNode(
+      id: 'motion.stickers',
+      parentNavId: 'energy_saving',
+      title: (l) => l.settingsV2Stickers,
+      icon: Icons.sticky_note_2_outlined,
+      group: SettingsGroup.motion,
+      route: '/settings/energy-saving',
+      sectionId: SettingsSectionId.energySaving,
+      keywords: [
+        'стикеры',
+        'анимация стикеров',
+        'stickers',
+        'animated stickers',
+      ],
+    ),
+    SettingsNavNode(
+      id: 'motion.emoji',
+      parentNavId: 'energy_saving',
+      title: (l) => l.settingsV2Emoji,
+      icon: Icons.emoji_emotions_outlined,
+      group: SettingsGroup.motion,
+      route: '/settings/energy-saving',
+      sectionId: SettingsSectionId.energySaving,
+      keywords: ['эмодзи', 'анимация эмодзи', 'emoji', 'animated emoji'],
+    ),
+    SettingsNavNode(
+      id: 'security.appLock.enabled',
+      availability: () => !kIsWeb,
+      parentNavId: 'privacy',
+      title: (l) => l.biometricTitle,
+      icon: Icons.fingerprint_rounded,
+      group: SettingsGroup.privacy,
+      route: '/settings/privacy',
+      sectionId: SettingsSectionId.privacy,
+      keywords: ["блокировка", "биометрия", "lock", "fingerprint"],
+    ),
+    SettingsNavNode(
+      id: 'privacy.messaging.readReceipts',
+      parentNavId: 'privacy',
+      title: (l) => l.settingsV2ReadReceipts,
+      icon: Icons.done_all_rounded,
+      group: SettingsGroup.privacy,
+      route: '/settings/privacy',
+      sectionId: SettingsSectionId.privacy,
+      keywords: ["прочтение", "прочитано", "read receipts"],
+    ),
+    SettingsNavNode(
+      id: 'privacy.messaging.typingIndicators',
+      parentNavId: 'privacy',
+      title: (l) => l.settingsV2Typing,
+      icon: Icons.keyboard_outlined,
+      group: SettingsGroup.privacy,
+      route: '/settings/privacy',
+      sectionId: SettingsSectionId.privacy,
+      keywords: ["набор", "печатает", "typing"],
+    ),
   ];
 
   /// Returns all top-level sections that are available in current runtime environment.
   static List<SettingsNavNode> getTopLevelSections() {
     return _topLevelSections
-        .where((SettingsNavNode node) => node.isAvailable())
+        .where(
+          (SettingsNavNode node) =>
+              node.isAvailable() &&
+              node.id != 'account' &&
+              node.id != 'system_device',
+        )
         .toList();
   }
 
@@ -709,7 +798,14 @@ class SettingsRegistry {
             breadcrumb: '$parentTitle › $title',
             targetRoute: route,
             targetSectionId: sectionId,
-            anchor: childNode.id,
+            anchor: switch (childNode.id) {
+              'send_on_enter' => 'chats.sendOnEnter',
+              'font_scale' => 'appearance.font.scale',
+              'system_dynamic_colors' => 'appearance.color.source',
+              'blocked_users' => 'privacy.blockedUsers',
+              'sessions_management' => 'security.sessions.active',
+              _ => childNode.id,
+            },
             score: score,
           ),
         );

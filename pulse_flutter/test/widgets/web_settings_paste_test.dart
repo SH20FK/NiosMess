@@ -129,6 +129,10 @@ void main() {
       expect(find.byKey(const ValueKey('settings-master-pane')), findsNothing);
       expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
       expect(find.byType(AppBar), findsOneWidget);
+      expect(
+        find.text('Appearance'),
+        findsOneWidget,
+      ); // Compact toolbar owns the only detail heading.
       expect(tester.takeException(), isNull);
       await tester.tap(find.byTooltip('Back'));
       await tester.pump();

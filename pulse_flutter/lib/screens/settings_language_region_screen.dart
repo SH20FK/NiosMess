@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
+import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,27 +11,23 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class SettingsLanguageRegionScreen extends ConsumerWidget {
-  const SettingsLanguageRegionScreen({
-    this.isEmbedded = false,
-    super.key,
-  });
+  const SettingsLanguageRegionScreen({this.isEmbedded = false, super.key});
 
   final bool isEmbedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
-    final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final String manualZone = settings.timeZoneId ?? 'Europe/Moscow';
     final String currentZoneLabel =
         settings.timeZoneMode == AppTimeZoneMode.auto
-        ? '${DateTime.now().timeZoneName} (${_offsetLabel(DateTime.now().timeZoneOffset)})'
+        ? _offsetLabel(DateTime.now().timeZoneOffset)
         : _manualZoneLabel(manualZone);
     final String? selectedLocale = settings.localeCode;
 
     return SettingsShell(
-      title: context.l10n.languageRegionTitle,
+      title: context.l10n.settingsV2Language,
       isEmbedded: isEmbedded,
       children: <Widget>[
         SettingsSection(
@@ -38,7 +36,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: SegmentedButton<String?>(
+              child: SettingsChoiceButtons<String?>(
                 showSelectedIcon: false,
                 segments: <ButtonSegment<String?>>[
                   ButtonSegment<String?>(
@@ -56,20 +54,10 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                   ),
                 ],
                 selected: <String?>{selectedLocale},
-                onSelectionChanged: (Set<String?> s) =>
-                    ref.read(uiSettingsProvider.notifier).setLocaleCode(s.first),
+                onSelectionChanged: (Set<String?> s) => ref
+                    .read(uiSettingsProvider.notifier)
+                    .setLocaleCode(s.first),
               ),
-            ),
-            SettingsInfoTile(
-              icon: Icons.translate_rounded,
-              title: context.l10n.settingsLanguageCurrentLang,
-              subtitle: selectedLocale == null
-                  ? context.l10n.commonAutomatic
-                  : (selectedLocale == 'ru'
-                        ? context.l10n.languageRussian
-                        : context.l10n.languageEnglish),
-              value: selectedLocale == null ? context.l10n.settingsLanguageAuto : selectedLocale.toUpperCase(),
-              iconColor: scheme.primary,
             ),
           ],
         ),
@@ -79,7 +67,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: SegmentedButton<AppTimeZoneMode>(
+              child: SettingsChoiceButtons<AppTimeZoneMode>(
                 showSelectedIcon: false,
                 segments: <ButtonSegment<AppTimeZoneMode>>[
                   ButtonSegment<AppTimeZoneMode>(
@@ -103,32 +91,18 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                 },
               ),
             ),
-            SettingsTile(
-              icon: Icons.schedule_rounded,
+            SettingsRow(
+              leading: const Icon(Icons.schedule_rounded),
               title: currentZoneLabel,
               subtitle: settings.timeZoneMode == AppTimeZoneMode.auto
                   ? context.l10n.commonAutomatic
                   : context.l10n.commonManual,
-              iconColor: scheme.tertiary,
-              trailing: settings.timeZoneMode == AppTimeZoneMode.manual
-                  ? Icon(
-                      Icons.chevron_right_rounded,
-                      color: scheme.onSurfaceVariant,
-                      size: 20,
-                    )
-                  : Text(
-                      context.l10n.commonAutomatic,
-                      style: textTheme.labelMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-              enabled: settings.timeZoneMode == AppTimeZoneMode.manual,
-              onTap: () {
-                if (settings.timeZoneMode == AppTimeZoneMode.manual) {
-                  _showTimeZonePicker(context, ref, manualZone);
-                }
-              },
+              control: settings.timeZoneMode == AppTimeZoneMode.manual
+                  ? const NavigationControl()
+                  : const ValueControl(''),
+              onTap: settings.timeZoneMode == AppTimeZoneMode.manual
+                  ? () => _showTimeZonePicker(context, ref, manualZone)
+                  : null,
             ),
           ],
         ),
@@ -142,15 +116,16 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                 (_) => AppTimeSettings.now(),
               ),
               initialData: AppTimeSettings.now(),
-              builder: (BuildContext context, AsyncSnapshot<DateTime> snapshot) {
-                final DateTime now = snapshot.data ?? AppTimeSettings.now();
-                return SettingsInfoTile(
-                  icon: Icons.access_time_rounded,
-                  title: context.l10n.settingsLanguageLocalTime,
-                  subtitle: formatFullDateTime(now),
-                  iconColor: scheme.secondary,
-                );
-              },
+              builder:
+                  (BuildContext context, AsyncSnapshot<DateTime> snapshot) {
+                    final DateTime now = snapshot.data ?? AppTimeSettings.now();
+                    return SettingsInfoTile(
+                      icon: Icons.access_time_rounded,
+                      title: context.l10n.settingsLanguageLocalTime,
+                      subtitle: formatFullDateTime(now),
+                      iconColor: scheme.secondary,
+                    );
+                  },
             ),
           ],
         ),
@@ -169,7 +144,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
     await AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
-      
+
       builder: (BuildContext context) {
         final ColorScheme scheme = Theme.of(context).colorScheme;
         final TextTheme textTheme = Theme.of(context).textTheme;
@@ -178,7 +153,8 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
           builder: (BuildContext context, StateSetter setModalState) {
             final List<AppTimeZoneOption> items = appTimeZoneOptions
                 .where((AppTimeZoneOption option) {
-                  final String hay = '${option.label} ${option.id}'.toLowerCase();
+                  final String hay = '${option.label} ${option.id}'
+                      .toLowerCase();
                   return hay.contains(query.toLowerCase());
                 })
                 .toList(growable: false);
@@ -217,7 +193,9 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                           title: Text(
                             option.label,
                             style: textTheme.bodyMedium?.copyWith(
-                              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
                             ),
                           ),
                           subtitle: Text(
@@ -230,12 +208,16 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                               ? Icon(Icons.check_rounded, color: scheme.primary)
                               : null,
                           selected: selected,
-                          selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.3),
+                          selectedTileColor: scheme.primaryContainer.withValues(
+                            alpha: 0.3,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                           onTap: () {
-                            ref.read(uiSettingsProvider.notifier).useManualTimeZone(option.id);
+                            ref
+                                .read(uiSettingsProvider.notifier)
+                                .useManualTimeZone(option.id);
                             Navigator.of(context).pop();
                           },
                         );

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,16 +62,19 @@ class _NotificationSettingsSectionState
     );
     final l10n = context.l10n;
     Widget toggle(String key, IconData icon, String title, {String? hint}) =>
-        SettingsSwitchTile(
-          icon: icon,
-          title: title,
-          subtitle: hint,
-          value: options.value?.toJson()[key] == true,
-          enabled: enabled && !_busy && options.hasValue,
-          onChanged: (value) => _change(
-            () => ref
-                .read(notificationPreferencesProvider.notifier)
-                .setPreference(key, value),
+        SettingsAnchor(
+          id: 'notifications.$key',
+          child: SettingsSwitchTile(
+            icon: icon,
+            title: title,
+            subtitle: hint,
+            value: options.value?.toJson()[key] == true,
+            enabled: enabled && !_busy && options.hasValue,
+            onChanged: (value) => _change(
+              () => ref
+                  .read(notificationPreferencesProvider.notifier)
+                  .setPreference(key, value),
+            ),
           ),
         );
     return SettingsSection(
@@ -126,17 +130,21 @@ class _NotificationSettingsSectionState
               ),
             ),
           ),
-        SettingsSwitchTile(
-          icon: Icons.notifications_rounded,
-          title: l10n.settingsPushNotifications,
-          subtitle: PushNotificationService.supportsPush && _permission == false
-              ? l10n.noticePermissionHint
-              : l10n.settingsPushNotificationsSubtitle,
-          value: enabled,
-          enabled: !_busy,
-          onChanged: (value) => _change(() async {
-            await updateNotificationPreference(ref, value);
-          }),
+        SettingsAnchor(
+          id: 'push_notifications',
+          child: SettingsSwitchTile(
+            icon: Icons.notifications_rounded,
+            title: l10n.settingsPushNotifications,
+            subtitle:
+                PushNotificationService.supportsPush && _permission == false
+                ? l10n.noticePermissionHint
+                : l10n.settingsPushNotificationsSubtitle,
+            value: enabled,
+            enabled: !_busy,
+            onChanged: (value) => _change(() async {
+              await updateNotificationPreference(ref, value);
+            }),
+          ),
         ),
         toggle(
           'messages',

@@ -14,7 +14,9 @@ void main() {
       expect(sections.isNotEmpty, isTrue);
 
       final ids = sections.map((s) => s.id).toList();
-      expect(ids, contains('account'));
+      expect(ids, isNot(contains('account')));
+      expect(ids, isNot(contains('system_device')));
+      expect(ids.length, 9); // Eight categories and the separate Plus entry.
       expect(ids, contains('appearance'));
       expect(ids, contains('chats'));
       expect(ids, contains('notifications'));
@@ -29,10 +31,15 @@ void main() {
       final ruResults = SettingsRegistry.search('скругление', l10nRu);
       expect(ruResults.isNotEmpty, isTrue);
       expect(ruResults.any((r) => r.node.id == 'ui_corner_radius'), isTrue);
-      final cornerResult = ruResults.firstWhere((r) => r.node.id == 'ui_corner_radius');
+      final cornerResult = ruResults.firstWhere(
+        (r) => r.node.id == 'ui_corner_radius',
+      );
       expect(cornerResult.targetRoute, equals('/settings/appearance'));
-      expect(cornerResult.targetSectionId, equals(SettingsSectionId.appearance));
-      expect(cornerResult.breadcrumb, contains('Внешний вид'));
+      expect(
+        cornerResult.targetSectionId,
+        equals(SettingsSectionId.appearance),
+      );
+      expect(cornerResult.breadcrumb, contains('Оформление'));
 
       // Search English "corner"
       final enResults = SettingsRegistry.search('corner', l10nEn);
@@ -40,18 +47,25 @@ void main() {
       expect(enResults.any((r) => r.node.id == 'ui_corner_radius'), isTrue);
     });
 
-    test('search does not advertise disabled backgrounds and navigation styles', () {
-      final ids = SettingsRegistry.getAllNodes().map((node) => node.id);
-      expect(ids, isNot(contains('true_black_oled')));
-      expect(ids, isNot(contains('navbar_floating')));
-      final ruResults = SettingsRegistry.search('обои', l10nRu);
-      expect(ruResults.isNotEmpty, isTrue);
-      expect(ruResults.any((r) => r.node.id == 'wallpaper_generator'), isFalse);
+    test(
+      'search does not advertise disabled backgrounds and navigation styles',
+      () {
+        final ids = SettingsRegistry.getAllNodes().map((node) => node.id);
+        expect(ids, isNot(contains('true_black_oled')));
+        expect(ids, isNot(contains('navbar_floating')));
+        final ruResults = SettingsRegistry.search('обои', l10nRu);
+        expect(
+          ruResults.every((r) => r.node.id != 'wallpaper_generator'),
+          isTrue,
+        );
 
-      final enResults = SettingsRegistry.search('wallpaper', l10nEn);
-      expect(enResults.isNotEmpty, isTrue);
-      expect(enResults.any((r) => r.node.id == 'wallpaper_generator'), isFalse);
-    });
+        final enResults = SettingsRegistry.search('wallpaper', l10nEn);
+        expect(
+          enResults.every((r) => r.node.id != 'wallpaper_generator'),
+          isTrue,
+        );
+      },
+    );
 
     test('search finds privacy rules and blocked users', () {
       final results = SettingsRegistry.search('черный список', l10nRu);

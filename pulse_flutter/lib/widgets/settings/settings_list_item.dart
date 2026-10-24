@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 enum SettingsListItemType { nav, toggle, value, action, danger }
 
 /// Unified Material 3 Expressive row for settings lists and grouped cards.
 /// Replaces fragmented SettingsTile, SettingsSwitchTile, and SettingsInfoTile
-/// with a consistent 40x40 icon slot, 66dp text alignment, and spring touch physics.
+/// with a consistent 40x40 icon slot, 68dp text alignment, and spring touch physics.
 class SettingsListItem extends ConsumerWidget {
   const SettingsListItem({
     required this.icon,
@@ -24,6 +25,10 @@ class SettingsListItem extends ConsumerWidget {
     this.iconColor,
     this.enabled = true,
     this.isSelected = false,
+    this.isSection = false,
+    this.leading,
+    this.showIcon = true,
+    this.pending = false,
     super.key,
   });
 
@@ -38,6 +43,7 @@ class SettingsListItem extends ConsumerWidget {
     Color? iconColor,
     bool enabled = true,
     bool isSelected = false,
+    bool isSection = false,
     Key? key,
   }) : this(
          icon: icon,
@@ -50,6 +56,7 @@ class SettingsListItem extends ConsumerWidget {
          iconColor: iconColor,
          enabled: enabled,
          isSelected: isSelected,
+         isSection: isSection,
          key: key,
        );
 
@@ -126,193 +133,158 @@ class SettingsListItem extends ConsumerWidget {
   final Color? iconColor;
   final bool enabled;
   final bool isSelected;
+  final bool isSection;
+  final Widget? leading;
+  final bool showIcon;
+  final bool pending;
 
-  /// Standard indent for divider matching text start: 12 (padding) + 40 (icon) + 14 (gap) = 66.
-  static const double dividerIndent = 66.0;
+  /// Standard indent for divider matching text start: 16 (padding) + 40 (icon) + 12 (gap) = 68.
+  static const double dividerIndent = 68.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    final bool isDanger = type == SettingsListItemType.danger;
-
-    final Color effectiveIconColor = isDanger
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final danger = type == SettingsListItemType.danger;
+    final interactive = enabled && !pending;
+    final foreground = danger
         ? scheme.error
         : isSelected
         ? scheme.onSecondaryContainer
-        : (iconColor ?? scheme.primary);
-
-    final Color effectiveIconBgColor = isDanger
-        ? scheme.error.withValues(alpha: 0.12)
-        : isSelected
-        ? scheme.primary.withValues(alpha: 0.18)
-        : effectiveIconColor.withValues(alpha: 0.12);
-
-    final Color effectiveTextColor = isDanger
+        : interactive
+        ? scheme.onSurface
+        : scheme.onSurface.withValues(alpha: .38);
+    final iconForeground = danger
         ? scheme.error
         : isSelected
         ? scheme.onSecondaryContainer
-        : (enabled
-              ? scheme.onSurface
-              : scheme.onSurface.withValues(alpha: 0.38));
-
-    final Widget leadingIcon = Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: effectiveIconBgColor,
-        borderRadius: AppRadii.smRadius,
-      ),
-      alignment: Alignment.center,
-      child: Icon(icon, color: effectiveIconColor, size: 20),
-    );
-
-    final Widget textColumn = Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            title,
-            style: textTheme.bodyMedium?.copyWith(
-              color: effectiveTextColor,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-              fontSize: 14,
-              height: 1.2,
-            ),
-          ),
-          if (subtitle != null && subtitle!.trim().isNotEmpty) ...<Widget>[
-            const SizedBox(height: 3),
-            Text(
-              subtitle!,
-              style: textTheme.bodySmall?.copyWith(
-                color: isSelected
-                    ? scheme.onSecondaryContainer.withValues(alpha: 0.85)
-                    : scheme.onSurfaceVariant,
-                height: 1.3,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-
-    Widget? trailingWidget;
-    switch (type) {
-      case SettingsListItemType.nav:
-        trailingWidget =
-            trailing ??
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (value != null && value!.isNotEmpty) ...<Widget>[
-                  Text(
-                    value!,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: isSelected
-                          ? scheme.onSecondaryContainer.withValues(alpha: 0.85)
-                          : scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: isSelected
-                      ? scheme.primary
-                      : scheme.onSurfaceVariant.withValues(alpha: 0.45),
-                  size: 20,
-                ),
-              ],
-            );
-        break;
-      case SettingsListItemType.toggle:
-        final bool isChecked = boolValue ?? false;
-        trailingWidget = Switch(
-          value: isChecked,
-          thumbIcon: WidgetStateProperty.resolveWith<Icon?>((
-            Set<WidgetState> states,
-          ) {
-            if (states.contains(WidgetState.selected)) {
-              return Icon(Icons.check_rounded, size: 14, color: scheme.primary);
-            }
-            return null;
-          }),
-          onChanged: enabled && onChanged != null
-              ? (bool v) {
-                  ref
-                      .read(appSoundProvider)
-                      .playEvent(
-                        v ? SoundEvent.toggleOn : SoundEvent.toggleOff,
-                      );
-                  onChanged!(v);
-                }
-              : null,
-        );
-        break;
-      case SettingsListItemType.value:
-        if (value != null && value!.isNotEmpty) {
-          trailingWidget = Text(
-            value!,
-            style: textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          );
-        }
-        break;
-      case SettingsListItemType.action:
-      case SettingsListItemType.danger:
-        trailingWidget = trailing;
-        break;
+        : isSection
+        ? scheme.onPrimaryContainer
+        : scheme.onSurfaceVariant;
+    final iconWidget = leading is Icon
+        ? Icon((leading as Icon).icon, size: 22, color: iconForeground)
+        : leading ?? Icon(icon, size: 22, color: iconForeground);
+    final toggle = type == SettingsListItemType.toggle;
+    void change(bool next) {
+      if (!interactive || onChanged == null) return;
+      ref
+          .read(appSoundProvider)
+          .playEvent(next ? SoundEvent.toggleOn : SoundEvent.toggleOff);
+      onChanged!(next);
     }
 
-    final Widget content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: <Widget>[
-          leadingIcon,
-          const SizedBox(width: 14),
-          textColumn,
-          if (trailingWidget != null) ...<Widget>[
-            const SizedBox(width: 10),
-            trailingWidget,
+    final VoidCallback? tap = !interactive
+        ? null
+        : toggle
+        ? (onChanged == null ? null : () => change(!(boolValue ?? false)))
+        : onTap;
+    final Widget? action = pending
+        ? const SizedBox(
+            width: 52,
+            height: 48,
+            child: Center(child: AppLoadingIndicator(size: 24)),
+          )
+        : trailing ??
+              switch (type) {
+                SettingsListItemType.nav => Icon(
+                  Icons.chevron_right_rounded,
+                  color: isSelected
+                      ? scheme.onSecondaryContainer
+                      : scheme.onSurfaceVariant,
+                  size: 22,
+                ),
+                SettingsListItemType.toggle => Switch(
+                  value: boolValue ?? false,
+                  onChanged: interactive && onChanged != null ? change : null,
+                ),
+                _ => null,
+              };
+    final content = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 64),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            if (showIcon) ...[
+              SizedBox.square(
+                dimension: 40,
+                child: isSection
+                    ? DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? scheme.secondaryContainer
+                              : scheme.primaryContainer,
+                          borderRadius: AppRadii.smRadius,
+                        ),
+                        child: Center(child: iconWidget),
+                      )
+                    : Center(child: iconWidget),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: textTheme.bodyLarge?.copyWith(
+                      color: foreground,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle!,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: isSelected
+                            ? scheme.onSecondaryContainer
+                            : scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (value?.trim().isNotEmpty == true &&
+                      value != subtitle) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      value!,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: isSelected
+                            ? scheme.onSecondaryContainer
+                            : scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (action != null) ...[const SizedBox(width: 12), action],
           ],
-        ],
+        ),
       ),
     );
-
-    final VoidCallback? effectiveTap = type == SettingsListItemType.toggle
-        ? (onChanged != null && enabled
-              ? () {
-                  final bool nextVal = !(boolValue ?? false);
-                  ref
-                      .read(appSoundProvider)
-                      .playEvent(
-                        nextVal ? SoundEvent.toggleOn : SoundEvent.toggleOff,
-                      );
-                  onChanged!(nextVal);
-                }
-              : null)
-        : onTap;
-
-    return Semantics(
-      button: type != SettingsListItemType.value,
-      enabled: enabled,
+    final row = Semantics(
+      button: toggle ? null : tap != null,
+      enabled: interactive,
       selected: isSelected,
       child: PressableSurface(
-        onTap: effectiveTap,
-        onLongPress: enabled ? onLongPress : null,
-        enabled: enabled && (effectiveTap != null || onLongPress != null),
-        playFeedback: type != SettingsListItemType.toggle,
+        onTap: tap,
+        onLongPress: interactive ? onLongPress : null,
+        enabled: interactive && (tap != null || onLongPress != null),
+        playFeedback: !toggle,
+        keyboardFocusable: !toggle,
         borderRadius: AppRadii.mdRadius,
-        color: isSelected
-            ? scheme.secondaryContainer.withValues(alpha: 0.80)
-            : Colors.transparent,
+        color: isSelected ? scheme.secondaryContainer : Colors.transparent,
         child: content,
       ),
     );
+    // Switch and its label form one control. Do not add the title a second
+    // time or expose both the row and its switch as separate toggles.
+    return toggle ? MergeSemantics(child: row) : row;
   }
 }

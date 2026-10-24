@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/localization/secret_chat_l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
@@ -22,23 +23,23 @@ enum SettingsGroup {
       case SettingsGroup.account:
         return l10n.settingsAccountTitle;
       case SettingsGroup.appearance:
-        return l10n.profileAppearance;
+        return l10n.settingsV2Appearance;
       case SettingsGroup.chats:
-        return l10n.settingsChatsTitle;
+        return l10n.settingsV2Chats;
       case SettingsGroup.notifications:
-        return l10n.settingsPreferencesTitle;
+        return l10n.settingsV2Notifications;
       case SettingsGroup.privacy:
-        return l10n.settingsPrivacyTitle;
+        return l10n.settingsV2Privacy;
       case SettingsGroup.storage:
-        return l10n.settingsStorageTitle;
+        return l10n.settingsV2Storage;
       case SettingsGroup.motion:
-        return 'Движение и энергосбережение';
+        return l10n.settingsV2Motion;
       case SettingsGroup.language:
-        return l10n.profileLanguage;
+        return l10n.settingsV2Language;
       case SettingsGroup.plus:
-        return 'Nios Plus & AI';
+        return 'Nios Plus';
       case SettingsGroup.about:
-        return l10n.settingsSupportAboutTitle;
+        return l10n.settingsV2About;
     }
   }
 }

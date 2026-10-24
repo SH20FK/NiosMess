@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/settings/settings_list_item.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 class SettingsAnchor extends ConsumerStatefulWidget {
-  const SettingsAnchor({
-    required this.id,
-    required this.child,
-    super.key,
-  });
+  const SettingsAnchor({required this.id, required this.child, super.key});
 
   final String id;
   final Widget child;
@@ -18,7 +15,97 @@ class SettingsAnchor extends ConsumerStatefulWidget {
   ConsumerState<SettingsAnchor> createState() => _SettingsAnchorState();
 }
 
+/// Opens an advanced group when search points inside it, without collapsing
+/// it again when the temporary highlight expires.
+class SettingsSearchDisclosure extends ConsumerStatefulWidget {
+  const SettingsSearchDisclosure({
+    required this.anchor,
+    required this.title,
+    this.subtitle,
+    required this.children,
+    super.key,
+  });
+  final String anchor;
+  final String title;
+  final String? subtitle;
+  final List<Widget> children;
+  @override
+  ConsumerState<SettingsSearchDisclosure> createState() =>
+      _SettingsSearchDisclosureState();
+}
+
+class _SettingsSearchDisclosureState
+    extends ConsumerState<SettingsSearchDisclosure> {
+  final _controller = ExpansibleController();
+  ProviderSubscription<SettingsAnchorState>? _subscription;
+  @override
+  void initState() {
+    super.initState();
+    _subscription = ref.listenManual(settingsAnchorControllerProvider, (
+      _,
+      next,
+    ) {
+      if (next.highlightedAnchor == widget.anchor) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_controller.isExpanded) _controller.expand();
+        });
+      }
+    }, fireImmediately: true);
+  }
+
+  @override
+  void dispose() {
+    _subscription?.close();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SettingsAnchor(
+    id: widget.anchor,
+    child: ExpansionTile(
+      controller: _controller,
+      maintainState: true,
+      title: Text(widget.title),
+      subtitle: widget.subtitle == null ? null : Text(widget.subtitle!),
+      children: widget.children,
+    ),
+  );
+}
+
 class _SettingsAnchorState extends ConsumerState<SettingsAnchor> {
+  ProviderSubscription<SettingsAnchorState>? _subscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscription = ref.listenManual(settingsAnchorControllerProvider, (
+      previous,
+      next,
+    ) {
+      if (next.highlightedAnchor == widget.id &&
+          previous?.highlightedAnchor != widget.id) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Scrollable.ensureVisible(
+            context,
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 320),
+            curve: M3SpringCurves.expressiveStandard,
+            alignment: 0.3,
+          );
+        });
+      }
+    }, fireImmediately: true);
+  }
+
+  @override
+  void dispose() {
+    _subscription?.close();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool highlighted = ref.watch(
@@ -27,25 +114,12 @@ class _SettingsAnchorState extends ConsumerState<SettingsAnchor> {
       ),
     );
 
-    if (highlighted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Scrollable.ensureVisible(
-            context,
-            duration: const Duration(milliseconds: 320),
-            curve: Curves.easeOutCubic,
-            alignment: 0.3,
-          );
-        }
-      });
-    }
-
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return AnimatedContainer(
       key: ValueKey<String>(widget.id),
       duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
+      curve: M3SpringCurves.expressiveStandard,
       decoration: BoxDecoration(
         color: highlighted
             ? scheme.primaryContainer.withValues(alpha: 0.38)
@@ -81,137 +155,41 @@ class SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
-    final TextTheme textTheme = theme.textTheme;
-
-    final bool isToggle = control is ToggleControl;
-    final ToggleControl? toggle = isToggle ? control as ToggleControl : null;
-
-    final Widget content = Semantics(
-      container: true,
-      button: !isToggle && onTap != null,
-      toggled: toggle?.value,
+    final toggle = control is ToggleControl ? control as ToggleControl : null;
+    final navigation = control is NavigationControl
+        ? control as NavigationControl
+        : null;
+    final staticValue = control is ValueControl
+        ? (control as ValueControl).value
+        : null;
+    final danger =
+        control is ActionControl && (control as ActionControl).destructive;
+    final row = SettingsListItem(
+      icon: leading is Icon
+          ? ((leading as Icon).icon ?? Icons.tune_rounded)
+          : Icons.tune_rounded,
+      leading: leading,
+      showIcon: leading != null,
+      title: title,
+      subtitle: enabled ? subtitle : disabledReason ?? subtitle,
+      value: navigation?.value ?? staticValue,
+      type: toggle != null
+          ? SettingsListItemType.toggle
+          : danger
+          ? SettingsListItemType.danger
+          : navigation != null
+          ? SettingsListItemType.nav
+          : control is ValueControl
+          ? SettingsListItemType.value
+          : SettingsListItemType.action,
+      boolValue: toggle?.value,
+      onChanged: toggle?.onChanged,
+      pending: toggle?.pending ?? false,
       enabled: enabled,
-      label: title,
-      hint: enabled ? subtitle : disabledReason,
-      child: InkWell(
-        onTap: enabled
-            ? (isToggle
-                ? (toggle?.onChanged != null
-                    ? () => toggle!.onChanged!(!toggle.value)
-                    : null)
-                : onTap)
-            : null,
-        borderRadius: BorderRadius.circular(16),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 56),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: <Widget>[
-                if (leading != null) ...<Widget>[
-                  SizedBox.square(dimension: 32, child: Center(child: leading)),
-                  const SizedBox(width: 16),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: textTheme.bodyLarge?.copyWith(
-                          color: enabled ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.38),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (subtitle != null) ...<Widget>[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle!,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: enabled
-                                ? scheme.onSurfaceVariant
-                                : scheme.onSurface.withValues(alpha: 0.38),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                _SettingsControlWidget(control: control, enabled: enabled),
-              ],
-            ),
-          ),
-        ),
-      ),
+      onTap: onTap,
     );
-
-    if (anchor != null && anchor!.isNotEmpty) {
-      return SettingsAnchor(id: anchor!, child: content);
-    }
-    return content;
-  }
-}
-
-class _SettingsControlWidget extends StatelessWidget {
-  const _SettingsControlWidget({
-    required this.control,
-    required this.enabled,
-  });
-
-  final SettingsControl control;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return switch (control) {
-      ToggleControl(:final bool value, :final ValueChanged<bool>? onChanged, :final bool pending) =>
-        pending
-            ? const SizedBox(
-                width: 48,
-                height: 32,
-                child: Center(child: AppLoadingIndicator(size: 20)),
-              )
-            : Switch(
-                value: value,
-                onChanged: enabled ? onChanged : null,
-              ),
-      NavigationControl(:final String? value) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (value != null && value.isNotEmpty)
-              Text(
-                value,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
-          ],
-        ),
-      ValueControl(:final String value) => Text(
-          value,
-          style: textTheme.bodyMedium?.copyWith(
-            color: scheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ActionControl(:final bool destructive) => Icon(
-          Icons.arrow_forward_rounded,
-          size: 18,
-          color: destructive ? scheme.error : scheme.primary,
-        ),
-    };
+    return anchor?.isNotEmpty == true
+        ? SettingsAnchor(id: anchor!, child: row)
+        : row;
   }
 }

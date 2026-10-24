@@ -11,6 +11,7 @@ export 'package:pulse_flutter/widgets/vector_illustrations.dart';
 export 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
 export 'package:pulse_flutter/widgets/settings/settings_list_item.dart';
 export 'package:pulse_flutter/widgets/settings/settings_shell.dart';
+export 'package:pulse_flutter/widgets/settings/settings_choice_buttons.dart';
 
 class SettingsScaffold extends ConsumerWidget {
   const SettingsScaffold({
@@ -319,15 +320,6 @@ class SettingsSection extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
-                    Container(
-                      width: 3.5,
-                      height: 14,
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: scheme.primary,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,6 +374,7 @@ class SettingsSection extends StatelessWidget {
                     ),
                   ),
                   child: ClipRRect(
+                    clipBehavior: Clip.hardEdge,
                     borderRadius: dynamicRadius,
                     child: Material(
                       color: Colors.transparent,
@@ -435,6 +428,7 @@ class SettingsTile extends ConsumerWidget {
     this.iconColor,
     this.enabled = true,
     this.isSelected = false,
+    this.isSection = false,
     super.key,
   });
 
@@ -448,6 +442,7 @@ class SettingsTile extends ConsumerWidget {
   final Color? iconColor;
   final bool enabled;
   final bool isSelected;
+  final bool isSection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -461,6 +456,7 @@ class SettingsTile extends ConsumerWidget {
       iconColor: iconColor ?? foregroundColor,
       enabled: enabled,
       isSelected: isSelected,
+      isSection: isSection,
     );
   }
 }

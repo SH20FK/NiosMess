@@ -95,7 +95,8 @@ class _StubSessionsRepository extends SessionsRepository {
   _StubSessionsRepository(super.ref);
 
   @override
-  Future<({int? currentSessionId, List<AccountSession> sessions})> getSessions() async {
+  Future<({int? currentSessionId, List<AccountSession> sessions})>
+  getSessions() async {
     return (currentSessionId: 1, sessions: const <AccountSession>[]);
   }
 }
@@ -116,8 +117,12 @@ Widget _wrapWithApp(Widget child, {Size surfaceSize = const Size(800, 1000)}) {
       ordinaryE2eeProvider.overrideWithValue(null),
       authProvider.overrideWith(() => _FakeAuthNotifier()),
       authRepositoryProvider.overrideWith((ref) => _MockAuthRepository(ref)),
-      sessionsRepositoryProvider.overrideWith((ref) => _StubSessionsRepository(ref)),
-      adaptivePerformanceProvider.overrideWith(_StubAdaptivePerformanceNotifier.new),
+      sessionsRepositoryProvider.overrideWith(
+        (ref) => _StubSessionsRepository(ref),
+      ),
+      adaptivePerformanceProvider.overrideWith(
+        _StubAdaptivePerformanceNotifier.new,
+      ),
       privacyProvider.overrideWith(_StubPrivacyNotifier.new),
     ],
     child: MediaQuery(
@@ -146,170 +151,173 @@ void main() {
 
   group('Tier 1: Settings UI Framework M3 Expressive Tests', () {
     testWidgets(
-        '1.1 SettingsScaffold suppresses AppBar and uses compact padding when isEmbedded is true',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        _wrapWithApp(
-          const SettingsScaffold(
-            title: 'Embedded Settings',
-            isEmbedded: true,
-            children: <Widget>[
-              Text('Child Content'),
-            ],
+      '1.1 SettingsScaffold suppresses AppBar and uses compact padding when isEmbedded is true',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _wrapWithApp(
+            const SettingsScaffold(
+              title: 'Embedded Settings',
+              isEmbedded: true,
+              children: <Widget>[Text('Child Content')],
+            ),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(AppBar), findsNothing);
-      expect(find.text('Child Content'), findsOneWidget);
-    });
+        expect(find.byType(AppBar), findsNothing);
+        expect(find.text('Child Content'), findsOneWidget);
+      },
+    );
 
     testWidgets(
-        '1.2 SettingsScaffold renders AppBar with gradient background when isEmbedded is false',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        _wrapWithApp(
-          const SettingsScaffold(
-            title: 'Standalone Settings',
-            isEmbedded: false,
-            children: <Widget>[
-              Text('Child Content'),
-            ],
+      '1.2 SettingsScaffold renders AppBar with gradient background when isEmbedded is false',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _wrapWithApp(
+            const SettingsScaffold(
+              title: 'Standalone Settings',
+              isEmbedded: false,
+              children: <Widget>[Text('Child Content')],
+            ),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(AppBar), findsOneWidget);
-      expect(find.text('Child Content'), findsOneWidget);
-    });
+        expect(find.byType(AppBar), findsOneWidget);
+        expect(find.text('Child Content'), findsOneWidget);
+      },
+    );
 
     testWidgets(
-        '1.3 SettingsSection renders grouped card with surfaceContainerLow and 20dp border radius',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        _wrapWithApp(
-          SettingsSection(
-            title: 'Section Group',
-            children: <Widget>[
-              SettingsTile(
-                icon: Icons.star_rounded,
-                title: 'Tile 1',
-                onTap: () {},
-              ),
-            ],
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      final Finder containerFinder = find.byWidgetPredicate((Widget w) {
-        if (w is Container && w.decoration is BoxDecoration) {
-          final BoxDecoration dec = w.decoration! as BoxDecoration;
-          return dec.borderRadius == BorderRadius.circular(20);
-        }
-        return false;
-      });
-      expect(containerFinder, findsWidgets);
-    });
-
-    testWidgets(
-        '1.4 SettingsTile renders active highlight with isSelected = true',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        _wrapWithApp(
-          Column(
-            children: <Widget>[
-              SettingsTile(
-                icon: Icons.person_rounded,
-                title: 'Active Tile',
-                isSelected: true,
-                onTap: () {},
-              ),
-              SettingsTile(
-                icon: Icons.settings_rounded,
-                title: 'Inactive Tile',
-                isSelected: false,
-                onTap: () {},
-              ),
-            ],
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      final Finder activeTileFinder = find.byWidgetPredicate((Widget w) {
-        return w is SettingsTile && w.isSelected == true;
-      });
-      expect(activeTileFinder, findsOneWidget);
-    });
-
-    testWidgets(
-        '1.5 SettingsSwitchTile renders Switch.adaptive and toggles correctly',
-        (WidgetTester tester) async {
-      bool toggleValue = false;
-
-      await tester.pumpWidget(
-        _wrapWithApp(
-          StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState) {
-              return Scaffold(
-                body: SettingsSwitchTile(
-                  icon: Icons.notifications_rounded,
-                  title: 'Adaptive Switch',
-                  value: toggleValue,
-                  onChanged: (bool next) {
-                    setState(() => toggleValue = next);
-                  },
+      '1.3 SettingsSection renders grouped card with surfaceContainerLow and 20dp border radius',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _wrapWithApp(
+            SettingsSection(
+              title: 'Section Group',
+              children: <Widget>[
+                SettingsTile(
+                  icon: Icons.star_rounded,
+                  title: 'Tile 1',
+                  onTap: () {},
                 ),
-              );
-            },
+              ],
+            ),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(Switch), findsOneWidget);
-      expect(toggleValue, isFalse);
-
-      await tester.tap(find.byType(Switch));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(toggleValue, isTrue);
-    });
+        final Finder containerFinder = find.byWidgetPredicate((Widget w) {
+          if (w is Container && w.decoration is BoxDecoration) {
+            final BoxDecoration dec = w.decoration! as BoxDecoration;
+            return dec.borderRadius == BorderRadius.circular(20);
+          }
+          return false;
+        });
+        expect(containerFinder, findsWidgets);
+      },
+    );
 
     testWidgets(
-        '1.6 SettingsInfoTile renders trailing values and icon containers',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        _wrapWithApp(
-          const SettingsInfoTile(
-            icon: Icons.info_outline_rounded,
-            title: 'Info Title',
-            subtitle: 'Info Subtitle',
-            value: 'v3.0.0',
+      '1.4 SettingsTile renders active highlight with isSelected = true',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _wrapWithApp(
+            Column(
+              children: <Widget>[
+                SettingsTile(
+                  icon: Icons.person_rounded,
+                  title: 'Active Tile',
+                  isSelected: true,
+                  onTap: () {},
+                ),
+                SettingsTile(
+                  icon: Icons.settings_rounded,
+                  title: 'Inactive Tile',
+                  isSelected: false,
+                  onTap: () {},
+                ),
+              ],
+            ),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Info Title'), findsOneWidget);
-      expect(find.text('Info Subtitle'), findsOneWidget);
-      expect(find.text('v3.0.0'), findsOneWidget);
-    });
+        final Finder activeTileFinder = find.byWidgetPredicate((Widget w) {
+          return w is SettingsTile && w.isSelected == true;
+        });
+        expect(activeTileFinder, findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      '1.5 SettingsSwitchTile renders Switch.adaptive and toggles correctly',
+      (WidgetTester tester) async {
+        bool toggleValue = false;
+
+        await tester.pumpWidget(
+          _wrapWithApp(
+            StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState) {
+                return Scaffold(
+                  body: SettingsSwitchTile(
+                    icon: Icons.notifications_rounded,
+                    title: 'Adaptive Switch',
+                    value: toggleValue,
+                    onChanged: (bool next) {
+                      setState(() => toggleValue = next);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.byType(Switch), findsOneWidget);
+        expect(toggleValue, isFalse);
+
+        await tester.tap(find.byType(Switch));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(toggleValue, isTrue);
+      },
+    );
+
+    testWidgets(
+      '1.6 SettingsInfoTile renders trailing values and icon containers',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _wrapWithApp(
+            const SettingsInfoTile(
+              icon: Icons.info_outline_rounded,
+              title: 'Info Title',
+              subtitle: 'Info Subtitle',
+              value: 'v3.0.0',
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(find.text('Info Title'), findsOneWidget);
+        expect(find.text('Info Subtitle'), findsOneWidget);
+        expect(find.text('v3.0.0'), findsOneWidget);
+      },
+    );
   });
 
   group('Tier 1: All 9 Settings Screens Instantiation (Embedded & Standalone)', () {
-    testWidgets('1.7 SettingsAccountScreen instantiates cleanly',
-        (WidgetTester tester) async {
+    testWidgets('1.7 SettingsAccountScreen instantiates cleanly', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         _wrapWithApp(const SettingsAccountScreen(isEmbedded: true)),
       );
@@ -318,24 +326,30 @@ void main() {
       expect(find.byType(SettingsAccountScreen), findsOneWidget);
     });
 
-    testWidgets('1.8 SettingsAppearanceScreen instantiates with SegmentedButton & switches',
-        (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      '1.8 SettingsAppearanceScreen instantiates with SegmentedButton & switches',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(800, 2000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        _wrapWithApp(const SettingsAppearanceScreen(isEmbedded: true)),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
-      expect(find.byType(SegmentedButton<AppFontScale>), findsOneWidget);
-    });
+        await tester.pumpWidget(
+          _wrapWithApp(const SettingsAppearanceScreen(isEmbedded: true)),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
+        expect(
+          find.byType(SettingsChoiceButtons<AppFontScale>),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('1.9 SettingsPrivacyScreen instantiates cleanly',
-        (WidgetTester tester) async {
+    testWidgets('1.9 SettingsPrivacyScreen instantiates cleanly', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         _wrapWithApp(const SettingsPrivacyScreen(isEmbedded: true)),
       );
@@ -344,8 +358,9 @@ void main() {
       expect(find.byType(SettingsPrivacyScreen), findsOneWidget);
     });
 
-    testWidgets('1.10 SettingsStorageScreen instantiates cleanly',
-        (WidgetTester tester) async {
+    testWidgets('1.10 SettingsStorageScreen instantiates cleanly', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         _wrapWithApp(const SettingsStorageScreen(isEmbedded: true)),
       );
@@ -354,36 +369,41 @@ void main() {
       expect(find.byType(SettingsStorageScreen), findsOneWidget);
     });
 
-    testWidgets('1.11 SettingsLanguageRegionScreen instantiates with Language SegmentedButton',
-        (WidgetTester tester) async {
-      await tester.pumpWidget(
-        _wrapWithApp(const SettingsLanguageRegionScreen(isEmbedded: true)),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(SettingsLanguageRegionScreen), findsOneWidget);
-      expect(find.byType(SegmentedButton<String?>), findsOneWidget);
-    });
+    testWidgets(
+      '1.11 SettingsLanguageRegionScreen instantiates with Language SegmentedButton',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _wrapWithApp(const SettingsLanguageRegionScreen(isEmbedded: true)),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byType(SettingsLanguageRegionScreen), findsOneWidget);
+        expect(find.byType(SettingsChoiceButtons<String?>), findsOneWidget);
+      },
+    );
 
-    testWidgets('1.12 SettingsPreferencesScreen instantiates with Volume Slider',
-        (WidgetTester tester) async {
-      SharedPreferences.setMockInitialValues(
-        <String, Object>{'ui.soundEffects': true},
-      );
-      UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
-      addTearDown(() => UiSettingsNotifier.cachedPrefs = null);
+    testWidgets(
+      '1.12 SettingsPreferencesScreen instantiates with Volume Slider',
+      (WidgetTester tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'ui.soundEffects': true,
+        });
+        UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+        addTearDown(() => UiSettingsNotifier.cachedPrefs = null);
 
-      await tester.pumpWidget(
-        _wrapWithApp(const SettingsPreferencesScreen(isEmbedded: true)),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(SettingsPreferencesScreen), findsOneWidget);
-      expect(find.byType(Slider), findsOneWidget);
-    });
+        await tester.pumpWidget(
+          _wrapWithApp(const SettingsPreferencesScreen(isEmbedded: true)),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byType(SettingsPreferencesScreen), findsOneWidget);
+        expect(find.byType(Slider), findsOneWidget);
+      },
+    );
 
-    testWidgets('1.13 SettingsAboutScreen instantiates cleanly',
-        (WidgetTester tester) async {
+    testWidgets('1.13 SettingsAboutScreen instantiates cleanly', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         _wrapWithApp(const SettingsAboutScreen(isEmbedded: true)),
       );
@@ -392,8 +412,9 @@ void main() {
       expect(find.byType(SettingsAboutScreen), findsOneWidget);
     });
 
-    testWidgets('1.14 E2eeSettingsScreen instantiates cleanly',
-        (WidgetTester tester) async {
+    testWidgets('1.14 E2eeSettingsScreen instantiates cleanly', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         _wrapWithApp(const E2eeSettingsScreen(isEmbedded: true)),
       );
@@ -402,8 +423,9 @@ void main() {
       expect(find.byType(E2eeSettingsScreen), findsOneWidget);
     });
 
-    testWidgets('1.15 SessionsScreen instantiates cleanly',
-        (WidgetTester tester) async {
+    testWidgets('1.15 SessionsScreen instantiates cleanly', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         _wrapWithApp(const SessionsScreen(isEmbedded: true)),
       );
@@ -423,41 +445,51 @@ void main() {
     ];
 
     for (final vp in testViewports) {
-      testWidgets('2.1 SettingsAppearanceScreen on ${vp['name']} renders with zero overflow',
-          (WidgetTester tester) async {
-        final Size size = vp['size'] as Size;
-        tester.view.physicalSize = size;
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
+      testWidgets(
+        '2.1 SettingsAppearanceScreen on ${vp['name']} renders with zero overflow',
+        (WidgetTester tester) async {
+          final Size size = vp['size'] as Size;
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
 
-        await tester.pumpWidget(
-          _wrapWithApp(const SettingsAppearanceScreen(isEmbedded: false), surfaceSize: size),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
+          await tester.pumpWidget(
+            _wrapWithApp(
+              const SettingsAppearanceScreen(isEmbedded: false),
+              surfaceSize: size,
+            ),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
 
-        expect(tester.takeException(), isNull);
-        expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
-      });
+          expect(tester.takeException(), isNull);
+          expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
+        },
+      );
 
-      testWidgets('2.2 SettingsPreferencesScreen on ${vp['name']} renders with zero overflow',
-          (WidgetTester tester) async {
-        final Size size = vp['size'] as Size;
-        tester.view.physicalSize = size;
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
+      testWidgets(
+        '2.2 SettingsPreferencesScreen on ${vp['name']} renders with zero overflow',
+        (WidgetTester tester) async {
+          final Size size = vp['size'] as Size;
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
 
-        await tester.pumpWidget(
-          _wrapWithApp(const SettingsPreferencesScreen(isEmbedded: false), surfaceSize: size),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
+          await tester.pumpWidget(
+            _wrapWithApp(
+              const SettingsPreferencesScreen(isEmbedded: false),
+              surfaceSize: size,
+            ),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
 
-        expect(tester.takeException(), isNull);
-        expect(find.byType(SettingsPreferencesScreen), findsOneWidget);
-      });
+          expect(tester.takeException(), isNull);
+          expect(find.byType(SettingsPreferencesScreen), findsOneWidget);
+        },
+      );
     }
 
     group('Tier 3: Anti-Regression Tests (Settings Registry & Integrity)', () {
@@ -471,30 +503,53 @@ void main() {
         final routes = <String>{};
 
         for (final section in sections) {
-          expect(ids.add(section.id), isTrue, reason: 'Duplicate section id: ${section.id}');
-          expect(routes.add(section.route), isTrue, reason: 'Duplicate section route: ${section.route}');
+          expect(
+            ids.add(section.id),
+            isTrue,
+            reason: 'Duplicate section id: ${section.id}',
+          );
+          expect(
+            routes.add(section.route),
+            isTrue,
+            reason: 'Duplicate section route: ${section.route}',
+          );
           expect(section.route.startsWith('/settings'), isTrue);
           expect(section.title(l10n).isNotEmpty, isTrue);
           expect(section.icon, isNotNull);
         }
       });
 
-      test('3.2 Settings search index supports Russian and English keywords', () {
-        // Search for theme
-        final themeRu = SettingsRegistry.search('тема', l10n);
-        expect(themeRu.any((r) => r.targetRoute == '/settings/appearance'), isTrue);
+      test(
+        '3.2 Settings search index supports Russian and English keywords',
+        () {
+          // Search for theme
+          final themeRu = SettingsRegistry.search('тема', l10n);
+          expect(
+            themeRu.any((r) => r.targetRoute == '/settings/appearance'),
+            isTrue,
+          );
 
-        final themeEn = SettingsRegistry.search('theme', l10n);
-        expect(themeEn.any((r) => r.targetRoute == '/settings/appearance'), isTrue);
+          final themeEn = SettingsRegistry.search('theme', l10n);
+          expect(
+            themeEn.any((r) => r.targetRoute == '/settings/appearance'),
+            isTrue,
+          );
 
-        // Search for storage
-        final storageRu = SettingsRegistry.search('кэш', l10n);
-        expect(storageRu.any((r) => r.targetRoute == '/settings/storage'), isTrue);
+          // Search for storage
+          final storageRu = SettingsRegistry.search('кэш', l10n);
+          expect(
+            storageRu.any((r) => r.targetRoute == '/settings/storage'),
+            isTrue,
+          );
 
-        // Disabled wallpaper controls must not be offered by search
-        final wpRu = SettingsRegistry.search('обои', l10n);
-        expect(wpRu.any((r) => r.targetRoute == '/settings/wallpaper'), isFalse);
-      });
+          // Disabled wallpaper controls must not be offered by search
+          final wpRu = SettingsRegistry.search('обои', l10n);
+          expect(
+            wpRu.any((r) => r.targetRoute == '/settings/wallpaper'),
+            isFalse,
+          );
+        },
+      );
 
       test('3.3 SettingsRegistry has zero null titles or routes', () {
         final all = SettingsRegistry.getAllNodes();

@@ -821,4 +821,276 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get noticeSilentMessages => 'Silent messages';
+
+  @override
+  String get settingsV2Appearance => 'Appearance';
+
+  @override
+  String get settingsV2AppearanceHint =>
+      'Theme, palette, text and interface density';
+
+  @override
+  String get settingsV2Chats => 'Chats and calls';
+
+  @override
+  String get settingsV2ChatsHint => 'Typing, reactions, microphone and camera';
+
+  @override
+  String get settingsV2Notifications => 'Notifications and sounds';
+
+  @override
+  String get settingsV2NotificationsHint =>
+      'Push, message previews, sound and vibration';
+
+  @override
+  String get settingsV2Privacy => 'Privacy and security';
+
+  @override
+  String get settingsV2PrivacyHint =>
+      'Visibility, account access and encryption';
+
+  @override
+  String get settingsV2Storage => 'Data and storage';
+
+  @override
+  String get settingsV2StorageHint => 'Cache, media downloads and device data';
+
+  @override
+  String get settingsV2Motion => 'Motion and battery';
+
+  @override
+  String get settingsV2MotionHint => 'Stickers, emoji and performance';
+
+  @override
+  String get settingsV2Language => 'Language and time';
+
+  @override
+  String get settingsV2LanguageHint => 'Interface language and time zone';
+
+  @override
+  String get settingsV2About => 'Help and about';
+
+  @override
+  String get settingsV2AboutHint => 'Version, updates, help and documents';
+
+  @override
+  String get settingsV2GroupCommunication => 'Communication and appearance';
+
+  @override
+  String get settingsV2GroupPrivacy => 'Privacy and data';
+
+  @override
+  String get settingsV2GroupApplication => 'Application';
+
+  @override
+  String get settingsV2Search => 'Search settings';
+
+  @override
+  String get settingsV2SearchEmpty => 'Find a setting by its name or action';
+
+  @override
+  String get settingsV2SearchNone => 'No results. Try a different word.';
+
+  @override
+  String get settingsV2AccountHint => 'Profile and account management';
+
+  @override
+  String get settingsV2NiosId => 'Manage Nios ID';
+
+  @override
+  String get settingsV2Qr => 'My QR code';
+
+  @override
+  String get settingsV2Share => 'Share profile';
+
+  @override
+  String get settingsV2More => 'Profile actions';
+
+  @override
+  String get settingsV2Advanced => 'Advanced';
+
+  @override
+  String get settingsV2GeometryHint => 'Corners of cards and system panels';
+
+  @override
+  String get settingsV2Density => 'Interface density';
+
+  @override
+  String get settingsV2Graphics => 'Performance';
+
+  @override
+  String get settingsV2OptimizeHint =>
+      'Simplify visual effects for smoother performance';
+
+  @override
+  String get settingsV2ChatAnimations => 'Chat animations';
+
+  @override
+  String get settingsV2ChatAnimationsHint =>
+      'Choose which effects play automatically';
+
+  @override
+  String get settingsV2Stickers => 'Animated stickers';
+
+  @override
+  String get settingsV2StickersHint => 'Play sticker animations in messages';
+
+  @override
+  String get settingsV2Emoji => 'Animated emoji';
+
+  @override
+  String get settingsV2EmojiHint => 'Play emoji animations in messages';
+
+  @override
+  String get settingsV2Off => 'Off';
+
+  @override
+  String get settingsV2Reset => 'Reset local preferences';
+
+  @override
+  String get settingsV2ResetHint =>
+      'Restore default appearance and behavior. Message history is kept.';
+
+  @override
+  String get settingsV2LockTimeout => 'Auto-lock';
+
+  @override
+  String get settingsV2LockTimeoutHint =>
+      'When to lock the app after it goes to the background';
+
+  @override
+  String get settingsV2BiometricFailure => 'Could not verify your identity';
+
+  @override
+  String get settingsV2ReadReceipts => 'Read receipts';
+
+  @override
+  String get settingsV2ReadReceiptsHint => 'Show when you have read a message';
+
+  @override
+  String get settingsV2Typing => 'Typing indicator';
+
+  @override
+  String get settingsV2TypingHint => 'Let others see when you are typing';
+
+  @override
+  String get settingsV2ReadSaveFailed => 'Could not save read receipt settings';
+
+  @override
+  String get settingsV2TypingSaveFailed => 'Could not save typing settings';
+
+  @override
+  String get settingsV2StorageDetails => 'Storage usage';
+
+  @override
+  String get settingsV2StorageDetailsHint =>
+      'Downloaded media and temporary files';
+
+  @override
+  String get settingsV2AutoDownload => 'Automatic media downloads';
+
+  @override
+  String get settingsV2AutoDownloadHint =>
+      'Choose when to download photos, videos and voice messages';
+
+  @override
+  String get settingsV2Wifi => 'On Wi-Fi';
+
+  @override
+  String get settingsV2MobileData => 'On mobile data';
+
+  @override
+  String get settingsV2MobileDataHint => 'May use your mobile data allowance';
+
+  @override
+  String get settingsV2SecretCache => 'Secret chat cache';
+
+  @override
+  String get settingsV2SecretCacheHint => 'Decrypted messages on this device';
+
+  @override
+  String get settingsV2ClearSecretCache => 'Clear secret chat cache';
+
+  @override
+  String get settingsV2Diagnostics => 'Device diagnostics';
+
+  @override
+  String get settingsV2DiagnosticsHint => 'System and hardware information';
+
+  @override
+  String get settingsV2StorageImages => 'Photos';
+
+  @override
+  String get settingsV2StorageVideos => 'Videos';
+
+  @override
+  String get settingsV2StorageAudio => 'Audio';
+
+  @override
+  String get settingsV2StorageFiles => 'Files';
+
+  @override
+  String get settingsV2StorageStickers => 'Stickers';
+
+  @override
+  String get settingsV2StorageAvatars => 'Avatars';
+
+  @override
+  String get settingsV2StorageDrafts => 'Drafts';
+
+  @override
+  String get settingsV2StorageOther => 'Other';
+
+  @override
+  String get settingsV2SecurityLink => 'Security settings';
+
+  @override
+  String get settingsV2SecurityLinkHint =>
+      'Sessions, app lock and account protection';
+
+  @override
+  String get settingsV2ProfileCopied => 'Profile link copied';
+
+  @override
+  String get settingsV2IdCopied => 'Nios ID copied';
+
+  @override
+  String get settingsV2Economy => 'Economy';
+
+  @override
+  String get settingsV2Reliable => 'Reliable';
+
+  @override
+  String get settingsV2BackgroundOff =>
+      'The background connection is off. Push notifications still use FCM.';
+
+  @override
+  String get settingsV2Preview => 'Show message text';
+
+  @override
+  String get settingsV2StorageError => 'Could not load storage data';
+
+  @override
+  String get settingsV2ClearCategory => 'Clear files in this category?';
+
+  @override
+  String get settingsV2ClearCategoryHint =>
+      'Files in this category will be removed from the local cache.';
+
+  @override
+  String get settingsV2SecretCacheConfirm =>
+      'All decrypted secret-chat messages on this device will be deleted. This cannot be undone.';
+
+  @override
+  String get settingsV2ResetConfirm => 'Reset local preferences?';
+
+  @override
+  String get settingsV2ResetBody =>
+      'Appearance, language, sounds, notifications and other app preferences will reset. Chats, files, keys and server privacy settings will remain.';
+
+  @override
+  String get settingsV2ResetDone => 'Local preferences reset';
+
+  @override
+  String get settingsV2ResetFailed => 'Could not reset preferences';
 }

@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
@@ -17,7 +16,6 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
-import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/models/settings/settings_node.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -41,7 +39,6 @@ import 'package:pulse_flutter/screens/settings_plus_screen.dart';
 import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
 import 'package:pulse_flutter/services/settings/settings_registry.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
-import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/profile/ai_usage_card.dart';
 import 'package:pulse_flutter/widgets/profile/badge_selector_dialog.dart';
 import 'package:pulse_flutter/widgets/profile/my_qr_code_sheet.dart';
@@ -50,7 +47,6 @@ import 'package:pulse_flutter/widgets/profile/working_hours_widget.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
-import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
 import 'package:pulse_flutter/features/settings/application/settings_health_controller.dart';
@@ -71,15 +67,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _uploadingAvatar = false;
 
   bool get _browser => ref.read(clientCapabilitiesProvider).browserWorkspace;
-  SettingsSectionId get _webSection => widget.initialSection == SettingsSectionId.systemDevice
-      ? SettingsSectionId.about : widget.initialSection ?? SettingsSectionId.account;
+  SettingsSectionId get _webSection =>
+      widget.initialSection == SettingsSectionId.systemDevice
+      ? SettingsSectionId.about
+      : widget.initialSection ?? SettingsSectionId.account;
   void _selectSection(SettingsSectionId section) {
     if (_browser) {
       context.go('/main/settings?section=${section.name}');
     } else {
-      ref.read(desktopSelectedSettingsSectionProvider.notifier).setSelectedSection(section);
+      ref
+          .read(desktopSelectedSettingsSectionProvider.notifier)
+          .setSelectedSection(section);
     }
   }
+
   void _openSection(SettingsNavNode node) {
     if (_browser && node.sectionId != null) {
       _selectSection(node.sectionId!);
@@ -91,7 +92,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialSection != null && !ref.read(clientCapabilitiesProvider).browserWorkspace) {
+    if (widget.initialSection != null &&
+        !ref.read(clientCapabilitiesProvider).browserWorkspace) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref
@@ -132,7 +134,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               ListTile(
-                leading: Icon(Icons.photo_library_outlined, color: scheme.primary),
+                leading: Icon(
+                  Icons.photo_library_outlined,
+                  color: scheme.primary,
+                ),
                 title: const Text('Выбрать фото'),
                 subtitle: const Text('PNG, JPG, WebP до 8 МБ'),
                 onTap: () => Navigator.of(context).pop('photo'),
@@ -161,10 +166,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       final PlatformFile file = result.first;
-      final String ext =
-          (file.extension ?? file.name.split('.').last).toLowerCase();
-      final FileTypeInfo detected =
-          FileTypeDetector.detectFromFileName(file.name);
+      final String ext = (file.extension ?? file.name.split('.').last)
+          .toLowerCase();
+      final FileTypeInfo detected = FileTypeDetector.detectFromFileName(
+        file.name,
+      );
 
       if (isVideo) {
         const Set<String> allowedVideoExts = <String>{'mp4', 'mov', 'webm'};
@@ -210,11 +216,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (compressed != null) bytes = compressed;
       }
 
-      await ref.read(authRepositoryProvider).uploadAvatar(
-            bytes,
-            filename: file.name,
-            isVideo: isVideo,
-          );
+      await ref
+          .read(authRepositoryProvider)
+          .uploadAvatar(bytes, filename: file.name, isVideo: isVideo);
       await ref.read(authProvider.notifier).refreshProfile();
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.profileAvatarUpdated);
@@ -225,7 +229,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
   }
-
 
   Future<void> _logout() async {
     final bool? confirmed = await showAppConfirmDialog(
@@ -251,7 +254,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final String url = 'https://ni-os.ru/u/$username';
     await Clipboard.setData(ClipboardData(text: url));
     if (!mounted) return;
-    AppToast.showSuccess(context, 'Ссылка на профиль скопирована');
+    AppToast.showSuccess(context, context.l10n.settingsV2ProfileCopied);
   }
 
   Future<void> _copyNiosId(int? id) async {
@@ -261,7 +264,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
     await Clipboard.setData(ClipboardData(text: id.toString()));
     if (!mounted) return;
-    AppToast.showSuccess(context, 'Nios ID скопирован');
+    AppToast.showSuccess(context, context.l10n.settingsV2IdCopied);
   }
 
   Future<void> _openBadgeSelector(AuthState auth) async {
@@ -302,51 +305,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     LocalStorageSnapshot? snapshot,
   ) {
     if (node.id == 'appearance') {
-      final bool isRussian =
-          Localizations.localeOf(context).languageCode == 'ru';
       return settings.themeMode == ThemeMode.dark
-          ? (isRussian ? 'Тёмная' : 'Dark')
+          ? context.l10n.commonDark
           : settings.themeMode == ThemeMode.light
-              ? (isRussian ? 'Светлая' : 'Light')
-              : (isRussian ? 'Системная' : 'System');
+          ? context.l10n.commonLight
+          : context.l10n.commonSystem;
     } else if (node.id == 'storage') {
       if (_browser) return '';
       return snapshot != null
           ? FileTypeDetector.formatFileSize(snapshot.totalBytes)
-          : '0 Б';
+          : '—';
     } else if (node.id == 'language') {
       final bool isRussian =
           Localizations.localeOf(context).languageCode == 'ru';
-      return isRussian ? 'Русский' : 'English';
+      return isRussian
+          ? context.l10n.languageRussian
+          : context.l10n.languageEnglish;
     } else if (node.id == 'energy_saving') {
-      if (_browser) return '';
-      return settings.energySavingThreshold == 0
-          ? 'Выкл'
-          : '${settings.energySavingThreshold}%';
+      return '';
     } else if (node.id == 'about') {
       return AppConstants.appVersionWithPrefix;
     }
     return '';
-  }
-
-  Color _getSectionColor(SettingsGroup group, ColorScheme scheme) {
-    switch (group) {
-      case SettingsGroup.account:
-      case SettingsGroup.appearance:
-      case SettingsGroup.chats:
-      case SettingsGroup.privacy:
-      case SettingsGroup.language:
-        return scheme.primary;
-      case SettingsGroup.notifications:
-      case SettingsGroup.motion:
-        return scheme.secondary;
-      case SettingsGroup.storage:
-        return scheme.tertiary;
-      case SettingsGroup.plus:
-        return scheme.tertiary;
-      case SettingsGroup.about:
-        return scheme.onSurfaceVariant;
-    }
   }
 
   Widget _buildSearchAnchor({required bool isWide}) {
@@ -359,7 +339,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       builder: (BuildContext context, SearchController controller) {
         return SearchBar(
           controller: controller,
-          hintText: 'Поиск настроек...',
+          hintText: context.l10n.settingsV2Search,
           elevation: const WidgetStatePropertyAll<double>(0.0),
           backgroundColor: WidgetStatePropertyAll<Color>(
             scheme.surfaceContainerHigh.withValues(alpha: 0.6),
@@ -375,6 +355,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           trailing: <Widget>[
             if (controller.text.isNotEmpty)
               IconButton(
+                tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
                 icon: const Icon(Icons.clear_rounded, size: 18),
                 onPressed: () => controller.clear(),
               ),
@@ -383,10 +364,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           onChanged: (_) => controller.openView(),
         );
       },
-      suggestionsBuilder:
-          (BuildContext context, SearchController controller) {
-        final List<SettingsSearchResult> results =
-            SettingsRegistry.search(controller.text, context.l10n);
+      suggestionsBuilder: (BuildContext context, SearchController controller) {
+        final List<SettingsSearchResult> results = SettingsRegistry.search(
+          controller.text,
+          context.l10n,
+        );
 
         if (results.isEmpty) {
           return <Widget>[
@@ -394,10 +376,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
               child: Center(
                 child: Text(
-                  'Ничего не найдено',
+                  controller.text.trim().isEmpty
+                      ? context.l10n.settingsV2SearchEmpty
+                      : context.l10n.settingsV2SearchNone,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ),
@@ -413,11 +397,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                result.node.icon,
-                size: 20,
-                color: scheme.primary,
-              ),
+              child: Icon(result.node.icon, size: 20, color: scheme.primary),
             ),
             title: Text(
               result.title,
@@ -425,18 +405,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             subtitle: Text(
               result.breadcrumb,
-              style: TextStyle(
-                fontSize: 12,
-                color: scheme.onSurfaceVariant,
-              ),
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
             ),
             onTap: () {
               controller.closeView(result.title);
               if (result.anchor != null && result.anchor!.isNotEmpty) {
-                ref.read(settingsAnchorControllerProvider.notifier).request(
-                  route: result.targetRoute,
-                  anchor: result.anchor!,
-                );
+                ref
+                    .read(settingsAnchorControllerProvider.notifier)
+                    .request(route: result.targetRoute, anchor: result.anchor!);
               }
               if ((_browser || isWide) && result.targetSectionId != null) {
                 _selectSection(result.targetSectionId!);
@@ -458,447 +434,124 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     String username, {
     bool isCompact = false,
   }) {
-    return PressableSurface(
-      onTap: () => _openEditProfile(
-        context,
-        displayName,
-        auth,
-        auth.profile?.bio ?? '',
-      ),
-      borderRadius: BorderRadius.circular(isCompact ? 16 : 20),
-      color: scheme.surfaceContainerLow,
-      border: Border.all(
-        color: scheme.outlineVariant.withValues(alpha: 0.18),
-        width: 1,
-      ),
-      padding: EdgeInsets.all(isCompact ? 12 : 14),
-      child: Row(
-        children: <Widget>[
-          PulseAvatar(
-            name: displayName,
-            avatarUrl: auth.profile?.avatarUrl,
-            radius: isCompact ? 22 : 26,
-            fallbackColor: scheme.primaryContainer,
-            textColor: scheme.onPrimaryContainer,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  displayName,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  username.isNotEmpty ? '@$username' : '',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (auth.profile?.bio case final bio? when bio.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 2),
+    void edit() =>
+        _openEditProfile(context, displayName, auth, auth.profile?.bio ?? '');
+    void account() {
+      if (_browser) {
+        _selectSection(SettingsSectionId.account);
+      } else if (MediaQuery.sizeOf(context).width >= Breakpoints.medium) {
+        _selectSection(SettingsSectionId.account);
+      } else {
+        context.push('/settings/account');
+      }
+    }
+
+    final selected =
+        (_browser
+                ? _webSection
+                : ref.watch(desktopSelectedSettingsSectionProvider)) ==
+            SettingsSectionId.account &&
+        ((_browser && widget.initialSection != null) ||
+            MediaQuery.sizeOf(context).width >= Breakpoints.medium);
+    return Semantics(
+      key: const ValueKey('settings-profile-header'),
+      selected: selected,
+      child: PressableSurface(
+        onTap: account,
+        borderRadius: AppRadii.lgRadius,
+        color: selected
+            ? scheme.secondaryContainer
+            : scheme.surfaceContainerLow,
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            PulseAvatar(
+              name: displayName,
+              avatarUrl: auth.profile?.avatarUrl,
+              radius: 24,
+              fallbackColor: scheme.primaryContainer,
+              textColor: scheme.onPrimaryContainer,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    bio,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
+                    displayName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: selected
+                          ? scheme.onSecondaryContainer
+                          : scheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    username.isEmpty
+                        ? context.l10n.settingsV2AccountHint
+                        : '@$username',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: selected
+                          ? scheme.onSecondaryContainer
+                          : scheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          NiosMarkBadge(
-            id: (auth.session?.userId ?? auth.profile?.id ?? 0).toString(),
-            name: displayName,
-            size: isCompact ? 36 : 42,
-          ),
-          const SizedBox(width: 8),
-          if (isCompact && _browser)
-            Tooltip(message: context.l10n.profileEdit, child: Icon(Icons.edit_outlined, size: 18, color: scheme.primary))
-          else Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  'Изменить',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: scheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Icon(
-                  Icons.edit_outlined,
-                  size: 11,
-                  color: scheme.primary,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileHeroProfileCard(
-    BuildContext context,
-    AuthState auth,
-    ColorScheme scheme,
-    String displayName,
-    String username,
-    String bio,
-  ) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final int? niosId = auth.profile?.id ?? auth.session?.userId;
-
-    return RepaintBoundary(
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: isDark
-              ? scheme.surfaceContainerLow
-              : scheme.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.22),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Row with Avatar + Identity info
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // Interactive Avatar with camera upload badge
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: <Widget>[
-                    PulseAvatar(
-                      name: displayName,
-                      avatarUrl: auth.profile?.avatarUrl,
-                      radius: 36,
-                      fallbackColor: scheme.primaryContainer,
-                      textColor: scheme.onPrimaryContainer,
-                      borderWidth: 2,
-                      borderColor: scheme.surface,
-                    ),
-                    Positioned(
-                      right: -2,
-                      bottom: -2,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _uploadingAvatar ? null : _uploadAvatar,
-                          customBorder: const CircleBorder(),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: scheme.primary,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: scheme.surface, width: 2),
-                            ),
-                            child: _uploadingAvatar
-                                ? AppLoadingIndicator(
-                                    size: 10,
-                                    color: scheme.onPrimary,
-                                  )
-                                : Icon(
-                                    Icons.photo_camera_rounded,
-                                    size: 13,
-                                    color: scheme.onPrimary,
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                // Identity texts
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        displayName,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 19,
-                          letterSpacing: -0.3,
-                          color: scheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: <Widget>[
-                          if (username.isNotEmpty) ...<Widget>[
-                            Flexible(
-                              child: Text(
-                                '@$username',
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: scheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                          Consumer(
-                            builder: (BuildContext context, WidgetRef ref, _) {
-                              final bool isOnline =
-                                  ref.watch(connectivityProvider).value ?? true;
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  Container(
-                                    width: 7,
-                                    height: 7,
-                                    decoration: BoxDecoration(
-                                      color: isOnline
-                                          ? AppColors.statusOnline
-                                          : scheme.outline,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isOnline
-                                        ? context.l10n.profileOnline
-                                        : context.l10n.profileOffline,
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: scheme.onSurfaceVariant,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      if (bio.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: 6),
-                        Text(
-                          bio,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontSize: 13,
-                            height: 1.3,
-                          ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            // Metadata Chips (Nios ID, Phone, Birthday)
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: <Widget>[
-                if (niosId != null)
-                  InkWell(
-                    onTap: () => _copyNiosId(niosId),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(Icons.badge_outlined, size: 13, color: scheme.primary),
-                          const SizedBox(width: 5),
-                          Text(
-                            'ID: $niosId',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.copy_rounded,
-                            size: 11,
-                            color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (auth.profile?.phoneNumber?.isNotEmpty == true)
-                  InkWell(
-                    onTap: () async {
-                      await Clipboard.setData(
-                        ClipboardData(text: auth.profile!.phoneNumber!),
-                      );
-                      if (context.mounted) {
-                        AppToast.showSuccess(context, 'Телефон скопирован');
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(Icons.phone_outlined, size: 13, color: scheme.primary),
-                          const SizedBox(width: 5),
-                          Text(
-                            auth.profile!.phoneNumber!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (auth.profile?.birthday?.isNotEmpty == true)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: scheme.outlineVariant.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(Icons.cake_outlined, size: 13, color: scheme.primary),
-                        const SizedBox(width: 5),
-                        Text(
-                          auth.profile!.birthday!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-
-            // Badges row with tap to manage
-            if (auth.profile?.visibleBadges.isNotEmpty == true) ...<Widget>[
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: () => _openBadgeSelector(auth),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: <Widget>[
-                    ...auth.profile!.visibleBadges.map((ApiBadge b) {
-                      return BadgeChip(
-                        id: b.id,
-                        name: b.name,
-                        icon: b.icon,
-                        color: b.color,
-                        mode: BadgeDisplayMode.infoLabel,
-                        showName: true,
-                      );
-                    }),
-                  ],
-                ),
               ),
-            ],
-
-            // Quick Action Buttons Row: Edit Profile & Share Profile
-            const SizedBox(height: 14),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: SizedBox(
-                    height: 38,
-                    child: FilledButton.tonalIcon(
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                      ),
-                      onPressed: () =>
-                          _openEditProfile(context, displayName, auth, bio),
-                      icon: const Icon(Icons.edit_rounded, size: 15),
-                      label: Text(
-                        context.l10n.profileEdit,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
+            ),
+            if (_uploadingAvatar)
+              const AppLoadingIndicator(size: 22)
+            else
+              IconButton(
+                tooltip: context.l10n.profileEdit,
+                onPressed: edit,
+                icon: const Icon(Icons.edit_outlined),
+              ),
+            MenuAnchor(
+              menuChildren: [
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.qr_code_rounded),
+                  onPressed: () => MyQrCodeSheet.show(context),
+                  child: Text(context.l10n.settingsV2Qr),
                 ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 38,
-                  child: FilledButton.tonal(
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                    ),
-                    onPressed: () => _shareProfile(username),
-                    child: const Icon(Icons.share_outlined, size: 16),
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.share_outlined),
+                  onPressed: () => _shareProfile(username),
+                  child: Text(context.l10n.settingsV2Share),
+                ),
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.badge_outlined),
+                  onPressed: () => _copyNiosId(auth.session?.userId),
+                  child: const Text('Nios ID'),
+                ),
+                MenuItemButton(
+                  leadingIcon: NiosMarkBadge(
+                    id: (auth.session?.userId ?? 0).toString(),
+                    name: displayName,
+                    size: 24,
                   ),
+                  onPressed: () => _openBadgeSelector(auth),
+                  child: Text(context.l10n.settingsBadgesTitle),
+                ),
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.open_in_new_rounded),
+                  onPressed: () => AppUrlLauncher.openUrl(
+                    context,
+                    'https://ni-os.ru/id/account',
+                  ),
+                  child: Text(context.l10n.settingsV2NiosId),
                 ),
               ],
+              builder: (context, controller, child) => IconButton(
+                tooltip: context.l10n.settingsV2More,
+                icon: const Icon(Icons.more_vert_rounded),
+                onPressed: () =>
+                    controller.isOpen ? controller.close() : controller.open(),
+              ),
             ),
           ],
         ),
@@ -926,15 +579,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     for (final SettingsNavNode s in sections) {
       if (s.group == SettingsGroup.account ||
           s.group == SettingsGroup.appearance ||
-          s.group == SettingsGroup.chats) {
+          s.group == SettingsGroup.chats ||
+          s.group == SettingsGroup.notifications) {
         generalSections.add(s);
-      } else if (s.group == SettingsGroup.notifications ||
-          s.group == SettingsGroup.privacy ||
-          s.group == SettingsGroup.storage ||
-          s.group == SettingsGroup.motion) {
+      } else if (s.group == SettingsGroup.privacy ||
+          s.group == SettingsGroup.storage) {
         securitySections.add(s);
       } else {
-        systemSections.add(s);
+        if (s.group != SettingsGroup.plus) systemSections.add(s);
       }
     }
 
@@ -947,14 +599,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         title: Text(
           context.l10n.tabSettings,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
-                color: scheme.onSurface,
-              ),
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.6,
+            color: scheme.onSurface,
+          ),
         ),
         actions: <Widget>[
           IconButton(
-            tooltip: 'QR-код',
+            tooltip: context.l10n.settingsV2Qr,
             icon: Container(
               padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
@@ -982,13 +634,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               sliver: SliverList(
                 delegate: SliverChildListDelegate.fixed(<Widget>[
                   // 1. Hero Profile Card
-                  _buildMobileHeroProfileCard(
+                  _buildQuickProfileHeader(
                     context,
                     auth,
                     scheme,
                     displayName,
                     username,
-                    bio,
+                    isCompact: true,
                   ),
                   if (auth.profile?.aiUsage != null) ...<Widget>[
                     const SizedBox(height: 12),
@@ -996,7 +648,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
 
                   // 2. Working Hours (if configured)
-                  if (auth.profile?.workingHours?.isNotEmpty == true) ...<Widget>[
+                  if (auth.profile?.workingHours?.isNotEmpty ==
+                      true) ...<Widget>[
                     const SizedBox(height: 12),
                     WorkingHoursWidget(
                       workingHours: auth.profile?.workingHours,
@@ -1011,26 +664,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 10),
 
                   // Settings Health Issues (max 2)
-                  ...ref.watch(settingsHealthProvider).take(2).map(
-                    (SettingsHealthIssue issue) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: SettingsIssueCard(issue: issue),
-                    ),
-                  ),
+                  ...ref
+                      .watch(settingsHealthProvider)
+                      .take(2)
+                      .map(
+                        (SettingsHealthIssue issue) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: SettingsIssueCard(issue: issue),
+                        ),
+                      ),
                   const SizedBox(height: 6),
 
                   // 4. Sections grouped into M3 Expressive Cards (exact from SettingsHub)
                   SettingsSection(
-                    title: 'Основное',
+                    title: context.l10n.settingsV2GroupCommunication,
                     children: generalSections.map((SettingsNavNode node) {
-                      final String badgeVal =
-                          _getSectionBadgeValue(node, settings, storageSnapshot);
+                      final String badgeVal = _getSectionBadgeValue(
+                        node,
+                        settings,
+                        storageSnapshot,
+                      );
                       return SettingsListItem.nav(
                         icon: node.icon,
                         title: node.title(context.l10n),
                         subtitle: node.subtitle?.call(context.l10n),
                         value: badgeVal.isNotEmpty ? badgeVal : null,
-                        iconColor: _getSectionColor(node.group, scheme),
+                        isSection: true,
                         onTap: () => _openSection(node),
                       );
                     }).toList(),
@@ -1038,16 +697,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 14),
 
                   SettingsSection(
-                    title: 'Безопасность и данные',
+                    title: context.l10n.settingsV2GroupPrivacy,
                     children: securitySections.map((SettingsNavNode node) {
-                      final String badgeVal =
-                          _getSectionBadgeValue(node, settings, storageSnapshot);
+                      final String badgeVal = _getSectionBadgeValue(
+                        node,
+                        settings,
+                        storageSnapshot,
+                      );
                       return SettingsListItem.nav(
                         icon: node.icon,
                         title: node.title(context.l10n),
                         subtitle: node.subtitle?.call(context.l10n),
                         value: badgeVal.isNotEmpty ? badgeVal : null,
-                        iconColor: _getSectionColor(node.group, scheme),
+                        isSection: true,
                         onTap: () => _openSection(node),
                       );
                     }).toList(),
@@ -1055,39 +717,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 14),
 
                   SettingsSection(
-                    title: 'Система и приложение',
+                    title: context.l10n.settingsV2GroupApplication,
                     children: systemSections.map((SettingsNavNode node) {
-                      final String badgeVal =
-                          _getSectionBadgeValue(node, settings, storageSnapshot);
+                      final String badgeVal = _getSectionBadgeValue(
+                        node,
+                        settings,
+                        storageSnapshot,
+                      );
                       return SettingsListItem.nav(
                         icon: node.icon,
                         title: node.title(context.l10n),
                         subtitle: node.subtitle?.call(context.l10n),
                         value: badgeVal.isNotEmpty ? badgeVal : null,
-                        iconColor: _getSectionColor(node.group, scheme),
+                        isSection: true,
                         onTap: () => _openSection(node),
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
 
-                  // 5. Nios ID Section
-                  SettingsSection(
-                    title: 'Nios ID',
-                    children: <Widget>[
-                      SettingsListItem.nav(
-                        icon: Icons.badge_outlined,
-                        title: 'Управление аккаунтом Nios ID',
-                        subtitle: 'Безопасность, 2FA и активные сессии',
-                        iconColor: scheme.primary,
-                        onTap: () => AppUrlLauncher.openUrl(
-                          context,
-                          'https://ni-os.ru/id/account',
+                  for (final node in sections.where(
+                    (n) => n.group == SettingsGroup.plus,
+                  ))
+                    SettingsSection(
+                      children: [
+                        SettingsListItem.nav(
+                          icon: node.icon,
+                          title: node.title(context.l10n),
+                          isSection: true,
+                          onTap: () => _openSection(node),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                      ],
+                    ),
+                  const SizedBox(height: 16),
 
                   // 6. Logout action
                   Padding(
@@ -1133,7 +795,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     String displayName,
     String username,
   ) {
-    final SettingsSectionId selectedSection = _browser ? _webSection
+    final SettingsSectionId selectedSection = _browser
+        ? _webSection
         : ref.watch(desktopSelectedSettingsSectionProvider);
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final List<SettingsNavNode> sections =
@@ -1145,7 +808,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         // Left Master Pane
         Container(
           key: const ValueKey('settings-master-pane'),
-          width: _browser ? (MediaQuery.sizeOf(context).width * .22).clamp(260.0, 320.0) : 360,
+          width: _browser
+              ? (MediaQuery.sizeOf(context).width * .27).clamp(300.0, 360.0)
+              : 360,
           decoration: BoxDecoration(
             color: isDark
                 ? scheme.surfaceContainerLowest
@@ -1165,12 +830,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 10),
 
               // Settings Health Issues (max 2)
-              ...ref.watch(settingsHealthProvider).take(2).map(
-                (SettingsHealthIssue issue) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: SettingsIssueCard(issue: issue),
-                ),
-              ),
+              ...ref
+                  .watch(settingsHealthProvider)
+                  .take(2)
+                  .map(
+                    (SettingsHealthIssue issue) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: SettingsIssueCard(issue: issue),
+                    ),
+                  ),
               const SizedBox(height: 6),
 
               // Compact Profile Header
@@ -1184,30 +852,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const SizedBox(height: 14),
 
-              // Top level sections from registry
-              SettingsSection(
-                isCard: false,
-                title: context.l10n.tabSettings,
-                children: sections.map((SettingsNavNode node) {
-                  final bool isSelected =
-                      node.sectionId == selectedSection;
-                  final String badgeVal =
-                      _getSectionBadgeValue(node, settings, storageSnapshot);
-
-                  return SettingsTile(
-                    icon: node.icon,
-                    title: node.title(context.l10n),
-                    value: badgeVal.isNotEmpty ? badgeVal : null,
-                    iconColor: _getSectionColor(node.group, scheme),
-                    isSelected: isSelected,
-                    onTap: () {
-                      if (node.sectionId != null) {
-                        _selectSection(node.sectionId!);
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
+              for (final group in [
+                (
+                  context.l10n.settingsV2GroupCommunication,
+                  {
+                    SettingsGroup.appearance,
+                    SettingsGroup.chats,
+                    SettingsGroup.notifications,
+                  },
+                ),
+                (
+                  context.l10n.settingsV2GroupPrivacy,
+                  {SettingsGroup.privacy, SettingsGroup.storage},
+                ),
+                (
+                  context.l10n.settingsV2GroupApplication,
+                  {
+                    SettingsGroup.motion,
+                    SettingsGroup.language,
+                    SettingsGroup.about,
+                  },
+                ),
+                ('', {SettingsGroup.plus}),
+              ])
+                SettingsSection(
+                  isCard: false,
+                  title: group.$1.isEmpty ? null : group.$1,
+                  children: sections
+                      .where((node) => group.$2.contains(node.group))
+                      .map(
+                        (node) => SettingsTile(
+                          icon: node.icon,
+                          title: node.title(context.l10n),
+                          isSection: true,
+                          value: _getSectionBadgeValue(
+                            node,
+                            settings,
+                            storageSnapshot,
+                          ),
+                          isSelected: node.sectionId == selectedSection,
+                          onTap: () {
+                            if (node.sectionId != null) {
+                              _selectSection(node.sectionId!);
+                            }
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
 
               const SizedBox(height: 12),
               Divider(
@@ -1224,7 +916,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     side: BorderSide(
                       color: scheme.error.withValues(alpha: 0.35),
                     ),
-                    minimumSize: const Size.fromHeight(44),
+                    minimumSize: const Size.fromHeight(48),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -1250,7 +942,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         Expanded(
           child: Container(
             color: scheme.surface,
-            child: KeyedSubtree(key: ValueKey(selectedSection), child: _buildDetailPane(selectedSection)),
+            child: KeyedSubtree(
+              key: ValueKey(selectedSection),
+              child: _buildDetailPane(selectedSection),
+            ),
           ),
         ),
       ],
@@ -1322,7 +1017,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final UiSettingsState settings = ref.watch(uiSettingsProvider);
 
-    final String displayName = auth.profile?.displayName ??
+    final String displayName =
+        auth.profile?.displayName ??
         auth.session?.displayName ??
         context.l10n.profileGuestName;
     final String username =
@@ -1331,8 +1027,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? auth.profile!.bio.trim()
         : '';
 
-    final LocalStorageSnapshot? storageSnapshot =
-        ref.watch(storageSnapshotProvider).value;
+    final LocalStorageSnapshot? storageSnapshot = ref
+        .watch(storageSnapshotProvider)
+        .value;
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -1340,16 +1037,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
         final browser = ref.watch(clientCapabilitiesProvider).browserWorkspace;
-        final bool isWide = width >= (browser ? 720 : Breakpoints.medium) &&
+        final bool isWide =
+            width >= (browser ? 720 : Breakpoints.medium) &&
             MediaQuery.sizeOf(context).width >= Breakpoints.medium;
         if (browser && !isWide && widget.initialSection != null) {
           final section = _webSection;
-          final node = SettingsRegistry.getTopLevelSections().where((n) => n.sectionId == section).firstOrNull;
-          return Scaffold(appBar: AppBar(
-            leading: IconButton(icon: const Icon(Icons.arrow_back_rounded),
-              tooltip: context.l10n.commonBack, onPressed: () => context.go('/main/settings')),
-            title: Text(node?.title(context.l10n) ?? context.l10n.tabSettings)),
-            body: KeyedSubtree(key: ValueKey(section), child: _buildDetailPane(section)));
+          final node = SettingsRegistry.getAllNodes()
+              .whereType<SettingsNavNode>()
+              .where((n) => n.sectionId == section)
+              .firstOrNull;
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: context.l10n.commonBack,
+                onPressed: () => context.go('/main/settings'),
+              ),
+              title: Text(
+                node?.title(context.l10n) ?? context.l10n.tabSettings,
+              ),
+            ),
+            body: KeyedSubtree(
+              key: ValueKey(section),
+              child: SettingsHeadingScope(
+                showEmbeddedHeading: false,
+                child: _buildDetailPane(section),
+              ),
+            ),
+          );
         }
 
         if (isWide) {
@@ -1463,8 +1178,9 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     phoneController = TextEditingController(
       text: widget.initialPhoneNumber?.replaceAll(RegExp(r'\D'), '') ?? '',
     );
-    birthdayController =
-        TextEditingController(text: widget.initialBirthday ?? '');
+    birthdayController = TextEditingController(
+      text: widget.initialBirthday ?? '',
+    );
     _workingHours = widget.initialWorkingHours;
     nameController.addListener(_validateName);
     usernameController.addListener(_validateUsername);
@@ -1513,8 +1229,8 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
   }
 
   Future<void> _selectBirthday() async {
-    final DateTime initialDate = DateTime.tryParse(birthdayController.text) ??
-        DateTime(2000, 1, 1);
+    final DateTime initialDate =
+        DateTime.tryParse(birthdayController.text) ?? DateTime(2000, 1, 1);
     final DateTime? picked = await AppDatePicker.show(
       context: context,
       initialDate: initialDate,
@@ -1621,7 +1337,10 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                     width: 1.5,
                   ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -1680,10 +1399,11 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     final String username = usernameController.text.trim();
     final String? newUsername =
         username.isNotEmpty && username != widget.initialUsername
-            ? username
-            : null;
-    final String rawDigits =
-        phoneController.text.replaceAll(RegExp(r'\D'), '').trim();
+        ? username
+        : null;
+    final String rawDigits = phoneController.text
+        .replaceAll(RegExp(r'\D'), '')
+        .trim();
     String? formattedPhone;
     if (rawDigits.isNotEmpty) {
       String digits = rawDigits;
@@ -1709,21 +1429,22 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
         birthday.isEmpty && widget.initialBirthday != null;
     final bool clearWorkingHours =
         (workingHours == null || workingHours.isEmpty) &&
-            widget.initialWorkingHours != null;
+        widget.initialWorkingHours != null;
 
     try {
-      final AuthActionResult result =
-          await ref.read(authProvider.notifier).updateProfile(
-                displayName: displayName,
-                username: newUsername,
-                bio: bio,
-                phoneNumber: formattedPhone,
-                clearPhoneNumber: clearPhoneNumber,
-                birthday: birthday.isNotEmpty ? birthday : null,
-                clearBirthday: clearBirthday,
-                workingHours: workingHours,
-                clearWorkingHours: clearWorkingHours,
-              );
+      final AuthActionResult result = await ref
+          .read(authProvider.notifier)
+          .updateProfile(
+            displayName: displayName,
+            username: newUsername,
+            bio: bio,
+            phoneNumber: formattedPhone,
+            clearPhoneNumber: clearPhoneNumber,
+            birthday: birthday.isNotEmpty ? birthday : null,
+            clearBirthday: clearBirthday,
+            workingHours: workingHours,
+            clearWorkingHours: clearWorkingHours,
+          );
 
       if (!mounted) return;
       if (result.success) {
@@ -1757,10 +1478,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       ),
       child: ClipRRect(
         borderRadius: AppRadii.mdRadius,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: children,
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
       ),
     );
   }
@@ -1778,289 +1496,313 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
+          // Top Header Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+            child: Row(
+              children: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: scheme.onSurfaceVariant,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  child: Text(
+                    context.l10n.commonCancel,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    context.l10n.profileEdit,
+                    textAlign: TextAlign.center,
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    minimumSize: const Size(60, 36),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  onPressed: _nameError != null || _usernameError != null
+                      ? null
+                      : _save,
+                  child: Text(
+                    context.l10n.commonSave,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: scheme.outlineVariant.withValues(alpha: 0.15),
+          ),
 
-            // Top Header Bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-              child: Row(
+          // Scrollable Form
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 20 + bottomInset),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      foregroundColor: scheme.onSurfaceVariant,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                    ),
-                    child: Text(
-                      context.l10n.commonCancel,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      context.l10n.profileEdit,
-                      textAlign: TextAlign.center,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      minimumSize: const Size(60, 36),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                    onPressed: _nameError != null || _usernameError != null ? null : _save,
-                    child: Text(
-                      context.l10n.commonSave,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.15),
-            ),
-
-            // Scrollable Form
-            Flexible(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 20 + bottomInset),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    // Avatar center
-                    Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: <Widget>[
-                              PulseAvatar(
-                                name: widget.initialName,
-                                avatarUrl: auth.profile?.avatarUrl,
-                                radius: 44,
-                                fallbackColor: scheme.primaryContainer,
-                                textColor: scheme.onPrimaryContainer,
-                                borderWidth: 3,
-                                borderColor: scheme.surface,
-                              ),
-                              if (widget.onUploadAvatar != null)
-                                Positioned(
-                                  right: -2,
-                                  bottom: -2,
-                                  child: Material(
-                                    color: scheme.primary,
-                                    shape: const CircleBorder(),
-                                    elevation: 2,
-                                    child: InkWell(
-                                      onTap: widget.onUploadAvatar,
-                                      customBorder: const CircleBorder(),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(7),
-                                        child: Icon(
-                                          Icons.photo_camera_rounded,
-                                          size: 16,
-                                          color: scheme.onPrimary,
-                                        ),
+                  // Avatar center
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: <Widget>[
+                            PulseAvatar(
+                              name: widget.initialName,
+                              avatarUrl: auth.profile?.avatarUrl,
+                              radius: 44,
+                              fallbackColor: scheme.primaryContainer,
+                              textColor: scheme.onPrimaryContainer,
+                              borderWidth: 3,
+                              borderColor: scheme.surface,
+                            ),
+                            if (widget.onUploadAvatar != null)
+                              Positioned(
+                                right: -2,
+                                bottom: -2,
+                                child: Material(
+                                  color: scheme.primary,
+                                  shape: const CircleBorder(),
+                                  elevation: 2,
+                                  child: InkWell(
+                                    onTap: widget.onUploadAvatar,
+                                    customBorder: const CircleBorder(),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(7),
+                                      child: Icon(
+                                        Icons.photo_camera_rounded,
+                                        size: 16,
+                                        color: scheme.onPrimary,
                                       ),
                                     ),
                                   ),
                                 ),
+                              ),
+                          ],
+                        ),
+                        if (widget.onUploadAvatar != null) ...<Widget>[
+                          const SizedBox(height: 6),
+                          TextButton(
+                            onPressed: widget.onUploadAvatar,
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: Text(
+                              'Изменить фотографию',
+                              style: TextStyle(
+                                color: scheme.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Section 1: Личные данные
+                  _buildCard(
+                    scheme: scheme,
+                    isDark: isDark,
+                    children: <Widget>[
+                      _buildInputField(
+                        scheme: scheme,
+                        textTheme: textTheme,
+                        icon: Icons.person_outline_rounded,
+                        label: context.l10n.profileDisplayName,
+                        controller: nameController,
+                        hintText: 'Ваше имя',
+                        errorText: _nameError,
+                        maxLength: 64,
+                      ),
+                      Divider(
+                        height: 1,
+                        indent: 50,
+                        color: scheme.outlineVariant.withValues(alpha: 0.12),
+                      ),
+                      _buildInputField(
+                        scheme: scheme,
+                        textTheme: textTheme,
+                        icon: Icons.notes_rounded,
+                        label: context.l10n.profileDescription,
+                        controller: bioController,
+                        hintText: 'Расскажите о себе...',
+                        maxLines: 2,
+                        maxLength: 500,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Section 2: Контакты и аккаунт
+                  _buildCard(
+                    scheme: scheme,
+                    isDark: isDark,
+                    children: <Widget>[
+                      _buildInputField(
+                        scheme: scheme,
+                        textTheme: textTheme,
+                        icon: Icons.alternate_email_rounded,
+                        label: context.l10n.profileUsernameLabel,
+                        controller: usernameController,
+                        prefixText: '@',
+                        errorText: _usernameError,
+                      ),
+                      Divider(
+                        height: 1,
+                        indent: 50,
+                        color: scheme.outlineVariant.withValues(alpha: 0.12),
+                      ),
+                      _buildInputField(
+                        scheme: scheme,
+                        textTheme: textTheme,
+                        icon: Icons.phone_outlined,
+                        label: 'Номер телефона',
+                        controller: phoneController,
+                        hintText: '79990000000',
+                        keyboardType: TextInputType.number,
+                        inputFormatters: <TextInputFormatter>[
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        maxLength: 16,
+                      ),
+                      Divider(
+                        height: 1,
+                        indent: 50,
+                        color: scheme.outlineVariant.withValues(alpha: 0.12),
+                      ),
+                      InkWell(
+                        onTap: _selectBirthday,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                Icons.cake_outlined,
+                                size: 20,
+                                color: scheme.onSurfaceVariant.withValues(
+                                  alpha: 0.8,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Text(
+                                      'Дата рождения',
+                                      style: textTheme.labelSmall?.copyWith(
+                                        color: scheme.primary,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.2,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      birthdayController.text.isNotEmpty
+                                          ? birthdayController.text
+                                          : 'Не указана',
+                                      style: textTheme.bodyLarge?.copyWith(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                        color:
+                                            birthdayController.text.isNotEmpty
+                                            ? scheme.onSurface
+                                            : scheme.onSurfaceVariant
+                                                  .withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.calendar_today_rounded,
+                                size: 18,
+                                color: scheme.onSurfaceVariant.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
                             ],
                           ),
-                          if (widget.onUploadAvatar != null) ...<Widget>[
-                            const SizedBox(height: 6),
-                            TextButton(
-                              onPressed: widget.onUploadAvatar,
-                              style: TextButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              child: Text(
-                                'Изменить фотографию',
-                                style: TextStyle(
-                                  color: scheme.primary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
 
-                    // Section 1: Личные данные
-                    _buildCard(
-                      scheme: scheme,
-                      isDark: isDark,
-                      children: <Widget>[
-                        _buildInputField(
-                          scheme: scheme,
-                          textTheme: textTheme,
-                          icon: Icons.person_outline_rounded,
-                          label: context.l10n.profileDisplayName,
-                          controller: nameController,
-                          hintText: 'Ваше имя',
-                          errorText: _nameError,
-                          maxLength: 64,
+                  // Section 3: График работы
+                  _buildCard(
+                    scheme: scheme,
+                    isDark: isDark,
+                    children: <Widget>[
+                      ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 2,
                         ),
-                        Divider(
-                          height: 1,
-                          indent: 50,
-                          color: scheme.outlineVariant.withValues(alpha: 0.12),
+                        leading: Icon(
+                          Icons.schedule_rounded,
+                          color: scheme.primary,
+                          size: 22,
                         ),
-                        _buildInputField(
-                          scheme: scheme,
-                          textTheme: textTheme,
-                          icon: Icons.notes_rounded,
-                          label: context.l10n.profileDescription,
-                          controller: bioController,
-                          hintText: 'Расскажите о себе...',
-                          maxLines: 2,
-                          maxLength: 500,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Section 2: Контакты и аккаунт
-                    _buildCard(
-                      scheme: scheme,
-                      isDark: isDark,
-                      children: <Widget>[
-                        _buildInputField(
-                          scheme: scheme,
-                          textTheme: textTheme,
-                          icon: Icons.alternate_email_rounded,
-                          label: context.l10n.profileUsernameLabel,
-                          controller: usernameController,
-                          prefixText: '@',
-                          errorText: _usernameError,
-                        ),
-                        Divider(
-                          height: 1,
-                          indent: 50,
-                          color: scheme.outlineVariant.withValues(alpha: 0.12),
-                        ),
-                        _buildInputField(
-                          scheme: scheme,
-                          textTheme: textTheme,
-                          icon: Icons.phone_outlined,
-                          label: 'Номер телефона',
-                          controller: phoneController,
-                          hintText: '79990000000',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: <TextInputFormatter>[
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          maxLength: 16,
-                        ),
-                        Divider(
-                          height: 1,
-                          indent: 50,
-                          color: scheme.outlineVariant.withValues(alpha: 0.12),
-                        ),
-                        InkWell(
-                          onTap: _selectBirthday,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                            child: Row(
-                              children: <Widget>[
-                                Icon(
-                                  Icons.cake_outlined,
-                                  size: 20,
-                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: <Widget>[
-                                      Text(
-                                        'Дата рождения',
-                                        style: textTheme.labelSmall?.copyWith(
-                                          color: scheme.primary,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.2,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        birthdayController.text.isNotEmpty
-                                            ? birthdayController.text
-                                            : 'Не указана',
-                                        style: textTheme.bodyLarge?.copyWith(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w500,
-                                          color: birthdayController.text.isNotEmpty
-                                              ? scheme.onSurface
-                                              : scheme.onSurfaceVariant.withValues(alpha: 0.5),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.calendar_today_rounded,
-                                  size: 18,
-                                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                                ),
-                              ],
-                            ),
+                        title: const Text(
+                          'График работы',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Section 3: График работы
-                    _buildCard(
-                      scheme: scheme,
-                      isDark: isDark,
-                      children: <Widget>[
-                        ListTile(
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                          leading: Icon(
-                            Icons.schedule_rounded,
-                            color: scheme.primary,
-                            size: 22,
+                        subtitle: Text(
+                          _workingHours == null || _workingHours!.isEmpty
+                              ? 'Не настроен'
+                              : (_workingHours!.isOpenNow()
+                                    ? 'Открыто сейчас'
+                                    : 'Закрыто'),
+                          style: textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
                           ),
-                          title: const Text(
-                            'График работы',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                          ),
-                          subtitle: Text(
-                            _workingHours == null || _workingHours!.isEmpty
-                                ? 'Не настроен'
-                                : (_workingHours!.isOpenNow() ? 'Открыто сейчас' : 'Закрыто'),
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                          trailing: const Icon(Icons.chevron_right_rounded, size: 20),
-                          onTap: _editWorkingHours,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                        trailing: const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                        ),
+                        onTap: _editWorkingHours,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 }

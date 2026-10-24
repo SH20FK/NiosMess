@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
@@ -20,6 +21,7 @@ class PressableSurface extends ConsumerStatefulWidget {
     this.margin,
     this.enabled = true,
     this.playFeedback = true,
+    this.keyboardFocusable = true,
     super.key,
   });
 
@@ -33,6 +35,7 @@ class PressableSurface extends ConsumerStatefulWidget {
   final EdgeInsetsGeometry? margin;
   final bool enabled;
   final bool playFeedback;
+  final bool keyboardFocusable;
 
   @override
   ConsumerState<PressableSurface> createState() => _PressableSurfaceState();
@@ -40,6 +43,7 @@ class PressableSurface extends ConsumerStatefulWidget {
 
 class _PressableSurfaceState extends ConsumerState<PressableSurface> {
   bool _isPressed = false;
+  bool _focused = false;
 
   void _handleTapDown(TapDownDetails _) {
     if (!widget.enabled || widget.onTap == null) return;
@@ -80,29 +84,58 @@ class _PressableSurfaceState extends ConsumerState<PressableSurface> {
         borderRadius: effectiveRadius,
         border: widget.border,
       ),
+      foregroundDecoration: _focused
+          ? BoxDecoration(
+              borderRadius: effectiveRadius,
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary,
+                width: 2,
+              ),
+            )
+          : null,
       child: widget.child,
     );
 
-    if (!widget.enabled || (widget.onTap == null && widget.onLongPress == null)) {
+    if (!widget.enabled ||
+        (widget.onTap == null && widget.onLongPress == null)) {
       return body;
     }
 
-    return GestureDetector(
-      onTapDown: _handleTapDown,
-      onTapUp: _handleTapUp,
-      onTapCancel: _handleTapCancel,
-      onTap: _handleTap,
-      onLongPress: widget.enabled ? widget.onLongPress : null,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.98 : 1.0,
-        duration: Duration(
-          milliseconds: _isPressed
-              ? AppMotion.durationPress.inMilliseconds
-              : AppMotion.durationRelease.inMilliseconds,
+    return FocusableActionDetector(
+      enabled: widget.keyboardFocusable,
+      mouseCursor: SystemMouseCursors.click,
+      onShowFocusHighlight: (focused) => setState(() => _focused = focused),
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+      },
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            _handleTap();
+            return null;
+          },
         ),
-        curve: _isPressed ? M3SpringCurves.snappy : M3SpringCurves.spatial,
-        child: body,
+      },
+      child: GestureDetector(
+        onTapDown: _handleTapDown,
+        onTapUp: _handleTapUp,
+        onTapCancel: _handleTapCancel,
+        onTap: _handleTap,
+        onLongPress: widget.enabled ? widget.onLongPress : null,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedScale(
+          scale: _isPressed ? 0.98 : 1.0,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : Duration(
+                  milliseconds: _isPressed
+                      ? AppMotion.durationPress.inMilliseconds
+                      : AppMotion.durationRelease.inMilliseconds,
+                ),
+          curve: _isPressed ? M3SpringCurves.snappy : M3SpringCurves.spatial,
+          child: body,
+        ),
       ),
     );
   }

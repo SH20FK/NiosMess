@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -70,9 +71,6 @@ class _AppearanceScreen extends ConsumerWidget {
     final Color seedColor = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.seedColor),
     );
-    final double messageBubbleRadius = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.messageBubbleRadius),
-    );
     final double uiCornerRadius = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.uiCornerRadius),
     );
@@ -100,9 +98,6 @@ class _AppearanceScreen extends ConsumerWidget {
       uiSettingsProvider.select(
         (UiSettingsState s) => s.optimizeForWeakDevices,
       ),
-    );
-    final bool hideBubbleTails = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.hideBubbleTails),
     );
 
     final PerformanceTier tier = ref.watch(
@@ -142,7 +137,6 @@ class _AppearanceScreen extends ConsumerWidget {
                   : seedColor,
               themeMode: themeMode,
               seedColor: seedColor,
-              messageBubbleRadius: messageBubbleRadius,
               uiCornerRadius: uiCornerRadius,
               fontScale: fontScale,
               paletteStyle: paletteStyle,
@@ -152,7 +146,6 @@ class _AppearanceScreen extends ConsumerWidget {
               predictiveBackEnabled: predictiveBackEnabled,
               predictiveBackStrength: predictiveBackStrength,
               optimizeForWeakDevices: optimizeForWeakDevices,
-              hideBubbleTails: hideBubbleTails,
             ),
           ),
         );
@@ -168,7 +161,6 @@ class _AppearanceScreen extends ConsumerWidget {
     required Color meshAnchor,
     required ThemeMode themeMode,
     required Color seedColor,
-    required double messageBubbleRadius,
     required double uiCornerRadius,
     required AppFontScale fontScale,
     required PaletteStyle paletteStyle,
@@ -178,27 +170,29 @@ class _AppearanceScreen extends ConsumerWidget {
     required bool predictiveBackEnabled,
     required double predictiveBackStrength,
     required bool optimizeForWeakDevices,
-    required bool hideBubbleTails,
   }) {
-    final Widget colorField = NiosColorField(
-      scheme: scheme,
-      meshAnchor: meshAnchor,
-      seedColor: seedColor,
-      useSystemDynamic: useSystemDynamic,
-      paletteStyle: paletteStyle,
-      onColorSelected: (Color color) {
-        ref.read(uiSettingsProvider.notifier).setSeedColor(color);
-      },
-      onCustomColorTap: () {
-        _openCustomColorPicker(context, ref, seedColor);
-      },
-      onToggleDynamic: (bool val) {
-        ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(val);
-      },
-      animateMesh: !optimizeForWeakDevices && !tier.isTierC,
-      onSelectPaletteStyle: (PaletteStyle style) {
-        ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
-      },
+    final Widget colorField = SettingsAnchor(
+      id: 'appearance.color.source',
+      child: NiosColorField(
+        scheme: scheme,
+        meshAnchor: meshAnchor,
+        seedColor: seedColor,
+        useSystemDynamic: useSystemDynamic,
+        paletteStyle: paletteStyle,
+        onColorSelected: (Color color) {
+          ref.read(uiSettingsProvider.notifier).setSeedColor(color);
+        },
+        onCustomColorTap: () {
+          _openCustomColorPicker(context, ref, seedColor);
+        },
+        onToggleDynamic: (bool val) {
+          ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(val);
+        },
+        animateMesh: !optimizeForWeakDevices && !tier.isTierC,
+        onSelectPaletteStyle: (PaletteStyle style) {
+          ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
+        },
+      ),
     );
 
     final Widget themeCard = _ThemeModeSelectorCard(
@@ -220,53 +214,49 @@ class _AppearanceScreen extends ConsumerWidget {
     );
 
     final Widget geometrySection = SettingsSection(
-      title: context.l10n.appearanceGeometry,
-      subtitle: context.l10n.appearanceGeometryDesc,
+      title: context.l10n.settingsV2Density,
       children: [
-        _SliderSettingTile(
-          icon: Icons.chat_bubble_outline_rounded,
-          title: context.l10n.appearanceMessageRounding,
-          subtitle: context.l10n.appearanceMessageRoundingDesc,
-          badgeText: '${messageBubbleRadius.toInt()} dp',
-          value: messageBubbleRadius,
-          min: 4.0,
-          max: 28.0,
-          divisions: 24,
-          scheme: scheme,
-          onChanged: (double val) {
-            ref.read(uiSettingsProvider.notifier).setMessageBubbleRadius(val);
-          },
+        SettingsAnchor(
+          id: 'appearance.font.scale',
+          child: _FontScaleSliderTile(
+            currentScale: fontScale,
+            scheme: scheme,
+            onChanged: (AppFontScale scale) {
+              ref.read(uiSettingsProvider.notifier).setFontScale(scale);
+            },
+          ),
         ),
-        _SliderSettingTile(
-          icon: Icons.rounded_corner_rounded,
-          title: context.l10n.appearanceUiRounding,
-          subtitle: context.l10n.appearanceUiRoundingDesc,
-          badgeText: '${uiCornerRadius.toInt()} dp',
-          value: uiCornerRadius,
-          min: 8.0,
-          max: 28.0,
-          divisions: 20,
-          scheme: scheme,
-          onChanged: (double val) {
-            ref.read(uiSettingsProvider.notifier).setUiCornerRadius(val);
-          },
+        SettingsAnchor(
+          id: 'appearance.compact',
+          child: SettingsSwitchTile(
+            icon: Icons.density_small_rounded,
+            title: context.l10n.appearanceCompactMode,
+            subtitle: context.l10n.appearanceCompactModeSubtitle,
+            value: ref.watch(uiSettingsProvider.select((s) => s.compactMode)),
+            onChanged: (value) =>
+                ref.read(uiSettingsProvider.notifier).setCompactMode(value),
+          ),
         ),
-        _FontScaleSliderTile(
-          currentScale: fontScale,
-          scheme: scheme,
-          onChanged: (AppFontScale scale) {
-            ref.read(uiSettingsProvider.notifier).setFontScale(scale);
-          },
-        ),
-        SettingsSwitchTile(
-          icon: Icons.bubble_chart_rounded,
-          title: 'Скрывать хвосты у сообщений',
-          subtitle: 'Плоские пузыри сообщений без уголков-указателей',
-          iconColor: scheme.primary,
-          value: hideBubbleTails,
-          onChanged: (bool v) {
-            ref.read(uiSettingsProvider.notifier).setHideBubbleTails(v);
-          },
+        SettingsSearchDisclosure(
+          anchor: 'ui_corner_radius',
+          title: context.l10n.settingsV2Advanced,
+          subtitle: context.l10n.settingsV2GeometryHint,
+          children: [
+            _SliderSettingTile(
+              icon: Icons.rounded_corner_rounded,
+              title: context.l10n.appearanceUiRounding,
+              subtitle: context.l10n.appearanceUiRoundingDesc,
+              badgeText: '${uiCornerRadius.toInt()} dp',
+              value: uiCornerRadius,
+              min: 8.0,
+              max: 28.0,
+              divisions: 20,
+              scheme: scheme,
+              onChanged: (double val) {
+                ref.read(uiSettingsProvider.notifier).setUiCornerRadius(val);
+              },
+            ),
+          ],
         ),
       ],
     );
@@ -320,7 +310,7 @@ class _AppearanceScreen extends ConsumerWidget {
 
           if (isWide) {
             return SettingsShell(
-              title: context.l10n.appearanceTitle,
+              title: context.l10n.settingsV2Appearance,
               isEmbedded: isEmbedded,
               maxWidth: 1120,
               children: [
@@ -361,7 +351,7 @@ class _AppearanceScreen extends ConsumerWidget {
           }
 
           return SettingsShell(
-            title: context.l10n.appearanceTitle,
+            title: context.l10n.settingsV2Appearance,
             isEmbedded: isEmbedded,
             maxWidth: 860,
             children: [
@@ -456,13 +446,14 @@ class NiosColorField extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            if (!kIsWeb) SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.appearanceSystemColors),
-              subtitle: Text(context.l10n.appearanceSystemColorsSubtitle),
-              value: useSystemDynamic,
-              onChanged: onToggleDynamic,
-            ),
+            if (!kIsWeb)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(context.l10n.appearanceSystemColors),
+                subtitle: Text(context.l10n.appearanceSystemColorsSubtitle),
+                value: useSystemDynamic,
+                onChanged: onToggleDynamic,
+              ),
             const SizedBox(height: 16),
             _PalettePager(
               scheme: scheme,
@@ -890,10 +881,10 @@ class _ThemeModeSelectorCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.12),
+                  color: scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(modeIcon, color: scheme.primary, size: 22),
+                child: Icon(modeIcon, color: scheme.onSurfaceVariant, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -901,7 +892,7 @@ class _ThemeModeSelectorCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      context.l10n.profileAppearance,
+                      context.l10n.appearanceThemeMode,
                       style: textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -921,7 +912,7 @@ class _ThemeModeSelectorCard extends StatelessWidget {
           const SizedBox(height: 14),
           Builder(
             builder: (BuildContext segContext) {
-              return SegmentedButton<ThemeMode>(
+              return SettingsChoiceButtons<ThemeMode>(
                 segments: <ButtonSegment<ThemeMode>>[
                   ButtonSegment<ThemeMode>(
                     value: ThemeMode.system,
@@ -1018,7 +1009,7 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
         children: [
           Row(
             children: [
-              Icon(widget.icon, color: scheme.primary, size: 20),
+              Icon(widget.icon, color: scheme.onSurfaceVariant, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1142,7 +1133,11 @@ class _FontScaleSliderTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.format_size_rounded, color: scheme.primary, size: 20),
+              Icon(
+                Icons.format_size_rounded,
+                color: scheme.onSurfaceVariant,
+                size: 20,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1184,7 +1179,7 @@ class _FontScaleSliderTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          SegmentedButton<AppFontScale>(
+          SettingsChoiceButtons<AppFontScale>(
             segments: const <ButtonSegment<AppFontScale>>[
               ButtonSegment<AppFontScale>(
                 value: AppFontScale.small,
@@ -1250,7 +1245,11 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.tune_rounded, color: scheme.secondary, size: 20),
+              Icon(
+                Icons.tune_rounded,
+                color: scheme.onSurfaceVariant,
+                size: 20,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1292,7 +1291,7 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          SegmentedButton<double>(
+          SettingsChoiceButtons<double>(
             segments: <ButtonSegment<double>>[
               ButtonSegment<double>(
                 value: 0.5,
@@ -1358,13 +1357,19 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.palette_outlined, size: 20, color: scheme.primary),
+              Icon(
+                Icons.palette_outlined,
+                size: 20,
+                color: scheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 8),
-              Text(
-                context.l10n.appearancePaletteStyle,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
+              Expanded(
+                child: Text(
+                  context.l10n.appearancePaletteStyle,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurface,
+                  ),
                 ),
               ),
             ],
