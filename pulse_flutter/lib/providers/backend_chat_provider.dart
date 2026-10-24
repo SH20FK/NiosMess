@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/repositories/post_comments_repository.dart';
 import 'package:pulse_flutter/services/bluetooth_mesh/bluetooth_mesh_service.dart';
 import 'package:pulse_flutter/services/bluetooth_mesh/mesh_preferences.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
@@ -3349,94 +3350,176 @@ class PostCommentsArgs {
 
 class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
   PostCommentsNotifier(this._args);
-
   final PostCommentsArgs _args;
+  bool hasMore = false;
+  int? totalCount;
+  bool loadingMore = false;
+  bool _refreshing = false;
+  bool _refreshAgain = false;
+  int _revision = 0;
+  int _cursor = 0;
+  PostCommentsRepository get _repository =>
+      ref.read(postCommentsRepositoryProvider);
 
   @override
   Future<List<ApiMessage>> build() async {
-    final bool authenticated = ref.watch(
-      authProvider.select((AuthState state) => state.isAuthenticated),
-    );
-
-    if (!authenticated) {
+    if (!ref.watch(authProvider.select((AuthState s) => s.isAuthenticated))) {
       return const <ApiMessage>[];
     }
-
-    return _fetch();
+    final timer = Timer.periodic(const Duration(seconds: 8), (_) {
+      unawaited(refresh(silent: true));
+    });
+    final connected = ref.read(webSocketClientProvider).onConnected.listen((_) {
+      unawaited(refresh(silent: true));
+    });
+    final changes = ref.read(webSocketClientProvider).pushStream.listen((
+      event,
+    ) {
+      final payload = event['payload'];
+      if (event['action'] == 'feed_comment_changed' &&
+          payload is Map &&
+          payload['channel_id'] == _args.channelId &&
+          payload['post_id'] == _args.postId) {
+        unawaited(refresh(silent: true));
+      }
+    });
+    ref.onDispose(() {
+      timer.cancel();
+      connected.cancel();
+      changes.cancel();
+    });
+    final page = await _repository.page(_args.channelId, _args.postId);
+    hasMore = page.hasMore;
+    totalCount = page.totalCount;
+    _cursor = page.messages.isEmpty ? 0 : page.messages.last.id;
+    return page.messages;
   }
 
-  Future<List<ApiMessage>> _fetch() {
-    return ref
-        .read(chatRepositoryProvider)
-        .getComments(_args.channelId, _args.postId, pageSize: 80);
+  Future<void> refresh({bool silent = false}) async {
+    if (_refreshing || loadingMore) {
+      _refreshAgain = true;
+      return;
+    }
+    _refreshing = true;
+    final revision = _revision;
+    try {
+      final target = _cursor;
+      final items = <ApiMessage>[];
+      bool more;
+      int? nextTotal;
+      do {
+        final page = await _repository.page(
+          _args.channelId,
+          _args.postId,
+          afterId: items.isEmpty ? 0 : items.last.id,
+        );
+        items.addAll(page.messages);
+        nextTotal = page.totalCount;
+        more = page.hasMore && page.messages.isNotEmpty;
+      } while (more && items.last.id < target);
+      if (!ref.mounted || revision != _revision) return;
+      hasMore = more;
+      totalCount = nextTotal;
+      _cursor = items.isEmpty ? 0 : items.last.id;
+      if (more) {
+        items.addAll(
+          (state.value ?? const <ApiMessage>[]).where((m) => m.id > _cursor),
+        );
+      }
+      state = AsyncData(items);
+    } catch (error, trace) {
+      if (!silent && ref.mounted && state.value == null) {
+        state = AsyncError(error, trace);
+      }
+    } finally {
+      _refreshing = false;
+      if (_refreshAgain && ref.mounted) {
+        _refreshAgain = false;
+        unawaited(refresh(silent: true));
+      }
+    }
   }
 
-  Future<void> _playNotificationSound({double volume = 0.65}) async {
-    if (!ref.read(uiSettingsProvider).notifications) return;
-    await ref.read(appSoundProvider).play(AppSound.message, volume: volume);
-  }
-
-  Future<void> refresh() async {
-    state = await AsyncValue.guard(_fetch);
+  Future<void> loadMore() async {
+    if (!hasMore || loadingMore || _refreshing) return;
+    loadingMore = true;
+    try {
+      final current = state.value ?? const <ApiMessage>[];
+      final page = await _repository.page(
+        _args.channelId,
+        _args.postId,
+        afterId: _cursor,
+      );
+      if (!ref.mounted) return;
+      final next = <int, ApiMessage>{
+        for (final item in state.value ?? current) item.id: item,
+      };
+      for (final item in page.messages) {
+        next[item.id] = item;
+      }
+      hasMore = page.hasMore;
+      totalCount = page.totalCount;
+      if (page.messages.isNotEmpty) _cursor = page.messages.last.id;
+      state = AsyncData(next.values.toList()..sort(_compareMessages));
+    } finally {
+      loadingMore = false;
+      if (_refreshAgain && ref.mounted) {
+        _refreshAgain = false;
+        unawaited(refresh(silent: true));
+      }
+    }
   }
 
   Future<void> send(String content, {int? replyToId}) async {
-    final String trimmed = content.trim();
-    if (trimmed.isEmpty) {
-      return;
-    }
-
-    final int userId = ref.read(authProvider).session?.userId ?? 0;
-
-    final ApiMessage created = await ref
-        .read(chatRepositoryProvider)
-        .sendComment(
-          _args.channelId,
-          _args.postId,
-          content: trimmed,
-          replyToId: replyToId,
-          senderId: userId,
-        );
-
-    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
-    final List<ApiMessage> next = List<ApiMessage>.from(current)
-      ..removeWhere((ApiMessage message) => message.id == created.id)
-      ..add(created)
-      ..sort(_compareMessages);
-
-    state = AsyncData<List<ApiMessage>>(next);
-
-    if (_args.channelId != 0) {
-      await ref.read(chatMessagesProvider(_args.channelId).notifier).refresh();
-    } else {
-      ref.invalidate(niosgramProvider);
-    }
-
-    await _playNotificationSound();
+    if (content.trim().isEmpty) return;
+    final created = await _repository.send(
+      _args.channelId,
+      _args.postId,
+      content.trim(),
+      replyToId,
+    );
+    if (!ref.mounted) return;
+    _revision++;
+    if (totalCount != null) totalCount = totalCount! + 1;
+    final next = <int, ApiMessage>{
+      for (final item in state.value ?? const <ApiMessage>[]) item.id: item,
+      created.id: created,
+    };
+    state = AsyncData(next.values.toList()..sort(_compareMessages));
+    if (_args.channelId == 0) ref.invalidate(niosgramProvider);
   }
 
-  Future<void> deleteComment(int commentId) async {
-    final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
-    state = AsyncData<List<ApiMessage>>(
-      current.where((ApiMessage message) => message.id != commentId).toList(),
+  Future<void> deleteComment(int id) => _mutate('delete_post_comment', id);
+  Future<void> editComment(int id, String content) =>
+      _mutate('edit_post_comment', id, content: content);
+  Future<void> react(int id, String reaction) =>
+      _mutate('react_post_comment', id, reaction: reaction);
+  Future<void> _mutate(
+    String action,
+    int id, {
+    String? content,
+    String? reaction,
+  }) async {
+    await _repository.mutate(
+      action,
+      _args.channelId,
+      _args.postId,
+      id,
+      content: content,
+      reaction: reaction,
     );
-    try {
-      await ref
-          .read(chatRepositoryProvider)
-          .deleteMessage(
-            _args.channelId > 0 ? _args.channelId : _args.postId,
-            commentId,
-          );
-    } catch (_) {}
+    _revision++;
+    await refresh();
+    if (_args.channelId == 0 && action == 'delete_post_comment') {
+      ref.invalidate(niosgramProvider);
+    }
   }
 }
 
-final postCommentsProvider =
-    AsyncNotifierProvider.family<
-      PostCommentsNotifier,
-      List<ApiMessage>,
-      PostCommentsArgs
-    >(PostCommentsNotifier.new);
+final postCommentsProvider = AsyncNotifierProvider.autoDispose
+    .family<PostCommentsNotifier, List<ApiMessage>, PostCommentsArgs>(
+      PostCommentsNotifier.new,
+    );
 
 class ChatMembersNotifier extends AsyncNotifier<List<ApiChatMember>> {
   ChatMembersNotifier(this._chatId);

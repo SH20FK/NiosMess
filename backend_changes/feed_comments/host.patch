@@ -1,0 +1,266 @@
+--- a/app/migrations.py
++++ b/app/migrations.py
+@@ -517,6 +517,8 @@
+             await db.execute(text("INSERT INTO migration_flags (name) VALUES ('ai_bot_enabled_default_off')"))
+             print("[MIGRATION] Reset chats.ai_bot_enabled to off (one-time default flip)")
+ 
++        from app.services.feed_comments import migrate_comments
++        await migrate_comments(db)
+         from app.services.performance_migrations import upgrade
+         await upgrade(db)
+         await db.commit()
+--- a/app/models/models.py
++++ b/app/models/models.py
+@@ -85,8 +85,19 @@
+     created_at = Column(DateTime(timezone=True), server_default=func.now())
+ 
+ 
++class PostCommentReaction(Base):
++    __tablename__ = 'post_comment_reactions'
++    comment_id = Column(Integer, ForeignKey('post_comments.id'), primary_key=True)
++    user_id = Column(Integer, ForeignKey('users.id'), primary_key=True)
++    emoji = Column(String(32), nullable=False)
++
++
+ class PostComment(Base):
+     __tablename__ = "post_comments"
++    reply_to_id = Column(Integer, ForeignKey('post_comments.id'), nullable=True)
++    edited_at = Column(DateTime(timezone=True), nullable=True)
++    is_deleted = Column(Boolean, nullable=False, default=False)
++    ai_source = Column(String(96), nullable=True, unique=True)
+ 
+     id = Column(Integer, primary_key=True, index=True)
+     post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+@@ -281,6 +292,7 @@
+ 
+ class Message(Base):
+     __tablename__ = "messages"
++    comment_post_id = Column(Integer, nullable=True, index=True)
+ 
+     id = Column(Integer, primary_key=True, index=True)
+     chat_id = Column(Integer, ForeignKey("chats.id"), nullable=False)
+--- a/app/services/ai_svc.py
++++ b/app/services/ai_svc.py
+@@ -94,6 +94,8 @@
+ async def call_glm(
+     prompt: str, *, user=None, system: str | None = None,
+     history: list[tuple[str, str]] | None = None, max_tokens: int = 4096, use_tools: bool = False, on_wait=None,
++    model_key: str | None = None, allow_fallback: bool = True, strict_max_tokens: bool = False,
++    tool_names: tuple[str, ...] | None = None,
+ ) -> tuple[str, int]:
+     if not settings.POLZA_API_KEY:
+         raise ValueError("AI provider is not configured")
+@@ -101,11 +103,13 @@
+     async with lock, credit_request(user) as credit:
+         plus = user is not None and is_plus_active(user)
+         model, mult = ai_model_for(user)
+-        if plus and use_tools:
++        if plus and use_tools and not strict_max_tokens:
+             max_tokens = settings.PLUS_MAX_TOKENS
+         meter = CharacterMeter(mult, credit)
+         from app.services.ai_models import resolve_model, model_prompt, legacy_output_limit, provider_policy, reasoning_policy, sampling_temperature
+-        persona = resolve_model(getattr(user, 'ai_model', None), user is not None and is_plus_active(user))
++        persona = resolve_model(model_key or getattr(user, 'ai_model', None), plus)
++        model, mult = persona.provider, persona.multiplier
++        meter = CharacterMeter(mult, credit)
+         max_tokens = legacy_output_limit(persona, max_tokens)
+         if persona.legacy:
+             await asyncio.sleep(.7)
+@@ -118,6 +122,8 @@
+         messages.append({"role": "user", "content": prompt})
+         endpoint = settings.POLZA_API_URL.rstrip("/") + "/chat/completions"
+         specs = tool_specs(plus) if use_tools else []
++        if tool_names is not None:
++            specs = [spec for spec in specs if spec['function']['name'] in tool_names]
+         fallback_used = False
+         content = ""
+         for round_no in range(MAX_TOOL_ROUNDS + 1):
+@@ -143,7 +149,7 @@
+                 calls = message.get("tool_calls") or []
+                 content = message.get("content") or ""
+                 from app.services.ai_fallback import fallback_model
+-                target = fallback_model(model, content, calls, used=fallback_used)
++                target = fallback_model(model, content, calls, used=fallback_used) if allow_fallback else None
+                 if not target:
+                     break
+                 model, fallback_used = target, True
+@@ -154,7 +160,7 @@
+             messages.append({"role": "assistant", "content": content or None, "tool_calls": calls})
+             for call in calls:
+                 fn = call.get("function") or {}
+-                result = await run_tool(fn.get("name", ""), fn.get("arguments", ""), plus,
++                result = 'error: tool unavailable' if tool_names is not None and fn.get('name') not in tool_names else await run_tool(fn.get("name", ""), fn.get("arguments", ""), plus,
+                     moderation_context={"source":"messenger","user_id":user.id,"conversation":messages} if user else None)
+                 messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": result})
+         if not content.strip():
+--- a/app/ws/router.py
++++ b/app/ws/router.py
+@@ -577,6 +577,10 @@
+                     elif action == "comment_post":
+                         if not user: raise ValueError("Unauthorized")
+                         result = await handle_comment_post(payload, db, user)
++                    elif action in ("edit_post_comment", "delete_post_comment", "react_post_comment"):
++                        if not user: raise ValueError("Unauthorized")
++                        from app.services.feed_comments import mutate_comment
++                        result = await mutate_comment(action, payload, db, user)
+                     elif action == "get_post_comments":
+                         if not user: raise ValueError("Unauthorized")
+                         result = await handle_get_post_comments(payload, db, user)
+--- a/app/ws/handlers/chat_handler.py
++++ b/app/ws/handlers/chat_handler.py
+@@ -1008,7 +1008,7 @@
+             # message is a question to it, @ai mention or not (like Telegram bot DMs).
+             ai_mention_active = True
+             ai_question = question if (triggered and question) else content.strip()
+-        elif triggered and question:
++        elif triggered and question and chat.chat_type != ChatType.CHANNEL:
+             if not ai_mention_allowed(chat):
+                 return {"error": "@ai is not available in this chat"}
+             ai_mention_active = True
+@@ -1214,6 +1214,9 @@
+         await _maybe_botcreator_reply(db, user, chat_id, msg, content or "")
+         await _maybe_adminbot_reply(db, user, chat_id, content or "")
+         await _maybe_supportbot_reply(db, user, chat_id, content or "")
++    if chat.chat_type == ChatType.CHANNEL and content:
++        from app.services.feed_comments import queue_feed_ai
++        queue_feed_ai(db, user.id, msg.id, None, content, chat.id)
+     if ai_mention_active:
+         # Fire-and-forget in its own DB session: the AI call/Google search must never
+         # delay delivery of the user's own message or the send_message response.
+--- a/app/ws/handlers/post_handler.py
++++ b/app/ws/handlers/post_handler.py
+@@ -241,6 +241,8 @@
+     )
+     db.add(post)
+     await db.flush()
++    from app.services.feed_comments import queue_feed_ai
++    queue_feed_ai(db, user.id, post.id, None, content, 0)
+     rendered = await _format_posts_for_feed([post], user, db, 1, 1, set())
+     return {"message": "Post created successfully", "post_id": post.id, **rendered['posts'][0]}
+ 
+@@ -437,45 +439,13 @@
+ 
+ 
+ async def handle_comment_post(payload: dict, db: AsyncSession, user: User) -> dict:
+-    post_id = payload.get("post_id")
+-    content = payload.get("content")
+-    if not content:
+-        return {"error": "Comment cannot be empty"}
+-
+-    r = await db.execute(select(Post).where(Post.id == post_id))
+-    post = r.scalar_one_or_none()
+-    if not post:
+-        return {"error": "Post not found"}
+-
+-    comment = PostComment(post_id=post_id, author_id=user.id, content=content)
+-    db.add(comment)
+-    post.comments_count += 1
+-    await db.flush()
+-
+-    await queue_activity(db, post, user, 'post_comment', f'post-comment:{comment.id}')
+-    return _comment_payload(comment, user)
++    from app.services.feed_comments import create_comment
++    return await create_comment(payload, db, user)
+ 
+ 
+ async def handle_get_post_comments(payload: dict, db: AsyncSession, user: User) -> dict:
+-    post_id = payload.get("post_id")
+-    page = payload.get("page", 1)
+-    limit = 50
+-    offset = (page - 1) * limit
+-
+-    q = (
+-        select(PostComment)
+-        .where(PostComment.post_id == post_id)
+-        .order_by(PostComment.created_at.asc())
+-        .limit(limit)
+-        .offset(offset)
+-    )
+-    r = await db.execute(q)
+-
+-    comments = list(r.scalars().all())
+-    author_ids = {c.author_id for c in comments}
+-    authors = {u.id: u for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()} if author_ids else {}
+-    result = [_comment_payload(c, authors.get(c.author_id)) for c in comments]
+-    return {"comments": result, "page": page}
++    from app.services.feed_comments import get_comments
++    return await get_comments(payload, db, user)
+ 
+ 
+ async def handle_edit_post(payload: dict, db: AsyncSession, user: User) -> dict:
+@@ -501,6 +471,9 @@
+         return {"error": "Post not found or not yours"}
+ 
+     await db.execute(delete(PostReaction).where(PostReaction.post_id == post_id))
++    from app.models.models import PostCommentReaction
++    await db.execute(delete(PostCommentReaction).where(PostCommentReaction.comment_id.in_(
++        select(PostComment.id).where(PostComment.post_id == post_id))))
+     await db.execute(delete(PostComment).where(PostComment.post_id == post_id))
+ 
+     paths = [post.media_path] if post.media_path else []
+@@ -522,61 +495,10 @@
+ 
+ 
+ async def handle_post_comment(payload: dict, db: AsyncSession, user: User) -> dict:
+-    channel_id = payload.get("channel_id")
+-    post_id = payload.get("post_id")
+-    content = payload.get("content")
+-    upload_id = payload.get("upload_id")
+-    cr = await db.execute(select(Chat).where(Chat.id == channel_id))
+-    channel = cr.scalar_one_or_none()
+-    if not channel or channel.chat_type != ChatType.CHANNEL:
+-        return {"error": "Channel not found"}
+-    if not channel.comments_chat_id:
+-        return {"error": "Comments are not enabled for this channel"}
+-    pr = await db.execute(select(Message).where(Message.id == post_id, Message.chat_id == channel_id))
+-    post = pr.scalar_one_or_none()
+-    if not post:
+-        return {"error": "Post not found"}
+-    comments_chat_id = channel.comments_chat_id
+-    ex = await db.execute(select(ChatMember).where(ChatMember.chat_id == comments_chat_id, ChatMember.user_id == user.id))
+-    if not ex.scalar_one_or_none():
+-        db.add(ChatMember(chat_id=comments_chat_id, user_id=user.id))
+-        await db.flush()
+-    if not content and not upload_id:
+-        return {"error": "Comment must have content"}
+-    msg = Message(chat_id=comments_chat_id, sender_id=user.id, reply_to_id=post_id, msg_type=MessageType.TEXT)
+-    if content:
+-        enc = encrypt_text(content)
+-        msg.encrypted_content = enc["ciphertext"]
+-        msg.content_iv = enc["iv"]
+-        msg.content_tag = enc["tag"]
+-    db.add(msg)
+-    await db.flush()
+-    post.comments_count = (post.comments_count or 0) + 1
+-    await increment_unread(db, comments_chat_id, user.id, msg.id)
+-    return await serialise_message(msg, db)
++    from app.services.feed_comments import create_channel_comment
++    return await create_channel_comment(payload, db, user)
+ 
+ 
+ async def handle_get_comments(payload: dict, db: AsyncSession, user: User) -> dict:
+-    channel_id = payload.get("channel_id")
+-    post_id = payload.get("post_id")
+-    page = payload.get("page", 1)
+-    page_size = payload.get("page_size", 50)
+-    cr = await db.execute(select(Chat).where(Chat.id == channel_id))
+-    channel = cr.scalar_one_or_none()
+-    if not channel or not channel.comments_chat_id:
+-        return {"error": "Channel or comments not found"}
+-    comments_chat_id = channel.comments_chat_id
+-    q = (
+-        select(Message)
+-        .where(
+-            Message.chat_id == comments_chat_id,
+-            Message.reply_to_id == post_id,
+-            Message.is_deleted == False,
+-        )
+-        .order_by(Message.sent_at.asc())
+-        .limit(page_size)
+-        .offset((page - 1) * page_size)
+-    )
+-    r = await db.execute(q)
+-    result = [await serialise_message(m, db) for m in r.scalars().all()]
+-    return {"comments": result, "page": page, "page_size": page_size}
++    from app.services.feed_comments import get_channel_comments
++    return await get_channel_comments(payload, db, user)

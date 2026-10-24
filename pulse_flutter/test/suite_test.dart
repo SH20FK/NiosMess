@@ -1,3 +1,6 @@
+import 'unit/comment_thread_test.dart' as comment_threads;
+import 'widgets/comment_item_test.dart' as comment_items;
+import 'providers/post_comments_provider_test.dart' as comment_provider;
 import 'notifications/notification_reliability_test.dart'
     as notification_reliability;
 import 'widgets/call_media_hub_test.dart' as call_media_hub;
@@ -173,6 +176,9 @@ import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 
 void main() {
+  comment_threads.main();
+  comment_items.main();
+  comment_provider.main();
   call_media_hub.main();
   group('Bluetooth encrypted fallback', () {
     mesh_preferences.main();
