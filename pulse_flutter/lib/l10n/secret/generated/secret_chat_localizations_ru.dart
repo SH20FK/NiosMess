@@ -827,4 +827,282 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get noticeSilentMessages => 'Сообщения без звука';
+
+  @override
+  String get settingsV2Appearance => 'Оформление';
+
+  @override
+  String get settingsV2AppearanceHint =>
+      'Тема, палитра, текст и плотность интерфейса';
+
+  @override
+  String get settingsV2Chats => 'Чаты и звонки';
+
+  @override
+  String get settingsV2ChatsHint => 'Ввод, реакции, микрофон и камера';
+
+  @override
+  String get settingsV2Notifications => 'Уведомления и звуки';
+
+  @override
+  String get settingsV2NotificationsHint =>
+      'Push, превью сообщений, звук и вибрация';
+
+  @override
+  String get settingsV2Privacy => 'Приватность и безопасность';
+
+  @override
+  String get settingsV2PrivacyHint => 'Видимость данных, доступ и шифрование';
+
+  @override
+  String get settingsV2Storage => 'Данные и память';
+
+  @override
+  String get settingsV2StorageHint => 'Кэш, загрузка медиа и данные устройства';
+
+  @override
+  String get settingsV2Motion => 'Анимации и энергосбережение';
+
+  @override
+  String get settingsV2MotionHint => 'Стикеры, эмодзи и производительность';
+
+  @override
+  String get settingsV2Language => 'Язык и время';
+
+  @override
+  String get settingsV2LanguageHint => 'Язык интерфейса и часовой пояс';
+
+  @override
+  String get settingsV2About => 'Помощь и о приложении';
+
+  @override
+  String get settingsV2AboutHint => 'Версия, обновления, справка и документы';
+
+  @override
+  String get settingsV2GroupCommunication => 'Общение и оформление';
+
+  @override
+  String get settingsV2GroupPrivacy => 'Приватность и данные';
+
+  @override
+  String get settingsV2GroupApplication => 'Приложение';
+
+  @override
+  String get settingsV2Search => 'Поиск настроек';
+
+  @override
+  String get settingsV2SearchEmpty =>
+      'Найдите параметр по названию или действию';
+
+  @override
+  String get settingsV2SearchNone =>
+      'Ничего не найдено. Попробуйте другое слово.';
+
+  @override
+  String get settingsV2AccountHint => 'Профиль и управление аккаунтом';
+
+  @override
+  String get settingsV2NiosId => 'Управление Nios ID';
+
+  @override
+  String get settingsV2Qr => 'Мой QR-код';
+
+  @override
+  String get settingsV2Share => 'Поделиться профилем';
+
+  @override
+  String get settingsV2More => 'Действия профиля';
+
+  @override
+  String get settingsV2Advanced => 'Дополнительно';
+
+  @override
+  String get settingsV2GeometryHint =>
+      'Скругления карточек и системных панелей';
+
+  @override
+  String get settingsV2Density => 'Плотность интерфейса';
+
+  @override
+  String get settingsV2Graphics => 'Производительность';
+
+  @override
+  String get settingsV2OptimizeHint =>
+      'Упрощает визуальные эффекты для более плавной работы';
+
+  @override
+  String get settingsV2ChatAnimations => 'Анимации в чатах';
+
+  @override
+  String get settingsV2ChatAnimationsHint =>
+      'Выберите, какие эффекты воспроизводить автоматически';
+
+  @override
+  String get settingsV2Stickers => 'Анимация стикеров';
+
+  @override
+  String get settingsV2StickersHint => 'Воспроизводить стикеры в сообщениях';
+
+  @override
+  String get settingsV2Emoji => 'Анимированные эмодзи';
+
+  @override
+  String get settingsV2EmojiHint => 'Воспроизводить эмодзи в сообщениях';
+
+  @override
+  String get settingsV2Off => 'Отключено';
+
+  @override
+  String get settingsV2Reset => 'Сбросить локальные настройки';
+
+  @override
+  String get settingsV2ResetHint =>
+      'Вернуть оформление и поведение по умолчанию. История сообщений сохранится.';
+
+  @override
+  String get settingsV2LockTimeout => 'Автоблокировка';
+
+  @override
+  String get settingsV2LockTimeoutHint =>
+      'Когда блокировать приложение после сворачивания';
+
+  @override
+  String get settingsV2BiometricFailure => 'Не удалось подтвердить личность';
+
+  @override
+  String get settingsV2ReadReceipts => 'Отчёты о прочтении';
+
+  @override
+  String get settingsV2ReadReceiptsHint =>
+      'Показывать, когда вы прочитали сообщение';
+
+  @override
+  String get settingsV2Typing => 'Индикатор набора текста';
+
+  @override
+  String get settingsV2TypingHint => 'Показывать собеседнику, что вы печатаете';
+
+  @override
+  String get settingsV2ReadSaveFailed =>
+      'Не удалось сохранить настройки прочтения';
+
+  @override
+  String get settingsV2TypingSaveFailed =>
+      'Не удалось сохранить настройки набора';
+
+  @override
+  String get settingsV2StorageDetails => 'Использование памяти';
+
+  @override
+  String get settingsV2StorageDetailsHint =>
+      'Загруженные медиа и временные файлы';
+
+  @override
+  String get settingsV2AutoDownload => 'Автозагрузка медиа';
+
+  @override
+  String get settingsV2AutoDownloadHint =>
+      'Выберите, когда загружать фото, видео и голосовые';
+
+  @override
+  String get settingsV2Wifi => 'Через Wi-Fi';
+
+  @override
+  String get settingsV2MobileData => 'Через мобильную сеть';
+
+  @override
+  String get settingsV2MobileDataHint => 'Может расходовать мобильный трафик';
+
+  @override
+  String get settingsV2SecretCache => 'Кэш секретных чатов';
+
+  @override
+  String get settingsV2SecretCacheHint =>
+      'Расшифрованные сообщения на этом устройстве';
+
+  @override
+  String get settingsV2ClearSecretCache => 'Очистить кэш секретных чатов';
+
+  @override
+  String get settingsV2Diagnostics => 'Диагностика устройства';
+
+  @override
+  String get settingsV2DiagnosticsHint => 'Сведения о системе и оборудовании';
+
+  @override
+  String get settingsV2StorageImages => 'Фото';
+
+  @override
+  String get settingsV2StorageVideos => 'Видео';
+
+  @override
+  String get settingsV2StorageAudio => 'Аудио';
+
+  @override
+  String get settingsV2StorageFiles => 'Файлы';
+
+  @override
+  String get settingsV2StorageStickers => 'Стикеры';
+
+  @override
+  String get settingsV2StorageAvatars => 'Аватары';
+
+  @override
+  String get settingsV2StorageDrafts => 'Черновики';
+
+  @override
+  String get settingsV2StorageOther => 'Прочее';
+
+  @override
+  String get settingsV2SecurityLink => 'Настройки безопасности';
+
+  @override
+  String get settingsV2SecurityLinkHint =>
+      'Сессии, блокировка приложения и защита аккаунта';
+
+  @override
+  String get settingsV2ProfileCopied => 'Ссылка на профиль скопирована';
+
+  @override
+  String get settingsV2IdCopied => 'Nios ID скопирован';
+
+  @override
+  String get settingsV2Economy => 'Экономный';
+
+  @override
+  String get settingsV2Reliable => 'Надёжный';
+
+  @override
+  String get settingsV2BackgroundOff =>
+      'Фоновое соединение отключено. Push продолжает работать через FCM.';
+
+  @override
+  String get settingsV2Preview => 'Показывать текст';
+
+  @override
+  String get settingsV2StorageError => 'Не удалось загрузить данные хранилища';
+
+  @override
+  String get settingsV2ClearCategory => 'Очистить файлы этой категории?';
+
+  @override
+  String get settingsV2ClearCategoryHint =>
+      'Файлы выбранной категории будут удалены из локального кэша.';
+
+  @override
+  String get settingsV2SecretCacheConfirm =>
+      'Все расшифрованные сообщения секретных чатов на этом устройстве будут удалены. Это действие необратимо.';
+
+  @override
+  String get settingsV2ResetConfirm => 'Сбросить локальные настройки?';
+
+  @override
+  String get settingsV2ResetBody =>
+      'Сбросятся оформление, язык, звуки, уведомления и другие настройки этого приложения. Чаты, файлы, ключи и серверные настройки приватности останутся.';
+
+  @override
+  String get settingsV2ResetDone => 'Локальные настройки сброшены';
+
+  @override
+  String get settingsV2ResetFailed => 'Не удалось сбросить настройки';
 }

@@ -1,3 +1,6 @@
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 import 'package:animations/animations.dart';
@@ -125,13 +128,35 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     );
   }
 
+  Future<void> _resetPreferences() async {
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: context.l10n.settingsV2ResetConfirm,
+      subtitle: context.l10n.settingsV2ResetBody,
+      confirmLabel: context.l10n.settingsV2Reset,
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(uiSettingsProvider.notifier).resetAll();
+      if (mounted) {
+        AppToast.showSuccess(context, context.l10n.settingsV2ResetDone);
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.showError(context, context.l10n.settingsV2ResetFailed);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return SettingsShell(
-      title: context.l10n.settingsAboutTitle,
+      title: context.l10n.settingsV2About,
       isEmbedded: widget.isEmbedded,
       children: <Widget>[
         // Block 0: Hero Card with Morphing Logo
@@ -150,20 +175,48 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         const SizedBox(height: 14),
 
         // Block 1: Isolated OTA Update Card
-        if (!kIsWeb) const _OtaUpdateCardWidget()
-            .animate(delay: const Duration(milliseconds: 50))
-            .fadeIn(
-              duration: M3Durations.medium2,
-              curve: M3SpringCurves.expressiveDecel,
-            )
-            .slideY(
-              begin: 0.04,
-              end: 0.0,
-              duration: M3Durations.medium2,
-              curve: M3SpringCurves.expressiveDecel,
-            ),
+        if (!kIsWeb)
+          const _OtaUpdateCardWidget()
+              .animate(delay: const Duration(milliseconds: 50))
+              .fadeIn(
+                duration: M3Durations.medium2,
+                curve: M3SpringCurves.expressiveDecel,
+              )
+              .slideY(
+                begin: 0.04,
+                end: 0.0,
+                duration: M3Durations.medium2,
+                curve: M3SpringCurves.expressiveDecel,
+              ),
         const SizedBox(height: 16),
 
+        SettingsSection(
+          title: context.l10n.settingsV2Advanced,
+          children: [
+            if (!kIsWeb)
+              SettingsListItem.nav(
+                icon: Icons.monitor_heart_outlined,
+                title: context.l10n.settingsV2Diagnostics,
+                subtitle: context.l10n.settingsV2DiagnosticsHint,
+                onTap: () {
+                  if (widget.isEmbedded) {
+                    ref
+                        .read(desktopSelectedSettingsSectionProvider.notifier)
+                        .setSelectedSection(SettingsSectionId.systemDevice);
+                  } else {
+                    context.push('/settings/system-device');
+                  }
+                },
+              ),
+            SettingsListItem.danger(
+              icon: Icons.restart_alt_rounded,
+              title: context.l10n.settingsV2Reset,
+              subtitle: context.l10n.settingsV2ResetHint,
+              onTap: _resetPreferences,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         // Block 2: Segmented Tabs, Content, and Footer
         Column(
               children: <Widget>[
@@ -204,11 +257,11 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
       ),
       clipBehavior: Clip.hardEdge,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: <Widget>[
             // Interactive shape-morphing brand mark
-            MorphingBrandMark(size: 84, onEasterEgg: _showEasterEgg),
+            MorphingBrandMark(size: 48, onEasterEgg: _showEasterEgg),
             const SizedBox(height: 16),
 
             // App Name
@@ -314,7 +367,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
       curve: M3SpringCurves.spatial,
       child: SizedBox(
         width: double.infinity,
-        child: SegmentedButton<int>(
+        child: SettingsChoiceButtons<int>(
           segments: <ButtonSegment<int>>[
             ButtonSegment<int>(
               value: 0,
@@ -355,20 +408,6 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             });
           },
           showSelectedIcon: false,
-          style: SegmentedButton.styleFrom(
-            backgroundColor: scheme.surfaceContainerLow,
-            selectedBackgroundColor: scheme.secondaryContainer,
-            selectedForegroundColor: scheme.onSecondaryContainer,
-            foregroundColor: scheme.onSurfaceVariant,
-            side: BorderSide.none,
-            shape: RoundedRectangleBorder(
-              borderRadius: AppRadii.of(context).mdRadius,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            textStyle: textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
         ),
       ),
     );

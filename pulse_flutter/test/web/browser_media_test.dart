@@ -73,7 +73,34 @@ void main() {
       expect(source.uri!.scheme, 'blob');
       final video = web.HTMLVideoElement()
         ..muted = true
+        ..playsInline = true
         ..preload = 'auto';
+      // loadeddata only promises available media data. On a busy/headless
+      // browser the compositor may still have no drawable frame at that point.
+      // Attach and play the muted fixture, then wait for an actual presented
+      // frame instead of sampling a timing-dependent black canvas.
+      video.style
+        ..position = 'fixed'
+        ..top = '0'
+        ..left = '0'
+        ..zIndex = '100000'
+        ..width = '96px'
+        ..height = '64px'
+        ..pointerEvents = 'none';
+      web.document.body!.append(video);
+      final frame = Completer<void>();
+      final frameRequest = video.requestVideoFrameCallback(
+        ((double now, JSObject metadata) {
+          if (!frame.isCompleted) frame.complete();
+        }).toJS,
+      );
+      addTearDown(() {
+        video.cancelVideoFrameCallback(frameRequest);
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+        video.remove();
+      });
       final loaded = Completer<void>();
       video.addEventListener(
         'loadeddata',
@@ -91,6 +118,9 @@ void main() {
       );
       video.src = source.uri.toString();
       await loaded.future.timeout(const Duration(seconds: 10));
+      await video.play().toDart;
+      await frame.future.timeout(const Duration(seconds: 10));
+      video.pause();
       expect(video.videoWidth, 96);
       expect(video.videoHeight, 64);
       expect(video.duration, closeTo(2, .1));

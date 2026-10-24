@@ -1600,6 +1600,522 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Silent messages'**
   String get noticeSilentMessages;
+
+  /// No description provided for @settingsV2Appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get settingsV2Appearance;
+
+  /// No description provided for @settingsV2AppearanceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme, palette, text and interface density'**
+  String get settingsV2AppearanceHint;
+
+  /// No description provided for @settingsV2Chats.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats and calls'**
+  String get settingsV2Chats;
+
+  /// No description provided for @settingsV2ChatsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Typing, reactions, microphone and camera'**
+  String get settingsV2ChatsHint;
+
+  /// No description provided for @settingsV2Notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications and sounds'**
+  String get settingsV2Notifications;
+
+  /// No description provided for @settingsV2NotificationsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Push, message previews, sound and vibration'**
+  String get settingsV2NotificationsHint;
+
+  /// No description provided for @settingsV2Privacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy and security'**
+  String get settingsV2Privacy;
+
+  /// No description provided for @settingsV2PrivacyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility, account access and encryption'**
+  String get settingsV2PrivacyHint;
+
+  /// No description provided for @settingsV2Storage.
+  ///
+  /// In en, this message translates to:
+  /// **'Data and storage'**
+  String get settingsV2Storage;
+
+  /// No description provided for @settingsV2StorageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache, media downloads and device data'**
+  String get settingsV2StorageHint;
+
+  /// No description provided for @settingsV2Motion.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion and battery'**
+  String get settingsV2Motion;
+
+  /// No description provided for @settingsV2MotionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Stickers, emoji and performance'**
+  String get settingsV2MotionHint;
+
+  /// No description provided for @settingsV2Language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language and time'**
+  String get settingsV2Language;
+
+  /// No description provided for @settingsV2LanguageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface language and time zone'**
+  String get settingsV2LanguageHint;
+
+  /// No description provided for @settingsV2About.
+  ///
+  /// In en, this message translates to:
+  /// **'Help and about'**
+  String get settingsV2About;
+
+  /// No description provided for @settingsV2AboutHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Version, updates, help and documents'**
+  String get settingsV2AboutHint;
+
+  /// No description provided for @settingsV2GroupCommunication.
+  ///
+  /// In en, this message translates to:
+  /// **'Communication and appearance'**
+  String get settingsV2GroupCommunication;
+
+  /// No description provided for @settingsV2GroupPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy and data'**
+  String get settingsV2GroupPrivacy;
+
+  /// No description provided for @settingsV2GroupApplication.
+  ///
+  /// In en, this message translates to:
+  /// **'Application'**
+  String get settingsV2GroupApplication;
+
+  /// No description provided for @settingsV2Search.
+  ///
+  /// In en, this message translates to:
+  /// **'Search settings'**
+  String get settingsV2Search;
+
+  /// No description provided for @settingsV2SearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Find a setting by its name or action'**
+  String get settingsV2SearchEmpty;
+
+  /// No description provided for @settingsV2SearchNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No results. Try a different word.'**
+  String get settingsV2SearchNone;
+
+  /// No description provided for @settingsV2AccountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile and account management'**
+  String get settingsV2AccountHint;
+
+  /// No description provided for @settingsV2NiosId.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Nios ID'**
+  String get settingsV2NiosId;
+
+  /// No description provided for @settingsV2Qr.
+  ///
+  /// In en, this message translates to:
+  /// **'My QR code'**
+  String get settingsV2Qr;
+
+  /// No description provided for @settingsV2Share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share profile'**
+  String get settingsV2Share;
+
+  /// No description provided for @settingsV2More.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile actions'**
+  String get settingsV2More;
+
+  /// No description provided for @settingsV2Advanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get settingsV2Advanced;
+
+  /// No description provided for @settingsV2GeometryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Corners of cards and system panels'**
+  String get settingsV2GeometryHint;
+
+  /// No description provided for @settingsV2Density.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface density'**
+  String get settingsV2Density;
+
+  /// No description provided for @settingsV2Graphics.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance'**
+  String get settingsV2Graphics;
+
+  /// No description provided for @settingsV2OptimizeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Simplify visual effects for smoother performance'**
+  String get settingsV2OptimizeHint;
+
+  /// No description provided for @settingsV2ChatAnimations.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat animations'**
+  String get settingsV2ChatAnimations;
+
+  /// No description provided for @settingsV2ChatAnimationsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which effects play automatically'**
+  String get settingsV2ChatAnimationsHint;
+
+  /// No description provided for @settingsV2Stickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Animated stickers'**
+  String get settingsV2Stickers;
+
+  /// No description provided for @settingsV2StickersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Play sticker animations in messages'**
+  String get settingsV2StickersHint;
+
+  /// No description provided for @settingsV2Emoji.
+  ///
+  /// In en, this message translates to:
+  /// **'Animated emoji'**
+  String get settingsV2Emoji;
+
+  /// No description provided for @settingsV2EmojiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Play emoji animations in messages'**
+  String get settingsV2EmojiHint;
+
+  /// No description provided for @settingsV2Off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get settingsV2Off;
+
+  /// No description provided for @settingsV2Reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset local preferences'**
+  String get settingsV2Reset;
+
+  /// No description provided for @settingsV2ResetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore default appearance and behavior. Message history is kept.'**
+  String get settingsV2ResetHint;
+
+  /// No description provided for @settingsV2LockTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-lock'**
+  String get settingsV2LockTimeout;
+
+  /// No description provided for @settingsV2LockTimeoutHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When to lock the app after it goes to the background'**
+  String get settingsV2LockTimeoutHint;
+
+  /// No description provided for @settingsV2BiometricFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not verify your identity'**
+  String get settingsV2BiometricFailure;
+
+  /// No description provided for @settingsV2ReadReceipts.
+  ///
+  /// In en, this message translates to:
+  /// **'Read receipts'**
+  String get settingsV2ReadReceipts;
+
+  /// No description provided for @settingsV2ReadReceiptsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Show when you have read a message'**
+  String get settingsV2ReadReceiptsHint;
+
+  /// No description provided for @settingsV2Typing.
+  ///
+  /// In en, this message translates to:
+  /// **'Typing indicator'**
+  String get settingsV2Typing;
+
+  /// No description provided for @settingsV2TypingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Let others see when you are typing'**
+  String get settingsV2TypingHint;
+
+  /// No description provided for @settingsV2ReadSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save read receipt settings'**
+  String get settingsV2ReadSaveFailed;
+
+  /// No description provided for @settingsV2TypingSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save typing settings'**
+  String get settingsV2TypingSaveFailed;
+
+  /// No description provided for @settingsV2StorageDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage usage'**
+  String get settingsV2StorageDetails;
+
+  /// No description provided for @settingsV2StorageDetailsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded media and temporary files'**
+  String get settingsV2StorageDetailsHint;
+
+  /// No description provided for @settingsV2AutoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic media downloads'**
+  String get settingsV2AutoDownload;
+
+  /// No description provided for @settingsV2AutoDownloadHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose when to download photos, videos and voice messages'**
+  String get settingsV2AutoDownloadHint;
+
+  /// No description provided for @settingsV2Wifi.
+  ///
+  /// In en, this message translates to:
+  /// **'On Wi-Fi'**
+  String get settingsV2Wifi;
+
+  /// No description provided for @settingsV2MobileData.
+  ///
+  /// In en, this message translates to:
+  /// **'On mobile data'**
+  String get settingsV2MobileData;
+
+  /// No description provided for @settingsV2MobileDataHint.
+  ///
+  /// In en, this message translates to:
+  /// **'May use your mobile data allowance'**
+  String get settingsV2MobileDataHint;
+
+  /// No description provided for @settingsV2SecretCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret chat cache'**
+  String get settingsV2SecretCache;
+
+  /// No description provided for @settingsV2SecretCacheHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrypted messages on this device'**
+  String get settingsV2SecretCacheHint;
+
+  /// No description provided for @settingsV2ClearSecretCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear secret chat cache'**
+  String get settingsV2ClearSecretCache;
+
+  /// No description provided for @settingsV2Diagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Device diagnostics'**
+  String get settingsV2Diagnostics;
+
+  /// No description provided for @settingsV2DiagnosticsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'System and hardware information'**
+  String get settingsV2DiagnosticsHint;
+
+  /// No description provided for @settingsV2StorageImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get settingsV2StorageImages;
+
+  /// No description provided for @settingsV2StorageVideos.
+  ///
+  /// In en, this message translates to:
+  /// **'Videos'**
+  String get settingsV2StorageVideos;
+
+  /// No description provided for @settingsV2StorageAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get settingsV2StorageAudio;
+
+  /// No description provided for @settingsV2StorageFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get settingsV2StorageFiles;
+
+  /// No description provided for @settingsV2StorageStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Stickers'**
+  String get settingsV2StorageStickers;
+
+  /// No description provided for @settingsV2StorageAvatars.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatars'**
+  String get settingsV2StorageAvatars;
+
+  /// No description provided for @settingsV2StorageDrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'Drafts'**
+  String get settingsV2StorageDrafts;
+
+  /// No description provided for @settingsV2StorageOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get settingsV2StorageOther;
+
+  /// No description provided for @settingsV2SecurityLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Security settings'**
+  String get settingsV2SecurityLink;
+
+  /// No description provided for @settingsV2SecurityLinkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions, app lock and account protection'**
+  String get settingsV2SecurityLinkHint;
+
+  /// No description provided for @settingsV2ProfileCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile link copied'**
+  String get settingsV2ProfileCopied;
+
+  /// No description provided for @settingsV2IdCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Nios ID copied'**
+  String get settingsV2IdCopied;
+
+  /// No description provided for @settingsV2Economy.
+  ///
+  /// In en, this message translates to:
+  /// **'Economy'**
+  String get settingsV2Economy;
+
+  /// No description provided for @settingsV2Reliable.
+  ///
+  /// In en, this message translates to:
+  /// **'Reliable'**
+  String get settingsV2Reliable;
+
+  /// No description provided for @settingsV2BackgroundOff.
+  ///
+  /// In en, this message translates to:
+  /// **'The background connection is off. Push notifications still use FCM.'**
+  String get settingsV2BackgroundOff;
+
+  /// No description provided for @settingsV2Preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Show message text'**
+  String get settingsV2Preview;
+
+  /// No description provided for @settingsV2StorageError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load storage data'**
+  String get settingsV2StorageError;
+
+  /// No description provided for @settingsV2ClearCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear files in this category?'**
+  String get settingsV2ClearCategory;
+
+  /// No description provided for @settingsV2ClearCategoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Files in this category will be removed from the local cache.'**
+  String get settingsV2ClearCategoryHint;
+
+  /// No description provided for @settingsV2SecretCacheConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'All decrypted secret-chat messages on this device will be deleted. This cannot be undone.'**
+  String get settingsV2SecretCacheConfirm;
+
+  /// No description provided for @settingsV2ResetConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset local preferences?'**
+  String get settingsV2ResetConfirm;
+
+  /// No description provided for @settingsV2ResetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance, language, sounds, notifications and other app preferences will reset. Chats, files, keys and server privacy settings will remain.'**
+  String get settingsV2ResetBody;
+
+  /// No description provided for @settingsV2ResetDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Local preferences reset'**
+  String get settingsV2ResetDone;
+
+  /// No description provided for @settingsV2ResetFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reset preferences'**
+  String get settingsV2ResetFailed;
 }
 
 class _SecretChatLocalizationsDelegate

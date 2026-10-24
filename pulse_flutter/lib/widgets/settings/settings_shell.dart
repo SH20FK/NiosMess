@@ -4,6 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 
+/// Compact web pages already receive a title from their persistent app bar.
+class SettingsHeadingScope extends InheritedWidget {
+  const SettingsHeadingScope({
+    required this.showEmbeddedHeading,
+    required super.child,
+    super.key,
+  });
+  final bool showEmbeddedHeading;
+  static bool showHeading(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<SettingsHeadingScope>()
+          ?.showEmbeddedHeading ??
+      true;
+  @override
+  bool updateShouldNotify(SettingsHeadingScope oldWidget) =>
+      showEmbeddedHeading != oldWidget.showEmbeddedHeading;
+}
+
 /// Centralized Material 3 Expressive scaffold for settings screens.
 /// Features a true collapsing [SliverAppBar.large] with tonal elevation,
 /// clean responsive centering, and elimination of fake transparent app bars.
@@ -50,10 +68,12 @@ class SettingsShell extends ConsumerWidget {
             horizontalPadding,
             32.0,
           ),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (BuildContext context, int index) => children[index],
-              childCount: children.length,
+          // Settings are short forms. Mount their anchors together so search
+          // can reveal a control below the viewport on its first frame.
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children,
             ),
           ),
         );
@@ -75,11 +95,14 @@ class SettingsShell extends ConsumerWidget {
               surfaceTintColor: scheme.surfaceTint,
               scrolledUnderElevation: 2.5,
               actions: actions,
-              leading: leading ??
+              leading:
+                  leading ??
                   (Navigator.canPop(context)
                       ? IconButton(
                           icon: const Icon(Icons.arrow_back_rounded),
-                          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).backButtonTooltip,
                           onPressed: () {
                             if (Navigator.canPop(context)) {
                               Navigator.of(context).pop();
@@ -90,7 +113,7 @@ class SettingsShell extends ConsumerWidget {
                         )
                       : null),
             )
-          else
+          else if (SettingsHeadingScope.showHeading(context))
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
@@ -121,8 +144,11 @@ class SettingsShell extends ConsumerWidget {
         ];
 
         final Widget rawScrollView = CustomScrollView(
-          physics: kIsWeb ? const ClampingScrollPhysics()
-              : const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          physics: kIsWeb
+              ? const ClampingScrollPhysics()
+              : const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
           slivers: slivers,
         );
 
