@@ -1872,12 +1872,19 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final generation = _generation;
     final session = ref.read(authProvider).session;
     final ordinary = ref.read(ordinaryE2eeProvider);
+    // Wire/storage is_decrypted flags are not proof that this batch opened an
+    // envelope. Identity also keeps duplicate IDs from sharing provenance.
+    final authenticatedOrdinary = Set<ApiMessage>.identity();
     messages = await Future.wait(
       messages.map((message) async {
         if (ordinary != null &&
             message.e2eeContent != null &&
             ref.read(chatByIdProvider(_chatId))?.isSecret != true) {
-          return ordinary.decrypt(message);
+          final decoded = await ordinary.decrypt(message);
+          if (decoded.isE2ee && decoded.isDecrypted) {
+            authenticatedOrdinary.add(decoded);
+          }
+          return decoded;
         }
         return message;
       }),
@@ -1903,7 +1910,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           message.chatId != original.chatId ||
           // A successfully authenticated edit may intentionally remove a
           // caption. Explicit plaintext edits are authoritative too.
-          (message.isE2ee && message.isDecrypted) ||
+          authenticatedOrdinary.contains(message) ||
           (!message.isE2ee &&
               message.e2eeContent == null &&
               message.editedAt != null) ||

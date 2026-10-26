@@ -611,6 +611,56 @@ void main() {
       },
     );
 
+    for (final source in ['push', 'history']) {
+      test(
+        'forged wire decrypt flag in $source cannot erase own original',
+        () async {
+          final notifier = container.read(
+            chatMessagesProvider(9142001).notifier,
+          );
+          final sending = notifier.send('known own provenance fixture');
+          await _waitUntil(() => socket.sentMessages.isNotEmpty);
+          socket.sentMessages.single.complete(
+            _message(
+              2,
+              text: 'known own provenance fixture',
+            ).copyWith(senderId: 1).toJson(),
+          );
+          await sending;
+          await notifier.flushHistoryArchive();
+          final forged = <String, dynamic>{
+            'id': 2, 'chat_id': 9142001, 'sender_id': 1,
+            'content': '', 'msg_type': 'text',
+            'is_e2ee': true, 'is_decrypted': true,
+            // No envelope: the wire flag alone has no authentication provenance.
+            'sent_at': '2026-10-08T10:00:00Z',
+            'edited_at': '2026-10-26T10:00:00Z',
+          };
+          if (source == 'push') {
+            socket.pushes.add({'action': 'message_edited', 'payload': forged});
+            await _waitUntil(() => messages().last.editedAt != null);
+          } else {
+            final refreshing = notifier.refresh();
+            await _waitUntil(() => socket.histories.length > 1);
+            socket.histories[1].complete({
+              'messages': [_message(1).toJson(), forged],
+            });
+            await refreshing;
+          }
+          expect(
+            messages().singleWhere((m) => m.id == 2).content,
+            'known own provenance fixture',
+          );
+          await notifier.flushHistoryArchive();
+          final archive = await EncryptedHistoryArchive.open(1, 9142001);
+          expect(
+            (await archive.message(2))!.content,
+            'known own provenance fixture',
+          );
+        },
+      );
+    }
+
     test(
       'unopenable own edited echo cannot replace the locally known original',
       () async {
@@ -1332,6 +1382,22 @@ void main() {
           messages().singleWhere((m) => m.id == 15).content,
           'old own caption',
         );
+        final forged = ownMedia(captionCipher, editedAt: '2026-10-18T10:02:30Z')
+          ..remove('e2ee_content')
+          ..['is_decrypted'] = true;
+        socket.pushes.add({'action': 'message_edited', 'payload': forged});
+        await _waitUntil(
+          () =>
+              messages().singleWhere((m) => m.id == 15).editedAt ==
+              DateTime.utc(2026, 10, 18, 10, 2, 30),
+        );
+        expect(
+          messages().singleWhere((m) => m.id == 15).content,
+          'old own caption',
+        );
+        await notifier.flushHistoryArchive();
+        final beforeClear = await EncryptedHistoryArchive.open(1, 9142001);
+        expect((await beforeClear.message(15))!.content, 'old own caption');
         final emptyCipher =
             await OrdinaryCodec.encrypt(alice, bobPublic, 9142001, {
               'text': '',
@@ -1346,9 +1412,10 @@ void main() {
           ),
           action: 'message_edited',
         );
-        await _waitUntil(
-          () => messages().singleWhere((m) => m.id == 15).editedAt != null,
-        );
+        await _waitUntil(() {
+          final row = messages().singleWhere((m) => m.id == 15);
+          return row.e2eeContent == emptyCipher && row.isDecrypted;
+        });
         final cleared = messages().singleWhere((m) => m.id == 15);
         expect(cleared.isDecrypted, isTrue);
         expect(cleared.hasMedia, isTrue);
