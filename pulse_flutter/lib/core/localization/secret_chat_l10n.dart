@@ -3,10 +3,40 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.dart';
 
 extension SecretChatL10n on AppLocalizations {
+  String get pickerClearSearch => _secret.pickerClearSearch;
+  String get pickerFaces => _secret.pickerFaces;
+  String get pickerAnimals => _secret.pickerAnimals;
+  String get pickerFood => _secret.pickerFood;
+  String get pickerActivities => _secret.pickerActivities;
+  String get pickerTravel => _secret.pickerTravel;
+  String get pickerObjects => _secret.pickerObjects;
+  String get pickerSymbols => _secret.pickerSymbols;
+  String get pickerFlags => _secret.pickerFlags;
+  String get pickerSearchEmoji => _secret.pickerSearchEmoji;
+  String get pickerNoRecents => _secret.pickerNoRecents;
+  String get pickerCustom => _secret.pickerCustom;
+  String get pickerCompact => _secret.pickerCompact;
+  String get pickerLibrary => _secret.pickerLibrary;
+  String get pickerSearchPacks => _secret.pickerSearchPacks;
+  String get pickerManage => _secret.pickerManage;
+  String get customEmojiTitle => _secret.customEmojiTitle;
+  String get customContinue => _secret.customContinue;
+  String get customCreateSet => _secret.customCreateSet;
+  String get customSetTitle => _secret.customSetTitle;
+  String get customSetName => _secret.customSetName;
+  String get customAddSet => _secret.customAddSet;
+  String get customAddEmoji => _secret.customAddEmoji;
+  String get customRemoveSet => _secret.customRemoveSet;
+  String get customShortcode => _secret.customShortcode;
+  String get customFileTooLarge => _secret.customFileTooLarge;
+  String get customTooManyFrames => _secret.customTooManyFrames;
+  String get customEmptySet => _secret.customEmptySet;
+
   String get settingsV2StorageError => _secret.settingsV2StorageError;
   String get settingsV2ClearCategory => _secret.settingsV2ClearCategory;
   String get settingsV2ClearCategoryHint => _secret.settingsV2ClearCategoryHint;
-  String get settingsV2SecretCacheConfirm => _secret.settingsV2SecretCacheConfirm;
+  String get settingsV2SecretCacheConfirm =>
+      _secret.settingsV2SecretCacheConfirm;
   String get settingsV2ResetConfirm => _secret.settingsV2ResetConfirm;
   String get settingsV2ResetBody => _secret.settingsV2ResetBody;
   String get settingsV2ResetDone => _secret.settingsV2ResetDone;
@@ -32,7 +62,8 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsV2LanguageHint => _secret.settingsV2LanguageHint;
   String get settingsV2About => _secret.settingsV2About;
   String get settingsV2AboutHint => _secret.settingsV2AboutHint;
-  String get settingsV2GroupCommunication => _secret.settingsV2GroupCommunication;
+  String get settingsV2GroupCommunication =>
+      _secret.settingsV2GroupCommunication;
   String get settingsV2GroupPrivacy => _secret.settingsV2GroupPrivacy;
   String get settingsV2GroupApplication => _secret.settingsV2GroupApplication;
   String get settingsV2Search => _secret.settingsV2Search;
@@ -49,7 +80,8 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsV2Graphics => _secret.settingsV2Graphics;
   String get settingsV2OptimizeHint => _secret.settingsV2OptimizeHint;
   String get settingsV2ChatAnimations => _secret.settingsV2ChatAnimations;
-  String get settingsV2ChatAnimationsHint => _secret.settingsV2ChatAnimationsHint;
+  String get settingsV2ChatAnimationsHint =>
+      _secret.settingsV2ChatAnimationsHint;
   String get settingsV2Stickers => _secret.settingsV2Stickers;
   String get settingsV2StickersHint => _secret.settingsV2StickersHint;
   String get settingsV2Emoji => _secret.settingsV2Emoji;
@@ -67,7 +99,8 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsV2ReadSaveFailed => _secret.settingsV2ReadSaveFailed;
   String get settingsV2TypingSaveFailed => _secret.settingsV2TypingSaveFailed;
   String get settingsV2StorageDetails => _secret.settingsV2StorageDetails;
-  String get settingsV2StorageDetailsHint => _secret.settingsV2StorageDetailsHint;
+  String get settingsV2StorageDetailsHint =>
+      _secret.settingsV2StorageDetailsHint;
   String get settingsV2AutoDownload => _secret.settingsV2AutoDownload;
   String get settingsV2AutoDownloadHint => _secret.settingsV2AutoDownloadHint;
   String get settingsV2Wifi => _secret.settingsV2Wifi;

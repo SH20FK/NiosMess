@@ -2116,6 +2116,174 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Could not reset preferences'**
   String get settingsV2ResetFailed;
+
+  /// No description provided for @pickerClearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get pickerClearSearch;
+
+  /// No description provided for @pickerFaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Smileys'**
+  String get pickerFaces;
+
+  /// No description provided for @pickerAnimals.
+  ///
+  /// In en, this message translates to:
+  /// **'Nature'**
+  String get pickerAnimals;
+
+  /// No description provided for @pickerFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Food'**
+  String get pickerFood;
+
+  /// No description provided for @pickerActivities.
+  ///
+  /// In en, this message translates to:
+  /// **'Activities'**
+  String get pickerActivities;
+
+  /// No description provided for @pickerTravel.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel'**
+  String get pickerTravel;
+
+  /// No description provided for @pickerObjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Objects'**
+  String get pickerObjects;
+
+  /// No description provided for @pickerSymbols.
+  ///
+  /// In en, this message translates to:
+  /// **'Symbols'**
+  String get pickerSymbols;
+
+  /// No description provided for @pickerFlags.
+  ///
+  /// In en, this message translates to:
+  /// **'Flags'**
+  String get pickerFlags;
+
+  /// No description provided for @pickerSearchEmoji.
+  ///
+  /// In en, this message translates to:
+  /// **'Search emoji'**
+  String get pickerSearchEmoji;
+
+  /// No description provided for @pickerNoRecents.
+  ///
+  /// In en, this message translates to:
+  /// **'Your recent emoji will appear here'**
+  String get pickerNoRecents;
+
+  /// No description provided for @pickerCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get pickerCustom;
+
+  /// No description provided for @pickerCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get pickerCompact;
+
+  /// No description provided for @pickerLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get pickerLibrary;
+
+  /// No description provided for @pickerSearchPacks.
+  ///
+  /// In en, this message translates to:
+  /// **'Search packs'**
+  String get pickerSearchPacks;
+
+  /// No description provided for @pickerManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage packs'**
+  String get pickerManage;
+
+  /// No description provided for @customEmojiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom emoji'**
+  String get customEmojiTitle;
+
+  /// No description provided for @customContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get customContinue;
+
+  /// No description provided for @customCreateSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Create emoji pack'**
+  String get customCreateSet;
+
+  /// No description provided for @customSetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get customSetTitle;
+
+  /// No description provided for @customSetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Pack name in Latin letters'**
+  String get customSetName;
+
+  /// No description provided for @customAddSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Add emoji pack'**
+  String get customAddSet;
+
+  /// No description provided for @customAddEmoji.
+  ///
+  /// In en, this message translates to:
+  /// **'Add emoji'**
+  String get customAddEmoji;
+
+  /// No description provided for @customRemoveSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from my packs'**
+  String get customRemoveSet;
+
+  /// No description provided for @customShortcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcode: letters, numbers, _'**
+  String get customShortcode;
+
+  /// No description provided for @customFileTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image up to 512 KB'**
+  String get customFileTooLarge;
+
+  /// No description provided for @customTooManyFrames.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many frames in this emoji'**
+  String get customTooManyFrames;
+
+  /// No description provided for @customEmptySet.
+  ///
+  /// In en, this message translates to:
+  /// **'This pack has no emoji yet'**
+  String get customEmptySet;
 }
 
 class _SecretChatLocalizationsDelegate

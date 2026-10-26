@@ -1,3 +1,5 @@
+import 'widgets/expression_picker_test.dart' as expression_picker;
+import 'unit/expression_editing_test.dart' as expression_editing;
 import 'widgets/settings_refresh_test.dart' as settings_refresh;
 import 'widgets/feed_features_test.dart' as feed_features;
 import 'unit/settings_registry_test.dart' as settings_registry_navigation;
@@ -319,6 +321,8 @@ void main() {
     screens_register_screen.main();
 
     // Widgets
+    expression_picker.main();
+    expression_editing.main();
     neutral_inbox.main();
     message_surfaces.main();
     bot_keyboard_feedback.main();

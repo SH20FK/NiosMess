@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/widgets/chat/expression_picker_components.dart';
 import 'dart:async';
 import 'package:pulse_flutter/core/utils/noto_emoji.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -17,24 +19,101 @@ import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class StickerPickerView extends ConsumerStatefulWidget {
-  const StickerPickerView({this.chatId, this.onStickerSelected, super.key});
+  const StickerPickerView({
+    this.chatId,
+    this.onStickerSelected,
+    this.selectedSetId,
+    this.onSetSelected,
+    this.onSearchFocus,
+    this.showManagement = true,
+    super.key,
+  });
   final int? chatId;
+  final int? selectedSetId;
+  final ValueChanged<int?>? onSetSelected;
+  final VoidCallback? onSearchFocus;
+  final bool showManagement;
   final void Function(ApiSticker)? onStickerSelected;
   @override
-  ConsumerState<StickerPickerView> createState() => _StickerPickerViewState();
+  ConsumerState<StickerPickerView> createState() => StickerPickerViewState();
 }
 
-class _StickerPickerViewState extends ConsumerState<StickerPickerView>
+class StickerPickerViewState extends ConsumerState<StickerPickerView>
     with AutomaticKeepAliveClientMixin {
-  int? _selectedSetId; // Null is Recent, not a disappearing first pack.
-  final _search = TextEditingController();
+  late int? _selectedSetId =
+      widget.selectedSetId; // Null is Recent, not a disappearing first pack.
   String _query = '';
   @override
   bool get wantKeepAlive => true;
   @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
+  void didUpdateWidget(covariant StickerPickerView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedSetId != widget.selectedSetId) {
+      _selectedSetId = widget.selectedSetId;
+    }
+  }
+
+  void _selectSet(int? id) {
+    setState(() => _selectedSetId = id);
+    widget.onSetSelected?.call(id);
+  }
+
+  Future<void> showManagement() async {
+    final sets = ref.read(stickerSetsProvider).value ?? const <ApiStickerSet>[];
+    final active = sets.where((pack) => pack.id == _selectedSetId).firstOrNull;
+    final action = await AppModal.showSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(context.l10n.pickerManage),
+                subtitle: active == null ? null : Text(active.title),
+              ),
+              ListTile(
+                leading: const Icon(Icons.playlist_add_rounded),
+                title: Text(context.l10n.stickerHubCreate),
+                onTap: () => Navigator.pop(context, 'create'),
+              ),
+              if (active != null) ...[
+                ListTile(
+                  leading: const Icon(Icons.info_outline_rounded),
+                  title: Text(context.l10n.stickerHubDetails),
+                  onTap: () => Navigator.pop(context, 'details'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.add_rounded),
+                  title: Text(context.l10n.stickerHubAdd),
+                  onTap: () => Navigator.pop(context, 'add'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'create') {
+      await CreateStickerSetDialog.show(context);
+      return;
+    }
+    if (action == 'details' && active != null) {
+      await StickerSetDetailsSheet.show(
+        context,
+        stickerSet: active,
+        onStickerSelected: _send,
+      );
+    }
+    if (!mounted) return;
+    if (action == 'add' && active != null) {
+      await AddStickerDialog.show(
+        context,
+        setId: active.id,
+        setTitle: active.title,
+      );
+    }
   }
 
   void _send(ApiSticker sticker) {
@@ -78,187 +157,181 @@ class _StickerPickerViewState extends ConsumerState<StickerPickerView>
             for (final id in recent)
               if (byId[id] != null) byId[id]!,
           ];
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _search,
-                  onChanged: (v) => setState(() => _query = v),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: l.stickerHubSearch,
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: query.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: MaterialLocalizations.of(
-                              context,
-                            ).closeButtonTooltip,
-                            onPressed: () {
-                              _search.clear();
-                              setState(() => _query = '');
-                            },
-                            icon: const Icon(Icons.close_rounded),
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        children: [
+          if (constraints.maxHeight >= 100)
+            Row(
+              children: [
+                Expanded(
+                  child: ExpressionSearchField(
+                    initialValue: _query,
+                    hint: l.stickerHubSearch,
+                    onFocus: widget.onSearchFocus,
+                    onChanged: (value) => setState(() => _query = value),
+                  ),
+                ),
+                if (widget.showManagement)
+                  MenuAnchor(
+                    builder: (_, controller, _) => IconButton(
+                      tooltip: l.stickerHubDetails,
+                      onPressed: () => controller.isOpen
+                          ? controller.close()
+                          : controller.open(),
+                      icon: const Icon(Icons.more_horiz_rounded),
+                    ),
+                    menuChildren: [
+                      if (active != null)
+                        MenuItemButton(
+                          leadingIcon: const Icon(Icons.info_outline_rounded),
+                          onPressed: () => StickerSetDetailsSheet.show(
+                            context,
+                            stickerSet: active,
+                            onStickerSelected: _send,
                           ),
-                  ),
-                ),
-              ),
-              MenuAnchor(
-                builder: (_, controller, _) => IconButton(
-                  tooltip: l.stickerHubDetails,
-                  onPressed: () => controller.isOpen
-                      ? controller.close()
-                      : controller.open(),
-                  icon: const Icon(Icons.more_horiz_rounded),
-                ),
-                menuChildren: [
-                  if (active != null)
-                    MenuItemButton(
-                      leadingIcon: const Icon(Icons.info_outline_rounded),
-                      onPressed: () => StickerSetDetailsSheet.show(
-                        context,
-                        stickerSet: active,
-                        onStickerSelected: _send,
-                      ),
-                      child: Text(l.stickerHubDetails),
-                    ),
-                  if (active != null)
-                    MenuItemButton(
-                      leadingIcon: const Icon(Icons.add_rounded),
-                      onPressed: () => AddStickerDialog.show(
-                        context,
-                        setId: active.id,
-                        setTitle: active.title,
-                      ),
-                      child: Text(l.stickerHubAdd),
-                    ),
-                  MenuItemButton(
-                    leadingIcon: const Icon(Icons.playlist_add_rounded),
-                    onPressed: () => CreateStickerSetDialog.show(context),
-                    child: Text(l.stickerHubCreate),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 56,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  selected: active == null,
-                  avatar: const Icon(Icons.history_rounded, size: 18),
-                  label: Text(l.stickerHubRecent),
-                  onSelected: (_) => setState(() => _selectedSetId = null),
-                ),
-              ),
-              for (final set in sets)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    selected: set.id == active?.id,
-                    label: Text(set.title.isEmpty ? set.name : set.title),
-                    onSelected: (_) => setState(() => _selectedSetId = set.id),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: asyncSets.isLoading && sets.isEmpty
-              ? const Center(child: AppLoadingIndicator(size: 32))
-              : asyncSets.hasError && sets.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(l.stickerHubLoadError),
-                      TextButton(
-                        onPressed: () => ref.invalidate(stickerSetsProvider),
-                        child: Text(l.commonRetry),
+                          child: Text(l.stickerHubDetails),
+                        ),
+                      if (active != null)
+                        MenuItemButton(
+                          leadingIcon: const Icon(Icons.add_rounded),
+                          onPressed: () => AddStickerDialog.show(
+                            context,
+                            setId: active.id,
+                            setTitle: active.title,
+                          ),
+                          child: Text(l.stickerHubAdd),
+                        ),
+                      MenuItemButton(
+                        leadingIcon: const Icon(Icons.playlist_add_rounded),
+                        onPressed: () => CreateStickerSetDialog.show(context),
+                        child: Text(l.stickerHubCreate),
                       ),
                     ],
                   ),
-                )
-              : items.isEmpty
-              ? Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+              ],
+            ),
+          if (constraints.maxHeight >= 160)
+            SizedBox(
+              height: 52,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                children: [
+                  ExpressionPackButton(
+                    label: l.stickerHubRecent,
+                    selected: active == null,
+                    onTap: () => _selectSet(null),
+                    child: const Icon(Icons.history_rounded),
+                  ),
+                  for (final set in sets)
+                    ExpressionPackButton(
+                      label: set.title.isEmpty ? set.name : set.title,
+                      selected: set.id == active?.id,
+                      onTap: () => _selectSet(set.id),
+                      child:
+                          set.stickers.isEmpty || set.stickers.first.isAnimated
+                          ? const Icon(Icons.sticky_note_2_outlined)
+                          : CachedNetworkImage(
+                              imageUrl: set.stickers.first.resolvedUrl,
+                              width: 30,
+                              height: 30,
+                              memCacheWidth: 72,
+                              memCacheHeight: 72,
+                              errorWidget: (_, _, _) =>
+                                  const Icon(Icons.sticky_note_2_outlined),
+                            ),
+                    ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: asyncSets.isLoading && sets.isEmpty
+                ? const Center(child: AppLoadingIndicator(size: 32))
+                : asyncSets.hasError && sets.isEmpty
+                ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.sticky_note_2_outlined,
-                          size: 36,
-                          color: scheme.primary,
+                        Text(l.stickerHubLoadError),
+                        TextButton(
+                          onPressed: () => ref.invalidate(stickerSetsProvider),
+                          child: Text(l.commonRetry),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          query.isEmpty
-                              ? l.stickerHubEmpty
-                              : l.stickerHubNoResults,
-                        ),
-                        if (query.isEmpty) ...[
-                          Text(
-                            l.stickerHubEmptyHint,
-                            textAlign: TextAlign.center,
-                          ),
-                          TextButton.icon(
-                            onPressed: () =>
-                                CreateStickerSetDialog.show(context),
-                            icon: const Icon(Icons.add_rounded),
-                            label: Text(l.stickerHubCreate),
-                          ),
-                        ],
                       ],
                     ),
+                  )
+                : items.isEmpty
+                ? Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.sticky_note_2_outlined,
+                            size: 36,
+                            color: scheme.primary,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            query.isEmpty
+                                ? l.stickerHubEmpty
+                                : l.stickerHubNoResults,
+                          ),
+                          if (query.isEmpty) ...[
+                            Text(
+                              l.stickerHubEmptyHint,
+                              textAlign: TextAlign.center,
+                            ),
+                            TextButton.icon(
+                              onPressed: () =>
+                                  CreateStickerSetDialog.show(context),
+                              icon: const Icon(Icons.add_rounded),
+                              label: Text(l.stickerHubCreate),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  )
+                : GridView.builder(
+                    key: PageStorageKey('stickers:${active?.id}:$query'),
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                    physics: kIsWeb ? const ClampingScrollPhysics() : null,
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 112,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                        ),
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final sticker = items[index];
+                      return _StickerTile(
+                        key: ValueKey(sticker.id),
+                        sticker: sticker,
+                        onTap: () => _send(sticker),
+                        onLongPress: () {
+                          final pack = sets
+                              .where(
+                                (s) =>
+                                    s.stickers.any((st) => st.id == sticker.id),
+                              )
+                              .firstOrNull;
+                          if (pack != null) {
+                            StickerSetDetailsSheet.show(
+                              context,
+                              stickerSet: pack,
+                              onStickerSelected: _send,
+                            );
+                          }
+                        },
+                      );
+                    },
                   ),
-                )
-              : GridView.builder(
-                  key: PageStorageKey('stickers:${active?.id}:$query'),
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                  physics: kIsWeb ? const ClampingScrollPhysics() : null,
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 112,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                  ),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final sticker = items[index];
-                    return _StickerTile(
-                      key: ValueKey(sticker.id),
-                      sticker: sticker,
-                      onTap: () => _send(sticker),
-                      onLongPress: () {
-                        final pack = sets
-                            .where(
-                              (s) =>
-                                  s.stickers.any((st) => st.id == sticker.id),
-                            )
-                            .firstOrNull;
-                        if (pack != null) {
-                          StickerSetDetailsSheet.show(
-                            context,
-                            stickerSet: pack,
-                            onStickerSelected: _send,
-                          );
-                        }
-                      },
-                    );
-                  },
-                ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -288,7 +361,9 @@ class _StickerTileState extends State<_StickerTile> {
       ),
     );
     return Semantics(
-      excludeSemantics: true, onTap: widget.onTap, onLongPress: widget.onLongPress,
+      excludeSemantics: true,
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
       button: true,
       label: widget.sticker.emoji.isEmpty
           ? context.l10n.stickerHubStickers

@@ -349,7 +349,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Recent'), findsOneWidget);
+      expect(find.byTooltip('Recent'), findsOneWidget);
       await tester.enterText(find.byType(TextField), 'cats');
       await tester.pumpAndSettle();
       expect(find.bySemanticsLabel('🐱'), findsOneWidget);

@@ -1093,4 +1093,88 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsV2ResetFailed => 'Could not reset preferences';
+
+  @override
+  String get pickerClearSearch => 'Clear search';
+
+  @override
+  String get pickerFaces => 'Smileys';
+
+  @override
+  String get pickerAnimals => 'Nature';
+
+  @override
+  String get pickerFood => 'Food';
+
+  @override
+  String get pickerActivities => 'Activities';
+
+  @override
+  String get pickerTravel => 'Travel';
+
+  @override
+  String get pickerObjects => 'Objects';
+
+  @override
+  String get pickerSymbols => 'Symbols';
+
+  @override
+  String get pickerFlags => 'Flags';
+
+  @override
+  String get pickerSearchEmoji => 'Search emoji';
+
+  @override
+  String get pickerNoRecents => 'Your recent emoji will appear here';
+
+  @override
+  String get pickerCustom => 'Custom';
+
+  @override
+  String get pickerCompact => 'Collapse';
+
+  @override
+  String get pickerLibrary => 'Library';
+
+  @override
+  String get pickerSearchPacks => 'Search packs';
+
+  @override
+  String get pickerManage => 'Manage packs';
+
+  @override
+  String get customEmojiTitle => 'Custom emoji';
+
+  @override
+  String get customContinue => 'Continue';
+
+  @override
+  String get customCreateSet => 'Create emoji pack';
+
+  @override
+  String get customSetTitle => 'Title';
+
+  @override
+  String get customSetName => 'Pack name in Latin letters';
+
+  @override
+  String get customAddSet => 'Add emoji pack';
+
+  @override
+  String get customAddEmoji => 'Add emoji';
+
+  @override
+  String get customRemoveSet => 'Remove from my packs';
+
+  @override
+  String get customShortcode => 'Shortcode: letters, numbers, _';
+
+  @override
+  String get customFileTooLarge => 'Choose an image up to 512 KB';
+
+  @override
+  String get customTooManyFrames => 'Too many frames in this emoji';
+
+  @override
+  String get customEmptySet => 'This pack has no emoji yet';
 }

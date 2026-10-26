@@ -175,6 +175,31 @@ final List<CategoryEmoji> _notoSearchIndex = <CategoryEmoji>[
   ...emojiSetRussian,
 ];
 
+Future<List<Emoji>> searchNotoPickerEmoji(String query) async {
+  final clean = query.trim().toLowerCase();
+  if (clean.isEmpty) return const [];
+  final terms = <String>{clean};
+  for (final entry in _ruEmojiKeywords.entries) {
+    if (entry.key.startsWith(clean) ||
+        clean.startsWith(entry.key) ||
+        entry.key.contains(clean)) {
+      terms.addAll(entry.value);
+    }
+  }
+  final results = await Future.wait([
+    for (final term in terms)
+      EmojiPickerUtils().searchEmoji(
+        term,
+        _notoSearchIndex,
+        checkPlatformCompatibility: false,
+      ),
+  ]);
+  return {
+    for (final result in results)
+      for (final emoji in result) emoji.emoji: emoji,
+  }.values.toList();
+}
+
 /// Custom Material 3 Russian & English Emoji Search View
 class M3EmojiSearchView extends SearchView {
   const M3EmojiSearchView(
@@ -227,11 +252,13 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
 
     // 2. Parallelize with Future.wait, discard stale requests, and deduplicate
     final List<Future<List<Emoji>>> futures = searchTerms
-        .map((String term) => utils.searchEmoji(
-          term,
-          _notoSearchIndex,
-          checkPlatformCompatibility: false,
-        ))
+        .map(
+          (String term) => utils.searchEmoji(
+            term,
+            _notoSearchIndex,
+            checkPlatformCompatibility: false,
+          ),
+        )
         .toList();
 
     Future.wait(futures).then((List<List<Emoji>> allFound) {
@@ -267,10 +294,12 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final emojiSize =
-            widget.config.emojiViewConfig.getEmojiSize(constraints.maxWidth);
-        final emojiBoxSize =
-            widget.config.emojiViewConfig.getEmojiBoxSize(constraints.maxWidth);
+        final emojiSize = widget.config.emojiViewConfig.getEmojiSize(
+          constraints.maxWidth,
+        );
+        final emojiBoxSize = widget.config.emojiViewConfig.getEmojiBoxSize(
+          constraints.maxWidth,
+        );
 
         return Container(
           color: Colors.transparent,
@@ -323,7 +352,9 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
                             focusedBorder: InputBorder.none,
                             hintText: 'Поиск эмодзи (огонь, кот, сердце...)',
                             hintStyle: textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                              color: scheme.onSurfaceVariant.withValues(
+                                alpha: 0.5,
+                              ),
                               fontSize: 13,
                             ),
                             contentPadding: EdgeInsets.zero,
@@ -362,7 +393,9 @@ class M3EmojiSearchViewState extends SearchViewState<M3EmojiSearchView> {
                               ? 'Введите текст для поиска'
                               : 'Эмодзи не найдены',
                           style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                            color: scheme.onSurfaceVariant.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                         ),
                       )

@@ -1,7 +1,9 @@
+import 'package:pulse_flutter/core/utils/expression_editing.dart';
+import 'package:pulse_flutter/widgets/chat/expression_picker_panel.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,15 +13,10 @@ import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/services/desktop_pasteboard_service.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
-import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
-import 'package:pulse_flutter/widgets/chat/m3_emoji_search_view.dart';
-import 'package:pulse_flutter/widgets/chat/sticker_picker_view.dart';
-import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
-import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
@@ -86,12 +83,10 @@ class ChatInputBar extends ConsumerStatefulWidget {
 class _ChatInputBarState extends ConsumerState<ChatInputBar>
     with WidgetsBindingObserver {
   bool _showEmojiPicker = false;
-  int _pickerTabIndex = 0;
-  late final PageController _pickerPageController = PageController(
-    initialPage: _pickerTabIndex,
-  );
-
+  bool _pickerHasOpened = false;
+  bool _pickerExpanded = false;
   double _cachedKeyboardHeight = 310.0;
+  double _windowKeyboardInset = 0;
   bool _isFocused = false;
 
   bool _isInputEmpty = true;
@@ -111,10 +106,6 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   bool _isStartingRecording = false;
   bool _sendOnStart = false;
   bool _cancelOnStart = false;
-
-  Config? _cachedEmojiConfig;
-  ColorScheme? _cachedEmojiConfigScheme;
-  Locale? _cachedEmojiLocale;
 
   @override
   void initState() {
@@ -146,6 +137,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             ?.devicePixelRatio ??
         1.0;
     final double logicalBottom = bottom / (pixelRatio > 0 ? pixelRatio : 1.0);
+    if (mounted && (_windowKeyboardInset - logicalBottom).abs() > 1) {
+      setState(() => _windowKeyboardInset = logicalBottom);
+    }
     if (logicalBottom > 0) {
       final double clamped = logicalBottom.clamp(260.0, 440.0);
       if ((_cachedKeyboardHeight - clamped).abs() > 1.0) {
@@ -159,7 +153,6 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     WidgetsBinding.instance.removeObserver(this);
     widget.inputController.removeListener(_onTextChanged);
     widget.inputFocusNode.removeListener(_onFocusChanged);
-    _pickerPageController.dispose();
     _dragOffsetNotifier.dispose();
     _amplitudeNotifier.dispose();
     _elapsedNotifier.dispose();
@@ -210,6 +203,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           MediaQuery.viewInsetsOf(context).bottom > 0 ||
           widget.inputFocusNode.hasFocus;
       setState(() {
+        _pickerHasOpened = true;
         _showEmojiPicker = true;
       });
       if (keyboardOpen) {
@@ -225,30 +219,15 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     final TextSelection selection = widget.inputController.selection;
     if (text.isEmpty) return;
 
-    if (selection.isValid && selection.start != selection.end) {
-      final String newText = text.replaceRange(
-        selection.start,
-        selection.end,
-        '',
-      );
-      widget.inputController.value = TextEditingValue(
-        text: newText,
-        selection: TextSelection.collapsed(offset: selection.start),
-      );
-      return;
-    }
-
-    final int cursorOffset = selection.isValid ? selection.start : text.length;
-    if (cursorOffset <= 0) return;
-
-    final Characters chars = text.characters;
-    if (chars.isNotEmpty) {
-      final String newText = chars.skipLast(1).toString();
-      widget.inputController.value = TextEditingValue(
-        text: newText,
-        selection: TextSelection.collapsed(offset: newText.length),
-      );
-    }
+    final result = deleteExpressionBeforeCursor(
+      text,
+      selection.isValid ? selection.start : text.length,
+      selection.isValid ? selection.end : text.length,
+    );
+    widget.inputController.value = TextEditingValue(
+      text: result.text,
+      selection: TextSelection.collapsed(offset: result.cursor),
+    );
   }
 
   Future<void> _pickDesktopFiles({
@@ -483,15 +462,31 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     final bool isCompact = MediaQuery.sizeOf(context).width < 360;
 
     // Read physical keyboard height dynamically for 1:1 zero-jolt panel parity
-    final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final double bottomInset = math.max(
+      MediaQuery.viewInsetsOf(context).bottom,
+      _windowKeyboardInset,
+    );
     final double effectiveKeyboardHeight = bottomInset > 0
         ? bottomInset.clamp(260.0, 440.0)
         : _cachedKeyboardHeight;
 
-    // Mathematical zero-jolt height: when switching, the sum of keyboardInset + panelHeight
-    // remains constant so the message list doesn't move a single pixel!
-    final double effectivePanelHeight = _showEmojiPicker
-        ? math.max(0.0, effectiveKeyboardHeight - bottomInset)
+    final media = MediaQuery.of(context);
+    // Keep the picker above the IME, within the remaining chat viewport.
+    final available = math.max(
+      0.0,
+      media.size.height - media.padding.vertical - bottomInset - 160,
+    );
+    final compactHeight = math.min(
+      effectiveKeyboardHeight,
+      math.max(0.0, media.size.height - media.padding.vertical - 160),
+    );
+    final panelLayoutHeight = _pickerExpanded
+        ? math.min(media.size.height * .72, available)
+        : compactHeight;
+    final effectivePanelHeight = _showEmojiPicker
+        ? (_pickerExpanded
+              ? panelLayoutHeight
+              : math.max(0.0, compactHeight - bottomInset))
         : 0.0;
 
     return PopScope(
@@ -501,6 +496,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           setState(() {
             _showEmojiPicker = false;
           });
+          FocusManager.instance.primaryFocus?.unfocus();
         }
       },
       child: Column(
@@ -969,264 +965,77 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           ),
 
           // ── Edge-to-Edge Material 3 Expressive Emoji & Sticker Hub ──
-          AnimatedContainer(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : M3Durations.medium1,
-            // Height must stay non-negative while the panel settles at zero.
-            curve: M3SpringCurves.gentle,
-            height: effectivePanelHeight,
-            clipBehavior: Clip.hardEdge,
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerLow,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: available),
+            child: AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : M3Durations.medium1,
+              // Height must stay non-negative while the panel settles at zero.
+              curve: M3SpringCurves.gentle,
+              height: effectivePanelHeight,
+              clipBehavior: Clip.hardEdge,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                border: effectivePanelHeight > 0
+                    ? Border(
+                        top: BorderSide(
+                          color: scheme.outlineVariant.withValues(alpha: 0.2),
+                          width: 1,
+                        ),
+                      )
+                    : null,
               ),
-              border: effectivePanelHeight > 0
-                  ? Border(
-                      top: BorderSide(
-                        color: scheme.outlineVariant.withValues(alpha: 0.2),
-                        width: 1,
-                      ),
-                    )
-                  : null,
-            ),
-            child: effectivePanelHeight > 0
-                ? Column(
-                    children: <Widget>[
-                      // Drag handle for smooth pull-down to dismiss
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onVerticalDragUpdate: (DragUpdateDetails details) {
-                          if (details.primaryDelta != null &&
-                              details.primaryDelta! > 5) {
-                            if (widget.hapticsEnabled) {
-                              HapticService.tap();
-                            }
-                            setState(() => _showEmojiPicker = false);
-                          }
-                        },
-                        child: Container(
-                          width: double.infinity,
-                          color: Colors.transparent,
-                          padding: const EdgeInsets.only(top: 8, bottom: 4),
-                          child: Center(
-                            child: Container(
-                              width: 38,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: scheme.onSurfaceVariant.withValues(
-                                  alpha: 0.3,
-                                ),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Expressive Tab Bar: [ 😊 Эмодзи | 🏷️ Стикеры ] + Backspace
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(12, 2, 8, 8),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerLow,
-                          border: Border(
-                            bottom: BorderSide(
-                              color: scheme.outlineVariant.withValues(
-                                alpha: 0.15,
-                              ),
-                              width: 0.5,
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            const SizedBox(
-                              width: 40,
-                            ), // Balances backspace button
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final labels =
-                                      constraints.maxWidth >= 420 &&
-                                      MediaQuery.textScalerOf(
-                                            context,
-                                          ).scale(14) <
-                                          20;
-                                  return Center(
-                                    child: SegmentedButton<int>(
-                                      showSelectedIcon: false,
-                                      segments: [
-                                        ButtonSegment(
-                                          value: 0,
-                                          icon: const Icon(
-                                            Icons.emoji_emotions_outlined,
-                                          ),
-                                          label: labels
-                                              ? Text(
-                                                  context.l10n.stickerHubEmoji,
-                                                )
-                                              : null,
-                                          tooltip: context.l10n.stickerHubEmoji,
-                                        ),
-                                        ButtonSegment(
-                                          value: 1,
-                                          icon: const Icon(
-                                            Icons.sticky_note_2_outlined,
-                                          ),
-                                          label: labels
-                                              ? Text(
-                                                  context
-                                                      .l10n
-                                                      .stickerHubStickers,
-                                                )
-                                              : null,
-                                          tooltip:
-                                              context.l10n.stickerHubStickers,
-                                        ),
-                                        ButtonSegment(
-                                          value: 2,
-                                          icon: const CustomEmojiIcon(),
-                                          label: labels
-                                              ? const Text('Кастомные')
-                                              : null,
-                                          tooltip: 'Кастомные эмодзи',
-                                        ),
-                                      ],
-                                      selected: {_pickerTabIndex},
-                                      onSelectionChanged: (value) =>
-                                          _selectPickerTab(value.single),
-                                    ),
-                                  );
+              child: !_pickerHasOpened
+                  ? const SizedBox.shrink()
+                  : IgnorePointer(
+                      ignoring: !_showEmojiPicker,
+                      child: ExcludeSemantics(
+                        excluding: !_showEmojiPicker,
+                        child: ExcludeFocus(
+                          excluding: !_showEmojiPicker,
+                          child: TickerMode(
+                            enabled: _showEmojiPicker,
+                            child: OverflowBox(
+                              alignment: Alignment.topCenter,
+                              minHeight: panelLayoutHeight,
+                              maxHeight: panelLayoutHeight,
+                              child: ExpressionPickerPanel(
+                                inputController: widget.inputController,
+                                onBackspace: _onEmojiBackspace,
+                                onClose: () {
+                                  FocusManager.instance.primaryFocus?.unfocus();
+                                  setState(() => _showEmojiPicker = false);
+                                },
+                                onExpandedChanged: (expanded) =>
+                                    setState(() => _pickerExpanded = expanded),
+                                onStickerSelected: (sticker) {
+                                  if (widget.onSendSticker != null) {
+                                    widget.onSendSticker!(sticker);
+                                  } else if (widget.chatId != null) {
+                                    unawaited(
+                                      ref
+                                          .read(
+                                            chatMessagesProvider(
+                                              widget.chatId!,
+                                            ).notifier,
+                                          )
+                                          .sendSticker(sticker.id),
+                                    );
+                                  }
                                 },
                               ),
                             ),
-                            // Quick backspace button for emojis
-                            IconButton(
-                              onPressed: _pickerTabIndex == 0
-                                  ? _onEmojiBackspace
-                                  : null,
-                              icon: Icon(
-                                Icons.backspace_outlined,
-                                size: 19,
-                                color: scheme.onSurfaceVariant.withValues(
-                                  alpha: 0.75,
-                                ),
-                              ),
-                              tooltip: context.l10n.commonDelete,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-
-                      // Horizontal PageView for smooth swiping between Emojis and Stickers
-                      Expanded(
-                        child: PageView(
-                          controller: _pickerPageController,
-                          physics: ScrollConfiguration.of(
-                            context,
-                          ).getScrollPhysics(context),
-                          onPageChanged: (int page) {
-                            if (widget.hapticsEnabled) {
-                              HapticService.tap();
-                            }
-                            setState(() => _pickerTabIndex = page);
-                          },
-                          children: <Widget>[
-                            // Page 0: Emoji Picker
-                            EmojiPicker(
-                              textEditingController: widget.inputController,
-                              config: _getEmojiConfig(scheme),
-                            ),
-
-                            // Page 1: Sticker Picker
-                            StickerPickerView(
-                              chatId: widget.chatId,
-                              onStickerSelected: (ApiSticker sticker) {
-                                if (widget.onSendSticker != null) {
-                                  widget.onSendSticker!(sticker);
-                                }
-                              },
-                            ),
-                            CustomEmojiPicker(
-                              onSelected: (emoji) => insertCustomEmoji(
-                                widget.inputController,
-                                emoji,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  )
-                : const SizedBox.shrink(),
+                    ),
+            ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _selectPickerTab(int index) {
-    if (widget.hapticsEnabled) HapticService.tap();
-    setState(() => _pickerTabIndex = index);
-    if (!_pickerPageController.hasClients) return;
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _pickerPageController.jumpToPage(index);
-      return;
-    }
-    _pickerPageController.animateToPage(
-      index,
-      duration: M3Durations.medium1,
-      curve: M3SpringCurves.snappy,
-    );
-  }
-
-  Config _getEmojiConfig(ColorScheme scheme) {
-    final locale = Localizations.localeOf(context);
-    if (_cachedEmojiConfig != null &&
-        _cachedEmojiConfigScheme == scheme &&
-        _cachedEmojiLocale == locale) {
-      return _cachedEmojiConfig!;
-    }
-    _cachedEmojiConfigScheme = scheme;
-    _cachedEmojiLocale = locale;
-    return _cachedEmojiConfig = Config(
-      // The bundled font covers the grid; OS glyph filtering would hide newer
-      // emoji on older Android versions and make opening the picker slower.
-      checkPlatformCompatibility: false,
-      locale: locale,
-      emojiTextStyle: const TextStyle(fontFamily: AppFonts.emoji),
-      emojiViewConfig: const EmojiViewConfig(
-        backgroundColor: Colors.transparent,
-        columns: 8,
-        emojiSizeMax: 28,
-        verticalSpacing: 3,
-        horizontalSpacing: 3,
-        gridPadding: EdgeInsets.symmetric(horizontal: 8),
-        buttonMode: ButtonMode.NONE,
-      ),
-      skinToneConfig: const SkinToneConfig(),
-      categoryViewConfig: CategoryViewConfig(
-        backgroundColor: Colors.transparent,
-        tabBarHeight: 38,
-        indicatorColor: scheme.primary,
-        iconColor: scheme.onSurfaceVariant.withValues(alpha: 0.5),
-        iconColorSelected: scheme.primary,
-        backspaceColor: scheme.onSurfaceVariant,
-        dividerColor: Colors.transparent,
-      ),
-      bottomActionBarConfig: BottomActionBarConfig(
-        backgroundColor: Colors.transparent,
-        buttonColor: scheme.surfaceContainerHigh,
-        buttonIconColor: scheme.onSurfaceVariant,
-      ),
-      searchViewConfig: SearchViewConfig(
-        backgroundColor: Colors.transparent,
-        buttonIconColor: scheme.onSurfaceVariant,
-        customSearchView: (config, state, showEmojiView) {
-          return M3EmojiSearchView(config, state, showEmojiView);
-        },
       ),
     );
   }

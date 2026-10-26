@@ -606,8 +606,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Пустой пак'), findsOneWidget);
-      await tester.tap(find.text('Пустой пак'));
+      expect(find.byTooltip('Пустой пак'), findsOneWidget);
+      await tester.tap(find.byTooltip('Пустой пак'));
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.text('Здесь пока нет стикеров'), findsOneWidget);
       await tester.tap(find.byIcon(Icons.more_horiz_rounded));

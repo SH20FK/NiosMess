@@ -21,6 +21,7 @@ Widget _wrapWidget({
   return ProviderScope(
     overrides: overrides.cast(),
     child: MaterialApp(
+      locale: const Locale('ru'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(
@@ -199,7 +200,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // Stickers view is now active (showing empty state from fake provider)
-      expect(find.text('У вас пока нет стикерпаков'), findsOneWidget);
+      expect(find.text('Здесь пока нет стикеров'), findsOneWidget);
     });
   });
 }

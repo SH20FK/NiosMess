@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/chat/expression_picker_components.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
@@ -34,7 +36,7 @@ class CustomEmojiComposerButton extends StatelessWidget {
   final TextEditingController controller;
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: 'Кастомные эмодзи',
+    tooltip: context.l10n.customEmojiTitle,
     icon: const CustomEmojiIcon(),
     onPressed: () => AppModal.showSheet<void>(
       context: context,
@@ -50,24 +52,101 @@ class CustomEmojiComposerButton extends StatelessWidget {
 }
 
 class CustomEmojiPicker extends ConsumerStatefulWidget {
-  const CustomEmojiPicker({required this.onSelected, super.key});
+  const CustomEmojiPicker({
+    required this.onSelected,
+    this.selectedSetId,
+    this.onSetSelected,
+    this.onSearchFocus,
+    this.showManagement = true,
+    super.key,
+  });
   final ValueChanged<ApiCustomEmoji> onSelected;
+  final int? selectedSetId;
+  final ValueChanged<int?>? onSetSelected;
+  final VoidCallback? onSearchFocus;
+  final bool showManagement;
   @override
-  ConsumerState<CustomEmojiPicker> createState() => _CustomEmojiPickerState();
+  ConsumerState<CustomEmojiPicker> createState() => CustomEmojiPickerState();
 }
 
-class _CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
+class CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
     with AutomaticKeepAliveClientMixin {
-  final _search = TextEditingController();
-  int? _setId;
+  late int? _setId = widget.selectedSetId;
   String _query = '';
   bool _busy = false;
   @override
   bool get wantKeepAlive => true;
   @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
+  void didUpdateWidget(covariant CustomEmojiPicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedSetId != widget.selectedSetId) {
+      _setId = widget.selectedSetId;
+    }
+  }
+
+  void _selectSet(int id) {
+    setState(() => _setId = id);
+    widget.onSetSelected?.call(id);
+  }
+
+  Future<void> showManagement() async {
+    if (_busy) return;
+    final packs =
+        ref.read(customEmojiSetsProvider).value ?? const <ApiCustomEmojiSet>[];
+    final active =
+        packs.where((pack) => pack.id == _setId).firstOrNull ??
+        packs.firstOrNull;
+    final account = ref.read(authProvider).session?.userId;
+    final action = await AppModal.showSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(context.l10n.pickerManage),
+                subtitle: active == null ? null : Text(active.title),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_rounded),
+                title: Text(context.l10n.customCreateSet),
+                onTap: () => Navigator.pop(context, 'create'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.playlist_add_rounded),
+                title: Text(context.l10n.customAddSet),
+                onTap: () => Navigator.pop(context, 'save'),
+              ),
+              if (active != null && active.ownerId == account)
+                ListTile(
+                  leading: const Icon(Icons.add_photo_alternate_outlined),
+                  title: Text(context.l10n.customAddEmoji),
+                  onTap: () => Navigator.pop(context, 'add'),
+                ),
+              if (active != null && !active.isOfficial)
+                ListTile(
+                  leading: const Icon(Icons.remove_circle_outline),
+                  title: Text(context.l10n.customRemoveSet),
+                  onTap: () => Navigator.pop(context, 'remove'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'create') return _create();
+    if (action == 'save') return _save();
+    if (action == 'add' && active != null) return _add(active);
+    if (action == 'remove' && active != null) {
+      await _perform(() async {
+        await ref.read(customEmojiRequestProvider)('remove_emoji_set', {
+          'set_id': active.id,
+        });
+        await ref.read(customEmojiSetsProvider.notifier).refresh();
+      });
+    }
   }
 
   Future<void> _perform(Future<void> Function() action) async {
@@ -107,14 +186,14 @@ class _CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Отмена'),
+              child: Text(context.l10n.commonCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(
                 context,
                 controllers.map((c) => c.text.trim()).toList(),
               ),
-              child: const Text('Продолжить'),
+              child: Text(context.l10n.customContinue),
             ),
           ],
         ),
@@ -127,9 +206,9 @@ class _CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
   }
 
   Future<void> _create() async {
-    final values = await _fields('Новый набор эмодзи', [
-      'Название',
-      'Короткое имя латиницей',
+    final values = await _fields(context.l10n.customCreateSet, [
+      context.l10n.customSetTitle,
+      context.l10n.customSetName,
     ]);
     if (values == null || !mounted) return;
     await _perform(() async {
@@ -142,12 +221,14 @@ class _CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
         },
       );
       await ref.read(customEmojiSetsProvider.notifier).refresh();
-      if (mounted) setState(() => _setId = (result['id'] as num).toInt());
+      if (mounted) _selectSet((result['id'] as num).toInt());
     });
   }
 
   Future<void> _save() async {
-    final values = await _fields('Добавить набор', ['Короткое имя набора']);
+    final values = await _fields(context.l10n.customAddSet, [
+      context.l10n.customSetName,
+    ]);
     if (values == null || !mounted) return;
     await _perform(() async {
       final result = await ref.read(customEmojiRequestProvider)(
@@ -161,7 +242,7 @@ class _CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
         'set_id': pack.id,
       });
       await ref.read(customEmojiSetsProvider.notifier).refresh();
-      if (mounted) setState(() => _setId = pack.id);
+      if (mounted) _selectSet(pack.id);
     });
   }
 
@@ -175,13 +256,14 @@ class _CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
     final bytes = await file.readAsBytes();
     if (!mounted) return;
     if (bytes.length > 512 * 1024) {
-      AppToast.showError(context, 'Выберите изображение размером до 512 КБ');
+      AppToast.showError(context, context.l10n.customFileTooLarge);
       return;
     }
-    final values = await _fields('Добавить эмодзи', [
-      'Короткое имя: латиница, цифры, _',
+    final values = await _fields(context.l10n.customAddEmoji, [
+      context.l10n.customShortcode,
     ]);
     if (values == null || !mounted) return;
+    final tooManyFrames = context.l10n.customTooManyFrames;
     await _perform(() async {
       var width = 128, height = 128;
       double? duration;
@@ -195,7 +277,7 @@ class _CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
           first.image.dispose();
           if (codec.frameCount > 1) {
             if (codec.frameCount > 300) {
-              throw StateError('Слишком много кадров в эмодзи');
+              throw StateError(tooManyFrames);
             }
             for (var i = 1; i < codec.frameCount; i++) {
               final frame = await codec.getNextFrame();
@@ -229,7 +311,6 @@ class _CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
     final packs = result.value ?? const <ApiCustomEmojiSet>[];
     final active =
         packs.where((s) => s.id == _setId).firstOrNull ?? packs.firstOrNull;
-    final account = ref.watch(authProvider.select((a) => a.session?.userId));
     final query = _query.toLowerCase().trim();
     final items = query.isEmpty
         ? active?.emojis ?? const <ApiCustomEmoji>[]
@@ -240,142 +321,113 @@ class _CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
                     pack.title.toLowerCase().contains(query))
                   emoji,
           ];
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _search,
-                  onChanged: (value) => setState(() => _query = value),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    hintText: 'Поиск эмодзи',
-                    prefixIcon: Icon(Icons.search_rounded),
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        children: [
+          if (constraints.maxHeight >= 100)
+            Row(
+              children: [
+                Expanded(
+                  child: ExpressionSearchField(
+                    initialValue: _query,
+                    hint: context.l10n.pickerSearchEmoji,
+                    onFocus: widget.onSearchFocus,
+                    onChanged: (value) => setState(() => _query = value),
                   ),
                 ),
-              ),
-              if (_busy)
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: AppLoadingIndicator(size: 20),
-                )
-              else
-                MenuAnchor(
-                  builder: (_, controller, _) => IconButton(
-                    tooltip: 'Наборы эмодзи',
+                if (_busy)
+                  const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: AppLoadingIndicator(size: 20),
+                  )
+                else if (widget.showManagement)
+                  IconButton(
+                    tooltip: context.l10n.pickerManage,
+                    onPressed: showManagement,
                     icon: const Icon(Icons.more_horiz_rounded),
-                    onPressed: () => controller.isOpen
-                        ? controller.close()
-                        : controller.open(),
                   ),
-                  menuChildren: [
-                    MenuItemButton(
-                      onPressed: _create,
-                      leadingIcon: const Icon(Icons.add_rounded),
-                      child: const Text('Создать набор'),
+              ],
+            ),
+          if (constraints.maxHeight >= 160 && packs.isNotEmpty)
+            SizedBox(
+              height: 52,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                children: [
+                  for (final pack in packs)
+                    ExpressionPackButton(
+                      label: pack.title,
+                      selected: active?.id == pack.id,
+                      onTap: () => _selectSet(pack.id),
+                      child: pack.emojis.isEmpty
+                          ? const CustomEmojiIcon()
+                          : CustomEmojiImage(
+                              emoji: pack.emojis.first,
+                              size: 28,
+                            ),
                     ),
-                    MenuItemButton(
-                      onPressed: _save,
-                      leadingIcon: const Icon(Icons.playlist_add_rounded),
-                      child: const Text('Добавить набор'),
-                    ),
-                    if (active != null && active.ownerId == account)
-                      MenuItemButton(
-                        onPressed: () => _add(active),
-                        leadingIcon: const Icon(
-                          Icons.add_photo_alternate_outlined,
-                        ),
-                        child: const Text('Добавить эмодзи'),
-                      ),
-                    if (active != null && !active.isOfficial)
-                      MenuItemButton(
-                        onPressed: () => _perform(() async {
-                          await ref.read(customEmojiRequestProvider)(
-                            'remove_emoji_set',
-                            {'set_id': active.id},
-                          );
-                          await ref
-                              .read(customEmojiSetsProvider.notifier)
-                              .refresh();
-                        }),
-                        leadingIcon: const Icon(Icons.remove_circle_outline),
-                        child: const Text('Убрать из моих наборов'),
-                      ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: result.isLoading && packs.isEmpty
-              ? const Center(child: AppLoadingIndicator())
-              : result.hasError && packs.isEmpty
-              ? Center(
-                  child: TextButton(
-                    onPressed: () => _perform(
-                      () =>
-                          ref.read(customEmojiSetsProvider.notifier).refresh(),
-                    ),
-                    child: const Text('Повторить загрузку'),
-                  ),
-                )
-              : items.isEmpty
-              ? Center(
-                  child: Text(
-                    query.isEmpty
-                        ? 'В этом наборе пока нет эмодзи'
-                        : 'Ничего не найдено',
-                    style: TextStyle(color: scheme.onSurfaceVariant),
-                  ),
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 56,
-                    mainAxisSpacing: 4,
-                    crossAxisSpacing: 4,
-                  ),
-                  itemCount: items.length,
-                  itemBuilder: (_, index) => Tooltip(
-                    message: items[index].token,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => widget.onSelected(items[index]),
-                      child: Center(
-                        child: CustomEmojiImage(emoji: items[index], size: 32),
-                      ),
-                    ),
-                  ),
-                ),
-        ),
-        if (packs.isNotEmpty)
-          SizedBox(
-            height: 52,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              itemCount: packs.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (_, i) => Tooltip(
-                message: packs[i].title,
-                child: ChoiceChip(
-                  selected: active?.id == packs[i].id,
-                  onSelected: (_) => setState(() => _setId = packs[i].id),
-                  showCheckmark: false,
-                  label: packs[i].emojis.isEmpty
-                      ? const CustomEmojiIcon()
-                      : CustomEmojiImage(
-                          emoji: packs[i].emojis.first,
-                          size: 24,
-                        ),
-                ),
+                ],
               ),
             ),
+          Expanded(
+            child: result.isLoading && packs.isEmpty
+                ? const Center(child: AppLoadingIndicator())
+                : result.hasError && packs.isEmpty
+                ? Center(
+                    child: TextButton(
+                      onPressed: () => _perform(
+                        () => ref
+                            .read(customEmojiSetsProvider.notifier)
+                            .refresh(),
+                      ),
+                      child: Text(context.l10n.commonRetry),
+                    ),
+                  )
+                : items.isEmpty
+                ? Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        query.isEmpty
+                            ? context.l10n.customEmptySet
+                            : context.l10n.stickerHubNoResults,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: scheme.onSurfaceVariant),
+                      ),
+                    ),
+                  )
+                : GridView.builder(
+                    key: PageStorageKey('custom:${active?.id}:$query'),
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 60,
+                          mainAxisSpacing: 4,
+                          crossAxisSpacing: 4,
+                        ),
+                    itemCount: items.length,
+                    itemBuilder: (_, index) => Tooltip(
+                      message: items[index].token,
+                      child: Semantics(
+                        label: items[index].shortcode,
+                        button: true,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => widget.onSelected(items[index]),
+                          child: Center(
+                            child: CustomEmojiImage(
+                              emoji: items[index],
+                              size: 32,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
           ),
-      ],
+        ],
+      ),
     );
   }
 }

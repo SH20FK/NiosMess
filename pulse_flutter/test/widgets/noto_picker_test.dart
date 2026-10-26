@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
-import 'package:pulse_flutter/widgets/chat/m3_emoji_search_view.dart';
+import 'package:pulse_flutter/widgets/chat/unicode_emoji_picker_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -59,8 +59,6 @@ void main() {
     expect(config.checkPlatformCompatibility, isFalse);
     expect(config.emojiTextStyle?.fontFamily, AppFonts.emoji);
     expect(config.locale.languageCode, 'en');
-    await tester.tap(find.byIcon(config.categoryViewConfig.categoryIcons.smileyIcon));
-    await tester.pumpAndSettle();
     // No network/image provider: static cells are rendered with the local font.
     final face = find.text('😀');
     expect(face, findsWidgets);
@@ -74,13 +72,8 @@ void main() {
     expect(config.locale.languageCode, 'ru');
     expect(config.emojiTextStyle?.fontFamily, AppFonts.emoji);
     expect(input.text, '😀');
-    await tester.tap(find.descendant(
-      of: find.byType(EmojiPicker),
-      matching: find.byIcon(Icons.search),
-    ));
-    await tester.pumpAndSettle();
     final search = find.descendant(
-      of: find.byType(M3EmojiSearchView),
+      of: find.byType(UnicodeEmojiPickerView),
       matching: find.byType(TextField),
     );
     for (final query in ['cat', 'кот']) {
@@ -88,15 +81,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('🐈'), findsOneWidget, reason: query);
     }
-    await tester.tap(find.byTooltip('Назад'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Эмодзи').first);
+    await tester.tap(find.byTooltip('Закрыть'));
     // Sample the closing transition, including the spring's settling phase.
     for (var frame = 0; frame < 45; frame++) {
       await tester.pump(const Duration(milliseconds: 10));
       expect(tester.takeException(), isNull);
     }
-    expect(find.byType(EmojiPicker), findsNothing);
+    expect(find.byType(EmojiPicker).hitTestable(), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

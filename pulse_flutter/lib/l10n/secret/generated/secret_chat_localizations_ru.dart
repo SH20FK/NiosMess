@@ -1105,4 +1105,88 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsV2ResetFailed => 'Не удалось сбросить настройки';
+
+  @override
+  String get pickerClearSearch => 'Очистить поиск';
+
+  @override
+  String get pickerFaces => 'Смайлы';
+
+  @override
+  String get pickerAnimals => 'Природа';
+
+  @override
+  String get pickerFood => 'Еда';
+
+  @override
+  String get pickerActivities => 'Занятия';
+
+  @override
+  String get pickerTravel => 'Путешествия';
+
+  @override
+  String get pickerObjects => 'Предметы';
+
+  @override
+  String get pickerSymbols => 'Символы';
+
+  @override
+  String get pickerFlags => 'Флаги';
+
+  @override
+  String get pickerSearchEmoji => 'Поиск эмодзи';
+
+  @override
+  String get pickerNoRecents => 'Здесь появятся недавние эмодзи';
+
+  @override
+  String get pickerCustom => 'Свои';
+
+  @override
+  String get pickerCompact => 'Свернуть';
+
+  @override
+  String get pickerLibrary => 'Библиотека';
+
+  @override
+  String get pickerSearchPacks => 'Поиск наборов';
+
+  @override
+  String get pickerManage => 'Управление наборами';
+
+  @override
+  String get customEmojiTitle => 'Кастомные эмодзи';
+
+  @override
+  String get customContinue => 'Продолжить';
+
+  @override
+  String get customCreateSet => 'Создать набор эмодзи';
+
+  @override
+  String get customSetTitle => 'Название';
+
+  @override
+  String get customSetName => 'Имя набора латиницей';
+
+  @override
+  String get customAddSet => 'Добавить набор эмодзи';
+
+  @override
+  String get customAddEmoji => 'Добавить эмодзи';
+
+  @override
+  String get customRemoveSet => 'Убрать из моих наборов';
+
+  @override
+  String get customShortcode => 'Короткое имя: латиница, цифры, _';
+
+  @override
+  String get customFileTooLarge => 'Выберите изображение размером до 512 КБ';
+
+  @override
+  String get customTooManyFrames => 'Слишком много кадров в эмодзи';
+
+  @override
+  String get customEmptySet => 'В этом наборе пока нет эмодзи';
 }
