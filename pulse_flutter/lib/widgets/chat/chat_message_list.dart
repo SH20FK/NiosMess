@@ -917,7 +917,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
                                 imageUrl: ApiConstants.resolve(
                                   message.senderAvatarUrl,
                                 ),
-                                httpHeaders: cachedAuthHeaders(),
+                                httpHeaders: cachedAuthHeaders(
+                                  message.senderAvatarUrl,
+                                ),
                                 memCacheWidth: 56,
                                 width: 28,
                                 height: 28,

@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
@@ -30,7 +31,18 @@ class FeedPostScreen extends ConsumerWidget {
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 720),
-                  child: PostCard(post: post),
+                  child: PostCard(
+                    post: post,
+                    onChanged: () =>
+                        ref.invalidate(feedPostByIdProvider(postId)),
+                    onDeleted: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/main/niosgram');
+                      }
+                    },
+                  ),
                 ),
               ),
             ),

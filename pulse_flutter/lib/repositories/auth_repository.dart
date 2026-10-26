@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/providers/token_provider.dart';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
@@ -95,14 +96,18 @@ class AuthRepository {
   }
 
   Future<void> unregisterFcmToken(String fcmToken) async {
-    await _ref.read(webSocketClientProvider).request(
-      'unregister_fcm_token',
-      payload: <String, dynamic>{'fcm_token': fcmToken},
-    );
+    await _ref
+        .read(webSocketClientProvider)
+        .request(
+          'unregister_fcm_token',
+          payload: <String, dynamic>{'fcm_token': fcmToken},
+        );
   }
 
   Future<void> logout() async {
-    await _ref.read(webSocketClientProvider).request('logout', payload: <String, dynamic>{});
+    await _ref
+        .read(webSocketClientProvider)
+        .request('logout', payload: <String, dynamic>{});
   }
 
   Future<Map<String, dynamic>> requestPasswordReset({
@@ -136,11 +141,14 @@ class AuthRepository {
   }
 
   Future<ApiProfile> getMe() async {
+    final token = _ref.read(sessionAccessTokenProvider);
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request('me_info', payload: <String, dynamic>{});
     final ApiProfile profile = ApiProfile.fromJson(asStringMap(response));
-    await _ref.read(cacheServiceProvider).saveProfile(profile);
+    if (_ref.mounted && _ref.read(sessionAccessTokenProvider) == token) {
+      await _ref.read(cacheServiceProvider).saveProfile(profile);
+    }
     return profile;
   }
 
@@ -155,6 +163,7 @@ class AuthRepository {
     bool clearBirthday = false,
     bool clearWorkingHours = false,
   }) async {
+    final token = _ref.read(sessionAccessTokenProvider);
     final Map<String, dynamic> payload = <String, dynamic>{};
     if (displayName != null && displayName.isNotEmpty) {
       payload['display_name'] = displayName;
@@ -172,15 +181,15 @@ class AuthRepository {
       if (trimmed.isEmpty) {
         payload['phone_number'] = null;
       } else {
-        payload['phone_number'] =
-            trimmed.startsWith('+') ? trimmed : '+$trimmed';
+        payload['phone_number'] = trimmed.startsWith('+')
+            ? trimmed
+            : '+$trimmed';
       }
     }
     if (clearBirthday) {
       payload['birthday'] = null;
     } else if (birthday != null) {
-      payload['birthday'] =
-          birthday.trim().isEmpty ? null : birthday.trim();
+      payload['birthday'] = birthday.trim().isEmpty ? null : birthday.trim();
     }
     if (clearWorkingHours) {
       payload['working_hours'] = <String, dynamic>{};
@@ -192,7 +201,9 @@ class AuthRepository {
         .read(webSocketClientProvider)
         .request('update_profile', payload: payload);
     final ApiProfile profile = ApiProfile.fromJson(asStringMap(response));
-    await _ref.read(cacheServiceProvider).saveProfile(profile);
+    if (_ref.mounted && _ref.read(sessionAccessTokenProvider) == token) {
+      await _ref.read(cacheServiceProvider).saveProfile(profile);
+    }
     return profile;
   }
 
@@ -215,7 +226,10 @@ class AuthRepository {
     final List<int> trimmed = badgeIds.take(2).toList(growable: false);
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('set_visible_badges', payload: <String, dynamic>{'badge_ids': trimmed});
+        .request(
+          'set_visible_badges',
+          payload: <String, dynamic>{'badge_ids': trimmed},
+        );
     final Map<String, dynamic> map = asStringMap(response);
     final dynamic idsRaw = map['badge_ids'];
     if (idsRaw is List) {
@@ -225,6 +239,7 @@ class AuthRepository {
   }
 
   Future<ApiProfile> getPublicProfile(String username) async {
+    final token = _ref.read(sessionAccessTokenProvider);
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
@@ -232,7 +247,9 @@ class AuthRepository {
           payload: <String, dynamic>{'username': username.trim()},
         );
     final ApiProfile profile = ApiProfile.fromJson(asStringMap(response));
-    await _ref.read(cacheServiceProvider).saveProfile(profile);
+    if (_ref.mounted && _ref.read(sessionAccessTokenProvider) == token) {
+      await _ref.read(cacheServiceProvider).saveProfile(profile);
+    }
     return profile;
   }
 
@@ -264,9 +281,9 @@ class AuthRepository {
       throw Exception('Размер аватара не должен превышать 8 МБ');
     }
 
-    final uploadId = await _ref.read(publicMediaUploadServiceProvider).upload(
-      Uint8List.fromList(bytes), filename: filename,
-    );
+    final uploadId = await _ref
+        .read(publicMediaUploadServiceProvider)
+        .upload(Uint8List.fromList(bytes), filename: filename);
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
@@ -281,7 +298,6 @@ class AuthRepository {
         );
     return asStringMap(response)['avatar_url'] as String? ?? '';
   }
-
 
   Future<bool> toggle2fa({
     required bool enabled,

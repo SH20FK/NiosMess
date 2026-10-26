@@ -132,9 +132,6 @@ class _AppearanceScreen extends ConsumerWidget {
               ref,
               Theme.of(animatedContext).colorScheme,
               tier,
-              meshAnchor: useSystemDynamic
-                  ? targetTheme.colorScheme.secondary
-                  : seedColor,
               themeMode: themeMode,
               seedColor: seedColor,
               uiCornerRadius: uiCornerRadius,
@@ -158,7 +155,6 @@ class _AppearanceScreen extends ConsumerWidget {
     WidgetRef ref,
     ColorScheme scheme,
     PerformanceTier tier, {
-    required Color meshAnchor,
     required ThemeMode themeMode,
     required Color seedColor,
     required double uiCornerRadius,
@@ -175,7 +171,6 @@ class _AppearanceScreen extends ConsumerWidget {
       id: 'appearance.color.source',
       child: NiosColorField(
         scheme: scheme,
-        meshAnchor: meshAnchor,
         seedColor: seedColor,
         useSystemDynamic: useSystemDynamic,
         paletteStyle: paletteStyle,
@@ -403,12 +398,10 @@ class NiosColorField extends StatelessWidget {
     required this.onToggleDynamic,
     required this.onSelectPaletteStyle,
     this.animateMesh = false,
-    this.meshAnchor,
     super.key,
   });
 
   final ColorScheme scheme;
-  final Color? meshAnchor;
   final Color seedColor;
   final bool useSystemDynamic;
   final PaletteStyle paletteStyle;

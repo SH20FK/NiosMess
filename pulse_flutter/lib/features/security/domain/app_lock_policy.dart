@@ -69,6 +69,8 @@ class AppLockState {
   final bool isLocked;
   final DateTime? lastBackgroundedAt;
   final bool isAuthenticating;
+  final bool isInitializing;
+  final bool hasInitializationError;
 
   const AppLockState({
     this.isEnabled = false,
@@ -77,6 +79,8 @@ class AppLockState {
     this.isLocked = false,
     this.lastBackgroundedAt,
     this.isAuthenticating = false,
+    this.isInitializing = false,
+    this.hasInitializationError = false,
   });
 
   AppLockState copyWith({
@@ -87,6 +91,8 @@ class AppLockState {
     DateTime? lastBackgroundedAt,
     bool clearLastBackgroundedAt = false,
     bool? isAuthenticating,
+    bool? isInitializing,
+    bool? hasInitializationError,
   }) {
     return AppLockState(
       isEnabled: isEnabled ?? this.isEnabled,
@@ -97,6 +103,9 @@ class AppLockState {
           ? null
           : (lastBackgroundedAt ?? this.lastBackgroundedAt),
       isAuthenticating: isAuthenticating ?? this.isAuthenticating,
+      isInitializing: isInitializing ?? this.isInitializing,
+      hasInitializationError:
+          hasInitializationError ?? this.hasInitializationError,
     );
   }
 
@@ -110,15 +119,19 @@ class AppLockState {
           isSupported == other.isSupported &&
           isLocked == other.isLocked &&
           lastBackgroundedAt == other.lastBackgroundedAt &&
-          isAuthenticating == other.isAuthenticating;
+          isAuthenticating == other.isAuthenticating &&
+          isInitializing == other.isInitializing &&
+          hasInitializationError == other.hasInitializationError;
 
   @override
   int get hashCode => Object.hash(
-        isEnabled,
-        timeout,
-        isSupported,
-        isLocked,
-        lastBackgroundedAt,
-        isAuthenticating,
-      );
+    isEnabled,
+    timeout,
+    isSupported,
+    isLocked,
+    lastBackgroundedAt,
+    isAuthenticating,
+    isInitializing,
+    hasInitializationError,
+  );
 }

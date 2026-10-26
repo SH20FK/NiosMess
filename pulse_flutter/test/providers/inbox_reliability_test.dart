@@ -1,3 +1,4 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,6 +61,7 @@ void main() {
     () async {
       final container = ProviderContainer(
         overrides: [
+          authProvider.overrideWith(_Auth.new),
           chatsProvider.overrideWith(_Chats.new),
           secretChatCoordinatorProvider.overrideWith((ref) async => null),
           chatRepositoryProvider.overrideWith(_FailingRepo.new),
@@ -98,6 +100,7 @@ void main() {
     'draft save and removal update a live inbox projection after storage commit',
     () async {
       SharedPreferences.setMockInitialValues({});
+      FlutterSecureStorage.setMockInitialValues({});
       final container = ProviderContainer(
         overrides: [authProvider.overrideWith(_Auth.new)],
       );

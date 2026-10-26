@@ -9,83 +9,10 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
-import 'package:pulse_flutter/widgets/settings/palette_mesh_preview.dart';
 import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
 import 'package:universal_io/io.dart';
 
-Future<void> _waitForMeshShader(WidgetTester tester) async {
-  final paint = find.descendant(
-    of: find.byType(PaletteMeshPreview),
-    matching: find.byType(CustomPaint),
-  );
-  for (int attempt = 0; attempt < 100 && paint.evaluate().isEmpty; attempt++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
-    await tester.pump();
-  }
-  expect(
-    paint,
-    findsOneWidget,
-    reason: 'The actual OMesh cloud images must finish baking',
-  );
-}
-
 void main() {
-  testWidgets(
-    'mesh coalesces rapid palettes and retains a bounded shared cache',
-    (tester) async {
-      PaletteMeshPreview.clearFrameCache();
-      addTearDown(PaletteMeshPreview.clearFrameCache);
-      Widget preview(int value) => MaterialApp(
-        home: SizedBox(
-          width: 320,
-          height: 160,
-          child: PaletteMeshPreview(
-            colors: [
-              Color(0xff700050 + value),
-              Color(0xffc0a0d0 + value),
-              Color(0xff7080b0 + value),
-              Color(0xffdfc0d0 + value),
-            ],
-          ),
-        ),
-      );
-      Future<void> waitForCount(int count) async {
-        for (
-          var i = 0;
-          i < 100 && PaletteMeshPreview.cachedPaletteCount < count;
-          i++
-        ) {
-          await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 10)),
-          );
-          await tester.pump(const Duration(milliseconds: 20));
-        }
-        expect(PaletteMeshPreview.cachedPaletteCount, count);
-      }
-
-      await tester.pumpWidget(preview(0));
-      await waitForCount(1);
-      for (var i = 1; i <= 20; i++) {
-        await tester.pumpWidget(preview(i));
-      }
-      expect(PaletteMeshPreview.cachedPaletteCount, 1);
-      await waitForCount(2);
-      for (var i = 21; i <= 25; i++) {
-        await tester.pumpWidget(preview(i));
-        await tester.pump(const Duration(milliseconds: 70));
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 40)),
-        );
-        await tester.pump();
-      }
-      expect(PaletteMeshPreview.cachedPaletteCount, lessThanOrEqualTo(4));
-      await tester.pumpWidget(const SizedBox());
-      expect(tester.takeException(), isNull);
-    },
-  );
-
   testWidgets(
     'appearance uses intermediate theme colors and one atomic accent update',
     (tester) async {
@@ -311,9 +238,8 @@ void main() {
       );
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
-      expect(find.byType(PaletteMeshPreview), findsNothing);
+      expect(find.byType(RawImage), findsNothing);
       expect(tester.takeException(), isNull);
-      expect(find.byType(PaletteMeshPreview), findsNothing);
       expect(find.byType(RawImage), findsNothing);
       final pager = find.byKey(const ValueKey('appearance-palette-strip'));
       final pageBounds = tester.getRect(pager);
@@ -408,71 +334,21 @@ void main() {
       );
       await tester.pumpWidget(card(const Color(0xFF6750A4), false));
       await tester.pumpAndSettle();
-      expect(find.byType(PaletteMeshPreview), findsNothing);
+      expect(find.byType(RawImage), findsNothing);
       await tester.pumpWidget(card(const Color(0xFF006C5B), false));
-      expect(find.byType(PaletteMeshPreview), findsNothing);
+      expect(find.byType(RawImage), findsNothing);
       // Rapid accent changes must not recreate the disabled wallpaper renderer.
       await tester.pump(const Duration(milliseconds: 90));
       await tester.pumpWidget(card(const Color(0xFF475569), false));
       await tester.pump(const Duration(milliseconds: 60));
       await tester.pumpWidget(card(const Color(0xFF6750A4), false));
       await tester.pumpAndSettle();
-      expect(find.byType(PaletteMeshPreview), findsNothing);
+      expect(find.byType(RawImage), findsNothing);
       await tester.pumpWidget(card(const Color(0xFF984061), true));
       await tester.pump();
-      expect(find.byType(PaletteMeshPreview), findsNothing);
+      expect(find.byType(RawImage), findsNothing);
       expect(find.byType(AnimatedSwitcher), findsNothing);
       await tester.pumpAndSettle();
-      expect(tester.binding.transientCallbackCount, 0);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'mesh motion pauses offscreen, in background and in power saving',
-    (tester) async {
-      const colors = [
-        Color(0xFF7CE0CE),
-        Color(0xFFD9BAFF),
-        Color(0xFFB4DEFF),
-        Color(0xFFFCD5AA),
-      ];
-      Widget card({
-        bool visible = true,
-        bool animate = true,
-        bool reduced = false,
-      }) => MaterialApp(
-        home: Builder(
-          builder: (context) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(disableAnimations: reduced),
-            child: TickerMode(
-              enabled: visible,
-              child: SizedBox(
-                width: 320,
-                height: 160,
-                child: PaletteMeshPreview(colors: colors, animate: animate),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpWidget(card());
-      await _waitForMeshShader(tester);
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(tester.binding.transientCallbackCount, greaterThan(0));
-      await tester.pumpWidget(card(visible: false));
-      expect(tester.binding.transientCallbackCount, 0);
-      await tester.pumpWidget(card());
-      expect(tester.binding.transientCallbackCount, greaterThan(0));
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      await tester.pump();
-      expect(tester.binding.transientCallbackCount, 0);
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-      await tester.pump();
-      expect(tester.binding.transientCallbackCount, greaterThan(0));
-      await tester.pumpWidget(card(animate: false));
-      expect(tester.binding.transientCallbackCount, 0);
-      await tester.pumpWidget(card(reduced: true));
       expect(tester.binding.transientCallbackCount, 0);
       expect(tester.takeException(), isNull);
     },

@@ -81,7 +81,7 @@ class _NoopSound extends SoundService {
 class _NoopCache extends CacheService {
   const _NoopCache();
   @override
-  Future<void> saveChats(List<ApiChatSummary> chats) async {}
+  Future<void> saveChats(List<ApiChatSummary> chats, {int? accountId}) async {}
 }
 
 class _Socket extends WebSocketClient {
@@ -94,6 +94,7 @@ class _Socket extends WebSocketClient {
   final sentMessages = <Completer<dynamic>>[];
   final outgoing = <Map<String, dynamic>>[];
   final readChats = <int>[];
+  Future<void> Function()? beforeSend;
   @override
   Stream<Map<String, dynamic>> get pushStream => pushes.stream;
   @override
@@ -107,6 +108,7 @@ class _Socket extends WebSocketClient {
   }) async {
     if (action == 'mark_read') readChats.add(payload!['chat_id'] as int);
     if (action == 'send_message') {
+      await beforeSend?.call();
       outgoing.add(Map<String, dynamic>.from(payload!));
       final result = Completer<dynamic>();
       sentMessages.add(result);
@@ -286,6 +288,95 @@ void main() {
       await _flush();
     });
 
+    test(
+      'sender original is durably recoverable before any network request',
+      () async {
+        var localSaved = false;
+        socket.beforeSend = () async {
+          expect(localSaved, isTrue);
+          final archive = await EncryptedHistoryArchive.open(1, 9142001);
+          final rows = await archive.read(limit: 20);
+          expect(
+            rows.any(
+              (row) => row.content == 'durable sender original' && row.id < 0,
+            ),
+            isTrue,
+          );
+        };
+        final sending = container
+            .read(chatMessagesProvider(9142001).notifier)
+            .send(
+              'durable sender original',
+              onLocalSaved: () => localSaved = true,
+            );
+        await _waitUntil(() => socket.sentMessages.isNotEmpty);
+        socket.sentMessages.single.complete(
+          _message(
+            99,
+            text: 'durable sender original',
+          ).copyWith(senderId: 1).toJson(),
+        );
+        await sending;
+      },
+    );
+    test(
+      'disk failure keeps own text pending and never starts a network send',
+      () async {
+        await Hive.lazyBox<String>('enc_history_archive_v1').close();
+        var localSaved = false;
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        try {
+          await expectLater(
+            notifier.send(
+              'unsaved original',
+              onLocalSaved: () => localSaved = true,
+            ),
+            throwsA(anything),
+          );
+          expect(localSaved, isFalse);
+          expect(socket.outgoing, isEmpty);
+          expect(
+            messages().any((row) => row.content == 'unsaved original'),
+            isTrue,
+          );
+        } finally {
+          await Hive.openLazyBox<String>('enc_history_archive_v1');
+          await notifier.flushHistoryArchive();
+        }
+      },
+    );
+    test(
+      'failed manual retry retains the same durable original and never deletes it first',
+      () async {
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        final first = notifier.send('retained retry fixture');
+        await _waitUntil(() => socket.sentMessages.isNotEmpty);
+        socket.sentMessages.single.completeError(StateError('fixture offline'));
+        await first;
+        await notifier.flushHistoryArchive();
+        final original = messages().singleWhere((m) => m.id < 0);
+        await Hive.lazyBox<String>('enc_history_archive_v1').close();
+        try {
+          await expectLater(
+            notifier.send(original.content, localId: '${original.id}'),
+            throwsA(anything),
+          );
+          expect(messages().where((m) => m.id < 0).map((m) => m.id), [
+            original.id,
+          ]);
+          expect(
+            messages().singleWhere((m) => m.id == original.id).content,
+            original.content,
+          );
+          expect(socket.sentMessages, hasLength(1));
+        } finally {
+          await Hive.openLazyBox<String>('enc_history_archive_v1');
+          await notifier.flushHistoryArchive();
+        }
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        expect((await archive.message(original.id))?.content, original.content);
+      },
+    );
     test('background history does not read incoming messages', () async {
       final binding = TestWidgetsFlutterBinding.ensureInitialized();
       socket.readChats.clear();
@@ -517,6 +608,120 @@ void main() {
         await _waitUntil(() => messages().any((m) => m.id == 2));
         expect(messages().map((m) => m.id), [1, 2]);
         expect(socket.histories, hasLength(1));
+      },
+    );
+
+    test(
+      'unopenable own edited echo cannot replace the locally known original',
+      () async {
+        socket.push(
+          _message(2, text: 'own protected fixture').copyWith(senderId: 1),
+        );
+        await _waitUntil(() => messages().any((m) => m.id == 2));
+        socket.push(
+          _message(2, text: '').copyWith(
+            senderId: 1,
+            editedAt: DateTime(2026, 10, 26),
+            isE2ee: true,
+            isDecrypted: false,
+            e2eeContent: 'corrupt-fixture',
+          ),
+          action: 'message_edited',
+        );
+        await _waitUntil(() => messages().last.editedAt != null);
+        expect(messages().last.content, 'own protected fixture');
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        await notifier.flushHistoryArchive();
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        expect((await archive.message(2))!.content, 'own protected fixture');
+        socket.push(
+          _message(
+            2,
+            text: 'valid later edit',
+          ).copyWith(senderId: 1, editedAt: DateTime(2026, 10, 27)),
+          action: 'message_edited',
+        );
+        await _waitUntil(() => messages().last.content == 'valid later edit');
+      },
+    );
+
+    test(
+      'explicit plaintext caption removal and tombstone remain authoritative',
+      () async {
+        ApiMessage media(
+          String text, {
+          DateTime? editedAt,
+          bool deleted = false,
+        }) => _message(2, text: text).copyWith(
+          senderId: 1,
+          msgType: 'media',
+          mediaUrl: 'https://fixture.invalid/image',
+          editedAt: editedAt,
+          isDeleted: deleted,
+        );
+        socket.push(media('caption from another device'));
+        await _waitUntil(() => messages().any((m) => m.id == 2));
+        socket.push(
+          media('', editedAt: DateTime(2026, 10, 26)),
+          action: 'message_edited',
+        );
+        await _waitUntil(() => messages().last.editedAt != null);
+        expect(messages().last.content, isEmpty);
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        await notifier.flushHistoryArchive();
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        expect((await archive.message(2))!.content, isEmpty);
+        socket.push(
+          media('later caption', editedAt: DateTime(2026, 10, 27)),
+          action: 'message_edited',
+        );
+        await _waitUntil(() => messages().last.content == 'later caption');
+        socket.push(
+          media('', editedAt: DateTime(2026, 10, 28), deleted: true),
+          action: 'message_edited',
+        );
+        await _waitUntil(() => messages().last.isDeleted);
+        expect(messages().last.content, isEmpty);
+        await notifier.flushHistoryArchive();
+        final deleted = await archive.message(2);
+        expect(
+          deleted == null || (deleted.isDeleted && deleted.content.isEmpty),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'repeated history with unopenable own echo preserves the original on disk',
+      () async {
+        socket.push(
+          _message(
+            2,
+            text: 'own durable history fixture',
+          ).copyWith(senderId: 1, isE2ee: true, isDecrypted: true),
+        );
+        await _waitUntil(() => messages().any((m) => m.id == 2));
+        final notifier = container.read(chatMessagesProvider(9142001).notifier);
+        await notifier.flushHistoryArchive();
+        final refresh = notifier.refresh();
+        await _waitUntil(() => socket.histories.length > 1);
+        socket.history(1, [
+          _message(1),
+          _message(2, text: '').copyWith(
+            senderId: 1,
+            isE2ee: true,
+            isDecrypted: false,
+            e2eeContent: 'corrupt-fixture',
+          ),
+        ]);
+        await refresh;
+        expect(messages().last.content, 'own durable history fixture');
+        await notifier.flushHistoryArchive();
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        expect(
+          (await archive.message(2))!.content,
+          'own durable history fixture',
+        );
       },
     );
 
@@ -1096,6 +1301,62 @@ void main() {
         );
         expect(messages().any((m) => m.id == -987654321), isFalse);
         expect(messages().singleWhere((m) => m.id == 14).isFailed, isFalse);
+
+        // A signed own edit from another device can legitimately clear a media
+        // caption. Verify actual codec authentication + service + provider,
+        // rather than trusting an isDecrypted flag supplied by a fixture.
+        final fileKey = base64Encode(List.filled(32, 79));
+        final captionCipher =
+            await OrdinaryCodec.encrypt(alice, bobPublic, 9142001, {
+              'text': 'old own caption',
+              'file_key': fileKey,
+              'media_kind': 'media',
+              'name': 'own-image.png',
+              'size': 10,
+            });
+        Map<String, dynamic> ownMedia(String cipher, {String? editedAt}) => {
+          'id': 15,
+          'chat_id': 9142001,
+          'sender_id': 1,
+          'content': '',
+          'msg_type': 'media',
+          'is_e2ee': true,
+          'e2ee_content': cipher,
+          'media_url': 'https://fixture.invalid/own-image',
+          'sent_at': '2026-10-18T10:02:00Z',
+          'edited_at': ?editedAt,
+        };
+        socket.push(ApiMessage.fromJson(ownMedia(captionCipher)));
+        await _waitUntil(() => messages().any((m) => m.id == 15));
+        expect(
+          messages().singleWhere((m) => m.id == 15).content,
+          'old own caption',
+        );
+        final emptyCipher =
+            await OrdinaryCodec.encrypt(alice, bobPublic, 9142001, {
+              'text': '',
+              'file_key': fileKey,
+              'media_kind': 'media',
+              'name': 'own-image.png',
+              'size': 10,
+            }, edit: 15);
+        socket.push(
+          ApiMessage.fromJson(
+            ownMedia(emptyCipher, editedAt: '2026-10-18T10:03:00Z'),
+          ),
+          action: 'message_edited',
+        );
+        await _waitUntil(
+          () => messages().singleWhere((m) => m.id == 15).editedAt != null,
+        );
+        final cleared = messages().singleWhere((m) => m.id == 15);
+        expect(cleared.isDecrypted, isTrue);
+        expect(cleared.hasMedia, isTrue);
+        expect(cleared.content, isEmpty);
+        expect(cleared.e2eeFileKey, fileKey);
+        await notifier.flushHistoryArchive();
+        final archive = await EncryptedHistoryArchive.open(1, 9142001);
+        expect((await archive.message(15))!.content, isEmpty);
       },
     );
   });

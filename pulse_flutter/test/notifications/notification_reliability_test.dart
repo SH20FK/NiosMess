@@ -34,6 +34,18 @@ class _Auth extends AuthNotifier {
       displayName: 'Fixture',
     ),
   );
+  void replaceToken() {
+    final previous = state.session!;
+    state = state.copyWith(
+      session: AuthSession(
+        accessToken: 'replacement',
+        userId: previous.userId,
+        username: previous.username,
+        displayName: previous.displayName,
+      ),
+    );
+  }
+
   void switchAccount() {
     state = state.copyWith(
       session: const AuthSession(
@@ -71,10 +83,12 @@ class _Reply implements NotificationReplyService {
   final drafts = <int, String>{42: 'saved draft'};
   final sent = <String>[];
   bool fail = false;
+  Completer<void>? saveGate;
   @override
   Future<String> loadDraft(int chatId) async => drafts[chatId] ?? '';
   @override
   Future<void> saveDraft(int chatId, String text) async {
+    await saveGate?.future;
     drafts[chatId] = text;
   }
 
@@ -110,6 +124,32 @@ void main() {
     uiSettingsProvider.overrideWith(_Settings.new),
     notificationPreferencesProvider.overrideWith(_Options.new),
   ];
+  for (final tokenOnly in [false, true]) {
+    test(
+      'reply service is bound to its original account/token: tokenOnly=$tokenOnly',
+      () async {
+        final container = ProviderContainer(overrides: overrides());
+        addTearDown(container.dispose);
+        final service = container.read(notificationReplyServiceProvider);
+        final auth = container.read(authProvider.notifier) as _Auth;
+        tokenOnly ? auth.replaceToken() : auth.switchAccount();
+        final replacement = container.read(notificationReplyServiceProvider);
+        expect(identical(service, replacement), false);
+        await expectLater(
+          Future.sync(
+            () => service.send(42, 'fixture old reply', localId: 'fixture'),
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'code',
+              'NOTIFICATION_ACCOUNT_CHANGED',
+            ),
+          ),
+        );
+      },
+    );
+  }
   test(
     'banner burst queues, merges a conversation and pauses its timeout',
     () async {
@@ -346,6 +386,77 @@ void main() {
       notifier.clearAccount();
       await tester.pumpAndSettle();
       await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets(
+    'account switch during draft persistence cannot send old reply with new credentials',
+    (tester) async {
+      final reply = _Reply();
+      final container = ProviderContainer(
+        overrides: [
+          ...overrides(),
+          notificationReplyServiceProvider.overrideWithValue(reply),
+          notificationsProvider.overrideWith(_History.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(notificationPreferencesProvider.future);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: ThemeData(useMaterial3: true),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const Scaffold(
+              body: Stack(
+                children: [SizedBox.expand(), InAppNotificationBannerOverlay()],
+              ),
+            ),
+          ),
+        ),
+      );
+      container
+          .read(inAppNotificationProvider.notifier)
+          .show(_item('old-account', 'incoming', chatId: 42));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.text('Reply'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField),
+        'fixture important old reply',
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      final gate = Completer<void>();
+      reply.saveGate = gate;
+      await tester.tap(find.text('Send'));
+      await tester.pump();
+      (container.read(authProvider.notifier) as _Auth).switchAccount();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      gate.complete();
+      reply.saveGate = null;
+      await tester.pumpAndSettle();
+      expect(reply.sent, isEmpty);
+      expect(find.byType(TextField), findsNothing);
+      reply.drafts[42] = 'new account fixture draft';
+      container
+          .read(inAppNotificationProvider.notifier)
+          .show(_item('new-account', 'incoming', chatId: 42));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.text('Reply'));
+      await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(TextField, 'new account fixture draft'),
+        findsOneWidget,
+      );
+      container.read(inAppNotificationProvider.notifier).clearAccount();
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(tester.takeException(), isNull);
     },
   );
   testWidgets(

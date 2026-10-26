@@ -55,10 +55,10 @@ class _InAppNotificationBannerOverlayState
       _replyLocalId ??= '-${DateTime.now().microsecondsSinceEpoch}';
     });
     _updatePause();
+    final replyId = _replyLocalId;
+    final service = ref.read(notificationReplyServiceProvider);
     try {
-      final draft = await ref
-          .read(notificationReplyServiceProvider)
-          .loadDraft(item.chatId!);
+      final draft = await service.loadDraft(item.chatId!);
       if (!mounted ||
           !_replying ||
           _currentItem?.chatId != item.chatId ||
@@ -67,11 +67,16 @@ class _InAppNotificationBannerOverlayState
       }
       if (_replyController.text.isEmpty) _replyController.text = draft;
     } catch (_) {
-      if (mounted) {
+      if (mounted &&
+          _replyLocalId == replyId &&
+          ref.read(authProvider).session?.userId == account) {
         setState(() => _replyError = context.l10n.noticeReplySaveFailed);
       }
     }
-    if (mounted && _replying) {
+    if (mounted &&
+        _replying &&
+        _replyLocalId == replyId &&
+        ref.read(authProvider).session?.userId == account) {
       setState(() {});
       _replyFocus.requestFocus();
     }
@@ -85,13 +90,18 @@ class _InAppNotificationBannerOverlayState
         ref.read(authProvider).session?.userId != _replyAccount) {
       return false;
     }
+    final account = _replyAccount;
+    final replyId = _replyLocalId;
+    final service = ref.read(notificationReplyServiceProvider);
     try {
-      await ref
-          .read(notificationReplyServiceProvider)
-          .saveDraft(chat, _replyController.text);
-      return true;
+      await service.saveDraft(chat, _replyController.text);
+      return mounted &&
+          _replyLocalId == replyId &&
+          ref.read(authProvider).session?.userId == account;
     } catch (_) {
-      if (mounted) {
+      if (mounted &&
+          _replyLocalId == replyId &&
+          ref.read(authProvider).session?.userId == account) {
         setState(() => _replyError = context.l10n.noticeReplySaveFailed);
       }
       return false;
@@ -128,37 +138,42 @@ class _InAppNotificationBannerOverlayState
     if (ref.read(authProvider).session?.userId != _replyAccount) return;
     final text = _replyController.text;
     final account = _replyAccount;
+    final token = ref.read(authProvider).session?.accessToken;
+    final replyId = _replyLocalId!;
+    final service = ref.read(notificationReplyServiceProvider);
+    bool isCurrentReply() =>
+        mounted &&
+        _replyLocalId == replyId &&
+        _currentItem?.chatId == item.chatId &&
+        ref.read(authProvider).session?.userId == account &&
+        ref.read(authProvider).session?.accessToken == token;
     setState(() {
       _sending = true;
       _replyError = null;
     });
     _updatePause();
     try {
-      if (!await _saveReplyDraft()) return;
-      await ref
-          .read(notificationReplyServiceProvider)
-          .send(item.chatId!, text, localId: _replyLocalId!);
-      if (!mounted || ref.read(authProvider).session?.userId != account) return;
+      if (!await _saveReplyDraft() || !isCurrentReply()) return;
+      await service.send(item.chatId!, text, localId: replyId);
+      if (!isCurrentReply()) return;
       // Clear only after the chat pipeline has saved/acknowledged the outgoing
       // message. Secret messages may be durably queued while their peer is offline.
       try {
-        await ref
-            .read(notificationReplyServiceProvider)
-            .saveDraft(item.chatId!, '');
+        await service.saveDraft(item.chatId!, '');
       } catch (_) {
         debugPrint('[Notifications] REPLY_DRAFT_CLEAR_PENDING');
       }
-      if (!mounted || ref.read(authProvider).session?.userId != account) return;
+      if (!isCurrentReply()) return;
       _replyController.clear();
       _replyFocus.unfocus();
       ref.read(notificationsProvider.notifier).markRead(item.id);
       ref.read(inAppNotificationProvider.notifier).dismiss();
     } catch (_) {
-      if (mounted && ref.read(authProvider).session?.userId == account) {
+      if (isCurrentReply()) {
         setState(() => _replyError = context.l10n.noticeReplyFailed);
       }
     } finally {
-      if (mounted) {
+      if (mounted && _replyLocalId == replyId) {
         setState(() => _sending = false);
         _updatePause();
       }
@@ -225,6 +240,7 @@ class _InAppNotificationBannerOverlayState
         _draftTimer?.cancel();
         _replyController.clear();
         _replying = false;
+        _sending = false;
         _replyError = null;
         _replyLocalId = null;
         _replyAccount = null;
@@ -241,6 +257,7 @@ class _InAppNotificationBannerOverlayState
       _replyController.clear();
       _replyFocus.unfocus();
       _replying = false;
+      _sending = false;
       _replyAccount = null;
       _replyError = null;
       _replyLocalId = null;

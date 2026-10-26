@@ -55,14 +55,10 @@ Future<void> main() async {
       registerNotoEmojiLicenses();
       final AppLogger logger = AppLogger.instance;
       FlutterError.onError = (FlutterErrorDetails details) {
-        FlutterError.presentError(details);
         logger.flutterError(details);
-        debugPrint('FLUTTER_ERROR_EXCEPTION: ${details.exception}');
-        debugPrint('FLUTTER_ERROR_STACK: ${details.stack}');
       };
       PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
         logger.error(error, stack, source: 'platform');
-        debugPrint('PLATFORM_ERROR: $error\n$stack');
         return true;
       };
 

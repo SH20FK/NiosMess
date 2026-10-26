@@ -3,6 +3,54 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.dart';
 
 extension SecretChatL10n on AppLocalizations {
+  String get auditAppLockCheckFailed => _secret.auditAppLockCheckFailed;
+  String get auditAppLockTitle => _secret.auditAppLockTitle;
+  String get auditAppLockDescription => _secret.auditAppLockDescription;
+  String get auditAppLockAuthenticating => _secret.auditAppLockAuthenticating;
+  String get auditAppLockUnlock => _secret.auditAppLockUnlock;
+  String get auditAppLockMinimize => _secret.auditAppLockMinimize;
+  String get auditPlusSignIn => _secret.auditPlusSignIn;
+  String get auditPlusCatalogUnavailable => _secret.auditPlusCatalogUnavailable;
+  String get auditPlusCatalogLoadFailed => _secret.auditPlusCatalogLoadFailed;
+  String get auditPlusActivationLinkInvalid =>
+      _secret.auditPlusActivationLinkInvalid;
+  String get auditPlusAccountChanged => _secret.auditPlusAccountChanged;
+  String get auditPlusProductUnavailable => _secret.auditPlusProductUnavailable;
+  String get auditPlusOpenFailed => _secret.auditPlusOpenFailed;
+  String get auditPlusNativeOnly => _secret.auditPlusNativeOnly;
+  String get auditPlusSupportedPlatforms => _secret.auditPlusSupportedPlatforms;
+  String get auditPlusPurchaseTitle => _secret.auditPlusPurchaseTitle;
+  String get auditPlusPromoLimit => _secret.auditPlusPromoLimit;
+  String get auditPlusBuy => _secret.auditPlusBuy;
+  String get auditPlusSalesPending => _secret.auditPlusSalesPending;
+  String get auditPlusRefreshPlans => _secret.auditPlusRefreshPlans;
+  String get auditPlusAlreadyPurchased => _secret.auditPlusAlreadyPurchased;
+  String get auditPlusActivationLink => _secret.auditPlusActivationLink;
+  String get auditPlusCheckSubscription => _secret.auditPlusCheckSubscription;
+  String get auditPlusContinuePurchase => _secret.auditPlusContinuePurchase;
+  String get auditPlusPurchaseInstructions =>
+      _secret.auditPlusPurchaseInstructions;
+  String get auditPlusFeeNotice => _secret.auditPlusFeeNotice;
+  String get auditPlusDeviceHashConsent => _secret.auditPlusDeviceHashConsent;
+  String get auditPlusDeviceHashPurpose => _secret.auditPlusDeviceHashPurpose;
+  String get auditPlusOpenFunPay => _secret.auditPlusOpenFunPay;
+
+  String get auditPostPublished => _secret.auditPostPublished;
+  String get auditCommentSend => _secret.auditCommentSend;
+  String get auditCommentDeleteTitle => _secret.auditCommentDeleteTitle;
+  String get auditCommentDeleteBody => _secret.auditCommentDeleteBody;
+  String get auditCommentLoadMore => _secret.auditCommentLoadMore;
+  String get auditCommentHint => _secret.auditCommentHint;
+  String get auditCommentEditing => _secret.auditCommentEditing;
+  String get auditCommentReported => _secret.auditCommentReported;
+  String get auditCommentAuthor => _secret.auditCommentAuthor;
+  String get auditCommentChannel => _secret.auditCommentChannel;
+  String get auditPostMedia => _secret.auditPostMedia;
+  String get auditPostQuiz => _secret.auditPostQuiz;
+  String get auditPostPoll => _secret.auditPostPoll;
+  String auditCommentReply(String name) => _secret.auditCommentReply(name);
+
+  String get auditSystemLanguage => _secret.auditSystemLanguage;
   String get pickerClearSearch => _secret.pickerClearSearch;
   String get pickerFaces => _secret.pickerFaces;
   String get pickerAnimals => _secret.pickerAnimals;

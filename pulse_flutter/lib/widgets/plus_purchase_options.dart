@@ -1,4 +1,6 @@
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,9 +12,6 @@ import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/screens/plus_activation_screen.dart';
 import 'package:pulse_flutter/services/plus_activation_link.dart';
 import 'package:pulse_flutter/services/purchase_device_identity.dart';
-
-const _feeNotice =
-    'К цене добавляется комиссия платёжного шлюза. Итоговая сумма будет показана на FunPay перед оплатой.';
 
 class PlusPurchaseOptions extends ConsumerStatefulWidget {
   const PlusPurchaseOptions({
@@ -36,7 +35,11 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
   @override
   void initState() {
     super.initState();
-    if (PurchaseDeviceIdentity.isSupported) _load();
+    if (PurchaseDeviceIdentity.isSupported) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
   }
 
   @override
@@ -53,14 +56,17 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
     final token = ref.read(sessionAccessTokenProvider);
     final client = widget.clientFactory?.call() ?? http.Client();
     try {
-      if (token == null) throw StateError('Войдите через NiosID');
+      if (token == null) throw StateError(context.l10n.auditPlusSignIn);
       final response = await client
           .get(
             Uri.parse('${ApiConstants.devProxyOrigin}/api/plus/catalog'),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 20));
-      if (response.statusCode != 200) throw StateError('Тарифы недоступны');
+      if (!mounted) return;
+      if (response.statusCode != 200) {
+        throw StateError(context.l10n.auditPlusCatalogUnavailable);
+      }
       if (token != ref.read(sessionAccessTokenProvider)) {
         return;
       }
@@ -76,8 +82,7 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          error =
-              'Не удалось загрузить тарифы. Активация купленной ссылки доступна ниже.';
+          error = context.l10n.auditPlusCatalogLoadFailed;
         });
       }
     } finally {
@@ -94,7 +99,7 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
     final code = PlusActivationLink.codeFrom(_link.text);
     if (code == null) {
       setState(() {
-        linkError = 'Вставьте полную ссылку активации из заказа';
+        linkError = context.l10n.auditPlusActivationLinkInvalid;
       });
       return;
     }
@@ -112,7 +117,7 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
     if (_catalogToken != ref.read(sessionAccessTokenProvider)) {
       setState(() {
         plans = [];
-        error = 'Аккаунт изменился. Обновите тарифы перед покупкой.';
+        error = context.l10n.auditPlusAccountChanged;
       });
       return;
     }
@@ -122,7 +127,7 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
         uri.host != 'funpay.com' ||
         uri.userInfo.isNotEmpty) {
       setState(() {
-        error = 'Адрес товара недоступен. Попробуйте обновить тарифы.';
+        error = context.l10n.auditPlusProductUnavailable;
       });
       return;
     }
@@ -131,43 +136,40 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
     });
     bool consent = false;
     try {
-      final yes = await showDialog<bool>(
+      final yes = await showAppDialog<bool>(
         context: context,
         builder: (ctx) => StatefulBuilder(
-          builder: (ctx, update) => AlertDialog(
-            title: const Text('Перейти к покупке'),
-            content: Column(
+          builder: (ctx, update) => AppDialog(
+            title: ctx.l10n.auditPlusContinuePurchase,
+            icon: Icons.shopping_bag_outlined,
+            actions: [
+              AppDialogAction(
+                label: ctx.l10n.commonCancel,
+                onPressed: () => Navigator.pop(ctx),
+              ),
+              AppDialogAction(
+                label: ctx.l10n.auditPlusOpenFunPay,
+                isPrimary: true,
+                onPressed: consent ? () => Navigator.pop(ctx, true) : null,
+              ),
+            ],
+            child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'На FunPay вы получите одноразовую ссылку. Откройте её в NiosMess для активации.',
-                ),
+                Text(ctx.l10n.auditPlusPurchaseInstructions),
                 const SizedBox(height: 12),
-                const Text(_feeNotice),
+                Text(ctx.l10n.auditPlusFeeNotice),
                 const SizedBox(height: 16),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   value: consent,
                   onChanged: (value) => update(() => consent = value ?? false),
-                  title: const Text(
-                    'Согласен на передачу SHA-256 хеша устройства при активации',
-                  ),
-                  subtitle: const Text(
-                    'Нужен для защиты покупки. Для промотарифа учитываются также аккаунт и IP.',
-                  ),
+                  title: Text(ctx.l10n.auditPlusDeviceHashConsent),
+                  subtitle: Text(ctx.l10n.auditPlusDeviceHashPurpose),
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Отмена'),
-              ),
-              FilledButton(
-                onPressed: consent ? () => Navigator.pop(ctx, true) : null,
-                child: const Text('Перейти на FunPay'),
-              ),
-            ],
           ),
         ),
       );
@@ -175,7 +177,7 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
         final opened = await AppUrlLauncher.openUrl(context, url);
         if (!opened && mounted) {
           setState(() {
-            error = 'Не удалось открыть FunPay';
+            error = context.l10n.auditPlusOpenFailed;
           });
         }
       }
@@ -199,20 +201,19 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
   @override
   Widget build(BuildContext context) {
     if (kIsWeb) {
-      return const Text(
-        'Покупка и активация доступны в мобильном и десктопном NiosMess.',
-      );
+      return Text(context.l10n.auditPlusNativeOnly);
     }
     if (!PurchaseDeviceIdentity.isSupported) {
-      return const Text(
-        'Покупка и активация пока доступны в приложениях для Android, Windows и Linux.',
-      );
+      return Text(context.l10n.auditPlusSupportedPlatforms);
     }
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Покупка и продление', style: theme.textTheme.titleMedium),
+        Text(
+          context.l10n.auditPlusPurchaseTitle,
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         if (loading) const AppLoadingIndicator(size: 24),
         for (final plan in plans)
@@ -234,7 +235,7 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
                       ),
                       if (plan['promo'] == true)
                         Text(
-                          'Один раз на аккаунт, IP и устройство',
+                          context.l10n.auditPlusPromoLimit,
                           style: theme.textTheme.bodySmall,
                         ),
                     ],
@@ -245,22 +246,20 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
                   onPressed: !buying && plan['purchase_url'] is String
                       ? () => _buy(plan['purchase_url'] as String)
                       : null,
-                  child: const Text('Купить'),
+                  child: Text(context.l10n.auditPlusBuy),
                 ),
               ],
             ),
           ),
         if (plans.isNotEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text(_feeNotice),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(context.l10n.auditPlusFeeNotice),
           ),
         if (!loading &&
             plans.isNotEmpty &&
             plans.every((p) => p['purchase_url'] == null))
-          const Text(
-            'Продажи ещё не открыты. Купленную ссылку можно активировать ниже.',
-          ),
+          Text(context.l10n.auditPlusSalesPending),
         if (error != null) ...[
           const SizedBox(height: 8),
           Text(error!, style: TextStyle(color: theme.colorScheme.error)),
@@ -268,19 +267,22 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
             alignment: Alignment.centerLeft,
             child: TextButton(
               onPressed: loading ? null : _load,
-              child: const Text('Обновить тарифы'),
+              child: Text(context.l10n.auditPlusRefreshPlans),
             ),
           ),
         ],
         const SizedBox(height: 28),
-        Text('Уже купили NiosPlus?', style: theme.textTheme.titleMedium),
+        Text(
+          context.l10n.auditPlusAlreadyPurchased,
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: 12),
         TextField(
           controller: _link,
           autocorrect: false,
           enableSuggestions: false,
           decoration: InputDecoration(
-            labelText: 'Ссылка активации',
+            labelText: context.l10n.auditPlusActivationLink,
             errorText: linkError,
           ),
           onSubmitted: (_) => _activateLink(),
@@ -290,7 +292,7 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
           alignment: Alignment.centerRight,
           child: FilledButton(
             onPressed: _activateLink,
-            child: const Text('Проверить подписку'),
+            child: Text(context.l10n.auditPlusCheckSubscription),
           ),
         ),
       ],

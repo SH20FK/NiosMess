@@ -81,8 +81,11 @@ class AppLogger {
         timestamp: DateTime.now(),
         level: AppLogLevel.error,
         source: source,
-        message: '$error',
-        stackTrace: stackTrace,
+        // Exception.toString() may include source JSON, chat text or credentials.
+        message: 'error_type:${error.runtimeType}',
+        stackTrace: StackTrace.fromString(
+          stackTrace.toString().split('\n').take(24).join('\n'),
+        ),
       ),
     );
   }

@@ -129,7 +129,9 @@ class NgPost {
   };
 
   Map<String, dynamic> toPublicCacheJson() {
-    final data = toJson();
+    final data = toJson()
+      ..['my_reaction'] = null
+      ..['is_following'] = false;
     if (poll != null) {
       final publicPoll = Map<String, dynamic>.from(poll!)
         ..remove('correct')

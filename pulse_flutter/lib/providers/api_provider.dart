@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/api_client.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
@@ -18,7 +20,15 @@ final Provider<ApiClient> apiClientProvider = Provider<ApiClient>((Ref ref) {
     baseUrl: normalizedBase,
     readToken: () => ref.read(sessionAccessTokenProvider),
     onUnauthorized: () {
-      ref.read(authProvider.notifier).logout(eraseSecretData: false);
+      if (!ref.mounted) return;
+      unawaited(
+        ref
+            .read(authProvider.notifier)
+            .logout(eraseSecretData: false)
+            .catchError((Object _) {
+              debugPrint('[Auth] AUTOMATIC_LOGOUT_CLEANUP_INCOMPLETE');
+            }),
+      );
     },
   );
 });

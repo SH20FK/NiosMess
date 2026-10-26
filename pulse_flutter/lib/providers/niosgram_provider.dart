@@ -35,12 +35,84 @@ class NiosgramState {
 }
 
 class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
-  StreamSubscription<dynamic>? _pushSub;
+  int _epoch = 0, _pageRevision = 0;
+  int? _account;
+  bool _refreshing = false;
+  final _deletedIds = <int>{};
+  final _mutations = <String, int>{};
+  bool _current(int epoch) =>
+      ref.mounted &&
+      epoch == _epoch &&
+      !ref.read(authProvider.notifier).isLoggingOut;
+  int _operationCounter = 0;
+  int _mutation(String key) {
+    final revision = _mutations[key] = ++_operationCounter;
+    while (_mutations.length > 4096) {
+      _mutations.remove(_mutations.keys.first);
+    }
+    return revision;
+  }
+
+  bool _validMutation(int epoch, String key, int revision) =>
+      _current(epoch) && _mutations[key] == revision;
+  void _rememberDeletion(int id) {
+    _deletedIds.add(id);
+    while (_deletedIds.length > 4096) {
+      _deletedIds.remove(_deletedIds.first);
+    }
+  }
+
+  List<NgPost> _preserveChanges(
+    List<NgPost> fresh,
+    List<NgPost> before,
+    List<NgPost> live,
+  ) {
+    final baseline = {for (final item in before) item.id: item};
+    final currentIds = live.map((item) => item.id).toSet();
+    final removed = baseline.keys
+        .where((id) => !currentIds.contains(id))
+        .toSet();
+    final changed = live
+        .where((item) => !identical(baseline[item.id], item))
+        .toList();
+    final changedIds = changed.map((item) => item.id).toSet();
+    return [
+      ...changed.where((item) => !_deletedIds.contains(item.id)),
+      ...fresh.where(
+        (item) =>
+            !_deletedIds.contains(item.id) &&
+            !removed.contains(item.id) &&
+            !changedIds.contains(item.id),
+      ),
+    ];
+  }
 
   @override
   Future<NiosgramState> build() async {
-    _pushSub = ref.read(webSocketClientProvider).pushStream.listen(_handlePush);
-    ref.onDispose(() => _pushSub?.cancel());
+    final session = ref.watch(
+      authProvider.select((a) => (a.session?.userId, a.session?.accessToken)),
+    );
+    if (_account != null && _account != session.$1) {
+      // A loading transition alone retains the old account's personalized feed.
+      // Clear its value before starting the new account's pending future.
+      state = const AsyncData<NiosgramState>(NiosgramState());
+      state = const AsyncLoading<NiosgramState>();
+    }
+    _account = session.$1;
+    final epoch = ++_epoch;
+    _pageRevision++;
+    _deletedIds.clear();
+    _mutations.clear();
+    _refreshing = false;
+    final subscription = ref.read(webSocketClientProvider).pushStream.listen((
+      event,
+    ) {
+      if (_current(epoch)) _handlePush(event);
+    });
+    ref.onDispose(() {
+      if (epoch == _epoch) _epoch++;
+      subscription.cancel();
+    });
 
     final CacheService cache = ref.read(cacheServiceProvider);
     final List<NgPost> cached = cache.getCachedFeed();
@@ -51,16 +123,26 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     }
 
     try {
+      final revision = _pageRevision;
       final List<NgPost> freshPosts = await _fetchPage(1);
-      final List<NgPost> reconciled = _reconcilePosts(cached, freshPosts);
+      if (!_current(epoch)) return const NiosgramState();
+      if (revision != _pageRevision) {
+        return state.value ?? const NiosgramState();
+      }
+      final List<NgPost> reconciled = _reconcilePosts(
+        cached,
+        freshPosts,
+      ).where((item) => !_deletedIds.contains(item.id)).toList();
       await cache.saveFeed(reconciled);
+      if (!_current(epoch)) return const NiosgramState();
       return NiosgramState(
         posts: reconciled,
         page: 1,
         hasMore: freshPosts.length >= 20,
       );
     } catch (e) {
-      debugPrint('[niosgram_provider] Error fetching fresh feed in build: $e');
+      if (!_current(epoch)) return const NiosgramState();
+      debugPrint('[niosgram_provider] FEED_FETCH_FAILED: ${e.runtimeType}');
       if (cached.isNotEmpty) {
         return NiosgramState(
           posts: cached,
@@ -89,6 +171,9 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
         .read(webSocketClientProvider)
         .request('get_feed', payload: <String, dynamic>{'page': page});
     final dynamic posts = response is Map ? response['posts'] : response;
+    if (response is Map && response['error'] != null) {
+      throw StateError('feed_request_failed');
+    }
     if (posts is! List) return <NgPost>[];
     return posts
         .whereType<Map>()
@@ -115,6 +200,8 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
                 (data['id'] as num?)?.toInt())
           : null;
       if (postId != null) {
+        _rememberDeletion(postId);
+        _mutation('delete:$postId');
         final AsyncData<NiosgramState>? current = state.asData;
         if (current != null) {
           final List<NgPost> filtered = current.value.posts
@@ -135,6 +222,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final NgPost post = NgPost.fromJson(
       data.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
     );
+    if (_deletedIds.contains(post.id)) return;
     final AsyncData<NiosgramState>? current = state.asData;
     if (current == null) return;
     final List<NgPost> updated = <NgPost>[
@@ -160,62 +248,80 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
   }
 
   Future<void> refresh() async {
-    final List<NgPost> freshPosts = await _fetchPage(1);
-    await ref.read(cacheServiceProvider).saveFeed(freshPosts);
-
-    state = AsyncData<NiosgramState>(
-      NiosgramState(
-        posts: freshPosts,
-        page: 1,
-        hasMore: freshPosts.length >= 20,
-      ),
-    );
+    final epoch = _epoch, revision = ++_pageRevision;
+    if (!_current(epoch)) return;
+    final before = state.value?.posts ?? const <NgPost>[];
+    _refreshing = true;
+    try {
+      final fresh = await _fetchPage(1);
+      if (!_current(epoch) || revision != _pageRevision) return;
+      final merged = _preserveChanges(
+        fresh,
+        before,
+        state.value?.posts ?? before,
+      );
+      state = AsyncData(
+        NiosgramState(posts: merged, page: 1, hasMore: fresh.length >= 20),
+      );
+      await ref.read(cacheServiceProvider).saveFeed(merged);
+    } finally {
+      if (_current(epoch) && revision == _pageRevision) {
+        _refreshing = false;
+        final live = state.value;
+        if (live != null && live.isLoadingMore) {
+          state = AsyncData(live.copyWith(isLoadingMore: false));
+        }
+      }
+    }
   }
 
   Future<void> loadMore() async {
-    final AsyncData<NiosgramState>? current = state.asData;
+    final current = state.asData;
     if (current == null ||
         current.value.isLoadingMore ||
-        !current.value.hasMore) {
+        !current.value.hasMore ||
+        _refreshing) {
       return;
     }
-
-    state = AsyncData<NiosgramState>(
-      current.value.copyWith(isLoadingMore: true),
-    );
-    final int nextPage = current.value.page + 1;
+    final epoch = _epoch, revision = _pageRevision;
+    if (!_current(epoch)) return;
+    state = AsyncData(current.value.copyWith(isLoadingMore: true));
+    final nextPage = current.value.page + 1;
     try {
-      final List<NgPost> more = await _fetchPage(nextPage);
-      final Set<int> existingIds = current.value.posts
-          .map((NgPost p) => p.id)
-          .toSet();
-      final List<NgPost> newUnique = more
-          .where((NgPost p) => !existingIds.contains(p.id))
-          .toList(growable: false);
-      final List<NgPost> combined = <NgPost>[
-        ...current.value.posts,
-        ...newUnique,
+      final more = await _fetchPage(nextPage);
+      if (!_current(epoch) || revision != _pageRevision) return;
+      final live = state.value ?? current.value;
+      final ids = live.posts.map((item) => item.id).toSet();
+      final combined = [
+        ...live.posts,
+        ...more.where(
+          (item) => !ids.contains(item.id) && !_deletedIds.contains(item.id),
+        ),
       ];
-      state = AsyncData<NiosgramState>(
-        current.value.copyWith(
+      state = AsyncData(
+        live.copyWith(
           posts: combined,
           page: nextPage,
           hasMore: more.length >= 20,
           isLoadingMore: false,
         ),
       );
-      ref.read(cacheServiceProvider).saveFeed(combined);
-    } catch (e) {
-      debugPrint('[niosgram_provider] Load more error: $e');
-      state = AsyncData<NiosgramState>(
-        current.value.copyWith(isLoadingMore: false),
+      await ref.read(cacheServiceProvider).saveFeed(combined);
+    } catch (error) {
+      if (!_current(epoch) || revision != _pageRevision) return;
+      debugPrint('[niosgram_provider] FEED_PAGE_FAILED: ${error.runtimeType}');
+      state = AsyncData(
+        (state.value ?? current.value).copyWith(isLoadingMore: false),
       );
     }
   }
 
   Future<void> reactPost(int postId, bool isLike) async {
-    final AsyncData<NiosgramState>? current = state.asData;
-    if (current == null) return;
+    final epoch = _epoch;
+    if (!_current(epoch)) return;
+    final key = 'react:$postId';
+    final revision = _mutation(key);
+    final current = state.asData ?? const AsyncData(NiosgramState());
 
     final NgPost? target = current.value.posts
         .where((NgPost p) => p.id == postId)
@@ -263,6 +369,13 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
               'is_like': isLike,
             },
           );
+      if (!_validMutation(epoch, key, revision) ||
+          _deletedIds.contains(postId)) {
+        return;
+      }
+      if (response is Map && response['error'] != null) {
+        throw StateError('reaction_failed');
+      }
       if (response is Map) {
         final dynamic respPayload = response['payload'] ?? response;
         if (respPayload is Map) {
@@ -311,7 +424,11 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
         }
       }
     } catch (e) {
-      debugPrint('[niosgram_provider] Like error: $e');
+      if (!_validMutation(epoch, key, revision) ||
+          _deletedIds.contains(postId)) {
+        return;
+      }
+      debugPrint('[niosgram_provider] REACTION_FAILED: ${e.runtimeType}');
       if (target != null) {
         final AsyncData<NiosgramState>? fresh = state.asData;
         if (fresh != null) {
@@ -320,7 +437,15 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
           );
           final List<NgPost> reverted = exists
               ? fresh.value.posts
-                    .map((NgPost p) => p.id == postId ? target : p)
+                    .map(
+                      (NgPost p) => p.id == postId
+                          ? p.copyWith(
+                              likesCount: target.likesCount,
+                              dislikesCount: target.dislikesCount,
+                              myReaction: () => target.myReaction,
+                            )
+                          : p,
+                    )
                     .toList(growable: false)
               : <NgPost>[...fresh.value.posts, target];
           state = AsyncData<NiosgramState>(
@@ -338,6 +463,8 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     List<String>? aiTags,
     Map<String, dynamic>? poll,
   }) async {
+    final epoch = _epoch;
+    if (!_current(epoch)) return;
     final Map<String, dynamic> payload = <String, dynamic>{
       'content': text.trim(),
       'poll': ?poll,
@@ -356,6 +483,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final dynamic response = await ref
         .read(webSocketClientProvider)
         .request('create_post', payload: payload);
+    if (!_current(epoch)) return;
     if (response is! Map) return;
     if (response['error'] != null) {
       throw Exception(response['error'].toString());
@@ -375,8 +503,9 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
           post,
           ...current.value.posts.where((NgPost p) => p.id != post.id),
         ];
+        if (!_current(epoch)) return;
         state = AsyncData<NiosgramState>(
-          current.value.copyWith(posts: updatedList),
+          (state.value ?? current.value).copyWith(posts: updatedList),
         );
         ref.read(cacheServiceProvider).saveFeed(updatedList);
       }
@@ -384,44 +513,52 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
 
     try {
       final List<NgPost> freshPosts = await _fetchPage(1);
+      if (!_current(epoch)) return;
       final AsyncData<NiosgramState>? current = state.asData;
       if (current != null && freshPosts.isNotEmpty) {
         final List<NgPost> reconciled = _reconcilePosts(
           current.value.posts,
           freshPosts,
         );
-        await ref.read(cacheServiceProvider).saveFeed(reconciled);
         state = AsyncData<NiosgramState>(
-          current.value.copyWith(
+          (state.value ?? current.value).copyWith(
             posts: reconciled,
             page: 1,
             hasMore: freshPosts.length >= 20,
           ),
         );
+        await ref.read(cacheServiceProvider).saveFeed(reconciled);
       }
     } catch (e) {
-      debugPrint(
-        '[niosgram_provider] Error refreshing feed after createPost: $e',
-      );
+      debugPrint('[niosgram_provider] POST_REFRESH_FAILED: ${e.runtimeType}');
     }
   }
 
   Future<void> deletePost(int postId) async {
-    final AsyncData<NiosgramState>? current = state.asData;
-    if (current == null) return;
+    final epoch = _epoch;
+    if (!_current(epoch)) return;
+    final key = 'delete:$postId';
+    final revision = _mutation(key);
+    final current = state.asData ?? const AsyncData(NiosgramState());
+    _rememberDeletion(postId);
     final List<NgPost> filtered = current.value.posts
         .where((NgPost p) => p.id != postId)
         .toList(growable: false);
     state = AsyncData<NiosgramState>(current.value.copyWith(posts: filtered));
     ref.read(cacheServiceProvider).saveFeed(filtered);
     try {
-      await ref
+      final response = await ref
           .read(webSocketClientProvider)
           .request(
             'delete_post',
             payload: <String, dynamic>{'post_id': postId},
           );
+      if (response is Map && response['error'] != null) {
+        throw StateError('delete_failed');
+      }
     } catch (_) {
+      if (!_validMutation(epoch, key, revision)) return;
+      _deletedIds.remove(postId);
       final NgPost? originalPost = current.value.posts
           .where((p) => p.id == postId)
           .firstOrNull;
@@ -438,12 +575,16 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
           ref.read(cacheServiceProvider).saveFeed(reverted);
         }
       }
+      rethrow;
     }
   }
 
   Future<void> editPost(int postId, String text) async {
-    final AsyncData<NiosgramState>? current = state.asData;
-    if (current == null) return;
+    final epoch = _epoch;
+    if (!_current(epoch)) return;
+    final key = 'edit:$postId';
+    final revision = _mutation(key);
+    final current = state.asData ?? const AsyncData(NiosgramState());
     final String trimmed = text.trim();
     final NgPost? originalPost = current.value.posts
         .where((p) => p.id == postId)
@@ -464,38 +605,62 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
             'edit_post',
             payload: <String, dynamic>{'post_id': postId, 'content': trimmed},
           );
-      if (response is Map) {
-        final NgPost updated = NgPost.fromJson(
-          response.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
-        );
-        final AsyncData<NiosgramState>? fresh = state.asData;
-        if (fresh != null) {
-          state = AsyncData<NiosgramState>(
-            fresh.value.copyWith(
-              posts: fresh.value.posts
-                  .map((NgPost p) => p.id == postId ? updated : p)
-                  .toList(growable: false),
-            ),
-          );
-        }
+      if (!_validMutation(epoch, key, revision) ||
+          _deletedIds.contains(postId)) {
+        return;
+      }
+      if (response is! Map || response['error'] != null) {
+        throw StateError('edit_failed');
+      }
+      final payload = response['payload'] ?? response['data'] ?? response;
+      if (payload is! Map || payload['error'] != null) {
+        throw StateError('edit_failed');
+      }
+      // The production edit API acknowledges with post_id, not a full post.
+      // Never turn that acknowledgement into an empty id=0 card.
+      final id = (payload['id'] ?? payload['post_id']) as num?;
+      if (id?.toInt() != postId) throw StateError('edit_id_mismatch');
+      final fresh = state.asData;
+      if (fresh != null) {
+        final content = payload['content'] is String
+            ? payload['content'] as String
+            : trimmed;
+        final posts = fresh.value.posts
+            .map(
+              (item) =>
+                  item.id == postId ? item.copyWith(content: content) : item,
+            )
+            .toList(growable: false);
+        state = AsyncData(fresh.value.copyWith(posts: posts));
+        unawaited(ref.read(cacheServiceProvider).saveFeed(posts));
       }
     } catch (e) {
-      debugPrint('[niosgram_provider] Edit post error: $e');
+      if (!_validMutation(epoch, key, revision)) return;
+      debugPrint('[niosgram_provider] EDIT_FAILED: ${e.runtimeType}');
       if (originalPost != null) {
         final AsyncData<NiosgramState>? fresh = state.asData;
         if (fresh != null) {
           final List<NgPost> reverted = fresh.value.posts
-              .map((NgPost p) => p.id == postId ? originalPost : p)
+              .map(
+                (NgPost p) => p.id == postId
+                    ? p.copyWith(content: originalPost.content)
+                    : p,
+              )
               .toList(growable: false);
           state = AsyncData<NiosgramState>(
             fresh.value.copyWith(posts: reverted),
           );
         }
       }
+      rethrow;
     }
   }
 
   Future<void> toggleFollow(String username) async {
+    final epoch = _epoch;
+    if (!_current(epoch)) return;
+    final key = 'follow:$username';
+    final revision = _mutation(key);
     final AsyncData<NiosgramState>? current = state.asData;
     if (current == null) return;
 
@@ -523,7 +688,8 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
             payload: <String, dynamic>{'user_id': userId},
           );
     } catch (e) {
-      debugPrint('[niosgram_provider] Follow/unfollow error: $e');
+      if (!_validMutation(epoch, key, revision)) return;
+      debugPrint('[niosgram_provider] FOLLOW_FAILED: ${e.runtimeType}');
       final AsyncData<NiosgramState>? fresh = state.asData;
       if (fresh != null) {
         final List<NgPost> reverted = fresh.value.posts

@@ -18,11 +18,15 @@ void main() {
     }
   }
 
-  print('=== Running NiosMess UI Architecture & Modal Guard Verification ===\n');
+  print(
+    '=== Running NiosMess UI Architecture & Modal Guard Verification ===\n',
+  );
 
   final Directory libDir = Directory('lib');
   if (!libDir.existsSync()) {
-    print('Error: lib/ directory not found. Please run from pulse_flutter root.');
+    print(
+      'Error: lib/ directory not found. Please run from pulse_flutter root.',
+    );
     exit(1);
   }
 
@@ -143,8 +147,11 @@ void main() {
 
   // 7. Token Naming Unification Check
   final File tokenProviderFile = File('lib/providers/token_provider.dart');
-  final bool hasSessionTokenProvider = tokenProviderFile.existsSync() &&
-      tokenProviderFile.readAsStringSync().contains('sessionAccessTokenProvider');
+  final bool hasSessionTokenProvider =
+      tokenProviderFile.existsSync() &&
+      tokenProviderFile.readAsStringSync().contains(
+        'sessionAccessTokenProvider',
+      );
   report(
     'sessionAccessTokenProvider exists to prevent AI token confusion',
     hasSessionTokenProvider,
@@ -153,27 +160,43 @@ void main() {
   // 8. Desktop Split Motion Contract Check
   final File mainShellFile = File('lib/screens/main_shell_screen.dart');
   final String mainShellContent = mainShellFile.readAsStringSync();
-  final bool hasDesktopSplitMotion = mainShellContent.contains('AnimatedSwitcher(') &&
+  final bool hasDesktopSplitMotion =
+      mainShellContent.contains('AnimatedSwitcher(') &&
       mainShellContent.contains('M3SpringCurves.expressiveDecel');
   report(
     'Desktop split right panel has local AnimatedSwitcher with expressiveDecel',
     hasDesktopSplitMotion,
   );
 
-  // 9. Bottom Nav Motion Contract Check
+  // 9. Check the active M3 NavigationBar, not the legacy traveling-indicator
+  // compatibility widget. The icon lift uses a sine for position/scale, never
+  // opacity. Runtime reduced-motion and successive-tap tests live in
+  // tab_shared_axis_switcher_test.dart.
   final File bottomNavFile = File('lib/widgets/app_bottom_nav.dart');
   final String bottomNavContent = bottomNavFile.readAsStringSync();
-  final bool hasMonotonicIndicator = bottomNavContent.contains('M3SpringCurves.expressiveDecel') &&
-      !bottomNavContent.contains('math.sin(math.pi * _controller.value');
+  final int navStart = bottomNavContent.indexOf('class AppBottomNav ');
+  final int navEnd = bottomNavContent.indexOf('class _NavItem ');
+  final String activeNav = navStart >= 0 && navEnd > navStart
+      ? bottomNavContent.substring(navStart, navEnd)
+      : '';
+  final bool hasAccessibleM3Nav =
+      activeNav.contains('child: NavigationBar(') &&
+      activeNav.contains('MediaQuery.disableAnimationsOf(context)') &&
+      activeNav.contains('animationDuration: duration') &&
+      activeNav.contains('Duration.zero') &&
+      !activeNav.contains('TravelingNavIndicator(') &&
+      bottomNavContent.contains('M3SpringCurves.expressiveDecel');
   report(
-    'Bottom nav traveling indicator uses in-phase monotonic expressiveDecel',
-    hasMonotonicIndicator,
+    'Active bottom navigation uses M3 NavigationBar with reduced-motion support',
+    hasAccessibleM3Nav,
   );
 
   // 10. Chat Route Symmetrical Duration Check
   final File appRouterFile = File('lib/router/app_router.dart');
   final String appRouterContent = appRouterFile.readAsStringSync();
-  final bool hasSymmetricalChatRoute = appRouterContent.contains('reverseTransitionDuration: const Duration(milliseconds: 240)');
+  final bool hasSymmetricalChatRoute = appRouterContent.contains(
+    'reverseTransitionDuration: const Duration(milliseconds: 240)',
+  );
   report(
     'Chat route uses symmetrical 240ms forward and reverse transitions',
     hasSymmetricalChatRoute,

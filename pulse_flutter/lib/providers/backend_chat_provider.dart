@@ -107,31 +107,55 @@ _E2eeHelo? _parseHeloMessage(ApiMessage message) {
 }
 
 class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
+  int _generation = 0;
+  bool _builtForSession = false;
+  (int?, String?) _identity = (null, null);
+  bool _valid(int generation) {
+    if (!ref.mounted || generation != _generation) return false;
+    if (!_builtForSession) return true;
+    final session = ref.read(authProvider).session;
+    return _identity == (session?.userId, session?.accessToken);
+  }
+
   final _seenOperations = <String>{};
   Timer? _persistTimer;
   final _previewDecryptions = <String>{};
   List<ApiChatSummary>? _pendingChats;
 
   void _persistChats(List<ApiChatSummary> chats) {
+    final generation = _generation, accountId = _identity.$1;
     _pendingChats = chats;
     _persistTimer ??= Timer(const Duration(seconds: 2), () {
       _persistTimer = null;
       final List<ApiChatSummary>? snapshot = _pendingChats;
       _pendingChats = null;
-      if (snapshot == null) return;
+      if (snapshot == null || !_valid(generation)) return;
       try {
-        unawaited(ref.read(cacheServiceProvider).saveChats(snapshot));
+        unawaited(
+          ref
+              .read(cacheServiceProvider)
+              .saveChats(snapshot, accountId: accountId),
+        );
       } catch (_) {}
     });
   }
 
   @override
   Future<List<ApiChatSummary>> build() async {
-    final bool authenticated = ref.watch(
-      authProvider.select((AuthState state) => state.isAuthenticated),
+    final identity = ref.watch(
+      authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
     );
-
-    if (!authenticated) {
+    final generation = ++_generation;
+    _identity = identity;
+    _builtForSession = true;
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    _pendingChats = null;
+    _seenOperations.clear();
+    _previewDecryptions.clear();
+    // An authenticated account change must clear previous AsyncValue data too.
+    state = const AsyncData([]);
+    if (identity.$1 == null || identity.$2 == null || identity.$2!.isEmpty) {
       return const <ApiChatSummary>[];
     }
 
@@ -140,7 +164,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       var previousEpoch = ordinary.keyState;
       void onKeysChanged() {
         final current = ordinary.keyState;
-        if (current != 'locked' && current != previousEpoch && ref.mounted) {
+        if (current != 'locked' &&
+            current != previousEpoch &&
+            _valid(generation)) {
           previousEpoch = current;
           ref.invalidate(chatMessagesProvider);
           unawaited(_hydrateInboxPreviews(state.value ?? const []));
@@ -154,7 +180,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     ref.read(webSocketDispatcherProvider);
     WebSocketPushDispatcher.registerGlobal(_handlePushEvent);
     final connected = ref.read(webSocketClientProvider).onConnected.listen((_) {
-      if (ref.mounted) {
+      if (_valid(generation)) {
         unawaited(refresh());
       }
     });
@@ -167,9 +193,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     });
 
     final secret = await ref.read(secretChatCoordinatorProvider.future);
+    if (!_valid(generation)) return const [];
     if (secret != null) {
       final subscription = secret.engine.changes.listen((_) {
-        if (!ref.mounted) return;
+        if (!_valid(generation)) return;
         state = AsyncData(
           secret.mergeChats(state.value ?? const <ApiChatSummary>[]),
         );
@@ -183,9 +210,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     try {
       final List<ApiChatSummary> chats = ref
           .read(cacheServiceProvider)
-          .getCachedChats();
+          .getCachedChats(accountId: identity.$1);
       if (chats.isNotEmpty) {
         if (secret != null) await secret.importChats(chats);
+        if (!_valid(generation)) return const [];
         state = AsyncData<List<ApiChatSummary>>(
           secret?.mergeChats(chats) ?? chats,
         );
@@ -199,7 +227,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     if (mesh != null) {
       final seen = <String>{};
       final sub = mesh.changes.listen((chatId) {
-        if (!ref.mounted) return;
+        if (!_valid(generation)) return;
         for (final m in mesh.messages(chatId)) {
           if (!seen.add(m.operationId)) continue;
           if (seen.length > 512) seen.remove(seen.first);
@@ -218,6 +246,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   }
 
   void _handlePushEvent(ChatPushEvent event) {
+    if (!_valid(_generation)) return;
     switch (event.kind) {
       case ChatPushEventKind.newMessage:
         _handleNewMessagePush(event.message);
@@ -455,9 +484,11 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   }
 
   Future<void> _hydrateInboxPreviews(List<ApiChatSummary> chats) async {
+    final generation = _generation;
     final account = ref.read(authProvider).session?.userId;
     for (var offset = 0; offset < chats.length; offset += 4) {
-      if (!ref.mounted || account != ref.read(authProvider).session?.userId) {
+      if (!_valid(generation) ||
+          account != ref.read(authProvider).session?.userId) {
         return;
       }
       await Future.wait(
@@ -589,19 +620,24 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   }
 
   Future<List<ApiChatSummary>> _fetch({bool allowStale = true}) async {
+    final generation = _generation;
     try {
       final secret = await ref.read(secretChatCoordinatorProvider.future);
+      if (!_valid(generation)) return const [];
       if (secret != null) await secret.register();
+      if (!_valid(generation)) return const [];
       final remote = await ref
           .read(chatRepositoryProvider)
           .listChats(publicKey: secret?.engine.publicKey);
+      if (!_valid(generation)) return const [];
       if (secret != null) await secret.importChats(remote);
+      if (!_valid(generation)) return const [];
       final chats = secret?.mergeChats(remote) ?? remote;
       ref.read(bluetoothMeshProvider)?.warmChats(chats);
       // Hydrate presentation after returning the list; never block the inbox on key/network repair.
       final previewAccount = ref.read(authProvider).session?.userId;
       Timer.run(() {
-        if (ref.mounted &&
+        if (_valid(generation) &&
             previewAccount == ref.read(authProvider).session?.userId) {
           unawaited(_hydrateInboxPreviews(chats));
         }
@@ -610,6 +646,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       _persistChats(chats);
       return chats;
     } catch (e) {
+      if (!_valid(generation)) return const [];
       final List<ApiChatSummary>? currentData = state.value;
       if (allowStale && currentData != null && currentData.isNotEmpty) {
         return currentData;
@@ -619,9 +656,13 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   }
 
   Future<void> refreshOrThrow() async {
+    final generation = _generation;
     try {
-      state = AsyncData(await _fetch(allowStale: false));
+      final chats = await _fetch(allowStale: false);
+      if (!_valid(generation)) return;
+      state = AsyncData(chats);
     } catch (error, stack) {
+      if (!_valid(generation)) return;
       if (state.value == null || state.value!.isEmpty) {
         state = AsyncError(error, stack);
       }
@@ -630,6 +671,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   }
 
   Future<void> refresh() async {
+    final generation = _generation;
     final bool authenticated = ref.read(authProvider).isAuthenticated;
     if (!authenticated) {
       state = const AsyncData<List<ApiChatSummary>>(<ApiChatSummary>[]);
@@ -638,8 +680,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
     try {
       final List<ApiChatSummary> chats = await _fetch();
+      if (!_valid(generation)) return;
       state = AsyncData<List<ApiChatSummary>>(chats);
     } catch (e) {
+      if (!_valid(generation)) return;
       // Do not overwrite state with error if we have cached data
       if (state.value == null || state.value!.isEmpty) {
         state = AsyncError<List<ApiChatSummary>>(e, StackTrace.current);
@@ -799,6 +843,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   Timer? _cacheFlushTimer;
   List<ApiMessage>? _pendingCacheSnapshot;
   bool _cacheWriteInFlight = false;
+  final Set<Future<void>> _cacheWrites = {};
   Timer? _ephemeralEvictionTimer;
   KeepAliveLink? _pendingSendLease;
   int? _cacheAccountId;
@@ -1156,12 +1201,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<List<ApiMessage>> _buildHistory() async {
     final int generation = ++_generation;
-    final int? accountId = ref.watch(
-      authProvider.select(
-        (AuthState state) =>
-            state.isAuthenticated ? state.session?.userId : null,
-      ),
+    final identity = ref.watch(
+      authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
     );
+    final accountId = identity.$2?.isNotEmpty == true ? identity.$1 : null;
     if (_cacheAccountId != null && _cacheAccountId != accountId) {
       // Riverpod can retain the previous AsyncValue during a rebuild. History
       // from a different account must never become input to this account's
@@ -1458,14 +1501,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<void> _handleEditedIncomingMessage(ApiMessage message) async {
     final generation = _generation;
-    ApiMessage next = message;
-    // Secret chats: re-decrypt the edited payload.
-    if (message.e2eeContent != null) {
-      final List<ApiMessage> decrypted = await _decryptE2eeMessages(
-        <ApiMessage>[message],
-      );
-      if (decrypted.isNotEmpty) next = decrypted.first;
-    }
+    // Use the same own-original preservation for plaintext and encrypted
+    // edited echoes as history synchronization uses.
+    final decrypted = await _decryptE2eeMessages(<ApiMessage>[message]);
+    if (decrypted.isEmpty) return;
+    final ApiMessage next = decrypted.first;
 
     if (!ref.mounted || generation != _generation) return;
     final List<ApiMessage> current = state.value ?? const <ApiMessage>[];
@@ -1829,6 +1869,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   Future<List<ApiMessage>> _decryptE2eeMessages(
     List<ApiMessage> messages,
   ) async {
+    final generation = _generation;
+    final session = ref.read(authProvider).session;
     final ordinary = ref.read(ordinaryE2eeProvider);
     messages = await Future.wait(
       messages.map((message) async {
@@ -1840,6 +1882,43 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         return message;
       }),
     );
+    if (!ref.mounted || generation != _generation) return const [];
+    final currentSession = ref.read(authProvider).session;
+    if (session?.userId != currentSession?.userId ||
+        session?.accessToken != currentSession?.accessToken ||
+        ref.read(authProvider.notifier).isLoggingOut) {
+      return const [];
+    }
+    final ownOriginals = <int, ApiMessage>{
+      for (final row in state.value ?? const <ApiMessage>[])
+        if (row.senderId == session?.userId && row.content.isNotEmpty)
+          row.id: row,
+    };
+    messages = messages.map((message) {
+      final original = ownOriginals[message.id];
+      if (original == null ||
+          message.isDeleted ||
+          original.isDeleted ||
+          message.senderId != session?.userId ||
+          message.chatId != original.chatId ||
+          // A successfully authenticated edit may intentionally remove a
+          // caption. Explicit plaintext edits are authoritative too.
+          (message.isE2ee && message.isDecrypted) ||
+          (!message.isE2ee &&
+              message.e2eeContent == null &&
+              message.editedAt != null) ||
+          (!message.isE2ee && message.content.isNotEmpty)) {
+        return message;
+      }
+      // A known local own original remains visible through empty replays or a
+      // failed opening of our echo. Successful decryption, including an empty
+      // caption, and explicit plaintext edits have already been accepted above.
+      return message.copyWith(
+        content: original.content,
+        e2eeFileKey: original.e2eeFileKey ?? message.e2eeFileKey,
+        isDecrypted: true,
+      );
+    }).toList();
     final partnerPublicKey = await _getPartnerPublicKey();
     if (partnerPublicKey == null) {
       // Not a secret chat — but handshake echoes can still be filtered out.
@@ -1895,7 +1974,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         }
 
         // Content is empty (e.g. freshly fetched from server). Restore from cache.
-        final String? stored = EncryptedMessageCache.getSenderPlaintext(
+        final String? stored = await EncryptedMessageCache.getSenderPlaintext(
           chatId: _chatId,
           messageId: msg.id,
           userId: myUserId > 0 ? myUserId : null,
@@ -2140,7 +2219,32 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
+  /// Drains writes already issued, including the final optional cache snapshot
+  /// scheduled by onDispose. Call after disposal before closing shared storage.
+  Future<void> drainCacheWrites() async {
+    while (_cacheWrites.isNotEmpty) {
+      await Future.wait(_cacheWrites.toList());
+    }
+  }
+
   Future<void> _writeCache(
+    List<ApiMessage> messages, {
+    int? userId,
+    bool? isSecretChat,
+    int? accountGeneration,
+  }) {
+    late final Future<void> write;
+    write = _performCacheWrite(
+      messages,
+      userId: userId,
+      isSecretChat: isSecretChat,
+      accountGeneration: accountGeneration,
+    ).whenComplete(() => _cacheWrites.remove(write));
+    _cacheWrites.add(write);
+    return write;
+  }
+
+  Future<void> _performCacheWrite(
     List<ApiMessage> messages, {
     int? userId,
     bool? isSecretChat,
@@ -2164,7 +2268,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         expectedAccountGeneration: expectedGeneration,
       );
       if (accountErased()) return;
-      await ChatMediaCache.saveMediaMessages(_chatId, messages);
+      await ChatMediaCache.saveMediaMessages(
+        _chatId,
+        messages,
+        canWrite: () => !accountErased(),
+      );
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Save messages cache error: $e');
     }
@@ -2457,6 +2565,18 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }) => _retainOperation(() async {
     final update = InteractiveMessage.parse(content);
     final generation = _generation;
+    final session = ref.read(authProvider).session;
+    bool updateActive() {
+      if (!ref.mounted || generation != _generation || session == null) {
+        return false;
+      }
+      final current = ref.read(authProvider).session;
+      return current?.userId == session.userId &&
+          current?.accessToken == session.accessToken &&
+          !ref.read(authProvider.notifier).isLoggingOut;
+    }
+
+    if (!updateActive()) throw StateError('INTERACTIVE_ACCOUNT_CHANGED');
     if (update?.kind != 'update' ||
         update?.data['root'] != rootId ||
         rootId <= 0) {
@@ -2471,6 +2591,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
     final ordinary = ref.read(ordinaryE2eeProvider);
     final context = await ordinary?.prepare(_chatId, force: encryptedRoot);
+    if (!updateActive()) throw StateError('INTERACTIVE_ACCOUNT_CHANGED');
     if (encryptedRoot && (ordinary == null || context == null)) {
       throw StateError('Требуется сквозное шифрование');
     }
@@ -2482,7 +2603,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
             preparedContext: context,
           )
         : null;
-    if (!ref.mounted || generation != _generation) {
+    if (!updateActive()) {
       throw StateError('Сеанс закрыт');
     }
     await ref
@@ -2505,6 +2626,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     String? localId,
     String? e2eePlaintext,
     String? e2eeFileKey,
+    VoidCallback? onLocalSaved,
   }) => _retainOperation(
     () => _send(
       content,
@@ -2515,6 +2637,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       localId: localId,
       e2eePlaintext: e2eePlaintext,
       e2eeFileKey: e2eeFileKey,
+      onLocalSaved: onLocalSaved,
     ),
   );
 
@@ -2544,15 +2667,30 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     String? localId,
     String? e2eePlaintext,
     String? e2eeFileKey,
+    VoidCallback? onLocalSaved,
     bool requestAi = true,
     bool propagateFailure = false,
   }) async {
     final generation = _generation;
+    final originalSession = ref.read(authProvider).session;
+    bool deliveryActive() {
+      if (!ref.mounted ||
+          generation != _generation ||
+          originalSession == null) {
+        return false;
+      }
+      final current = ref.read(authProvider).session;
+      return current?.userId == originalSession.userId &&
+          current?.accessToken == originalSession.accessToken &&
+          !ref.read(authProvider.notifier).isLoggingOut;
+    }
+
+    if (!deliveryActive()) return;
     if (ref.read(chatByIdProvider(_chatId)) == null && _secret == null) {
       try {
         await ref.read(chatsProvider.future);
       } catch (_) {}
-      if (!ref.mounted || generation != _generation) return;
+      if (!deliveryActive()) return;
       if (ref.read(chatByIdProvider(_chatId)) == null) {
         throw StateError('Conversation metadata unavailable');
       }
@@ -2561,14 +2699,16 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         _secret != null) {
       final secret =
           _secret ?? await ref.read(secretChatCoordinatorProvider.future);
+      if (!deliveryActive()) return;
       if (secret == null) throw StateError('Secret storage unavailable');
       _secret = secret;
       await secret.engine.enqueue(_chatId, {
         'text': content,
         'type': msgType,
       }, replyToId: replyToId);
-      if (!ref.mounted || generation != _generation) return;
+      if (!deliveryActive()) return;
       state = AsyncData(_secretMessages());
+      onLocalSaved?.call();
       return;
     }
     final String trimmed = content.trim();
@@ -2606,6 +2746,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         final next = _mergeMesh(state.value ?? const []);
         state = AsyncData(next);
         await _saveToCache(next);
+        onLocalSaved?.call();
       }
       return;
     }
@@ -2630,97 +2771,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     // For media in secret chats the DR plaintext is the file-key envelope,
     // not the visible text.
     final String e2eePlain = e2eePlaintext ?? trimmed;
-    if (chat?.isSecret == true) {
-      // Fail closed: in a secret chat every message MUST leave encrypted. If
-      // anything here is missing we throw instead of falling through to a
-      // plaintext send, which the server would happily store.
-      final e2eeService = ref.read(e2eeServiceProvider);
-      await e2eeService.ready;
-
-      String? partnerKey = chat?.partnerPublicKey;
-      if (partnerKey == null || partnerKey.isEmpty) {
-        await ensureSecretHandshake();
-        partnerKey = ref.read(chatByIdProvider(_chatId))?.partnerPublicKey;
-      }
-      if (partnerKey == null || partnerKey.isEmpty) {
-        throw StateError(
-          'Секретный чат: ключ собеседника не получен. Сообщение не отправлено, чтобы не уйти открытым текстом.',
-        );
-      }
-
-      if (e2eePlain.isEmpty) {
-        throw StateError('Секретный чат: нечего шифровать, отправка отменена.');
-      }
-
-      DoubleRatchetSession? session = await e2eeService.getOrCreateSession(
-        chatId: _chatId,
-        theirPublicKeyBase64: partnerKey,
-      );
-      if (session == null) {
-        await ensureSecretHandshake();
-        for (int i = 0; i < 6 && session == null; i++) {
-          session = await e2eeService.getOrCreateSession(
-            chatId: _chatId,
-            theirPublicKeyBase64: partnerKey,
-          );
-          if (session == null) {
-            await Future<void>.delayed(const Duration(milliseconds: 500));
-          }
-        }
-      }
-      if (session == null) {
-        throw StateError(
-          'Сквозное шифрование еще устанавливается. Пожалуйста, подождите завершения рукопожатия ключей.',
-        );
-      }
-      try {
-        e2eeContent = await e2eeService.encryptE2EEMessageDR(
-          plaintext: e2eePlain,
-          chatId: _chatId,
-        );
-        isE2ee = true;
-      } catch (e) {
-        if (!ref.mounted || generation != _generation) return;
-        debugPrint('[backend_chat_provider.dart] E2EE encrypt failed: $e');
-        rethrow;
-      }
-    }
-
-    if (chat?.isSecret != true) {
-      final ordinary = ref.read(ordinaryE2eeProvider);
-      final prepared = await ordinary?.prepare(
-        _chatId,
-        force: e2eeFileKey != null,
-      );
-      if (ordinary != null && prepared != null) {
-        if (uploadId != null && e2eeFileKey == null) {
-          throw StateError(
-            'Файл не был зашифрован. Повторите отправку после подключения E2E.',
-          );
-        }
-        Map<String, dynamic>? descriptor;
-        if (e2eePlaintext != null) {
-          descriptor = jsonDecode(e2eePlaintext) as Map<String, dynamic>;
-        }
-        e2eeContent = await ordinary.encrypt(
-          _chatId,
-          trimmed,
-          reply: replyToId,
-          fileKey: e2eeFileKey,
-          preparedContext: prepared,
-          name: descriptor?['name'] as String?,
-          size: descriptor?['size'] as int?,
-          extra: {
-            'media_kind': msgType,
-            if (descriptor?['sticker'] != null)
-              'sticker': descriptor!['sticker'],
-          },
-        );
-        isE2ee = true;
-      }
-    }
-
-    final ApiMessage optimisticMessage = ApiMessage(
+    ApiMessage optimisticMessage = ApiMessage(
       clientMessageId: 'normal:$_cacheAccountId:$_chatId:$tempId',
       id: tempId,
       chatId: _chatId,
@@ -2728,7 +2779,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       senderUsername: myUsername,
       senderDisplayName: myUsername.isEmpty ? 'Я' : myUsername,
       senderBadges: const [],
-      content: (isE2ee && uploadId != null) ? '' : trimmed,
+      content: trimmed,
       msgType: uploadId != null ? msgType : 'text',
       replyToId: replyToId,
       mediaUrl: uploadId != null
@@ -2773,7 +2824,144 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       );
     }
 
+    if (current.any((m) => m.id == tempId)) {
+      final retryIndex = current.indexWhere((m) => m.id == tempId);
+      final retryRows = List<ApiMessage>.from(current)
+        ..[retryIndex] = optimisticMessage;
+      state = AsyncData(
+        MessageHistorySnapshot.afterUpdate(
+          previous: current,
+          rows: retryRows,
+          index: retryIndex,
+        ),
+      );
+    }
+    var locallySaved = false;
     try {
+      if (_historyArchive == null) {
+        throw StateError('HISTORY_STORAGE_UNAVAILABLE');
+      }
+      await flushHistoryArchive();
+      if (!deliveryActive()) return;
+      locallySaved = true;
+      onLocalSaved?.call();
+      if (chat?.isSecret == true) {
+        // Fail closed: in a secret chat every message MUST leave encrypted. If
+        // anything here is missing we throw instead of falling through to a
+        // plaintext send, which the server would happily store.
+        final e2eeService = ref.read(e2eeServiceProvider);
+        await e2eeService.ready;
+
+        String? partnerKey = chat?.partnerPublicKey;
+        if (partnerKey == null || partnerKey.isEmpty) {
+          await ensureSecretHandshake();
+          partnerKey = ref.read(chatByIdProvider(_chatId))?.partnerPublicKey;
+        }
+        if (partnerKey == null || partnerKey.isEmpty) {
+          throw StateError(
+            'Секретный чат: ключ собеседника не получен. Сообщение не отправлено, чтобы не уйти открытым текстом.',
+          );
+        }
+
+        if (e2eePlain.isEmpty) {
+          throw StateError(
+            'Секретный чат: нечего шифровать, отправка отменена.',
+          );
+        }
+
+        DoubleRatchetSession? session = await e2eeService.getOrCreateSession(
+          chatId: _chatId,
+          theirPublicKeyBase64: partnerKey,
+        );
+        if (session == null) {
+          await ensureSecretHandshake();
+          for (int i = 0; i < 6 && session == null; i++) {
+            session = await e2eeService.getOrCreateSession(
+              chatId: _chatId,
+              theirPublicKeyBase64: partnerKey,
+            );
+            if (session == null) {
+              await Future<void>.delayed(const Duration(milliseconds: 500));
+            }
+          }
+        }
+        if (session == null) {
+          throw StateError(
+            'Сквозное шифрование еще устанавливается. Пожалуйста, подождите завершения рукопожатия ключей.',
+          );
+        }
+        try {
+          e2eeContent = await e2eeService.encryptE2EEMessageDR(
+            plaintext: e2eePlain,
+            chatId: _chatId,
+          );
+          isE2ee = true;
+        } catch (e) {
+          if (!deliveryActive()) return;
+          debugPrint('[backend_chat_provider.dart] E2EE encrypt failed: $e');
+          rethrow;
+        }
+      }
+
+      if (chat?.isSecret != true) {
+        final ordinary = ref.read(ordinaryE2eeProvider);
+        final prepared = await ordinary?.prepare(
+          _chatId,
+          force: e2eeFileKey != null,
+        );
+        if (ordinary != null && prepared != null) {
+          if (uploadId != null && e2eeFileKey == null) {
+            throw StateError(
+              'Файл не был зашифрован. Повторите отправку после подключения E2E.',
+            );
+          }
+          Map<String, dynamic>? descriptor;
+          if (e2eePlaintext != null) {
+            descriptor = jsonDecode(e2eePlaintext) as Map<String, dynamic>;
+          }
+          e2eeContent = await ordinary.encrypt(
+            _chatId,
+            trimmed,
+            reply: replyToId,
+            fileKey: e2eeFileKey,
+            preparedContext: prepared,
+            name: descriptor?['name'] as String?,
+            size: descriptor?['size'] as int?,
+            extra: {
+              'media_kind': msgType,
+              if (descriptor?['sticker'] != null)
+                'sticker': descriptor!['sticker'],
+            },
+          );
+          isE2ee = true;
+        }
+      }
+
+      if (!deliveryActive()) return;
+      // Persist the prepared envelope too: own echo reconciliation must match
+      // the exact encrypted operation while retaining the original local text.
+      optimisticMessage = optimisticMessage.copyWith(
+        isE2ee: isE2ee,
+        e2eeContent: e2eeContent,
+        isDecrypted: isE2ee,
+      );
+      current = state.value ?? const [];
+      final pendingIndex = current.indexWhere((m) => m.id == tempId);
+      if (pendingIndex >= 0) {
+        final preparedRows = List<ApiMessage>.from(current)
+          ..[pendingIndex] = optimisticMessage;
+        state = AsyncData(
+          MessageHistorySnapshot.afterUpdate(
+            previous: current,
+            rows: preparedRows,
+            index: pendingIndex,
+          ),
+        );
+        await flushHistoryArchive();
+      } else {
+        await _historyArchive!.write([optimisticMessage]);
+      }
+      if (!deliveryActive() || _historyArchive?.valid != true) return;
       ApiMessage sent = await ref
           .read(chatRepositoryProvider)
           .sendMessage(
@@ -2784,12 +2972,20 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
             e2eeContent: e2eeContent,
           );
 
-      if (!ref.mounted || generation != _generation) return;
+      if (!deliveryActive()) return;
       final ordinary = ref.read(ordinaryE2eeProvider);
       if (ordinary != null &&
           sent.e2eeContent != null &&
           OrdinaryCodec.recognises(sent.e2eeContent!)) {
         sent = await ordinary.decrypt(sent);
+      }
+      if (!deliveryActive()) return;
+      if (sent.senderId == myUserId && sent.chatId == _chatId) {
+        sent = sent.copyWith(
+          content: optimisticMessage.content,
+          e2eeFileKey: e2eeFileKey,
+          isDecrypted: isE2ee || sent.isDecrypted,
+        );
       }
       sent = sent.copyWith(clientMessageId: optimisticMessage.clientMessageId);
       if (isE2ee &&
@@ -2828,6 +3024,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         ),
       );
       await _saveToCache(next);
+      if (!deliveryActive()) return;
       ref.read(chatsProvider.notifier)._handleNewMessagePush(sent);
       ref.read(chatsProvider.notifier).setChatBlockedByUser(_chatId, false);
       if (requestAi &&
@@ -2849,7 +3046,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
                 answer =
                     'Не удалось получить ответ NiosAI. Попробуйте ещё раз.';
               }
-              if (!ref.mounted || generation != _generation) return;
+              if (!deliveryActive()) return;
               await _send(
                 '**NiosAI**\n\n$answer',
                 replyToId: sent.id,
@@ -2860,7 +3057,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         }
       }
     } catch (e) {
-      if (!ref.mounted || generation != _generation) return;
+      if (!deliveryActive()) return;
       current = state.value ?? const <ApiMessage>[];
       List<ApiMessage> next = List<ApiMessage>.from(current);
       final int index = next.indexWhere((ApiMessage m) => m.id == tempId);
@@ -2882,7 +3079,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         // Persist its final status even though its bubble is outside the window.
         await _historyArchive?.write([failed]);
       }
-      if (propagateFailure) rethrow;
+      if (propagateFailure || !locallySaved) rethrow;
     }
   }
 
@@ -2891,11 +3088,23 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<void> _sendSticker(int stickerId, {int? replyToId}) async {
     final generation = _generation;
+    final session = ref.read(authProvider).session;
+    bool deliveryActive() {
+      if (!ref.mounted || generation != _generation || session == null) {
+        return false;
+      }
+      final current = ref.read(authProvider).session;
+      return current?.userId == session.userId &&
+          current?.accessToken == session.accessToken &&
+          !ref.read(authProvider.notifier).isLoggingOut;
+    }
+
+    if (!deliveryActive()) return;
     if (ref.read(chatByIdProvider(_chatId)) == null && _secret == null) {
       try {
         await ref.read(chatsProvider.future);
       } catch (_) {}
-      if (!ref.mounted || generation != _generation) return;
+      if (!deliveryActive()) return;
       if (ref.read(chatByIdProvider(_chatId)) == null) {
         throw StateError('Conversation metadata unavailable');
       }
@@ -2922,6 +3131,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         _secret == null) {
       final ordinary = ref.read(ordinaryE2eeProvider);
       if (ordinary != null && await ordinary.prepare(_chatId) != null) {
+        if (!deliveryActive()) return;
         if (foundSticker == null) throw StateError('Стикер не загружен');
         await _send(
           '',
@@ -2932,9 +3142,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         return;
       }
     }
+    if (!deliveryActive()) return;
     if (ref.read(chatByIdProvider(_chatId))?.isSecret == true ||
         _secret != null) {
       _secret ??= await ref.read(secretChatCoordinatorProvider.future);
+      if (!deliveryActive()) return;
       if (_secret == null) throw StateError('Secret account unavailable');
       if (foundSticker == null) throw StateError('Sticker unavailable');
       await _secret!.engine.enqueue(_chatId, {
@@ -2984,11 +3196,16 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     );
 
     try {
+      if (_historyArchive == null) {
+        throw StateError('HISTORY_STORAGE_UNAVAILABLE');
+      }
+      await flushHistoryArchive();
+      if (!deliveryActive() || _historyArchive?.valid != true) return;
       ApiMessage sent = await ref
           .read(chatRepositoryProvider)
           .sendSticker(_chatId, stickerId, replyToId: replyToId);
 
-      if (!ref.mounted || generation != _generation) return;
+      if (!deliveryActive()) return;
       sent = sent.copyWith(clientMessageId: optimisticMessage.clientMessageId);
       _archiveRemovals.add(tempId);
       current = state.value ?? const <ApiMessage>[];
@@ -3005,12 +3222,13 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         ),
       );
       await _saveToCache(next);
+      if (!deliveryActive()) return;
       ref.read(chatsProvider.notifier)._handleNewMessagePush(sent);
       await _playNotificationSound(volume: 0.65);
     } catch (e) {
-      if (!ref.mounted || generation != _generation) return;
+      if (!deliveryActive()) return;
       debugPrint('[backend_chat_provider.dart] sendSticker error: $e');
-      if (!ref.mounted || generation != _generation) return;
+      if (!deliveryActive()) return;
       current = state.value ?? const <ApiMessage>[];
       final int index = current.indexWhere((ApiMessage m) => m.id == tempId);
       if (index != -1) {
@@ -3127,6 +3345,18 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
 
   Future<void> _editMessage(int messageId, String content) async {
     final generation = _generation;
+    final session = ref.read(authProvider).session;
+    bool editActive() {
+      if (!ref.mounted || generation != _generation || session == null) {
+        return false;
+      }
+      final current = ref.read(authProvider).session;
+      return current?.userId == session.userId &&
+          current?.accessToken == session.accessToken &&
+          !ref.read(authProvider.notifier).isLoggingOut;
+    }
+
+    if (!editActive()) return;
     if (_secret != null) {
       await _secret!.engine.edit(_chatId, messageId, content);
       return;
@@ -3172,6 +3402,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     state = AsyncData<List<ApiMessage>>(optimisticNext);
 
     try {
+      if (_historyArchive == null) {
+        throw StateError('HISTORY_STORAGE_UNAVAILABLE');
+      }
+      await flushHistoryArchive();
+      if (!editActive() || _historyArchive?.valid != true) return;
       // Editing has to respect the same fail-closed rule as sending: in a
       // secret chat the new body is encrypted client-side before it leaves.
       String? editE2ee;
@@ -3223,6 +3458,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
           );
         }
       }
+      if (!editActive() || _historyArchive?.valid != true) return;
       ApiMessage? edited = await ref
           .read(chatRepositoryProvider)
           .editMessage(
@@ -3232,11 +3468,22 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
             e2eeContent: editE2ee,
           );
 
-      if (!ref.mounted || generation != _generation) return;
+      if (!editActive()) return;
       if (edited != null) {
         edited = editChat?.isSecret == true
             ? edited
             : await ref.read(ordinaryE2eeProvider)?.decrypt(edited) ?? edited;
+        if (!editActive()) return;
+        if (edited.id != messageId || edited.chatId != _chatId) {
+          throw StateError('EDIT_ACK_INVALID');
+        }
+        // The sender already owns the edited original; server echo decryption
+        // is not the source of truth for its local text or attachment key.
+        edited = edited.copyWith(
+          content: trimmed,
+          e2eeFileKey: target.e2eeFileKey,
+          isDecrypted: editE2ee != null || edited.isDecrypted,
+        );
         final confirmedMessage = edited;
         final List<ApiMessage> confirmed = List<ApiMessage>.from(
           state.value ?? const <ApiMessage>[],
@@ -3244,15 +3491,17 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         insertSorted(confirmed, edited, _compareMessages);
         state = AsyncData<List<ApiMessage>>(confirmed);
         await _saveToCache(confirmed);
+        if (!editActive()) return;
         ref.read(chatsProvider.notifier)._handleEditedPush(edited);
       }
     } catch (e) {
-      if (!ref.mounted || generation != _generation) return;
+      if (!editActive()) return;
       final List<ApiMessage> latest = state.value ?? const <ApiMessage>[];
       final List<ApiMessage> reverted = latest
           .map((m) => m.id == messageId ? target : m)
           .toList();
       state = AsyncData<List<ApiMessage>>(reverted);
+      rethrow;
     }
   }
 
@@ -3447,13 +3696,27 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
   bool _refreshing = false;
   bool _refreshAgain = false;
   int _revision = 0;
+  int _accountEpoch = 0;
+  bool _current(int epoch) => ref.mounted && epoch == _accountEpoch;
   int _cursor = 0;
   PostCommentsRepository get _repository =>
       ref.read(postCommentsRepositoryProvider);
 
   @override
   Future<List<ApiMessage>> build() async {
-    if (!ref.watch(authProvider.select((AuthState s) => s.isAuthenticated))) {
+    final account = ref.watch(
+      authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
+    );
+    final epoch = ++_accountEpoch;
+    _revision++;
+    _refreshing = false;
+    _refreshAgain = false;
+    loadingMore = false;
+    hasMore = false;
+    totalCount = null;
+    _cursor = 0;
+    state = const AsyncData([]);
+    if (account.$1 == null || account.$2 == null || account.$2!.isEmpty) {
       return const <ApiMessage>[];
     }
     final timer = Timer.periodic(const Duration(seconds: 8), (_) {
@@ -3479,6 +3742,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
       changes.cancel();
     });
     final page = await _repository.page(_args.channelId, _args.postId);
+    if (!_current(epoch)) return const [];
     hasMore = page.hasMore;
     totalCount = page.totalCount;
     _cursor = page.messages.isEmpty ? 0 : page.messages.last.id;
@@ -3491,6 +3755,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
       return;
     }
     _refreshing = true;
+    final epoch = _accountEpoch;
     final revision = _revision;
     try {
       final target = _cursor;
@@ -3503,11 +3768,12 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
           _args.postId,
           afterId: items.isEmpty ? 0 : items.last.id,
         );
+        if (!_current(epoch)) return;
         items.addAll(page.messages);
         nextTotal = page.totalCount;
         more = page.hasMore && page.messages.isNotEmpty;
       } while (more && items.last.id < target);
-      if (!ref.mounted || revision != _revision) return;
+      if (!_current(epoch) || revision != _revision) return;
       hasMore = more;
       totalCount = nextTotal;
       _cursor = items.isEmpty ? 0 : items.last.id;
@@ -3518,14 +3784,19 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
       }
       state = AsyncData(items);
     } catch (error, trace) {
-      if (!silent && ref.mounted && state.value == null) {
+      if (!silent &&
+          _current(epoch) &&
+          revision == _revision &&
+          state.value == null) {
         state = AsyncError(error, trace);
       }
     } finally {
-      _refreshing = false;
-      if (_refreshAgain && ref.mounted) {
-        _refreshAgain = false;
-        unawaited(refresh(silent: true));
+      if (_current(epoch)) {
+        _refreshing = false;
+        if (_refreshAgain && ref.mounted) {
+          _refreshAgain = false;
+          unawaited(refresh(silent: true));
+        }
       }
     }
   }
@@ -3533,6 +3804,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
   Future<void> loadMore() async {
     if (!hasMore || loadingMore || _refreshing) return;
     loadingMore = true;
+    final epoch = _accountEpoch;
     try {
       final current = state.value ?? const <ApiMessage>[];
       final page = await _repository.page(
@@ -3540,7 +3812,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
         _args.postId,
         afterId: _cursor,
       );
-      if (!ref.mounted) return;
+      if (!_current(epoch)) return;
       final next = <int, ApiMessage>{
         for (final item in state.value ?? current) item.id: item,
       };
@@ -3552,23 +3824,26 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
       if (page.messages.isNotEmpty) _cursor = page.messages.last.id;
       state = AsyncData(next.values.toList()..sort(_compareMessages));
     } finally {
-      loadingMore = false;
-      if (_refreshAgain && ref.mounted) {
-        _refreshAgain = false;
-        unawaited(refresh(silent: true));
+      if (_current(epoch)) {
+        loadingMore = false;
+        if (_refreshAgain && ref.mounted) {
+          _refreshAgain = false;
+          unawaited(refresh(silent: true));
+        }
       }
     }
   }
 
   Future<void> send(String content, {int? replyToId}) async {
     if (content.trim().isEmpty) return;
+    final epoch = _accountEpoch;
     final created = await _repository.send(
       _args.channelId,
       _args.postId,
       content.trim(),
       replyToId,
     );
-    if (!ref.mounted) return;
+    if (!_current(epoch)) throw StateError('COMMENT_ACCOUNT_CHANGED');
     _revision++;
     if (totalCount != null) totalCount = totalCount! + 1;
     final next = <int, ApiMessage>{
@@ -3590,6 +3865,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
     String? content,
     String? reaction,
   }) async {
+    final epoch = _accountEpoch;
     await _repository.mutate(
       action,
       _args.channelId,
@@ -3598,6 +3874,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
       content: content,
       reaction: reaction,
     );
+    if (!_current(epoch)) throw StateError('COMMENT_ACCOUNT_CHANGED');
     _revision++;
     await refresh();
     if (_args.channelId == 0 && action == 'delete_post_comment') {

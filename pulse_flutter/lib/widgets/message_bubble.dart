@@ -232,7 +232,7 @@ class MessageBubble extends ConsumerWidget {
         ? NotoEmoji.fromMessage(displayText)
         : null;
 
-    final Map<String, String> headers = cachedAuthHeaders();
+    final Map<String, String> headers = cachedAuthHeaders(mediaUrl);
 
     final double messageRadius = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.messageBubbleRadius),

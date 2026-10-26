@@ -173,14 +173,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          context.l10n.appName,
-                          style: TextStyle(
-                            fontFamily: AppFonts.headline,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                            color: scheme.onSurface,
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              context.l10n.appName,
+                              style: TextStyle(
+                                fontFamily: AppFonts.headline,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.4,
+                                color: scheme.onSurface,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -225,72 +230,52 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 final Widget indicatorSection = Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      tooltip: context.l10n.commonBack,
-                      icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                      onPressed: _index > 0
-                          ? () {
-                              HapticService.selection();
-                              _pageController.previousPage(
-                                duration: const Duration(milliseconds: 300),
-                                curve: M3SpringCurves.spatial,
-                              );
-                            }
-                          : null,
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List<Widget>.generate(_totalSlides, (
-                        int dotIndex,
-                      ) {
-                        final bool active = dotIndex == _index;
-                        return Semantics(
-                          button: true,
-                          selected: active,
-                          label: '${dotIndex + 1} / $_totalSlides',
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticService.selection();
-                              _pageController.animateToPage(
-                                dotIndex,
-                                duration: const Duration(milliseconds: 320),
-                                curve: M3SpringCurves.spatial,
-                              );
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 260),
-                              curve: M3SpringCurves.spatial,
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: active ? 26 : 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: active
-                                    ? scheme.primary
-                                    : scheme.outlineVariant.withValues(
-                                        alpha: 0.5,
-                                      ),
-                                borderRadius: AppRadii.fullRadius,
-                              ),
-                            ),
-                          ),
+                  children: List.generate(_totalSlides, (dotIndex) {
+                    final active = dotIndex == _index;
+                    void select() {
+                      HapticService.selection();
+                      if (MediaQuery.disableAnimationsOf(context)) {
+                        _pageController.jumpToPage(dotIndex);
+                      } else {
+                        _pageController.animateToPage(
+                          dotIndex,
+                          duration: M3Durations.medium2,
+                          curve: M3SpringCurves.spatial,
                         );
-                      }),
-                    ),
-                    IconButton(
-                      tooltip: context.l10n.commonContinue,
-                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                      onPressed: _index < _totalSlides - 1
-                          ? () {
-                              HapticService.selection();
-                              _pageController.nextPage(
-                                duration: const Duration(milliseconds: 300),
-                                curve: M3SpringCurves.spatial,
-                              );
-                            }
-                          : null,
-                    ),
-                  ],
+                      }
+                    }
+
+                    return Semantics(
+                      button: true,
+                      selected: active,
+                      label: '${dotIndex + 1} / $_totalSlides',
+                      onTap: select,
+                      excludeSemantics: true,
+                      child: TextButton(
+                        onPressed: select,
+                        key: ValueKey('onboarding-step-$dotIndex'),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          padding: EdgeInsets.zero,
+                          tapTargetSize: MaterialTapTargetSize.padded,
+                        ),
+                        child: AnimatedContainer(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : M3Durations.short4,
+                          curve: M3SpringCurves.spatial,
+                          width: active ? 26 : 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: active
+                                ? scheme.primary
+                                : scheme.outlineVariant.withValues(alpha: .5),
+                            borderRadius: AppRadii.fullRadius,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                 );
 
                 final Widget actionButtonsSection = Padding(
@@ -501,16 +486,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildRegionAndLanguageSlide(ColorScheme scheme, TextTheme textTheme) {
-    final List<({String? code, String name, String subtitle})> langOptions = [
-      (
-        code: null,
-        name: context.l10n.languageRegionUseSystemLanguage,
-        subtitle: Localizations.localeOf(context).languageCode == 'ru'
-            ? context.l10n.languageRussian
-            : context.l10n.languageEnglish,
-      ),
-      (code: 'en', name: context.l10n.languageEnglish, subtitle: 'English'),
-      (code: 'ru', name: context.l10n.languageRussian, subtitle: 'Русский'),
+    final List<({String? code, String name})> langOptions = [
+      (code: null, name: context.l10n.auditSystemLanguage),
+      (code: 'en', name: context.l10n.languageEnglish),
+      (code: 'ru', name: context.l10n.languageRussian),
     ];
 
     return Center(
@@ -539,56 +518,43 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Language Chips / Buttons
-              Row(
-                children: langOptions.map((lang) {
-                  final bool selected =
-                      _selectedLanguageCode == lang.code ||
-                      (_selectedLanguageCode == null && lang.code == null);
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 3),
-                      child: Material(
-                        color: selected
-                            ? scheme.primaryContainer
-                            : scheme.surfaceContainerLow,
-                        borderRadius: AppRadii.mdRadius,
-                        child: InkWell(
-                          onTap: () {
-                            HapticService.selection();
-                            setState(() => _selectedLanguageCode = lang.code);
-                            ref
-                                .read(uiSettingsProvider.notifier)
-                                .setLocaleCode(lang.code);
-                          },
-                          borderRadius: AppRadii.mdRadius,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Column(
-                              children: [
-                                Text(
-                                  lang.name,
-                                  style: textTheme.labelLarge?.copyWith(
-                                    fontWeight: selected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: selected
-                                        ? scheme.onPrimaryContainer
-                                        : scheme.onSurface,
-                                    fontSize: 12,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  key: const ValueKey('onboarding-language'),
+                  showSelectedIcon: false,
+                  style: SegmentedButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 12,
+                    ),
+                    textStyle: textTheme.labelMedium,
+                  ),
+                  segments: [
+                    for (final lang in langOptions)
+                      ButtonSegment(
+                        value: lang.code ?? 'system',
+                        tooltip: lang.code == null
+                            ? context.l10n.languageRegionUseSystemLanguage
+                            : lang.name,
+                        label: Text(
+                          lang.name,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                  ],
+                  selected: {_selectedLanguageCode ?? 'system'},
+                  onSelectionChanged: (selection) {
+                    HapticService.selection();
+                    final code = selection.single == 'system'
+                        ? null
+                        : selection.single;
+                    setState(() => _selectedLanguageCode = code);
+                    ref.read(uiSettingsProvider.notifier).setLocaleCode(code);
+                  },
+                ),
               ),
               const SizedBox(height: 14),
 

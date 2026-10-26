@@ -108,20 +108,22 @@ class ChatMediaCache {
   /// Existing messages are updated, new ones are inserted, order is preserved.
   static Future<void> saveMediaMessages(
     int chatId,
-    List<ApiMessage> messages,
-  ) async {
-    if (chatId <= 0 || messages.isEmpty) return;
+    List<ApiMessage> messages, {
+    bool Function()? canWrite,
+  }) async {
+    if (chatId <= 0 || messages.isEmpty || canWrite?.call() == false) return;
+    // Text-only snapshots never need to open a shared-media box, especially
+    // during provider disposal when the caller is draining storage work.
+    final List<ApiMessage> newMedia = messages
+        .where((m) => !m.isE2ee && m.e2eeFileKey == null && isMediaMessage(m))
+        .toList(growable: false);
+    if (newMedia.isEmpty) return;
 
     try {
       await ensureInitialized();
+      if (canWrite?.call() == false) return;
       final Box<List<dynamic>>? box = _getBox();
       if (box == null) return;
-
-      // Filter only messages containing media
-      final List<ApiMessage> newMedia = messages
-          .where((m) => !m.isE2ee && m.e2eeFileKey == null && isMediaMessage(m))
-          .toList(growable: false);
-      if (newMedia.isEmpty) return;
 
       // Load existing cached media
       final List<ApiMessage> existing = getCachedMediaSync(chatId);
@@ -154,6 +156,7 @@ class ChatMediaCache {
           .map((ApiMessage m) => m.toJson())
           .toList(growable: false);
 
+      if (canWrite?.call() == false) return;
       await box.put('chat_$chatId', jsonList);
     } catch (e) {
       debugPrint('[ChatMediaCache] saveMediaMessages error: $e');

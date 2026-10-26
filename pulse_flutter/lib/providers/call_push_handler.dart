@@ -17,33 +17,49 @@ class CallPushHandler extends Notifier<void> {
   StreamSubscription<Map<String, dynamic>>? _pushSub;
   StreamSubscription<Map<String, dynamic>>? _controlSub;
   final _endedRooms = <String>{};
+  int _generation = 0;
 
   @override
   void build() {
-    ref.watch(authProvider.select((s) => s.session?.userId));
-    _sub = ref.read(webSocketClientProvider).pushStream.listen(_handlePush);
+    ref.watch(
+      authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
+    );
+    final generation = ++_generation;
+    _endedRooms.clear();
+    _sub = ref.read(webSocketClientProvider).pushStream.listen(_dispatch);
     _pushSub = PushNotificationService.incomingCalls.listen((data) {
-      _handlePush({'action': 'incoming_call_push', 'payload': data});
+      _dispatch({'action': 'incoming_call_push', 'payload': data});
     });
     _controlSub = PushNotificationService.messages.listen((data) {
       if (data['type'] == 'call_ended') {
-        final room = data['room_id']?.toString();
-        if (room == null) return;
-        _rememberEnded(room);
-        if (ref.read(incomingCallProvider)?.roomId == room) {
-          ref.read(incomingCallProvider.notifier).set(null);
+        final account = ref.read(authProvider).session?.userId;
+        if (account == null ||
+            int.tryParse(data['account_id']?.toString() ?? '') != account) {
+          return;
         }
+        _dispatch({'action': 'call_ended', 'payload': data});
       }
     });
     ref.onDispose(() {
+      if (_generation == generation) _generation++;
       unawaited(_controlSub?.cancel());
       unawaited(_sub?.cancel());
       unawaited(_pushSub?.cancel());
     });
   }
 
+  void _dispatch(dynamic event) {
+    unawaited(
+      _handlePush(event).catchError((Object _) {
+        // Optional preference/plugin failures must not escape Stream.listen.
+        debugPrint('[CallPushHandler] INCOMING_EVENT_UNAVAILABLE');
+      }),
+    );
+  }
+
   Future<void> _handlePush(dynamic event) async {
-    if (event is! Map) return;
+    if (!ref.mounted || event is! Map) return;
+    final generation = _generation;
     final Map<String, dynamic> msg = asStringMap(event);
     final String action = msg['action'] as String? ?? '';
 
@@ -93,12 +109,18 @@ class CallPushHandler extends Notifier<void> {
         'Собеседник';
 
     if (chatId == null || roomId == null || roomId.trim().isEmpty) return;
-    final account = ref.read(authProvider).session?.userId;
+    final session = ref.read(authProvider).session;
+    final account = session?.userId;
+    final token = session?.accessToken;
     if (account == null || ref.read(authProvider.notifier).isLoggingOut) return;
+    if (payload.containsKey('account_id') &&
+        int.tryParse(payload['account_id']?.toString() ?? '') != account) {
+      return;
+    }
     final preferences = await ref.read(notificationPreferencesProvider.future);
+    if (!_isCurrent(generation, account, token)) return;
     final muted = await ref.read(chatMutedProvider(chatId).future);
-    if (!ref.mounted ||
-        ref.read(authProvider).session?.userId != account ||
+    if (!_isCurrent(generation, account, token) ||
         !ref.read(uiSettingsProvider).notifications ||
         !preferences.calls ||
         muted ||
@@ -165,6 +187,13 @@ class CallPushHandler extends Notifier<void> {
     );
   }
 
+  bool _isCurrent(int generation, int account, String? token) =>
+      ref.mounted &&
+      generation == _generation &&
+      ref.read(authProvider).session?.userId == account &&
+      ref.read(authProvider).session?.accessToken == token &&
+      !ref.read(authProvider.notifier).isLoggingOut;
+
   void _handleCallJoined(Map<String, dynamic> msg) {
     final Map<String, dynamic> payload = msg['payload'] is Map
         ? asStringMap(msg['payload'] as Map)
@@ -192,20 +221,21 @@ class CallPushHandler extends Notifier<void> {
         ? asStringMap(msg['payload'] as Map)
         : msg;
     final String? roomId = payload['room_id']?.toString();
-    if (roomId != null) _rememberEnded(roomId);
+    if (roomId == null || roomId.trim().isEmpty) return;
+    _rememberEnded(roomId);
 
     final IncomingCallData? incoming = ref.read(incomingCallProvider);
-    if (incoming != null && (roomId == null || incoming.roomId == roomId)) {
+    if (incoming != null && incoming.roomId == roomId) {
       ref.read(incomingCallProvider.notifier).set(null);
     }
 
     // Cancel system call notification
-    if (incoming != null && (roomId == null || incoming.roomId == roomId)) {
+    if (incoming != null && incoming.roomId == roomId) {
       unawaited(PushNotificationService.cancelCallNotification());
     }
 
     final CallSessionManager? manager = ref.read(callSessionProvider);
-    if (manager != null && roomId != null && manager.roomId == roomId) {
+    if (manager != null && manager.roomId == roomId) {
       unawaited(manager.remoteEnd(payload: payload));
     }
   }

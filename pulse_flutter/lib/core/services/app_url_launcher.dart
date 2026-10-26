@@ -98,13 +98,15 @@ class AppUrlLauncher {
     }
 
     // Handle relative in-app paths directly (e.g. '/u/username', '/settings/about')
-    if (trimmed.startsWith('/')) {
+    if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
       return _routeInternally(context, trimmed);
     }
 
     Uri? parsedUri;
     try {
-      parsedUri = Uri.parse(trimmed);
+      parsedUri = Uri.parse(
+        trimmed.startsWith('//') ? 'https:$trimmed' : trimmed,
+      );
     } catch (e) {
       debugPrint('[AppUrlLauncher] Malformed URL');
       return false;
@@ -117,6 +119,8 @@ class AppUrlLauncher {
             trimmed.startsWith('ni-os.ru/'))) {
       parsedUri = Uri.parse('https://$trimmed');
     }
+
+    if (!isSupportedLink(parsedUri)) return false;
 
     // 1. Internal NiosMess Link
     if (isInternalNiosLink(parsedUri)) {
@@ -151,7 +155,9 @@ class AppUrlLauncher {
 
   /// Checks if a given [uri] belongs to the NiosMess ecosystem.
   static bool isInternalNiosLink(Uri uri) {
+    if (uri.userInfo.isNotEmpty) return false;
     if (uri.scheme == 'niosmess' || uri.scheme == 'nios') return true;
+    if (uri.scheme != 'http' && uri.scheme != 'https') return false;
     final String host = uri.host.toLowerCase();
     return host == 'ni-os.ru' ||
         host == 'www.ni-os.ru' ||
@@ -162,6 +168,7 @@ class AppUrlLauncher {
 
   /// Resolves an internal [uri] to a relative GoRouter path.
   static String? resolveInternalAppRoute(Uri uri) {
+    if (!isInternalNiosLink(uri)) return null;
     // 0. NiosLink Protocol dispatch (nios://... or https://ni-os.ru/l/...)
     final NiosLinkParsed? niosLink = NiosLinkService.parseLink(uri.toString());
     if (niosLink != null && niosLink.isValid) {
@@ -220,10 +227,14 @@ class AppUrlLauncher {
     }
     if (path.startsWith('/join/')) {
       final String slug = path.substring(6);
-      if (slug.isNotEmpty) return '/join?slug=$slug';
+      if (slug.isNotEmpty) {
+        return Uri(path: '/join', queryParameters: {'slug': slug}).toString();
+      }
     } else if (path == '/join') {
       final String? slug = uri.queryParameters['slug'];
-      if (slug != null && slug.isNotEmpty) return '/join?slug=$slug';
+      if (slug != null && slug.isNotEmpty) {
+        return Uri(path: '/join', queryParameters: {'slug': slug}).toString();
+      }
       return '/join';
     }
 
@@ -310,7 +321,9 @@ class AppUrlLauncher {
 
   /// Checks if a [uri] points to Telegram.
   static bool isTelegramLink(Uri uri) {
+    if (uri.userInfo.isNotEmpty) return false;
     if (uri.scheme == 'tg') return true;
+    if (uri.scheme != 'http' && uri.scheme != 'https') return false;
     final String host = uri.host.toLowerCase();
     return host == 't.me' || host == 'telegram.me' || host == 'telegram.dog';
   }
@@ -331,27 +344,49 @@ class AppUrlLauncher {
     // Invite link: https://t.me/+hash
     if (first.startsWith('+')) {
       final String invite = first.substring(1);
-      return Uri.parse('tg://join?invite=$invite');
+      return Uri(
+        scheme: 'tg',
+        host: 'join',
+        queryParameters: {'invite': invite},
+      );
     }
 
     // Legacy invite link: https://t.me/joinchat/hash
     if (first == 'joinchat' && segments.length > 1) {
-      return Uri.parse('tg://join?invite=${segments[1]}');
+      return Uri(
+        scheme: 'tg',
+        host: 'join',
+        queryParameters: {'invite': segments[1]},
+      );
     }
 
     // Private channel post: https://t.me/c/12345/67
     if (first == 'c' && segments.length > 1) {
       final String channel = segments[1];
-      final String post = segments.length > 2 ? '&post=${segments[2]}' : '';
-      return Uri.parse('tg://privatepost?channel=$channel$post');
+      return Uri(
+        scheme: 'tg',
+        host: 'privatepost',
+        queryParameters: {
+          'channel': channel,
+          if (segments.length > 2) 'post': segments[2],
+        },
+      );
     }
 
     // Username or channel with optional post id: https://t.me/channel/123
     if (segments.length >= 2) {
-      return Uri.parse('tg://resolve?domain=$first&post=${segments[1]}');
+      return Uri(
+        scheme: 'tg',
+        host: 'resolve',
+        queryParameters: {'domain': first, 'post': segments[1]},
+      );
     }
 
-    return Uri.parse('tg://resolve?domain=$first');
+    return Uri(
+      scheme: 'tg',
+      host: 'resolve',
+      queryParameters: {'domain': first},
+    );
   }
 
   static bool _routeInternally(BuildContext? context, String route) {
@@ -382,7 +417,7 @@ class AppUrlLauncher {
   static Future<bool> _launchTelegram(Uri uri) async {
     final Uri? nativeTgUri = convertTelegramToNativeScheme(uri);
     final Uri webFallbackUri = uri.scheme == 'tg'
-        ? Uri.parse('https://t.me/${uri.queryParameters['domain'] ?? ''}')
+        ? Uri.https('t.me', '/${uri.queryParameters['domain'] ?? ''}')
         : uri;
 
     // On non-web (Android/iOS/Desktop), attempt native tg:// first
@@ -405,10 +440,42 @@ class AppUrlLauncher {
     return _launchExternal(webFallbackUri);
   }
 
+  /// Untrusted message and bot links cannot invoke arbitrary OS handlers.
+  /// Intent/file/settings links, if needed by an app feature, use their own
+  /// purpose-built service and never this user-content entry point.
+  static bool isSupportedLink(Uri uri) {
+    if (uri.userInfo.isNotEmpty || uri.toString().length > 8192) return false;
+    try {
+      if (RegExp(r'[\x00-\x1f\x7f]').hasMatch(Uri.decodeComponent(uri.path))) {
+        return false;
+      }
+    } on FormatException {
+      return false;
+    }
+    if (uri.scheme == 'niosmess' ||
+        uri.scheme == 'nios' ||
+        uri.scheme == 'tg') {
+      return true;
+    }
+    if (uri.scheme == 'http' || uri.scheme == 'https') {
+      return uri.host.isNotEmpty;
+    }
+    return const {'mailto', 'tel', 'sms'}.contains(uri.scheme) &&
+        !uri.hasAuthority &&
+        uri.path.isNotEmpty;
+  }
+
   static Future<bool> _launchExternal(Uri uri) async {
+    if (!isSupportedLink(uri)) return false;
+    final browser = uri.scheme == 'http' || uri.scheme == 'https';
     try {
       if (await canLaunchUrl(uri)) {
-        return await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+        return await launchUrl(
+          uri,
+          mode: browser
+              ? LaunchMode.inAppBrowserView
+              : LaunchMode.externalApplication,
+        );
       }
     } catch (e) {
       debugPrint('[AppUrlLauncher] Error launching external URL');

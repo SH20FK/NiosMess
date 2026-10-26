@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/utils/cancellation_token.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'dart:typed_data';
 import 'package:pulse_flutter/models/interactive_message.dart';
@@ -38,6 +39,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   List<PlatformFile> _selectedFiles = <PlatformFile>[];
   List<Uint8List> _previewBytesList = <Uint8List>[];
   bool _isLoading = false;
+  bool _isPickingMedia = false;
+  CancellationToken? _uploadCancellation;
   Map<String, dynamic>? _poll;
   String? _error;
 
@@ -56,6 +59,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   @override
   void dispose() {
+    _uploadCancellation?.cancel();
     _textController.dispose();
     super.dispose();
   }
@@ -70,56 +74,96 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         ext == '3gp';
   }
 
+  Future<Uint8List> _readMediaBytes(
+    PlatformFile file,
+    String sizeError, {
+    CancellationToken? cancellation,
+  }) async {
+    cancellation?.throwIfCancelled();
+    final length = await file.length();
+    if (length <= 0 || length > _maxFileBytes) throw FormatException(sizeError);
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in file.readAsByteStream()) {
+      cancellation?.throwIfCancelled();
+      if (bytes.length + chunk.length > _maxFileBytes) {
+        throw FormatException(sizeError);
+      }
+      bytes.add(chunk);
+    }
+    if (bytes.isEmpty) throw FormatException(sizeError);
+    return bytes.takeBytes();
+  }
+
   Future<void> _pickMedia() async {
-    final int availableSlots = 5 - _selectedFiles.length;
-    if (availableSlots <= 0) {
-      AppToast.showInfo(context, 'Максимум 5 фотографий');
+    if (_isPickingMedia ||
+        _isLoading ||
+        ref.read(authProvider.notifier).isLoggingOut) {
       return;
     }
-
-    final List<PlatformFile> result = await FilePicker.pickFiles(
-      type: FileType.media,
-    );
-    if (result.isEmpty) return;
-
-    final List<PlatformFile> picked = result.take(availableSlots).toList();
-    final List<PlatformFile> validFiles = List<PlatformFile>.from(
-      _selectedFiles,
-    );
-    final List<Uint8List> previews = List<Uint8List>.from(_previewBytesList);
-
-    for (final PlatformFile file in picked) {
-      if ((await file.length()) > _maxFileBytes) {
-        setState(() => _error = context.l10n.postFileTooLarge);
-        continue;
+    final int availableSlots = 5 - _selectedFiles.length;
+    if (availableSlots <= 0) return;
+    _isPickingMedia = true;
+    final sizeError = context.l10n.postFileTooLarge;
+    final account = ref.read(authProvider).session;
+    bool active() =>
+        mounted &&
+        !ref.read(authProvider.notifier).isLoggingOut &&
+        ref.read(authProvider).session?.userId == account?.userId &&
+        ref.read(authProvider).session?.accessToken == account?.accessToken;
+    try {
+      final result = await FilePicker.pickFiles(type: FileType.media);
+      if (!active() || result.isEmpty || _isLoading) return;
+      final validFiles = List<PlatformFile>.from(_selectedFiles);
+      final previews = List<Uint8List>.from(_previewBytesList);
+      for (final file in result.take(availableSlots)) {
+        final length = await file.length();
+        if (!active()) return;
+        if (length <= 0 || length > _maxFileBytes) {
+          setState(() => _error = sizeError);
+          continue;
+        }
+        Uint8List previewBytes = Uint8List(0);
+        if (!_isVideoFile(file.name)) {
+          previewBytes = await _readMediaBytes(file, sizeError);
+          if (!active()) return;
+          final compressed = await ImageCompressor.compressImageBytes(
+            bytes: previewBytes,
+            fileName: file.name,
+          );
+          if (!active()) return;
+          if (compressed != null) previewBytes = compressed;
+        }
+        validFiles.add(file);
+        previews.add(previewBytes);
       }
-      final bool isVideo = _isVideoFile(file.name);
-      Uint8List previewBytes;
-      if (isVideo) {
-        previewBytes = Uint8List(0);
-      } else {
-        previewBytes = await file.readAsBytes();
-        final Uint8List? compressed = await ImageCompressor.compressImageBytes(
-          bytes: previewBytes,
-          fileName: file.name,
+      if (active() && validFiles.length != _selectedFiles.length) {
+        setState(() {
+          _selectedFiles = validFiles;
+          _previewBytesList = previews;
+          _selectedFile = validFiles.firstOrNull;
+          _error = null;
+        });
+      }
+    } catch (error) {
+      if (active()) {
+        setState(
+          () => _error = AppErrorFormatter.format(
+            error,
+            l10n: context.l10n,
+          ).toString(),
         );
-        if (compressed != null) previewBytes = compressed;
       }
-      validFiles.add(file);
-      previews.add(previewBytes);
-    }
-
-    if (validFiles.length != _selectedFiles.length) {
-      setState(() {
-        _selectedFiles = validFiles;
-        _previewBytesList = previews;
-        _selectedFile = validFiles.firstOrNull;
-        _error = null;
-      });
+    } finally {
+      _isPickingMedia = false;
     }
   }
 
   Future<void> _submit() async {
+    if (_isLoading ||
+        _isPickingMedia ||
+        ref.read(authProvider.notifier).isLoggingOut) {
+      return;
+    }
     final String text = _textController.text.trim();
     if (text.isEmpty &&
         _poll == null &&
@@ -136,76 +180,83 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       _error = null;
     });
 
+    final files = List<PlatformFile>.of(
+      _selectedFiles.isNotEmpty ? _selectedFiles : [?_selectedFile],
+    );
+    final previews = List<Uint8List>.of(_previewBytesList);
+    final poll = _poll == null ? null : Map<String, dynamic>.of(_poll!);
+    final account = ref.read(authProvider).session;
+    final repository = ref.read(chatRepositoryProvider);
+    final feed = ref.read(niosgramProvider.notifier);
+    final sizeError = context.l10n.postFileTooLarge;
+    final cancellation = CancellationToken();
+    _uploadCancellation = cancellation;
+    bool active() =>
+        mounted &&
+        !ref.read(authProvider.notifier).isLoggingOut &&
+        ref.read(authProvider).session?.userId == account?.userId &&
+        ref.read(authProvider).session?.accessToken == account?.accessToken;
     try {
-      List<String>? uploadIds;
-      if (_selectedFiles.isNotEmpty) {
-        uploadIds = <String>[];
-        for (int i = 0; i < _selectedFiles.length; i++) {
-          final PlatformFile file = _selectedFiles[i];
-          final Uint8List fileBytes = (i < _previewBytesList.length)
-              ? _previewBytesList[i]
-              : await file.readAsBytes();
-          String filename = file.name;
-          if (!filename.contains('.')) {
-            filename = '$filename.jpg';
-          }
-          final String uploadIdStr = await ref
-              .read(chatRepositoryProvider)
-              .uploadStreamInChunks(
-                bytes: fileBytes,
-                filename: filename,
-                mediaSubtype: 'media',
-                fileSize: fileBytes.length,
-                onProgress: (_, _) {},
+      final uploadIds = <String>[];
+      for (var i = 0; i < files.length; i++) {
+        cancellation.throwIfCancelled();
+        if (!active()) return;
+        final file = files[i];
+        // Video previews are deliberately empty; they are never upload data.
+        final bytes =
+            !_isVideoFile(file.name) &&
+                i < previews.length &&
+                previews[i].isNotEmpty
+            ? previews[i]
+            : await _readMediaBytes(
+                file,
+                sizeError,
+                cancellation: cancellation,
               );
-          if (uploadIdStr.isNotEmpty) {
-            uploadIds.add(uploadIdStr);
-          }
-        }
-      } else if (_selectedFile != null) {
-        final PlatformFile file = _selectedFile!;
-        final Uint8List fileBytes = _previewBytesList.isNotEmpty
-            ? _previewBytesList.first
-            : await file.readAsBytes();
-        String filename = file.name;
-        if (!filename.contains('.')) {
-          filename = '$filename.jpg';
-        }
-        final String uploadIdStr = await ref
-            .read(chatRepositoryProvider)
-            .uploadStreamInChunks(
-              bytes: fileBytes,
-              filename: filename,
-              mediaSubtype: 'media',
-              fileSize: fileBytes.length,
-              onProgress: (_, _) {},
-            );
-        if (uploadIdStr.isNotEmpty) {
-          uploadIds = <String>[uploadIdStr];
-        }
+        if (!active()) return;
+        final uploadId = await repository.uploadStreamInChunks(
+          bytes: bytes,
+          filename: file.name.contains('.') ? file.name : '${file.name}.jpg',
+          mediaSubtype: 'media',
+          fileSize: bytes.length,
+          onProgress: (_, _) {},
+          cancellationToken: cancellation,
+        );
+        if (!active()) return;
+        if (uploadId.isEmpty) throw StateError('empty_upload_id');
+        uploadIds.add(uploadId);
       }
+      if (!active()) return;
+      await feed.createPost(
+        text,
+        uploadIds: uploadIds,
+        poll: poll,
+        uploadId: uploadIds.firstOrNull,
+      );
 
-      await ref
-          .read(niosgramProvider.notifier)
-          .createPost(
-            text,
-            uploadIds: uploadIds,
-            poll: _poll,
-            uploadId: uploadIds?.firstOrNull,
-          );
-
-      if (mounted) {
+      if (mounted && active()) {
         if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
-        Navigator.of(context).pop();
+        if (_textController.text.trim() == text) {
+          Navigator.of(context).pop();
+        } else {
+          AppToast.showSuccess(context, context.l10n.auditPostPublished);
+        }
       }
     } catch (e) {
+      if (!mounted || !active() || cancellation.isCancelled) return;
       if (ref.read(uiSettingsProvider).haptics) HapticService.destructive();
-      final String formatted = AppErrorFormatter.format(e).toString();
+      final String formatted = AppErrorFormatter.format(
+        e,
+        l10n: context.l10n,
+      ).toString();
       setState(() => _error = formatted);
       if (mounted) {
         AppToast.showError(context, e);
       }
     } finally {
+      if (identical(_uploadCancellation, cancellation)) {
+        _uploadCancellation = null;
+      }
       if (mounted) setState(() => _isLoading = false);
     }
   }

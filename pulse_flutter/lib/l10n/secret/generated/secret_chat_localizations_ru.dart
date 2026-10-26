@@ -1189,4 +1189,151 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get customEmptySet => 'В этом наборе пока нет эмодзи';
+
+  @override
+  String get auditSystemLanguage => 'Системный';
+
+  @override
+  String get auditPostPublished => 'Публикация добавлена';
+
+  @override
+  String get auditCommentSend => 'Отправить комментарий';
+
+  @override
+  String get auditCommentDeleteTitle => 'Удалить комментарий?';
+
+  @override
+  String get auditCommentDeleteBody => 'Ответы останутся в обсуждении.';
+
+  @override
+  String get auditCommentLoadMore => 'Загрузить ещё комментарии';
+
+  @override
+  String get auditCommentHint => 'Комментарий или вопрос @ai';
+
+  @override
+  String get auditCommentEditing => 'Редактирование комментария';
+
+  @override
+  String auditCommentReply(String name) {
+    return 'Ответ $name';
+  }
+
+  @override
+  String get auditCommentReported => 'Жалоба на качество отправлена';
+
+  @override
+  String get auditCommentAuthor => 'Автор';
+
+  @override
+  String get auditCommentChannel => 'Канал';
+
+  @override
+  String get auditPostMedia => 'Медиафайл';
+
+  @override
+  String get auditPostQuiz => 'Викторина';
+
+  @override
+  String get auditPostPoll => 'Опрос';
+
+  @override
+  String get auditPlusSignIn => 'Войдите через NiosID';
+
+  @override
+  String get auditPlusCatalogUnavailable => 'Тарифы недоступны';
+
+  @override
+  String get auditPlusCatalogLoadFailed =>
+      'Не удалось загрузить тарифы. Активация купленной ссылки доступна ниже.';
+
+  @override
+  String get auditPlusActivationLinkInvalid =>
+      'Вставьте полную ссылку активации из заказа';
+
+  @override
+  String get auditPlusAccountChanged =>
+      'Аккаунт изменился. Обновите тарифы перед покупкой.';
+
+  @override
+  String get auditPlusProductUnavailable =>
+      'Адрес товара недоступен. Попробуйте обновить тарифы.';
+
+  @override
+  String get auditPlusOpenFailed => 'Не удалось открыть FunPay';
+
+  @override
+  String get auditPlusNativeOnly =>
+      'Покупка и активация доступны в мобильном и десктопном NiosMess.';
+
+  @override
+  String get auditPlusSupportedPlatforms =>
+      'Покупка и активация пока доступны в приложениях для Android, Windows и Linux.';
+
+  @override
+  String get auditPlusPurchaseTitle => 'Покупка и продление';
+
+  @override
+  String get auditPlusPromoLimit => 'Один раз на аккаунт, IP и устройство';
+
+  @override
+  String get auditPlusBuy => 'Купить';
+
+  @override
+  String get auditPlusSalesPending =>
+      'Продажи ещё не открыты. Купленную ссылку можно активировать ниже.';
+
+  @override
+  String get auditPlusRefreshPlans => 'Обновить тарифы';
+
+  @override
+  String get auditPlusAlreadyPurchased => 'Уже купили NiosPlus?';
+
+  @override
+  String get auditPlusActivationLink => 'Ссылка активации';
+
+  @override
+  String get auditPlusCheckSubscription => 'Проверить подписку';
+
+  @override
+  String get auditPlusContinuePurchase => 'Перейти к покупке';
+
+  @override
+  String get auditPlusPurchaseInstructions =>
+      'На FunPay вы получите одноразовую ссылку. Откройте её в NiosMess для активации.';
+
+  @override
+  String get auditPlusFeeNotice =>
+      'К цене добавляется комиссия платёжного шлюза. Итоговая сумма будет показана на FunPay перед оплатой.';
+
+  @override
+  String get auditPlusDeviceHashConsent =>
+      'Согласен на передачу SHA-256 хеша устройства при активации';
+
+  @override
+  String get auditPlusDeviceHashPurpose =>
+      'Нужен для защиты покупки. Для промотарифа учитываются также аккаунт и IP.';
+
+  @override
+  String get auditPlusOpenFunPay => 'Перейти на FunPay';
+
+  @override
+  String get auditAppLockCheckFailed =>
+      'Не удалось проверить блокировку приложения. Попробуйте ещё раз.';
+
+  @override
+  String get auditAppLockTitle => 'NiosMess заблокирован';
+
+  @override
+  String get auditAppLockDescription =>
+      'Подтвердите личность для доступа к сообщениям и данным';
+
+  @override
+  String get auditAppLockAuthenticating => 'Проверка…';
+
+  @override
+  String get auditAppLockUnlock => 'Разблокировать';
+
+  @override
+  String get auditAppLockMinimize => 'Свернуть';
 }

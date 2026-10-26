@@ -1177,4 +1177,151 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get customEmptySet => 'This pack has no emoji yet';
+
+  @override
+  String get auditSystemLanguage => 'System';
+
+  @override
+  String get auditPostPublished => 'Post published';
+
+  @override
+  String get auditCommentSend => 'Send comment';
+
+  @override
+  String get auditCommentDeleteTitle => 'Delete comment?';
+
+  @override
+  String get auditCommentDeleteBody => 'Replies will remain in the discussion.';
+
+  @override
+  String get auditCommentLoadMore => 'Load more comments';
+
+  @override
+  String get auditCommentHint => 'Comment or ask @ai';
+
+  @override
+  String get auditCommentEditing => 'Editing comment';
+
+  @override
+  String auditCommentReply(String name) {
+    return 'Reply to $name';
+  }
+
+  @override
+  String get auditCommentReported => 'Quality report sent';
+
+  @override
+  String get auditCommentAuthor => 'Author';
+
+  @override
+  String get auditCommentChannel => 'Channel';
+
+  @override
+  String get auditPostMedia => 'Media file';
+
+  @override
+  String get auditPostQuiz => 'Quiz';
+
+  @override
+  String get auditPostPoll => 'Poll';
+
+  @override
+  String get auditPlusSignIn => 'Sign in with NiosID';
+
+  @override
+  String get auditPlusCatalogUnavailable => 'Plans are unavailable';
+
+  @override
+  String get auditPlusCatalogLoadFailed =>
+      'Could not load plans. You can still activate a purchased link below.';
+
+  @override
+  String get auditPlusActivationLinkInvalid =>
+      'Paste the full activation link from your order';
+
+  @override
+  String get auditPlusAccountChanged =>
+      'Account changed. Refresh plans before purchasing.';
+
+  @override
+  String get auditPlusProductUnavailable =>
+      'The product address is unavailable. Try refreshing plans.';
+
+  @override
+  String get auditPlusOpenFailed => 'Could not open FunPay';
+
+  @override
+  String get auditPlusNativeOnly =>
+      'Purchase and activation are available in the mobile and desktop NiosMess app.';
+
+  @override
+  String get auditPlusSupportedPlatforms =>
+      'Purchase and activation are currently available on Android, Windows and Linux.';
+
+  @override
+  String get auditPlusPurchaseTitle => 'Purchase and renewal';
+
+  @override
+  String get auditPlusPromoLimit => 'Once per account, IP address and device';
+
+  @override
+  String get auditPlusBuy => 'Buy';
+
+  @override
+  String get auditPlusSalesPending =>
+      'Sales have not opened yet. You can activate a purchased link below.';
+
+  @override
+  String get auditPlusRefreshPlans => 'Refresh plans';
+
+  @override
+  String get auditPlusAlreadyPurchased => 'Already purchased NiosPlus?';
+
+  @override
+  String get auditPlusActivationLink => 'Activation link';
+
+  @override
+  String get auditPlusCheckSubscription => 'Check subscription';
+
+  @override
+  String get auditPlusContinuePurchase => 'Continue to purchase';
+
+  @override
+  String get auditPlusPurchaseInstructions =>
+      'FunPay will give you a single-use link. Open it in NiosMess to activate your purchase.';
+
+  @override
+  String get auditPlusFeeNotice =>
+      'A payment gateway fee is added to the price. FunPay will show the total before payment.';
+
+  @override
+  String get auditPlusDeviceHashConsent =>
+      'I agree to share the SHA-256 device hash during activation';
+
+  @override
+  String get auditPlusDeviceHashPurpose =>
+      'This protects your purchase. Promotional plans also check your account and IP address.';
+
+  @override
+  String get auditPlusOpenFunPay => 'Open FunPay';
+
+  @override
+  String get auditAppLockCheckFailed =>
+      'Couldn\'t check the app lock. Try again.';
+
+  @override
+  String get auditAppLockTitle => 'NiosMess is locked';
+
+  @override
+  String get auditAppLockDescription =>
+      'Confirm your identity to access messages and data';
+
+  @override
+  String get auditAppLockAuthenticating => 'Checking…';
+
+  @override
+  String get auditAppLockUnlock => 'Unlock';
+
+  @override
+  String get auditAppLockMinimize => 'Minimize';
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
@@ -74,7 +73,7 @@ class M3OrganicBackground extends ConsumerWidget {
                       },
                     )
                   else
-                    const SizedBox(width: 44),
+                    const SizedBox(width: 48),
 
                   if (showThemeToggle)
                     Builder(
@@ -137,7 +136,7 @@ class M3OrganicBackground extends ConsumerWidget {
                       },
                     )
                   else
-                    const SizedBox(width: 44),
+                    const SizedBox(width: 48),
                 ],
               ),
             ),
@@ -162,36 +161,15 @@ class _TopIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radii = AppRadii.of(context);
-    final Widget button = Material(
-      color: scheme.surfaceContainerHigh.withValues(alpha: 0.8),
-      borderRadius: AppRadii.fullRadius,
-      elevation: 0,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadii.fullRadius,
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            borderRadius: radii.fullRadius,
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.25),
-              width: 1,
-            ),
-          ),
-          child: Icon(icon, size: 20, color: scheme.onSurface),
-        ),
+    return IconButton.filledTonal(
+      tooltip: tooltip,
+      onPressed: onTap,
+      style: IconButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        backgroundColor: scheme.surfaceContainerHigh,
+        foregroundColor: scheme.onSurface,
       ),
+      icon: Icon(icon, size: 20),
     );
-
-    if (tooltip != null) {
-      return Tooltip(
-        message: tooltip!,
-        child: Semantics(button: true, label: tooltip, child: button),
-      );
-    }
-
-    return Semantics(button: true, child: button);
   }
 }

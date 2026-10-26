@@ -197,6 +197,10 @@ void main() {
         locale: const Locale('ru'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          child: child!,
+        ),
         home: StatefulBuilder(builder: (context, update) => Scaffold(
           bottomNavigationBar: AppBottomNav(currentIndex: index, hapticsEnabled: false,
             onTap: (next) { selections.add(next); update(() => index = next); }),
@@ -209,6 +213,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(selections, [1, 2]);
       expect(index, 2);
+      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).animationDuration, Duration.zero);
+      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 2);
       expect(tester.takeException(), isNull);
     });
 

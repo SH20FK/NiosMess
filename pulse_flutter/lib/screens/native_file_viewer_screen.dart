@@ -1026,7 +1026,7 @@ class _ImageViewer extends StatelessWidget {
     if (isSvg && url != null) {
       return SvgPicture.network(
         url!,
-        headers: cachedAuthHeaders(),
+        headers: cachedAuthHeaders(url),
         fit: BoxFit.contain,
         width: double.infinity,
         height: double.infinity,
@@ -1052,7 +1052,7 @@ class _ImageViewer extends StatelessWidget {
     if (url != null) {
       return CachedNetworkImage(
         imageUrl: url!,
-        httpHeaders: cachedAuthHeaders(),
+        httpHeaders: cachedAuthHeaders(url),
         fit: BoxFit.contain,
         memCacheWidth: safeDecodeWidth,
         placeholder: (_, _) => const Center(

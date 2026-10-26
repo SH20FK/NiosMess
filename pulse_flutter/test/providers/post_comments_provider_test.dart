@@ -10,6 +10,14 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/post_comments_repository.dart';
 
 class _Auth extends AuthNotifier {
+  void switchAccount(int id) => state = state.copyWith(
+    session: AuthSession(
+      accessToken: 'fixture-$id',
+      userId: id,
+      username: 'user$id',
+      displayName: 'User $id',
+    ),
+  );
   @override
   AuthState build() => const AuthState.initial().copyWith(
     session: const AuthSession(
@@ -132,6 +140,41 @@ void main() {
         throwsStateError,
       );
       expect(container.read(provider).value!.map((m) => m.id), [1, 2]);
+    },
+  );
+  test(
+    'account switch discards a delayed page from the previous authenticated account',
+    () async {
+      late _Repository repo;
+      final socket = WebSocketClient(
+        baseUrl: 'https://fixture.invalid',
+        readToken: () => null,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith(_Auth.new),
+          webSocketClientProvider.overrideWithValue(socket),
+          postCommentsRepositoryProvider.overrideWith(
+            (ref) => repo = _Repository(ref),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(socket.close);
+      final provider = postCommentsProvider(
+        const PostCommentsArgs(channelId: 0, postId: 1),
+      );
+      final sub = container.listen(provider, (_, _) {});
+      addTearDown(sub.close);
+      await container.read(provider.future);
+      final pending = Completer<CommentsPage>();
+      repo.pending = pending;
+      final refresh = container.read(provider.notifier).refresh();
+      (container.read(authProvider.notifier) as _Auth).switchAccount(2);
+      await container.read(provider.future);
+      pending.complete(CommentsPage([message(999)], false));
+      await refresh;
+      expect(container.read(provider).requireValue.map((m) => m.id), [1, 2]);
     },
   );
 }

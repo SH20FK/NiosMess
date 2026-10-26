@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:archive/archive.dart' show getCrc32;
 
+typedef _AlbumRecord = ({int offset, int size, int crc});
+
 class AlbumImage {
   const AlbumImage(this.name, this.bytes);
   final String name;
@@ -103,6 +105,7 @@ class MediaAlbum {
       throw const FormatException('album_size');
     }
     final data = ByteData.sublistView(bytes), files = <String, Uint8List>{};
+    final records = <String, _AlbumRecord>{};
     var offset = 0, total = 0;
     while (offset + 30 <= bytes.length &&
         data.getUint32(offset, Endian.little) == 0x04034b50) {
@@ -135,9 +138,15 @@ class MediaAlbum {
       if (getCrc32(content) != data.getUint32(offset + 14, Endian.little)) {
         throw const FormatException('album_crc');
       }
+      records[name] = (
+        offset: offset,
+        size: size,
+        crc: data.getUint32(offset + 14, Endian.little),
+      );
       files[name] = content;
       offset = start + size;
     }
+    _verifyDirectory(bytes, data, offset, records);
     final manifest = files.remove('nios_album.json');
     if (manifest == null ||
         manifest.length > 4096 ||
@@ -162,5 +171,59 @@ class MediaAlbum {
       throw const FormatException('album_image');
     }
     return [for (final name in names) AlbumImage(name, files[name]!)];
+  }
+
+  /// STORE entries must agree with their central directory and EOCD. Reading
+  /// local headers alone would also accept a truncated or contradictory ZIP.
+  static void _verifyDirectory(
+    Uint8List bytes,
+    ByteData data,
+    int offset,
+    Map<String, _AlbumRecord> records,
+  ) {
+    final centralStart = offset;
+    final names = <String>{};
+    while (offset + 4 <= bytes.length &&
+        data.getUint32(offset, Endian.little) == 0x02014b50) {
+      if (offset + 46 > bytes.length || names.length >= records.length) {
+        throw const FormatException('album_directory');
+      }
+      final nameLength = data.getUint16(offset + 28, Endian.little);
+      final extraLength = data.getUint16(offset + 30, Endian.little);
+      final commentLength = data.getUint16(offset + 32, Endian.little);
+      final next = offset + 46 + nameLength + extraLength + commentLength;
+      if (next > bytes.length ||
+          data.getUint16(offset + 8, Endian.little) != 0 ||
+          data.getUint16(offset + 10, Endian.little) != 0 ||
+          data.getUint16(offset + 34, Endian.little) != 0) {
+        throw const FormatException('album_directory');
+      }
+      final name = utf8.decode(
+        Uint8List.sublistView(bytes, offset + 46, offset + 46 + nameLength),
+      );
+      final record = records[name];
+      if (record == null ||
+          !names.add(name) ||
+          data.getUint32(offset + 16, Endian.little) != record.crc ||
+          data.getUint32(offset + 20, Endian.little) != record.size ||
+          data.getUint32(offset + 24, Endian.little) != record.size ||
+          data.getUint32(offset + 42, Endian.little) != record.offset) {
+        throw const FormatException('album_directory_entry');
+      }
+      offset = next;
+    }
+    if (names.length != records.length ||
+        offset + 22 > bytes.length ||
+        data.getUint32(offset, Endian.little) != 0x06054b50 ||
+        data.getUint16(offset + 4, Endian.little) != 0 ||
+        data.getUint16(offset + 6, Endian.little) != 0 ||
+        data.getUint16(offset + 8, Endian.little) != names.length ||
+        data.getUint16(offset + 10, Endian.little) != names.length ||
+        data.getUint32(offset + 12, Endian.little) != offset - centralStart ||
+        data.getUint32(offset + 16, Endian.little) != centralStart ||
+        offset + 22 + data.getUint16(offset + 20, Endian.little) !=
+            bytes.length) {
+      throw const FormatException('album_directory_end');
+    }
   }
 }

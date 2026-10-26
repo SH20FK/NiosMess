@@ -8,12 +8,10 @@ class ApiConstants {
 
   static String get devProxyOrigin {
     if (kIsWeb) {
-      final String originStr = Uri.base.origin;
-      if (originStr.isNotEmpty &&
-          originStr != 'null' &&
-          !originStr.startsWith('file:') &&
-          (originStr.contains('localhost') || originStr.contains('127.0.0.1'))) {
-        return originStr;
+      final base = Uri.base;
+      if ((base.scheme == 'http' || base.scheme == 'https') &&
+          const {'localhost', '127.0.0.1', '::1'}.contains(base.host)) {
+        return base.origin;
       }
     }
     return origin;
@@ -24,12 +22,15 @@ class ApiConstants {
   static String get redirectUri {
     if (kIsWeb) {
       final String originStr = Uri.base.origin;
-      if (originStr.isNotEmpty && originStr != 'null' && !originStr.startsWith('file:')) {
+      if (originStr.isNotEmpty &&
+          originStr != 'null' &&
+          !originStr.startsWith('file:')) {
         return '$originStr/web';
       }
     }
     return '$origin/web';
   }
+
   static const String scopes = 'openid profile email';
   static const String oauthAuthorizeUrl = '$origin/oauth/authorize';
   static String get oauthTokenUrl => '$devProxyOrigin/oauth/token';
@@ -39,13 +40,38 @@ class ApiConstants {
 
   static String resolve(String? url) {
     if (url == null || url.trim().isEmpty) return '';
-    final String raw = url.trim();
-    if (raw.startsWith('http')) {
-      if (kIsWeb && (raw.startsWith('https://ni-os.ru') || raw.startsWith('http://ni-os.ru'))) {
-        return raw.replaceFirst(RegExp(r'https?://ni-os\.ru'), devProxyOrigin);
+    final raw = url.trim();
+    final uri = Uri.tryParse(raw);
+    if (uri == null || uri.userInfo.isNotEmpty) return '';
+    if (uri.hasScheme || uri.hasAuthority) {
+      if ((uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
+        return '';
+      }
+      if (kIsWeb && sameOrigin(uri, Uri.parse(origin))) {
+        final proxy = Uri.parse(devProxyOrigin);
+        return uri
+            .replace(scheme: proxy.scheme, host: proxy.host, port: proxy.port)
+            .toString();
       }
       return raw;
     }
     return '$devProxyOrigin${raw.startsWith('/') ? '' : '/'}$raw';
+  }
+
+  /// Credentials are only valid for this exact HTTP origin, including its port.
+  static bool sameOrigin(Uri destination, Uri trusted) =>
+      (destination.scheme == 'http' || destination.scheme == 'https') &&
+      destination.userInfo.isEmpty &&
+      destination.host.isNotEmpty &&
+      destination.scheme == trusted.scheme &&
+      destination.host == trusted.host &&
+      destination.port == trusted.port;
+
+  static bool isAuthenticatedMediaUrl(String? url) {
+    final resolved = resolve(url);
+    final uri = Uri.tryParse(resolved);
+    return resolved.isNotEmpty &&
+        uri != null &&
+        sameOrigin(uri, Uri.parse(devProxyOrigin));
   }
 }

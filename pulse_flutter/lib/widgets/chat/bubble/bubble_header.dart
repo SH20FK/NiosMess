@@ -51,7 +51,7 @@ class MessageBubbleHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: CachedNetworkImage(
                 imageUrl: ApiConstants.resolve(senderAvatarUrl),
-                httpHeaders: cachedAuthHeaders(),
+                httpHeaders: cachedAuthHeaders(senderAvatarUrl),
                 width: 16,
                 height: 16,
                 memCacheWidth: 32,

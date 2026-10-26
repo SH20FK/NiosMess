@@ -1,3 +1,6 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,9 +14,22 @@ import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/widgets/post_card.dart';
 import 'package:universal_io/io.dart';
 
+class _FeedAuthFixture extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState.initial().copyWith(
+    hydrated: true,
+    session: const AuthSession(
+      accessToken: 'fixture',
+      userId: 1,
+      username: 'fixture',
+      displayName: 'Fixture',
+    ),
+  );
+}
+
 class MockWebSocketClient extends WebSocketClient {
   MockWebSocketClient()
-      : super(baseUrl: 'wss://test', readToken: () => 'token');
+    : super(baseUrl: 'wss://test', readToken: () => 'token');
 
   final List<Map<String, dynamic>> sentRequests = <Map<String, dynamic>>[];
   dynamic nextResponse;
@@ -32,15 +48,13 @@ class MockWebSocketClient extends WebSocketClient {
     Duration timeout = const Duration(seconds: 10),
     int maxRetries = 2,
   }) async {
-    sentRequests.add(<String, dynamic>{
-      'action': action,
-      'payload': payload,
-    });
+    sentRequests.add(<String, dynamic>{'action': action, 'payload': payload});
     return nextResponse ?? <String, dynamic>{'status': 'ok'};
   }
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   late Directory hiveDir;
 
   setUpAll(() async {
@@ -57,6 +71,58 @@ void main() {
   });
 
   group('NgPost Model - Media & Reactions', () {
+    test(
+      'public feed cache strips account flags without changing live posts',
+      () {
+        final post = NgPost.fromJson({
+          'id': 700,
+          'content': 'Fixture',
+          'my_reaction': 'like',
+          'is_following': true,
+          'poll': {
+            'my_choices': [1],
+            'correct': 1,
+            'explanation': 'Fixture answer',
+          },
+        });
+        final public = post.toPublicCacheJson();
+        expect(public['my_reaction'], isNull);
+        expect(public['is_following'], isFalse);
+        expect(post.myReaction, isTrue);
+        expect(post.isFollowing, isTrue);
+      },
+    );
+
+    test(
+      'legacy shared Hive feed cache never exposes the previous account flags',
+      () async {
+        final box = Hive.box<List<dynamic>>('feed_cache_box');
+        await box.put('feed', [
+          {
+            'id': 701,
+            'content': 'Fixture',
+            'my_reaction': 'like',
+            'is_following': true,
+            'poll': {
+              'my_choices': [1],
+              'correct': 1,
+              'explanation': 'Fixture answer',
+            },
+          },
+        ]);
+        try {
+          final post = const CacheService().getCachedFeed().single;
+          expect(post.id, 701);
+          expect(post.myReaction, isNull);
+          expect(post.isFollowing, isFalse);
+          expect(post.poll!['my_choices'], isEmpty);
+          expect(post.poll!.containsKey('correct'), isFalse);
+        } finally {
+          await box.clear();
+        }
+      },
+    );
+
     test('parses multiple mediaUrls, aiTags, and mediaType correctly', () {
       final json = <String, dynamic>{
         'id': 101,
@@ -120,9 +186,18 @@ void main() {
         'content': 'Post with backend media objects',
         'media_url': '/static/posts/1_first.jpg',
         'media': <dynamic>[
-          <String, dynamic>{'url': '/static/posts/1_first.jpg', 'path': 'posts/1_first.jpg'},
-          <String, dynamic>{'url': '/static/posts/1_second.jpg', 'path': 'posts/1_second.jpg'},
-          <String, dynamic>{'url': '/static/posts/1_third.jpg', 'path': 'posts/1_third.jpg'},
+          <String, dynamic>{
+            'url': '/static/posts/1_first.jpg',
+            'path': 'posts/1_first.jpg',
+          },
+          <String, dynamic>{
+            'url': '/static/posts/1_second.jpg',
+            'path': 'posts/1_second.jpg',
+          },
+          <String, dynamic>{
+            'url': '/static/posts/1_third.jpg',
+            'path': 'posts/1_third.jpg',
+          },
         ],
         'likes': 10,
         'dislikes': 0,
@@ -150,6 +225,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           webSocketClientProvider.overrideWithValue(mockWs),
+          authProvider.overrideWith(_FeedAuthFixture.new),
         ],
       );
       addTearDown(container.dispose);
@@ -158,8 +234,9 @@ void main() {
       final notifier = container.read(niosgramProvider.notifier);
       await notifier.reactPost(10, true);
 
-      final req = mockWs.sentRequests
-          .firstWhere((Map<String, dynamic> r) => r['action'] == 'react_post');
+      final req = mockWs.sentRequests.firstWhere(
+        (Map<String, dynamic> r) => r['action'] == 'react_post',
+      );
       expect(req['action'], 'react_post');
       expect(req['payload']['post_id'], 10);
       expect(req['payload']['reaction'], 'like');
@@ -175,6 +252,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           webSocketClientProvider.overrideWithValue(mockWs),
+          authProvider.overrideWith(_FeedAuthFixture.new),
         ],
       );
       addTearDown(container.dispose);
@@ -182,12 +260,16 @@ void main() {
       final notifier = container.read(niosgramProvider.notifier);
       await notifier.createPost(
         'New post with UUID photos',
-        uploadIds: <String>['f47ac10b93bc44a8b7c938166d03227e', '9a8b7c6d5e4f3a2b1c0d'],
+        uploadIds: <String>[
+          'f47ac10b93bc44a8b7c938166d03227e',
+          '9a8b7c6d5e4f3a2b1c0d',
+        ],
         aiTags: ['sunset', 'mountain'],
       );
 
-      final req = mockWs.sentRequests
-          .firstWhere((Map<String, dynamic> r) => r['action'] == 'create_post');
+      final req = mockWs.sentRequests.firstWhere(
+        (Map<String, dynamic> r) => r['action'] == 'create_post',
+      );
       expect(req['action'], 'create_post');
       expect(req['payload']['content'], 'New post with UUID photos');
       expect(req['payload']['upload_ids'], <String>[
@@ -203,13 +285,17 @@ void main() {
       mockWs.nextResponse = <String, dynamic>{
         'id': 201,
         'content': 'New post with 3 images',
-        'media_urls': ['https://example.com/1.png', 'https://example.com/2.png'],
+        'media_urls': [
+          'https://example.com/1.png',
+          'https://example.com/2.png',
+        ],
         'author': {'id': 1, 'username': 'testuser', 'display_name': 'Tester'},
       };
 
       final container = ProviderContainer(
         overrides: [
           webSocketClientProvider.overrideWithValue(mockWs),
+          authProvider.overrideWith(_FeedAuthFixture.new),
         ],
       );
       addTearDown(container.dispose);
@@ -221,8 +307,9 @@ void main() {
         aiTags: ['test', 'flutter'],
       );
 
-      final req = mockWs.sentRequests
-          .firstWhere((Map<String, dynamic> r) => r['action'] == 'create_post');
+      final req = mockWs.sentRequests.firstWhere(
+        (Map<String, dynamic> r) => r['action'] == 'create_post',
+      );
       expect(req['action'], 'create_post');
       expect(req['payload']['content'], 'New post with 3 images');
       expect(req['payload']['upload_ids'], [101, 102, 103]);
@@ -231,44 +318,47 @@ void main() {
   });
 
   group('PostCard Widget - Carousel & Video Badge', () {
-    testWidgets('renders carousel indicator and counter when multiple mediaUrls present', (WidgetTester tester) async {
-      final post = NgPost(
-        id: 301,
-        content: 'Post with multiple images',
-        author: const ApiProfile(
-          id: 1,
-          username: 'author',
-          displayName: 'Author Name',
-          bio: '',
-        ),
-        createdAt: DateTime.now(),
-        likesCount: 5,
-        dislikesCount: 0,
-        commentsCount: 2,
-        mediaUrls: const <String>[
-          'https://example.com/img1.png',
-          'https://example.com/img2.png',
-          'https://example.com/img3.png',
-        ],
-      );
+    testWidgets(
+      'renders carousel indicator and counter when multiple mediaUrls present',
+      (WidgetTester tester) async {
+        final post = NgPost(
+          id: 301,
+          content: 'Post with multiple images',
+          author: const ApiProfile(
+            id: 1,
+            username: 'author',
+            displayName: 'Author Name',
+            bio: '',
+          ),
+          createdAt: DateTime.now(),
+          likesCount: 5,
+          dislikesCount: 0,
+          commentsCount: 2,
+          mediaUrls: const <String>[
+            'https://example.com/img1.png',
+            'https://example.com/img2.png',
+            'https://example.com/img3.png',
+          ],
+        );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            home: Scaffold(
-              body: SingleChildScrollView(
-                child: PostCard(post: post),
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: Scaffold(
+                body: SingleChildScrollView(child: PostCard(post: post)),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      // Should show page counter text "1/3"
-      expect(find.text('1/3'), findsOneWidget);
-    });
+        // Should show page counter text "1/3"
+        expect(find.text('1/3'), findsOneWidget);
+      },
+    );
 
-    testWidgets('renders VIDEO badge when post is a video', (WidgetTester tester) async {
+    testWidgets('renders VIDEO badge when post is a video', (
+      WidgetTester tester,
+    ) async {
       final post = NgPost(
         id: 302,
         content: 'Check out this video',
@@ -290,9 +380,7 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             home: Scaffold(
-              body: SingleChildScrollView(
-                child: PostCard(post: post),
-              ),
+              body: SingleChildScrollView(child: PostCard(post: post)),
             ),
           ),
         ),

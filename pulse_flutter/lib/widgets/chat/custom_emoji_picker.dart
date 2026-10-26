@@ -14,6 +14,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/custom_emoji_provider.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
 class CustomEmojiIcon extends StatelessWidget {
   const CustomEmojiIcon({super.key, this.size = 22});
@@ -161,57 +162,33 @@ class CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
     }
   }
 
-  Future<List<String>?> _fields(String title, List<String> labels) async {
-    final controllers = [for (final _ in labels) TextEditingController()];
-    try {
-      return await showDialog<List<String>>(
+  Future<List<String>?> _fields(String title, List<String> labels) =>
+      showAppDialog<List<String>>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text(title),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < labels.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: TextField(
-                      controller: controllers[i],
-                      decoration: InputDecoration(labelText: labels[i]),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(context.l10n.commonCancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(
-                context,
-                controllers.map((c) => c.text.trim()).toList(),
-              ),
-              child: Text(context.l10n.customContinue),
-            ),
-          ],
-        ),
+        builder: (_) => _CustomEmojiFieldsDialog(title: title, labels: labels),
       );
-    } finally {
-      for (final c in controllers) {
-        c.dispose();
-      }
+
+  (int, String)? _activeAccount() {
+    final session = ref.read(authProvider).session;
+    if (session == null || ref.read(authProvider.notifier).isLoggingOut) {
+      return null;
     }
+    return (session.userId, session.accessToken);
   }
 
+  bool _sameAccount((int, String) account) =>
+      mounted && _activeAccount() == account;
+
   Future<void> _create() async {
+    final account = _activeAccount();
+    if (account == null) return;
     final values = await _fields(context.l10n.customCreateSet, [
       context.l10n.customSetTitle,
       context.l10n.customSetName,
     ]);
-    if (values == null || !mounted) return;
+    if (!mounted || values == null || !_sameAccount(account)) return;
     await _perform(() async {
+      if (!mounted || !_sameAccount(account)) return;
       final result = await ref.read(customEmojiRequestProvider)(
         'create_emoji_set',
         {
@@ -220,41 +197,49 @@ class CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
           'is_public': true,
         },
       );
+      if (!mounted || !_sameAccount(account)) return;
       await ref.read(customEmojiSetsProvider.notifier).refresh();
-      if (mounted) _selectSet((result['id'] as num).toInt());
+      if (_sameAccount(account)) _selectSet((result['id'] as num).toInt());
     });
   }
 
   Future<void> _save() async {
+    final account = _activeAccount();
+    if (account == null) return;
     final values = await _fields(context.l10n.customAddSet, [
       context.l10n.customSetName,
     ]);
-    if (values == null || !mounted) return;
+    if (!mounted || values == null || !_sameAccount(account)) return;
     await _perform(() async {
+      if (!mounted || !_sameAccount(account)) return;
       final result = await ref.read(customEmojiRequestProvider)(
         'get_emoji_set',
         {'name': values[0].toLowerCase()},
       );
+      if (!mounted || !_sameAccount(account)) return;
       final pack = ApiCustomEmojiSet.fromJson(
         Map<String, dynamic>.from(result['set'] as Map),
       );
       await ref.read(customEmojiRequestProvider)('save_emoji_set', {
         'set_id': pack.id,
       });
+      if (!mounted || !_sameAccount(account)) return;
       await ref.read(customEmojiSetsProvider.notifier).refresh();
-      if (mounted) _selectSet(pack.id);
+      if (_sameAccount(account)) _selectSet(pack.id);
     });
   }
 
   Future<void> _add(ApiCustomEmojiSet pack) async {
+    final account = _activeAccount();
+    if (account == null || pack.ownerId != account.$1) return;
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['png', 'webp', 'gif', 'svg'],
     );
-    if (result.isEmpty || !mounted) return;
+    if (!mounted || result.isEmpty || !_sameAccount(account)) return;
     final file = result.single;
     final bytes = await file.readAsBytes();
-    if (!mounted) return;
+    if (!mounted || !_sameAccount(account)) return;
     if (bytes.length > 512 * 1024) {
       AppToast.showError(context, context.l10n.customFileTooLarge);
       return;
@@ -262,9 +247,10 @@ class CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
     final values = await _fields(context.l10n.customAddEmoji, [
       context.l10n.customShortcode,
     ]);
-    if (values == null || !mounted) return;
+    if (!mounted || values == null || !_sameAccount(account)) return;
     final tooManyFrames = context.l10n.customTooManyFrames;
     await _perform(() async {
+      if (!mounted || !_sameAccount(account)) return;
       var width = 128, height = 128;
       double? duration;
       if (file.extension?.toLowerCase() != 'svg') {
@@ -290,6 +276,7 @@ class CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
           codec.dispose();
         }
       }
+      if (!mounted || !_sameAccount(account)) return;
       await ref.read(customEmojiRequestProvider)('add_custom_emoji', {
         'set_id': pack.id,
         'shortcode': values[0].toLowerCase(),
@@ -299,6 +286,7 @@ class CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
         'height': height,
         'duration_seconds': duration,
       });
+      if (!mounted || !_sameAccount(account)) return;
       await ref.read(customEmojiSetsProvider.notifier).refresh();
     });
   }
@@ -430,4 +418,73 @@ class CustomEmojiPickerState extends ConsumerState<CustomEmojiPicker>
       ),
     );
   }
+}
+
+/// The route owns its controllers through the reverse transition and unmount.
+class _CustomEmojiFieldsDialog extends StatefulWidget {
+  const _CustomEmojiFieldsDialog({required this.title, required this.labels});
+  final String title;
+  final List<String> labels;
+
+  @override
+  State<_CustomEmojiFieldsDialog> createState() =>
+      _CustomEmojiFieldsDialogState();
+}
+
+class _CustomEmojiFieldsDialogState extends State<_CustomEmojiFieldsDialog> {
+  late final _controllers = [
+    for (final _ in widget.labels) TextEditingController(),
+  ];
+
+  @override
+  void dispose() {
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _submit() => Navigator.pop(
+    context,
+    _controllers.map((controller) => controller.text.trim()).toList(),
+  );
+
+  @override
+  Widget build(BuildContext context) => AppDialog(
+    title: widget.title,
+    icon: Icons.emoji_emotions_outlined,
+    actions: [
+      AppDialogAction(
+        label: context.l10n.commonCancel,
+        onPressed: () => Navigator.pop(context),
+      ),
+      AppDialogAction(
+        label: context.l10n.customContinue,
+        isPrimary: true,
+        onPressed: _submit,
+      ),
+    ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < widget.labels.length; i++)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: i == widget.labels.length - 1 ? 0 : 12,
+            ),
+            child: TextField(
+              controller: _controllers[i],
+              textInputAction: i == widget.labels.length - 1
+                  ? TextInputAction.done
+                  : TextInputAction.next,
+              // EditableText already advances focus for TextInputAction.next.
+              onSubmitted: i == widget.labels.length - 1
+                  ? (_) => _submit()
+                  : null,
+              decoration: InputDecoration(labelText: widget.labels[i]),
+            ),
+          ),
+      ],
+    ),
+  );
 }

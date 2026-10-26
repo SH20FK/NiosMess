@@ -41,6 +41,8 @@ class PostCard extends ConsumerStatefulWidget {
     this.onBookmark,
     this.onAuthorTap,
     this.onMediaTap,
+    this.onChanged,
+    this.onDeleted,
     super.key,
   });
 
@@ -53,6 +55,7 @@ class PostCard extends ConsumerStatefulWidget {
   final ValueChanged<bool>? onBookmark;
   final VoidCallback? onAuthorTap;
   final VoidCallback? onMediaTap;
+  final VoidCallback? onChanged, onDeleted;
 
   @override
   ConsumerState<PostCard> createState() => _PostCardState();
@@ -131,7 +134,11 @@ class _PostCardState extends ConsumerState<PostCard>
     if (widget.onLike != null) {
       widget.onLike!();
     } else {
-      ref.read(niosgramProvider.notifier).reactPost(widget.post.id, true);
+      ref.read(niosgramProvider.notifier).reactPost(widget.post.id, true).then((
+        _,
+      ) {
+        if (mounted) widget.onChanged?.call();
+      });
     }
   }
 
@@ -141,7 +148,11 @@ class _PostCardState extends ConsumerState<PostCard>
     if (widget.onDislike != null) {
       widget.onDislike!();
     } else {
-      ref.read(niosgramProvider.notifier).reactPost(widget.post.id, false);
+      ref.read(niosgramProvider.notifier).reactPost(widget.post.id, false).then(
+        (_) {
+          if (mounted) widget.onChanged?.call();
+        },
+      );
     }
   }
 
@@ -411,7 +422,12 @@ class _PostCardState extends ConsumerState<PostCard>
                               ),
                             ),
                           ),
-                        _PostMenu(post: post, isOwn: isOwn),
+                        _PostMenu(
+                          post: post,
+                          isOwn: isOwn,
+                          onChanged: widget.onChanged,
+                          onDeleted: widget.onDeleted,
+                        ),
                       ],
                     ),
                   ),
@@ -616,7 +632,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
                       duration: const Duration(milliseconds: 250),
                       child: CachedNetworkImage(
                         imageUrl: widget.url,
-                        httpHeaders: cachedAuthHeaders(),
+                        httpHeaders: cachedAuthHeaders(widget.url),
                         fit: BoxFit.contain,
                         memCacheWidth: 1600,
                         placeholder: (_, _) => const Center(
@@ -741,7 +757,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                           ),
                           child: CachedNetworkImage(
                             imageUrl: ApiConstants.resolve(url),
-                            httpHeaders: cachedAuthHeaders(),
+                            httpHeaders: cachedAuthHeaders(url),
                             fit: BoxFit.cover,
                             width: double.infinity,
                             memCacheWidth: 600,
@@ -765,7 +781,9 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                           imageUrl: ApiConstants.resolve(
                             widget.mediaUrls.first,
                           ),
-                          httpHeaders: cachedAuthHeaders(),
+                          httpHeaders: cachedAuthHeaders(
+                            widget.mediaUrls.first,
+                          ),
                           fit: BoxFit.cover,
                           width: double.infinity,
                           memCacheWidth: 600,
@@ -1018,7 +1036,13 @@ class _ActionChipState extends State<_ActionChip>
 
 // ── Post menu ────────────────────────────────────────────────────────
 class _PostMenu extends ConsumerWidget {
-  const _PostMenu({required this.post, required this.isOwn});
+  final VoidCallback? onChanged, onDeleted;
+  const _PostMenu({
+    required this.post,
+    required this.isOwn,
+    this.onChanged,
+    this.onDeleted,
+  });
 
   final NgPost post;
 
@@ -1051,12 +1075,20 @@ class _PostMenu extends ConsumerWidget {
         if (isOwn) ...<Widget>[
           MenuItemButton(
             leadingIcon: const Icon(Icons.edit_rounded),
-            onPressed: () => _showEditSheet(context, ref),
+            onPressed: () => _showEditSheet(context),
             child: Text(context.l10n.niosgramEdit),
           ),
           MenuItemButton(
             leadingIcon: Icon(Icons.delete_rounded, color: scheme.error),
             onPressed: () async {
+              final account = ref.read(authProvider).session;
+              bool active() =>
+                  context.mounted &&
+                  !ref.read(authProvider.notifier).isLoggingOut &&
+                  ref.read(authProvider).session?.userId == account?.userId &&
+                  ref.read(authProvider).session?.accessToken ==
+                      account?.accessToken;
+              if (!active()) return;
               final bool? confirm = await showAppConfirmDialog(
                 context: context,
                 title: context.l10n.niosgramDeletePost,
@@ -1066,8 +1098,15 @@ class _PostMenu extends ConsumerWidget {
                 icon: Icons.delete_rounded,
                 destructive: true,
               );
-              if (confirm == true) {
-                ref.read(niosgramProvider.notifier).deletePost(post.id);
+              if (confirm == true && context.mounted && active()) {
+                try {
+                  await ref.read(niosgramProvider.notifier).deletePost(post.id);
+                  if (active()) onDeleted?.call();
+                } catch (error) {
+                  if (context.mounted && active()) {
+                    AppToast.showError(context, error);
+                  }
+                }
               }
             },
             child: Text(
@@ -1090,60 +1129,106 @@ class _PostMenu extends ConsumerWidget {
     );
   }
 
-  void _showEditSheet(BuildContext context, WidgetRef ref) {
-    final TextEditingController ctrl = CustomEmojiTextController(
-      text: post.content,
-    );
+  void _showEditSheet(BuildContext context) {
     AppBottomSheets.show<void>(
       context: context,
       isScrollControlled: true,
+      builder: (_) => _EditPostSheet(post: post, onChanged: onChanged),
+    );
+  }
+}
 
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+class _EditPostSheet extends ConsumerStatefulWidget {
+  const _EditPostSheet({required this.post, this.onChanged});
+
+  final NgPost post;
+  final VoidCallback? onChanged;
+
+  @override
+  ConsumerState<_EditPostSheet> createState() => _EditPostSheetState();
+}
+
+class _EditPostSheetState extends ConsumerState<_EditPostSheet> {
+  late final CustomEmojiTextController _controller;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = CustomEmojiTextController(text: widget.post.content);
+  }
+
+  @override
+  void dispose() {
+    // A modal's result completes before its reverse animation unmounts the
+    // TextField. Own its controller for that complete widget lifetime.
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving || ref.read(authProvider.notifier).isLoggingOut) return;
+    final submitted = _controller.text.trim();
+    if (submitted.isEmpty) return;
+    final account = ref.read(authProvider).session;
+    bool active() =>
+        mounted &&
+        !ref.read(authProvider.notifier).isLoggingOut &&
+        ref.read(authProvider).session?.userId == account?.userId &&
+        ref.read(authProvider).session?.accessToken == account?.accessToken;
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(niosgramProvider.notifier)
+          .editPost(widget.post.id, submitted);
+      if (!mounted || !active()) return;
+      if (_controller.text.trim() == submitted) Navigator.pop(context);
+      widget.onChanged?.call();
+    } catch (error) {
+      if (mounted && active()) AppToast.showError(context, error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(
+      left: 16,
+      right: 16,
+      top: 16,
+      bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        TextField(
+          controller: _controller,
+          maxLines: 6,
+          decoration: InputDecoration(
+            hintText: context.l10n.niosgramEditPost,
+            border: const OutlineInputBorder(),
+          ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        CustomEmojiComposerButton(controller: _controller),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: <Widget>[
-            TextField(
-              controller: ctrl,
-              maxLines: 6,
-              decoration: InputDecoration(
-                hintText: context.l10n.niosgramEditPost,
-                border: OutlineInputBorder(),
-              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(context.l10n.commonCancel),
             ),
-            CustomEmojiComposerButton(controller: ctrl),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(context.l10n.commonCancel),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () {
-                    if (ctrl.text.trim().isNotEmpty) {
-                      ref
-                          .read(niosgramProvider.notifier)
-                          .editPost(post.id, ctrl.text);
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: Text(context.l10n.commonSave),
-                ),
-              ],
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: Text(context.l10n.commonSave),
             ),
           ],
         ),
-      ),
-    ).whenComplete(() => ctrl.dispose());
-  }
+      ],
+    ),
+  );
 }
 
 // ── Media Shimmer & Error Placeholders ───────────────────────────────

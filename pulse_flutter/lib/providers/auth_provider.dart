@@ -1,3 +1,6 @@
+import 'package:pulse_flutter/providers/call_session_provider.dart';
+import 'package:pulse_flutter/providers/call_incoming_provider.dart';
+import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
@@ -88,8 +91,29 @@ class AuthActionResult {
 
 class AuthNotifier extends Notifier<AuthState> {
   static const String _sessionKey = 'auth.session';
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  static const String _signedOutKey = 'auth.signed_out';
+  FlutterSecureStorage get _storage => ref.read(authSecureStorageProvider);
   Future<void>? _loadFuture;
+  int _authEpoch = 0;
+  int _profileRequest = 0;
+  int _profileMutation = 0;
+  Future<void> _sessionWrites = Future<void>.value();
+
+  bool _current(int epoch, [AuthSession? session]) =>
+      ref.mounted &&
+      epoch == _authEpoch &&
+      !_loggingOut &&
+      (session == null || identical(state.session, session));
+
+  Future<void> _sessionStorageOperation(Future<void> Function() operation) {
+    final job = _sessionWrites.then((_) => operation());
+    _sessionWrites = job.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return job;
+  }
+
   StreamSubscription<String>? _fcmTokenRefreshSubscription;
   StreamSubscription<void>? _wsConnectedSubscription;
 
@@ -100,8 +124,10 @@ class AuthNotifier extends Notifier<AuthState> {
         unawaited(BackgroundService.setAuthenticated(next.isAuthenticated));
       }
     });
-    _loadFuture = _load();
+    final epoch = ++_authEpoch;
+    _loadFuture = _load(epoch);
     ref.onDispose(() {
+      _authEpoch++;
       _fcmTokenRefreshSubscription?.cancel();
       _wsConnectedSubscription?.cancel();
     });
@@ -112,7 +138,33 @@ class AuthNotifier extends Notifier<AuthState> {
     await (_loadFuture ?? Future<void>.value());
   }
 
-  Future<void> _load() async {
+  Future<void> _load(int epoch) async {
+    final SharedPreferences preferences;
+    try {
+      preferences = await ref.read(authPreferencesLoaderProvider)();
+    } catch (_) {
+      // If the sign-out fence cannot be read, do not revive a possibly revoked
+      // secure-storage session. Surface a recoverable startup state instead.
+      if (_current(epoch)) {
+        state = const AuthState.initial().copyWith(
+          hydrated: true,
+          error: 'AUTH_LOCAL_STATE_UNAVAILABLE',
+        );
+      }
+      return;
+    }
+    if (!_current(epoch)) return;
+    if (preferences.getBool(_signedOutKey) == true) {
+      try {
+        await _clearSessionStorage();
+      } catch (_) {
+        /* Retry cleanup on next launch. */
+      }
+      if (_current(epoch)) {
+        state = const AuthState.initial().copyWith(hydrated: true);
+      }
+      return;
+    }
     if (kIsWeb) {
       try {
         final http.Response resp = await http
@@ -120,7 +172,7 @@ class AuthNotifier extends Notifier<AuthState> {
             .timeout(const Duration(seconds: 2));
         if (resp.statusCode == 200) {
           final dynamic data = jsonDecode(resp.body);
-          if (data is Map && data['reset'] == true) {
+          if (data is Map && data['reset'] == true && _current(epoch)) {
             debugPrint(
               '[auth_provider] Mock reset flag detected! Clearing mock data...',
             );
@@ -133,12 +185,14 @@ class AuthNotifier extends Notifier<AuthState> {
       } catch (_) {}
     }
 
+    if (!_current(epoch)) return;
     String? raw;
     try {
       raw = await _storage.read(key: _sessionKey);
     } catch (e) {
       debugPrint('[auth_provider] Secure storage read failed: $e');
     }
+    if (!_current(epoch)) return;
     // One-time legacy migration from SharedPreferences to secure storage:
     if (raw == null || raw.isEmpty) {
       try {
@@ -146,13 +200,16 @@ class AuthNotifier extends Notifier<AuthState> {
         raw = prefs.getString(_sessionKey);
         if (raw != null && raw.isNotEmpty) {
           try {
-            await _storage.write(key: _sessionKey, value: raw);
+            await _sessionStorageOperation(() async {
+              if (!_current(epoch)) return;
+              await _storage.write(key: _sessionKey, value: raw);
+              if (_current(epoch)) await prefs.remove(_sessionKey);
+            });
           } catch (e) {
             debugPrint(
               '[auth_provider] Secure storage migration write failed: ',
             );
           }
-          await prefs.remove(_sessionKey);
           debugPrint(
             '[auth_provider] Migrated session from SharedPreferences to secure storage',
           );
@@ -168,6 +225,7 @@ class AuthNotifier extends Notifier<AuthState> {
       } catch (_) {}
     }
 
+    if (!_current(epoch)) return;
     AuthSession? session;
 
     if (raw != null && raw.isNotEmpty) {
@@ -188,6 +246,7 @@ class AuthNotifier extends Notifier<AuthState> {
       session = null;
     }
 
+    if (!_current(epoch)) return;
     if (session != null && session.accessToken.isNotEmpty) {
       ref
           .read(sessionAccessTokenProvider.notifier)
@@ -210,31 +269,56 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  Future<void> _saveSession(AuthSession session) async {
-    final String serialized = jsonEncode(session.toJson());
-    try {
-      await _storage.write(key: _sessionKey, value: serialized);
-    } catch (e) {
-      debugPrint('[auth_provider] Secure storage write error: $e');
-    }
-    // Plaintext SharedPreferences write eliminated for security hardening (Audit P0 #3)
-    ref.read(sessionAccessTokenProvider.notifier).setToken(session.accessToken);
+  Future<void> _saveSession(AuthSession session, int epoch) async {
+    await _sessionStorageOperation(() async {
+      if (!_current(epoch)) return;
+      try {
+        await _storage.write(
+          key: _sessionKey,
+          value: jsonEncode(session.toJson()),
+        );
+      } catch (_) {
+        throw StateError('AUTH_SESSION_STORAGE_UNAVAILABLE');
+      }
+      if (_current(epoch)) {
+        final prefs = await SharedPreferences.getInstance();
+        if (!_current(epoch)) return;
+        if (!await prefs.remove(_signedOutKey)) {
+          throw StateError('AUTH_SESSION_STORAGE_UNAVAILABLE');
+        }
+        if (_current(epoch)) {
+          ref
+              .read(sessionAccessTokenProvider.notifier)
+              .setToken(session.accessToken);
+        }
+      }
+    });
   }
 
-  Future<void> _clearSessionStorage() async {
+  Future<void> _clearSessionStorage() => _sessionStorageOperation(() async {
+    Object? failure;
     try {
       await _storage.delete(key: _sessionKey);
-    } catch (_) {}
+    } catch (error) {
+      failure = error;
+    }
     try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_sessionKey);
-    } catch (_) {}
-    ref.read(sessionAccessTokenProvider.notifier).clear();
-  }
+      final prefs = await SharedPreferences.getInstance();
+      if (!await prefs.remove(_sessionKey)) {
+        failure ??= StateError('AUTH_SESSION_STORAGE_UNAVAILABLE');
+      }
+    } catch (error) {
+      failure ??= error;
+    }
+    if (ref.mounted) ref.read(sessionAccessTokenProvider.notifier).clear();
+    if (failure != null) throw StateError('AUTH_SESSION_STORAGE_UNAVAILABLE');
+  });
 
   Future<AuthActionResult> loginWithOAuth({
     required String oauthAccessToken,
   }) async {
+    if (_loggingOut) return const AuthActionResult(success: false);
+    final epoch = ++_authEpoch;
     state = state.copyWith(busy: true, clearError: true);
     try {
       final String deviceInfo = kIsWeb
@@ -249,6 +333,7 @@ class AuthNotifier extends Notifier<AuthState> {
             deviceInfo: deviceInfo,
           );
 
+      if (!_current(epoch)) return const AuthActionResult(success: false);
       if (!result.isSuccess ||
           result.userId == null ||
           result.username == null) {
@@ -272,14 +357,18 @@ class AuthNotifier extends Notifier<AuthState> {
         niosId: username,
       );
 
-      await _saveSession(session);
+      await _saveSession(session, epoch);
+      if (!_current(epoch)) return const AuthActionResult(success: false);
       state = state.copyWith(
         busy: false,
         session: session,
+        clearProfile: true,
+        hydrated: true,
         clearPendingIdentifier: true,
         clearError: true,
       );
       await refreshProfile();
+      if (!_current(epoch)) return const AuthActionResult(success: false);
       unawaited(
         _registerFcmToken().catchError((Object _) {
           debugPrint('[Auth] FCM_REGISTRATION_PENDING');
@@ -287,21 +376,32 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       return const AuthActionResult(success: true);
     } catch (error) {
+      if (!_current(epoch)) return const AuthActionResult(success: false);
       state = state.copyWith(busy: false, error: '$error');
       return AuthActionResult(success: false, message: '$error');
     }
   }
 
   Future<void> refreshProfile() async {
-    if (!state.isAuthenticated) {
-      return;
-    }
+    final session = state.session;
+    if (session == null || !state.isAuthenticated || _loggingOut) return;
+    final epoch = _authEpoch,
+        request = ++_profileRequest,
+        mutation = _profileMutation;
     try {
-      final ApiProfile profile = await ref.read(authRepositoryProvider).getMe();
-      if (!ref.mounted) return;
+      final profile = await ref.read(authRepositoryProvider).getMe();
+      if (!_current(epoch, session) ||
+          request != _profileRequest ||
+          mutation != _profileMutation) {
+        return;
+      }
       state = state.copyWith(profile: profile, clearError: true);
     } catch (error) {
-      if (!ref.mounted) return;
+      if (!_current(epoch, session) ||
+          request != _profileRequest ||
+          mutation != _profileMutation) {
+        return;
+      }
       state = state.copyWith(error: '$error');
     }
   }
@@ -332,6 +432,8 @@ class AuthNotifier extends Notifier<AuthState> {
       );
     }
 
+    final session = state.session!;
+    final epoch = _authEpoch, request = ++_profileMutation;
     state = state.copyWith(busy: true, clearError: true);
     try {
       final ApiProfile profile = await ref
@@ -347,28 +449,35 @@ class AuthNotifier extends Notifier<AuthState> {
             clearBirthday: clearBirthday,
             clearWorkingHours: clearWorkingHours,
           );
+      if (!_current(epoch, session) || request != _profileMutation) {
+        return const AuthActionResult(success: false);
+      }
       final ApiProfile effectiveProfile = profile.aiUsage != null
           ? profile
           : profile.copyWith(aiUsage: state.profile?.aiUsage);
+      final nextSession = AuthSession(
+        accessToken: session.accessToken,
+        userId: session.userId,
+        username: profile.username,
+        displayName: profile.displayName,
+        niosId: session.niosId,
+      );
+      await _saveSession(nextSession, epoch);
+      if (!_current(epoch, session) || request != _profileMutation) {
+        return const AuthActionResult(success: false);
+      }
+      _profileRequest++;
       state = state.copyWith(
         busy: false,
         profile: effectiveProfile,
-        session: state.session == null
-            ? null
-            : AuthSession(
-                accessToken: state.session!.accessToken,
-                userId: state.session!.userId,
-                username: profile.username,
-                displayName: profile.displayName,
-              ),
+        session: nextSession,
       );
-
-      if (state.session != null) {
-        await _saveSession(state.session!);
-      }
 
       return const AuthActionResult(success: true);
     } catch (error) {
+      if (!_current(epoch, session) || request != _profileMutation) {
+        return const AuthActionResult(success: false);
+      }
       state = state.copyWith(busy: false, error: '$error');
       return AuthActionResult(success: false, message: '$error');
     }
@@ -379,91 +488,143 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> logout({bool eraseSecretData = true}) async {
     if (_loggingOut) return;
     _loggingOut = true;
-    // Revoke service requests before any asynchronous account cleanup. Late
-    // uploads/call updates may still notify widgets while auth state is visible.
-    final backgroundStopped = BackgroundService.stop();
+    _authEpoch++;
     final accountId = state.session?.userId;
-    ref.read(notificationsProvider.notifier).stopAccount();
-    ref.read(inAppNotificationProvider.notifier).clearAccount();
-    final notificationsStopped = () async {
-      await PushNotificationService.clearAccount();
-      if (accountId != null && eraseSecretData) {
-        await NotificationHistoryStore.eraseAccount(accountId);
+    Object? failure;
+    Future<void> attempt(Future<void> Function() work) async {
+      try {
+        await work();
+      } catch (error) {
+        failure ??= error;
       }
-    }();
-    final secretStopped = accountId == null
-        ? Future<List<int>>.value([])
-        : SecretChatCoordinator.shutdownAccount(
-            accountId,
-            erase: eraseSecretData,
-          );
-    final protocolStopped = accountId == null
-        ? Future<void>.value()
-        : ref
-              .read(niosProtocolAccountsProvider)
-              .shutdownAccount(accountId.toString(), erase: eraseSecretData);
-    final stopped = Future.wait<Object?>([
-      backgroundStopped,
-      secretStopped,
-      protocolStopped,
-      notificationsStopped,
-    ]);
+    }
+
+    var handlersStopped = true;
+    Future<void> stopHandler(Future<void> Function() work) => attempt(() async {
+      try {
+        await work();
+      } catch (_) {
+        handlersStopped = false;
+        rethrow;
+      }
+    });
+    var secretStopped = accountId == null;
+    var chatIds = <int>[];
     try {
-      final stoppedData = await stopped;
-      final chatIds = stoppedData[1] as List<int>;
-      if (accountId != null && eraseSecretData) {
-        await EncryptedMessageCache.clearAccount(accountId, chatIds);
-        await ref.read(e2eeServiceProvider).deleteKeyPair();
-        final prefs = await SharedPreferences.getInstance();
-        for (final id in chatIds) {
-          await prefs.remove('draft.$id');
-        }
-      }
-
-      try {
-        if (state.isAuthenticated && eraseSecretData) {
-          try {
-            final String? fcmToken = (await SharedPreferences.getInstance())
-                .getString('notifications.registered_token');
-            if (fcmToken != null && fcmToken.isNotEmpty) {
-              await ref
-                  .read(authRepositoryProvider)
-                  .unregisterFcmToken(fcmToken);
-            }
-          } catch (e) {
-            debugPrint('[Auth] FCM_UNREGISTER_UNAVAILABLE');
+      // The non-secret tombstone prevents a failed secure-storage delete from
+      // silently reviving this session on the next cold start.
+      await attempt(
+        () => _sessionStorageOperation(() async {
+          final prefs = await SharedPreferences.getInstance();
+          if (!await prefs.setBool(_signedOutKey, true)) {
+            throw StateError('AUTH_LOGOUT_MARKER_UNAVAILABLE');
           }
-          await PushNotificationService.revokeToken();
-          await ref.read(authRepositoryProvider).logout();
-          try {
-            await ref.read(oauthServiceProvider).logoutCentralNiosId();
-          } catch (_) {}
-        }
-      } catch (e) {
-        debugPrint('[auth_provider.dart] Error: $e');
-      }
-
-      await _fcmTokenRefreshSubscription?.cancel();
-      _fcmTokenRefreshSubscription = null;
-      await _wsConnectedSubscription?.cancel();
-      _wsConnectedSubscription = null;
-
-      ref.read(webSocketClientProvider).disconnect();
-      await _clearSessionStorage();
-      try {
-        await ref.read(cacheServiceProvider).clearAll();
-      } catch (e) {
-        debugPrint('[auth_provider.dart] Cache clear error: $e');
-      }
-      state = state.copyWith(
-        clearSession: true,
-        clearPendingIdentifier: true,
-        clearError: true,
-        clearProfile: true,
+        }),
       );
+      if (ref.exists(notificationsProvider)) {
+        ref.read(notificationsProvider.notifier).stopAccount();
+      }
+      if (ref.exists(inAppNotificationProvider)) {
+        ref.read(inAppNotificationProvider.notifier).clearAccount();
+      }
+      if (ref.exists(incomingCallProvider)) {
+        ref.read(incomingCallProvider.notifier).set(null);
+      }
+      // Release native media and notification/background handlers before any
+      // account journal/history erasure can begin.
+      await Future.wait([
+        stopHandler(BackgroundService.stop),
+        if (ref.exists(callSessionProvider))
+          stopHandler(
+            () =>
+                ref.read(callSessionProvider.notifier).shutdownForAccountExit(),
+          ),
+        stopHandler(PushNotificationService.clearAccount),
+      ]);
+      // Even if a handler failed, stop account services. Keep their private
+      // data for recovery rather than erase under a still-running handler.
+      final eraseAccountData = eraseSecretData && handlersStopped;
+      await Future.wait([
+        if (accountId != null)
+          attempt(() async {
+            chatIds = await SecretChatCoordinator.shutdownAccount(
+              accountId,
+              erase: eraseAccountData,
+            );
+            secretStopped = true;
+          }),
+        if (accountId != null)
+          attempt(
+            () => ref
+                .read(niosProtocolAccountsProvider)
+                .shutdownAccount(accountId.toString(), erase: eraseAccountData),
+          ),
+        if (accountId != null && eraseAccountData)
+          attempt(() => NotificationHistoryStore.eraseAccount(accountId)),
+      ]);
+      if (accountId != null && eraseAccountData && secretStopped) {
+        await attempt(() async {
+          await DraftStorage.eraseAccount(accountId);
+          await EncryptedMessageCache.clearAccount(accountId, chatIds);
+          // Legacy keys belong to the installation's proven source account.
+          if (await const FlutterSecureStorage().read(
+                key: 'e2ee.legacy_owner',
+              ) ==
+              '$accountId') {
+            await ref.read(e2eeServiceProvider).deleteKeyPair();
+          }
+          final prefs = await SharedPreferences.getInstance();
+          for (final id in chatIds) {
+            await prefs.remove('draft.$id');
+          }
+        });
+      }
+      if (state.isAuthenticated && eraseSecretData) {
+        // Remote revocation is best effort; local logout never waits for it to
+        // succeed before clearing the session and closing the socket.
+        try {
+          final token = (await SharedPreferences.getInstance()).getString(
+            'notifications.registered_token',
+          );
+          if (token != null && token.isNotEmpty) {
+            await ref.read(authRepositoryProvider).unregisterFcmToken(token);
+          }
+        } catch (_) {
+          debugPrint('[Auth] FCM_UNREGISTER_UNAVAILABLE');
+        }
+        try {
+          await PushNotificationService.revokeToken();
+        } catch (_) {}
+        try {
+          await ref.read(authRepositoryProvider).logout();
+        } catch (_) {}
+        try {
+          await ref.read(oauthServiceProvider).logoutCentralNiosId();
+        } catch (_) {}
+      }
     } finally {
+      await attempt(() async {
+        await _fcmTokenRefreshSubscription?.cancel();
+        _fcmTokenRefreshSubscription = null;
+        await _wsConnectedSubscription?.cancel();
+        _wsConnectedSubscription = null;
+      });
+      await attempt(() async {
+        if (ref.mounted) ref.read(webSocketClientProvider).disconnect();
+      });
+      await attempt(_clearSessionStorage);
+      await attempt(() async {
+        if (ref.mounted) await ref.read(cacheServiceProvider).clearAll();
+      });
+      if (ref.mounted) {
+        state = const AuthState.initial().copyWith(
+          hydrated: true,
+          error: failure == null ? null : 'AUTH_LOGOUT_CLEANUP_INCOMPLETE',
+        );
+      }
       _loggingOut = false;
     }
+    if (failure != null) throw StateError('AUTH_LOGOUT_CLEANUP_INCOMPLETE');
   }
 
   void clearError() {
@@ -614,6 +775,15 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> refreshFcmTokenRegistration() => _registerFcmToken();
 }
+
+final authPreferencesLoaderProvider =
+    Provider<Future<SharedPreferences> Function()>(
+      (ref) => SharedPreferences.getInstance,
+    );
+
+final authSecureStorageProvider = Provider<FlutterSecureStorage>(
+  (ref) => const FlutterSecureStorage(),
+);
 
 final NotifierProvider<AuthNotifier, AuthState> authProvider =
     NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);

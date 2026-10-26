@@ -1,3 +1,16 @@
+import 'widgets/custom_emoji_forms_test.dart' as audit_emoji_forms;
+import 'features/security/app_lock_lifecycle_test.dart' as audit_app_lock;
+import 'providers/auth_lifecycle_race_test.dart' as audit_auth;
+import 'core/account_draft_storage_test.dart' as audit_drafts;
+import 'providers/chat_account_boundary_test.dart' as audit_accounts;
+import 'providers/send_account_fence_test.dart' as audit_send_fence;
+import 'providers/custom_emoji_lifecycle_test.dart' as audit_emoji_lifecycle;
+import 'providers/niosgram_race_test.dart' as audit_feed_races;
+import 'widgets/create_post_media_submission_test.dart' as audit_post_media;
+import 'widgets/shared_feed_post_actions_test.dart' as audit_shared_post;
+import 'widgets/post_comments_draft_test.dart' as audit_comments_draft;
+import 'core/diagnostics/app_logger_privacy_test.dart' as audit_logs;
+import 'unit/authenticated_media_origin_test.dart' as audit_media_origin;
 import 'widgets/expression_picker_test.dart' as expression_picker;
 import 'unit/expression_editing_test.dart' as expression_editing;
 import 'widgets/settings_refresh_test.dart' as settings_refresh;
@@ -319,6 +332,21 @@ void main() {
     onboarding_screens.main();
     screens_login_screen.main();
     screens_register_screen.main();
+
+    // Full-audit regressions keep each file's setup/teardown scoped.
+    group('audit_emoji_forms', audit_emoji_forms.main);
+    group('audit_app_lock', audit_app_lock.main);
+    group('audit_auth', audit_auth.main);
+    group('audit_drafts', audit_drafts.main);
+    group('audit_accounts', audit_accounts.main);
+    group('audit_send_fence', audit_send_fence.main);
+    group('audit_emoji_lifecycle', audit_emoji_lifecycle.main);
+    group('audit_feed_races', audit_feed_races.main);
+    group('audit_post_media', audit_post_media.main);
+    group('audit_shared_post', audit_shared_post.main);
+    group('audit_comments_draft', audit_comments_draft.main);
+    group('audit_logs', audit_logs.main);
+    group('audit_media_origin', audit_media_origin.main);
 
     // Widgets
     expression_picker.main();

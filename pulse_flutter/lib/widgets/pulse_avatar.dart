@@ -63,7 +63,7 @@ class PulseAvatar extends StatelessWidget {
       child = ClipOval(
         child: Image.network(
           url,
-          headers: cachedAuthHeaders(),
+          headers: cachedAuthHeaders(url),
           width: radius * 2,
           height: radius * 2,
           fit: BoxFit.cover,
@@ -81,7 +81,7 @@ class PulseAvatar extends StatelessWidget {
       child = ClipOval(
         child: CachedNetworkImage(
           imageUrl: url,
-          httpHeaders: cachedAuthHeaders(),
+          httpHeaders: cachedAuthHeaders(url),
           memCacheWidth: (radius * 2 * 2).toInt(),
           memCacheHeight: (radius * 2 * 2).toInt(),
           placeholder: (context, url) => _ShimmerPlaceholder(

@@ -28,7 +28,7 @@ final feedPostByIdProvider = FutureProvider.family<NgPost, int>((
       .read(postCommentsRepositoryProvider)
       .request('get_feed_post', 0, id, {});
   final posts = data['posts'] as List? ?? [];
-  if (posts.isEmpty) throw StateError('Публикация не найдена');
+  if (posts.isEmpty) throw StateError('POST_NOT_FOUND');
   return NgPost.fromJson(Map<String, dynamic>.from(posts.first as Map));
 });
 
@@ -108,7 +108,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
       );
       if (mounted) {
         setState(() => _qualityReported.add(comment.id));
-        AppToast.showSuccess(context, 'Жалоба на качество отправлена');
+        AppToast.showSuccess(context, context.l10n.auditCommentReported);
       }
     } catch (error) {
       if (mounted) AppToast.showError(context, error);
@@ -118,24 +118,37 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
   }
 
   Future<void> _send() async {
-    final text = _inputController.text.trim();
+    final draft = _inputController.text;
+    final text = draft.trim();
     if (_busy || text.isEmpty) return;
+    final session = ref.read(authProvider).session;
+    if (session == null || ref.read(authProvider.notifier).isLoggingOut) return;
+    final reply = _reply, editing = _editing, notifier = _notifier;
+    bool current() =>
+        mounted &&
+        ref.read(authProvider).session?.userId == session.userId &&
+        ref.read(authProvider).session?.accessToken == session.accessToken &&
+        !ref.read(authProvider.notifier).isLoggingOut;
     setState(() => _busy = true);
     try {
-      if (_editing != null) {
-        await _notifier.editComment(_editing!.id, text);
+      if (editing != null) {
+        await notifier.editComment(editing.id, text);
       } else {
-        await _notifier.send(text, replyToId: _reply?.id);
+        await notifier.send(text, replyToId: reply?.id);
       }
-      if (!mounted) return;
-      if (_reply != null) _collapsed.remove(_reply!.id);
-      _inputController.clear();
-      setState(() {
-        _reply = null;
-        _editing = null;
-      });
+      if (!current()) return;
+      if (reply != null) _collapsed.remove(reply.id);
+      if (_inputController.text == draft &&
+          _reply?.id == reply?.id &&
+          _editing?.id == editing?.id) {
+        _inputController.clear();
+        setState(() {
+          _reply = null;
+          _editing = null;
+        });
+      }
     } catch (error) {
-      if (mounted) AppToast.showError(context, error);
+      if (mounted && current()) AppToast.showError(context, error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -144,9 +157,9 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
   Future<void> _delete(ApiMessage comment) async {
     final confirm = await showAppConfirmDialog(
       context: context,
-      title: 'Удалить комментарий?',
-      subtitle: 'Ответы останутся в обсуждении.',
-      confirmLabel: 'Удалить',
+      title: context.l10n.auditCommentDeleteTitle,
+      subtitle: context.l10n.auditCommentDeleteBody,
+      confirmLabel: context.l10n.commonDelete,
       cancelLabel: context.l10n.commonCancel,
       destructive: true,
       icon: Icons.delete_outline,
@@ -201,7 +214,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
         postData = _PinnedPostData(
           authorName: parentPost.senderDisplayName.isNotEmpty
               ? parentPost.senderDisplayName
-              : 'Канал',
+              : context.l10n.auditCommentChannel,
           authorUsername: parentPost.senderUsername,
           authorAvatarUrl: parentPost.senderAvatarUrl,
           createdAt: parentPost.sentAt,
@@ -230,7 +243,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
               ? niosgramPost.author.displayName
               : (niosgramPost.author.username.isNotEmpty
                     ? niosgramPost.author.username
-                    : 'Автор'),
+                    : context.l10n.auditCommentAuthor),
           authorUsername: niosgramPost.author.username,
           authorAvatarUrl: niosgramPost.author.avatarUrl,
           createdAt: niosgramPost.createdAt,
@@ -245,147 +258,148 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
 
     return ListenableBuilder(
       listenable: _inputController,
-      builder: (context, _) => PopScope(
+      // Keep the thread and pinned media stable while text/selection changes.
+      builder: (context, child) => PopScope(
         canPop: _allowPop || _inputController.text.trim().isEmpty,
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) _leave();
         },
-        child: Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              tooltip: 'Назад',
-              icon: const CommentIcon('back'),
-              onPressed: _leave,
-            ),
-            title: Text(context.l10n.commentsTitle),
-            actions: [
-              if (commentsAsync.value != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: Center(
-                    child: Text(
-                      '${_notifier.totalCount ?? commentsAsync.value!.where((c) => !c.isDeleted).length}',
-                      style: textTheme.bodyMedium,
-                    ),
-                  ),
-                ),
-            ],
+        child: child!,
+      ),
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            tooltip: context.l10n.commonBack,
+            icon: const CommentIcon('back'),
+            onPressed: _leave,
           ),
-          body: Column(
-            children: [
-              if (postData != null) _PinnedPostHeader(data: postData),
-              Expanded(
-                child: commentsAsync.when(
-                  loading: () => const Center(child: AppLoadingIndicator()),
-                  error: (error, _) => Center(
-                    child: TextButton(
-                      onPressed: () => _notifier.refresh(),
-                      child: const Text('Повторить загрузку'),
-                    ),
+          title: Text(context.l10n.commentsTitle),
+          actions: [
+            if (commentsAsync.value != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(
+                  child: Text(
+                    '${_notifier.totalCount ?? commentsAsync.value!.where((c) => !c.isDeleted).length}',
+                    style: textTheme.bodyMedium,
                   ),
-                  data: (comments) {
-                    final rows = buildCommentThread(
-                      comments,
-                      collapsed: _collapsed,
-                    );
-                    final byId = {
-                      for (final comment in comments) comment.id: comment,
-                    };
-                    return RefreshIndicator(
-                      onRefresh: () => _notifier.refresh(),
-                      child: ListView.builder(
-                        controller: _scroll,
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.only(top: 8, bottom: 24),
-                        itemCount: rows.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == rows.length) {
-                            if (_notifier.hasMore) {
-                              return Center(
-                                child: TextButton(
-                                  onPressed: () =>
-                                      _perform(() => _notifier.loadMore()),
-                                  child: const Text(
-                                    'Загрузить ещё комментарии',
-                                  ),
-                                ),
-                              );
-                            }
-                            if (rows.isEmpty) {
-                              return Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Text(
-                                  context.l10n.commentsEmpty,
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          }
-                          final row = rows[index];
-                          final comment = row.message;
-                          return CommentItem(
-                            key: ValueKey(comment.id),
-                            comment: comment,
-                            depth: row.depth,
-                            continueParentLine:
-                                index + 1 < rows.length &&
-                                rows[index + 1].depth >= row.depth,
-                            parent: byId[comment.replyToId],
-                            isMine: comment.senderId == auth.session?.userId,
-                            isPostAuthor: comment.senderId == postAuthorId,
-                            replyCount: row.descendants,
-                            collapsed: _collapsed.contains(comment.id),
-                            onToggleReplies: () => setState(() {
-                              if (!_collapsed.remove(comment.id)) {
-                                _collapsed.add(comment.id);
-                              }
-                            }),
-                            onReply: () {
-                              setState(() {
-                                _reply = comment;
-                                _editing = null;
-                              });
-                              _inputFocus.requestFocus();
-                            },
-                            onEdit: () {
-                              setState(() {
-                                _editing = comment;
-                                _reply = null;
-                              });
-                              _inputController.text = comment.content;
-                              _inputFocus.requestFocus();
-                            },
-                            onDelete: () => _delete(comment),
-                            qualityReported: _qualityReported.contains(
-                              comment.id,
-                            ),
-                            onQualityReport:
-                                comment.systemEvent?['is_niosai_reply'] ==
-                                        true ||
-                                    comment.senderUsername == 'nios_ai'
-                                ? () => _reportQuality(comment)
-                                : null,
-                            onReact: (reaction) => _perform(
-                              () => _notifier.react(comment.id, reaction),
-                            ),
-                            onAuthorTap: () {
-                              if (comment.senderUsername.isNotEmpty) {
-                                context.push(
-                                  '/profile/${comment.senderUsername}',
-                                );
-                              }
-                            },
-                          );
-                        },
-                      ),
-                    );
-                  },
                 ),
               ),
-              SafeArea(
+          ],
+        ),
+        body: Column(
+          children: [
+            if (postData != null) _PinnedPostHeader(data: postData),
+            Expanded(
+              child: commentsAsync.when(
+                loading: () => const Center(child: AppLoadingIndicator()),
+                error: (error, _) => Center(
+                  child: TextButton(
+                    onPressed: () => _notifier.refresh(),
+                    child: Text(context.l10n.commonRetry),
+                  ),
+                ),
+                data: (comments) {
+                  final rows = buildCommentThread(
+                    comments,
+                    collapsed: _collapsed,
+                  );
+                  final byId = {
+                    for (final comment in comments) comment.id: comment,
+                  };
+                  return RefreshIndicator(
+                    onRefresh: () => _notifier.refresh(),
+                    child: ListView.builder(
+                      controller: _scroll,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(top: 8, bottom: 24),
+                      itemCount: rows.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == rows.length) {
+                          if (_notifier.hasMore) {
+                            return Center(
+                              child: TextButton(
+                                onPressed: () =>
+                                    _perform(() => _notifier.loadMore()),
+                                child: Text(context.l10n.auditCommentLoadMore),
+                              ),
+                            );
+                          }
+                          if (rows.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Text(
+                                context.l10n.commentsEmpty,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        }
+                        final row = rows[index];
+                        final comment = row.message;
+                        return CommentItem(
+                          key: ValueKey(comment.id),
+                          comment: comment,
+                          depth: row.depth,
+                          continueParentLine:
+                              index + 1 < rows.length &&
+                              rows[index + 1].depth >= row.depth,
+                          parent: byId[comment.replyToId],
+                          isMine: comment.senderId == auth.session?.userId,
+                          isPostAuthor: comment.senderId == postAuthorId,
+                          replyCount: row.descendants,
+                          collapsed: _collapsed.contains(comment.id),
+                          onToggleReplies: () => setState(() {
+                            if (!_collapsed.remove(comment.id)) {
+                              _collapsed.add(comment.id);
+                            }
+                          }),
+                          onReply: () {
+                            setState(() {
+                              _reply = comment;
+                              _editing = null;
+                            });
+                            _inputFocus.requestFocus();
+                          },
+                          onEdit: () {
+                            setState(() {
+                              _editing = comment;
+                              _reply = null;
+                            });
+                            _inputController.text = comment.content;
+                            _inputFocus.requestFocus();
+                          },
+                          onDelete: () => _delete(comment),
+                          qualityReported: _qualityReported.contains(
+                            comment.id,
+                          ),
+                          onQualityReport:
+                              comment.systemEvent?['is_niosai_reply'] == true ||
+                                  comment.senderUsername == 'nios_ai'
+                              ? () => _reportQuality(comment)
+                              : null,
+                          onReact: (reaction) => _perform(
+                            () => _notifier.react(comment.id, reaction),
+                          ),
+                          onAuthorTap: () {
+                            if (comment.senderUsername.isNotEmpty) {
+                              context.push(
+                                '/profile/${comment.senderUsername}',
+                              );
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            RepaintBoundary(
+              child: SafeArea(
                 top: false,
                 child: Material(
                   color: scheme.surfaceContainerLow,
@@ -402,15 +416,17 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                               Expanded(
                                 child: Text(
                                   _editing != null
-                                      ? 'Редактирование комментария'
-                                      : 'Ответ ${_reply!.senderDisplayName}',
+                                      ? context.l10n.auditCommentEditing
+                                      : context.l10n.auditCommentReply(
+                                          _reply!.senderDisplayName,
+                                        ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: textTheme.labelLarge,
                                 ),
                               ),
                               IconButton(
-                                tooltip: 'Отменить',
+                                tooltip: context.l10n.commonCancel,
                                 icon: const CommentIcon('close', size: 18),
                                 onPressed: _busy
                                     ? null
@@ -439,8 +455,8 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                                 ],
                                 textCapitalization:
                                     TextCapitalization.sentences,
-                                decoration: const InputDecoration(
-                                  hintText: 'Комментарий или вопрос @ai',
+                                decoration: InputDecoration(
+                                  hintText: context.l10n.auditCommentHint,
                                   counterText: '',
                                   border: InputBorder.none,
                                 ),
@@ -450,20 +466,24 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                               controller: _inputController,
                             ),
                             const SizedBox(width: 8),
-                            IconButton.filled(
-                              tooltip: _editing == null
-                                  ? 'Отправить'
-                                  : 'Сохранить',
-                              onPressed:
-                                  _busy || _inputController.text.trim().isEmpty
-                                  ? null
-                                  : _send,
-                              icon: _busy
-                                  ? const AppLoadingIndicator(size: 20)
-                                  : CommentIcon(
-                                      'send',
-                                      color: scheme.onPrimary,
-                                    ),
+                            ListenableBuilder(
+                              listenable: _inputController,
+                              builder: (context, _) => IconButton.filled(
+                                tooltip: _editing == null
+                                    ? context.l10n.auditCommentSend
+                                    : context.l10n.commonSave,
+                                onPressed:
+                                    _busy ||
+                                        _inputController.text.trim().isEmpty
+                                    ? null
+                                    : _send,
+                                icon: _busy
+                                    ? const AppLoadingIndicator(size: 20)
+                                    : CommentIcon(
+                                        'send',
+                                        color: scheme.onPrimary,
+                                      ),
+                              ),
                             ),
                           ],
                         ),
@@ -472,8 +492,8 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -553,7 +573,7 @@ class _PinnedPostHeader extends StatelessWidget {
                   CustomEmojiText(
                     data.content.isNotEmpty
                         ? data.content
-                        : (data.hasMedia ? 'Медиафайл' : ''),
+                        : (data.hasMedia ? context.l10n.auditPostMedia : ''),
                     style: theme.textTheme.bodyMedium,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -566,7 +586,9 @@ class _PinnedPostHeader extends StatelessWidget {
                         data.poll!['title'] as String? ?? '',
                       ),
                       subtitle: Text(
-                        data.poll!['kind'] == 'quiz' ? 'Викторина' : 'Опрос',
+                        data.poll!['kind'] == 'quiz'
+                            ? context.l10n.auditPostQuiz
+                            : context.l10n.auditPostPoll,
                       ),
                       children: [
                         ConstrainedBox(

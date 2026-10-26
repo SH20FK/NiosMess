@@ -272,7 +272,8 @@ class SecretChatCoordinator
       }
       final streams = _streams;
       final retry = _nextStreamRegistration;
-      if (streams == null || (retry != null && DateTime.now().isBefore(retry))) {
+      if (streams == null ||
+          (retry != null && DateTime.now().isBefore(retry))) {
         return;
       }
       try {
@@ -512,11 +513,21 @@ class SecretChatCoordinator
       final byId = <int, ApiMessage>{
         for (final m in [...cached, ...media]) m.id: m,
       };
-      final ownTexts = EncryptedMessageCache.senderPlaintextsForMigration(
+      final ownTexts = await EncryptedMessageCache.senderPlaintextsForMigration(
         chat.id,
         userId,
-        legacyOwnerUserId: _legacyOwnerUserId,
       );
+      final provenLegacyIds = <int>{};
+      for (final message in byId.values) {
+        if (message.senderId != userId || message.content.isNotEmpty) continue;
+        final legacy = await EncryptedMessageCache.getSenderPlaintext(
+          chatId: chat.id,
+          messageId: message.id,
+        );
+        if (legacy == null) continue;
+        ownTexts.putIfAbsent(message.id, () => legacy);
+        provenLegacyIds.add(message.id);
+      }
       for (final entry in ownTexts.entries) {
         if (byId.containsKey(entry.key)) continue;
         byId[entry.key] = ApiMessage.fromJson({
@@ -537,13 +548,7 @@ class SecretChatCoordinator
       final migrated = byId.values
           .map((message) {
             if (message.senderId == userId && message.content.isEmpty) {
-              final own =
-                  ownTexts[message.id] ??
-                  EncryptedMessageCache.getSenderPlaintext(
-                    chatId: chat.id,
-                    messageId: message.id,
-                    userId: userId,
-                  );
+              final own = ownTexts[message.id];
               if (own != null) {
                 return message.copyWith(content: own, isDecrypted: true);
               }
@@ -572,6 +577,7 @@ class SecretChatCoordinator
         chat.id,
         userId: userId,
         legacyOwnerUserId: _legacyOwnerUserId,
+        legacyMessageIds: provenLegacyIds,
       );
     }
     for (final uiId in importedIds) {
@@ -917,7 +923,9 @@ class SecretChatCoordinator
     _closed = true;
     final streamsStopped = _streams?.close();
     if (streamsStopped != null) {
-      unawaited(streamsStopped.then<void>((_) {}, onError: (Object _, StackTrace _) {}));
+      unawaited(
+        streamsStopped.then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+      );
     }
     for (final cancellation in _uploads) {
       cancellation.cancel();
@@ -1009,7 +1017,10 @@ class SecretChatCoordinator
 final secretChatCoordinatorProvider = FutureProvider<SecretChatCoordinator?>((
   ref,
 ) async {
-  final account = ref.watch(authProvider.select((s) => s.session?.userId));
+  final identity = ref.watch(
+    authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
+  );
+  final account = identity.$1;
   if (account == null) return null;
   final username = ref.read(authProvider).session?.username ?? '';
   final ws = ref.read(webSocketClientProvider);
@@ -1070,6 +1081,12 @@ final secretChatRevisionProvider = StreamProvider<int>((ref) async* {
   }
 });
 
-final secretChatEngineProvider = Provider<SecretChatEngine?>(
-  (ref) => ref.watch(secretChatCoordinatorProvider).value?.engine,
-);
+final secretChatEngineProvider = Provider<SecretChatEngine?>((ref) {
+  final account = ref.watch(authProvider.select((s) => s.session?.userId));
+  final coordinator = ref.watch(secretChatCoordinatorProvider).value;
+  return coordinator != null &&
+          coordinator.userId == account &&
+          !coordinator.engine.stopped
+      ? coordinator.engine
+      : null;
+});

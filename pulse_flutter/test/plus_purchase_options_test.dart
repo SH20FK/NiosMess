@@ -10,8 +10,96 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/widgets/plus_purchase_options.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
 void main() {
+  testWidgets(
+    'purchase dialog stays compact and cancellation keeps link draft',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(sessionAccessTokenProvider.notifier).setToken('fixture');
+      final requests = <String>[];
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: ThemeData(useMaterial3: true),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: PlusPurchaseOptions(
+                    onChanged: () {},
+                    clientFactory: () => MockClient((request) async {
+                      requests.add(request.url.path);
+                      return http.Response(
+                        jsonEncode({
+                          'plans': [
+                            {
+                              'duration': '14 days',
+                              'price_kopecks': 8050,
+                              'purchase_url':
+                                  'https://funpay.com/lots/offer?id=fixture',
+                            },
+                          ],
+                        }),
+                        200,
+                      );
+                    }),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byType(TextField));
+      await tester.enterText(find.byType(TextField), 'saved activation draft');
+      await tester.ensureVisible(find.text('Buy'));
+      await tester.tap(find.text('Buy'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AppDialog), findsOneWidget);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('Continue to purchase'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Open FunPay'),
+            )
+            .onPressed,
+        isNull,
+      );
+      await tester.tap(find.text('Cancel'));
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(tester.takeException(), isNull);
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'saved activation draft',
+      );
+      expect(requests, ['/api/plus/catalog']);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'regional catalog, purchase consent and inline activation validation',
     (tester) async {

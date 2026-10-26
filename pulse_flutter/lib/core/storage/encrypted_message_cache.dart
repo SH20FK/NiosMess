@@ -13,16 +13,30 @@ part 'encrypted_history_archive.dart';
 
 class EncryptedMessageCache {
   static const String _boxName = 'enc_messages_v1';
-  static const String _senderPlaintextBoxName = 'enc_sender_plaintext_v1';
+  static const String _senderPlaintextBoxName = 'enc_sender_plaintext_v2';
+  static const String _legacySenderBoxName = 'enc_sender_plaintext_v1';
+  static Future<void>? _initialization;
   static const String _keyAlias = 'niosmess_msg_cache_key_v1';
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   static final AesGcm _aes = AesGcm.with256bits();
 
   static SecretKey? _cachedKey;
-  static Completer<SecretKey>? _keyCompleter;
+  static Future<SecretKey>? _keyFuture;
+  static int _senderMigrationEpoch = 0;
 
-  static final Map<String, String> _memorySenderPlaintexts = <String, String>{};
+  static const int senderPlaintextMemoryLimit = 256;
+  static final _memorySenderPlaintexts = <String, String>{};
+  @visibleForTesting
+  static int get debugSenderPlaintextCount => _memorySenderPlaintexts.length;
+  static void _rememberSender(String key, String text) {
+    _memorySenderPlaintexts.remove(key);
+    _memorySenderPlaintexts[key] = text;
+    while (_memorySenderPlaintexts.length > senderPlaintextMemoryLimit) {
+      _memorySenderPlaintexts.remove(_memorySenderPlaintexts.keys.first);
+    }
+  }
+
   static final Map<int, int> _accountGenerations = <int, int>{};
   static int _generationCounter = 0;
   static int _clearEpoch = 0;
@@ -33,7 +47,7 @@ class EncryptedMessageCache {
   @visibleForTesting
   static void resetMemoryForTesting() {
     _cachedKey = null;
-    _keyCompleter = null;
+    _keyFuture = null;
     _memorySenderPlaintexts.clear();
   }
 
@@ -43,44 +57,92 @@ class EncryptedMessageCache {
   static String _senderKey(int chatId, int messageId, int? userId) =>
       '${userId ?? 0}_${chatId}_$messageId';
 
-  static Future<SecretKey> _getOrCreateKey() async {
-    if (_cachedKey != null) return _cachedKey!;
-
-    if (_keyCompleter != null) return _keyCompleter!.future;
-
-    _keyCompleter = Completer<SecretKey>();
-    try {
-      final String? existing = await _secureStorage.read(key: _keyAlias);
-      if (existing != null) {
-        final List<int> bytes = base64.decode(existing);
-        _cachedKey = SecretKey(bytes);
-        _keyCompleter!.complete(_cachedKey!);
-        return _cachedKey!;
-      }
-
-      final SecretKey newKey = await _aes.newSecretKey();
-      final List<int> keyBytes = await newKey.extractBytes();
-      await _secureStorage.write(
-        key: _keyAlias,
-        value: base64.encode(keyBytes),
-      );
-      _cachedKey = newKey;
-      _keyCompleter!.complete(_cachedKey!);
-      return _cachedKey!;
-    } catch (e) {
-      _keyCompleter!.completeError(e);
-      rethrow;
-    } finally {
-      _keyCompleter = null;
-    }
+  static Future<SecretKey> _getOrCreateKey() {
+    if (_cachedKey != null) return Future.value(_cachedKey!);
+    return _keyFuture ??= _loadOrCreateKey().whenComplete(
+      () => _keyFuture = null,
+    );
   }
 
-  static Future<void> ensureInitialized() async {
+  static Future<SecretKey> _loadOrCreateKey() async {
+    final existing = await _secureStorage.read(key: _keyAlias);
+    if (existing != null) {
+      final bytes = base64Decode(existing);
+      if (bytes.length != 32) throw const FormatException('CACHE_KEY_INVALID');
+      return _cachedKey = SecretKey(bytes);
+    }
+    final key = await _aes.newSecretKey();
+    await _secureStorage.write(
+      key: _keyAlias,
+      value: base64Encode(await key.extractBytes()),
+    );
+    return _cachedKey = key;
+  }
+
+  static Future<void> ensureInitialized() =>
+      _initialization ??= _initialize().whenComplete(() {
+        _initialization = null;
+      });
+
+  static Future<void> _initialize() async {
     await HiveBootstrap.ensureInitialized();
     await Future.wait([
       Hive.openBox<String>(_boxName),
       Hive.openBox<String>(_senderPlaintextBoxName),
     ]);
+    if (Hive.isBoxOpen(_legacySenderBoxName) ||
+        await Hive.boxExists(_legacySenderBoxName)) {
+      final legacy = await Hive.openBox<String>(_legacySenderBoxName);
+      final target = Hive.box<String>(_senderPlaintextBoxName);
+      for (final entry in legacy.toMap().entries) {
+        // Migration never overwrites a newer protected value or removes its
+        // only readable source before the encrypted copy is verified.
+        final key = '${entry.key}', original = entry.value;
+        final epoch = _senderMigrationEpoch;
+        try {
+          if (!target.containsKey(key)) {
+            final encoded = await _encodeSender(key, original);
+            if (epoch != _senderMigrationEpoch) continue;
+            await target.put(key, encoded);
+            await target.flush();
+          }
+          if (await _decodeSender(key, target.get(key)!) == original) {
+            await legacy.delete(entry.key);
+            await legacy.flush();
+          }
+        } catch (_) {
+          /* Preserve the source and retry the migration later. */
+        }
+      }
+      await legacy.compact();
+    }
+  }
+
+  static Future<String> _encodeSender(String id, String plaintext) async {
+    final key = await _getOrCreateKey();
+    final box = await _aes.encrypt(
+      utf8.encode(plaintext),
+      secretKey: key,
+      aad: utf8.encode('NiosMess/sender-cache/2:$id'),
+    );
+    return base64Encode([...box.nonce, ...box.cipherText, ...box.mac.bytes]);
+  }
+
+  static Future<String> _decodeSender(String id, String encoded) async {
+    final bytes = base64Decode(encoded);
+    if (bytes.length < 28) throw const FormatException('SENDER_CACHE_INVALID');
+    final key = await _getOrCreateKey();
+    return utf8.decode(
+      await _aes.decrypt(
+        SecretBox(
+          bytes.sublist(12, bytes.length - 16),
+          nonce: bytes.sublist(0, 12),
+          mac: Mac(bytes.sublist(bytes.length - 16)),
+        ),
+        secretKey: key,
+        aad: utf8.encode('NiosMess/sender-cache/2:$id'),
+      ),
+    );
   }
 
   static Future<T> _runCompute<T>(FutureOr<T> Function() computation) {
@@ -98,35 +160,61 @@ class EncryptedMessageCache {
   }) async {
     if (plaintext.isEmpty) return;
     final String key = _senderKey(chatId, messageId, userId);
-    _memorySenderPlaintexts[key] = plaintext;
+    final owner = userId ?? 0,
+        generation = accountGeneration(userId ?? 0),
+        clearEpoch = _clearEpoch;
     try {
-      if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
-        await Hive.box<String>(_senderPlaintextBoxName).put(key, plaintext);
+      final encoded = await _encodeSender(key, plaintext);
+      if (generation != accountGeneration(owner) || clearEpoch != _clearEpoch) {
+        return;
       }
-    } catch (e) {
-      debugPrint('[EncryptedMessageCache] saveSenderPlaintext error: $e');
+      if (!Hive.isBoxOpen(_senderPlaintextBoxName)) return;
+      final box = Hive.box<String>(_senderPlaintextBoxName);
+      await box.put(key, encoded);
+      await box.flush();
+      if (generation == accountGeneration(owner) && clearEpoch == _clearEpoch) {
+        _rememberSender(key, plaintext);
+      }
+    } catch (_) {
+      debugPrint('[EncryptedMessageCache] SENDER_CACHE_WRITE_FAILED');
     }
   }
 
-  static String? getSenderPlaintext({
+  static Future<String?> getSenderPlaintext({
     required int chatId,
     required int messageId,
     int? userId,
-  }) {
-    final String key = _senderKey(chatId, messageId, userId);
-    final String? mem = _memorySenderPlaintexts[key];
-    if (mem != null && mem.isNotEmpty) return mem;
+  }) async {
+    final key = _senderKey(chatId, messageId, userId);
+    final owner = userId ?? 0,
+        generation = accountGeneration(userId ?? 0),
+        clearEpoch = _clearEpoch;
+    final cached = _memorySenderPlaintexts[key];
+    if (cached != null) {
+      _rememberSender(key, cached);
+      return cached;
+    }
     try {
       if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
-        final String? stored = Hive.box<String>(
-          _senderPlaintextBoxName,
-        ).get(key);
-        if (stored != null && stored.isNotEmpty) {
-          _memorySenderPlaintexts[key] = stored;
-          return stored;
+        final encoded = Hive.box<String>(_senderPlaintextBoxName).get(key);
+        if (encoded != null) {
+          final text = await _decodeSender(key, encoded);
+          if (generation != accountGeneration(owner) ||
+              clearEpoch != _clearEpoch) {
+            return null;
+          }
+          _rememberSender(key, text);
+          return text;
         }
       }
-    } catch (_) {}
+      // Reading retained source entries remains supported after a failed
+      // migration, but account ownership is checked by the scoped key/caller.
+      if (Hive.isBoxOpen(_legacySenderBoxName)) {
+        return Hive.box<String>(_legacySenderBoxName).get(key);
+      }
+    } catch (_) {
+      debugPrint('[EncryptedMessageCache] SENDER_CACHE_READ_FAILED');
+    }
     return null;
   }
 
@@ -270,13 +358,14 @@ class EncryptedMessageCache {
 
   static Future<void> clearAll() async {
     _clearEpoch++;
+    _senderMigrationEpoch++;
     try {
       _memorySenderPlaintexts.clear();
       if (Hive.isBoxOpen(_boxName)) {
         await Hive.box<String>(_boxName).clear();
       }
-      if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
-        await Hive.box<String>(_senderPlaintextBoxName).clear();
+      for (final name in [_senderPlaintextBoxName, _legacySenderBoxName]) {
+        if (Hive.isBoxOpen(name)) await Hive.box<String>(name).clear();
       }
     } catch (e) {
       debugPrint('[EncryptedMessageCache] ClearAll error: $e');
@@ -284,6 +373,7 @@ class EncryptedMessageCache {
   }
 
   static Future<void> clearAccount(int userId, List<int> secretChatIds) async {
+    _senderMigrationEpoch++;
     _accountGenerations[userId] = ++_generationCounter;
     await EncryptedHistoryArchive.eraseAccount(userId);
     if (Hive.isBoxOpen(_boxName)) {
@@ -298,12 +388,11 @@ class EncryptedMessageCache {
             .toList(),
       );
     }
-    bool owned(String key) =>
-        key.startsWith('${userId}_') ||
-        secretChatIds.any((id) => key.startsWith('0_${id}_'));
+    bool owned(String key) => key.startsWith('${userId}_');
     _memorySenderPlaintexts.removeWhere((key, _) => owned(key));
-    if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
-      final box = Hive.box<String>(_senderPlaintextBoxName);
+    for (final name in [_senderPlaintextBoxName, _legacySenderBoxName]) {
+      if (!Hive.isBoxOpen(name)) continue;
+      final box = Hive.box<String>(name);
       await box.deleteAll(box.keys.where((key) => owned('$key')).toList());
       await box.flush();
     }
@@ -313,6 +402,7 @@ class EncryptedMessageCache {
     int chatId, {
     required int userId,
     int? legacyOwnerUserId,
+    Set<int> legacyMessageIds = const {},
   }) async {
     await clearChat(
       chatId,
@@ -321,39 +411,54 @@ class EncryptedMessageCache {
     );
     bool matches(String key) =>
         key.startsWith('${userId}_${chatId}_') ||
-        (legacyOwnerUserId == userId && key.startsWith('0_${chatId}_'));
+        (legacyOwnerUserId == userId &&
+            key.startsWith('0_${chatId}_') &&
+            legacyMessageIds.contains(int.tryParse(key.split('_').last)));
     _memorySenderPlaintexts.removeWhere((key, _) => matches(key));
-    if (Hive.isBoxOpen(_senderPlaintextBoxName)) {
-      final box = Hive.box<String>(_senderPlaintextBoxName);
+    for (final name in [_senderPlaintextBoxName, _legacySenderBoxName]) {
+      if (!Hive.isBoxOpen(name)) continue;
+      final box = Hive.box<String>(name);
       await box.deleteAll(box.keys.where((key) => matches('$key')).toList());
       await box.flush();
       await box.compact();
     }
   }
 
-  static Map<int, String> senderPlaintextsForMigration(
+  static Future<Map<int, String>> senderPlaintextsForMigration(
     int chatId,
     int userId, {
     int? legacyOwnerUserId,
-  }) {
-    final result = <int, String>{};
-    if (!Hive.isBoxOpen(_senderPlaintextBoxName)) return result;
-    final box = Hive.box<String>(_senderPlaintextBoxName);
-    for (final key in box.keys) {
-      final value = '$key';
-      if (!value.startsWith('${userId}_${chatId}_') &&
-          !(legacyOwnerUserId == userId && value.startsWith('0_${chatId}_'))) {
-        continue;
-      }
-      final id = int.tryParse(value.split('_').last);
-      final text = box.get(key);
-      if (id != null && text != null && text.isNotEmpty) {
-        if (value.startsWith('${userId}_${chatId}_')) {
-          result[id] = text;
-        } else {
-          result.putIfAbsent(id, () => text);
+    Set<int> legacyMessageIds = const {},
+  }) async {
+    final ids = <int>{};
+    for (final name in [_senderPlaintextBoxName, _legacySenderBoxName]) {
+      if (!Hive.isBoxOpen(name)) continue;
+      for (final raw in Hive.box<String>(name).keys) {
+        final value = '$raw';
+        if (value.startsWith('${userId}_${chatId}_') ||
+            (legacyOwnerUserId == userId &&
+                value.startsWith('0_${chatId}_') &&
+                legacyMessageIds.contains(
+                  int.tryParse(value.split('_').last),
+                ))) {
+          final id = int.tryParse(value.split('_').last);
+          if (id != null) ids.add(id);
         }
       }
+    }
+    final result = <int, String>{};
+    for (final id in ids) {
+      final scoped = await getSenderPlaintext(
+        chatId: chatId,
+        messageId: id,
+        userId: userId,
+      );
+      final text =
+          scoped ??
+          (legacyOwnerUserId == userId && legacyMessageIds.contains(id)
+              ? await getSenderPlaintext(chatId: chatId, messageId: id)
+              : null);
+      if (text != null && text.isNotEmpty) result[id] = text;
     }
     return result;
   }

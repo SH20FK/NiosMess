@@ -2284,6 +2284,270 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'This pack has no emoji yet'**
   String get customEmptySet;
+
+  /// No description provided for @auditSystemLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get auditSystemLanguage;
+
+  /// No description provided for @auditPostPublished.
+  ///
+  /// In en, this message translates to:
+  /// **'Post published'**
+  String get auditPostPublished;
+
+  /// No description provided for @auditCommentSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send comment'**
+  String get auditCommentSend;
+
+  /// No description provided for @auditCommentDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete comment?'**
+  String get auditCommentDeleteTitle;
+
+  /// No description provided for @auditCommentDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies will remain in the discussion.'**
+  String get auditCommentDeleteBody;
+
+  /// No description provided for @auditCommentLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more comments'**
+  String get auditCommentLoadMore;
+
+  /// No description provided for @auditCommentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment or ask @ai'**
+  String get auditCommentHint;
+
+  /// No description provided for @auditCommentEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing comment'**
+  String get auditCommentEditing;
+
+  /// No description provided for @auditCommentReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply to {name}'**
+  String auditCommentReply(String name);
+
+  /// No description provided for @auditCommentReported.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality report sent'**
+  String get auditCommentReported;
+
+  /// No description provided for @auditCommentAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get auditCommentAuthor;
+
+  /// No description provided for @auditCommentChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel'**
+  String get auditCommentChannel;
+
+  /// No description provided for @auditPostMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Media file'**
+  String get auditPostMedia;
+
+  /// No description provided for @auditPostQuiz.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiz'**
+  String get auditPostQuiz;
+
+  /// No description provided for @auditPostPoll.
+  ///
+  /// In en, this message translates to:
+  /// **'Poll'**
+  String get auditPostPoll;
+
+  /// No description provided for @auditPlusSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with NiosID'**
+  String get auditPlusSignIn;
+
+  /// No description provided for @auditPlusCatalogUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Plans are unavailable'**
+  String get auditPlusCatalogUnavailable;
+
+  /// No description provided for @auditPlusCatalogLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load plans. You can still activate a purchased link below.'**
+  String get auditPlusCatalogLoadFailed;
+
+  /// No description provided for @auditPlusActivationLinkInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the full activation link from your order'**
+  String get auditPlusActivationLinkInvalid;
+
+  /// No description provided for @auditPlusAccountChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Account changed. Refresh plans before purchasing.'**
+  String get auditPlusAccountChanged;
+
+  /// No description provided for @auditPlusProductUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The product address is unavailable. Try refreshing plans.'**
+  String get auditPlusProductUnavailable;
+
+  /// No description provided for @auditPlusOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open FunPay'**
+  String get auditPlusOpenFailed;
+
+  /// No description provided for @auditPlusNativeOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase and activation are available in the mobile and desktop NiosMess app.'**
+  String get auditPlusNativeOnly;
+
+  /// No description provided for @auditPlusSupportedPlatforms.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase and activation are currently available on Android, Windows and Linux.'**
+  String get auditPlusSupportedPlatforms;
+
+  /// No description provided for @auditPlusPurchaseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase and renewal'**
+  String get auditPlusPurchaseTitle;
+
+  /// No description provided for @auditPlusPromoLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Once per account, IP address and device'**
+  String get auditPlusPromoLimit;
+
+  /// No description provided for @auditPlusBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy'**
+  String get auditPlusBuy;
+
+  /// No description provided for @auditPlusSalesPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales have not opened yet. You can activate a purchased link below.'**
+  String get auditPlusSalesPending;
+
+  /// No description provided for @auditPlusRefreshPlans.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh plans'**
+  String get auditPlusRefreshPlans;
+
+  /// No description provided for @auditPlusAlreadyPurchased.
+  ///
+  /// In en, this message translates to:
+  /// **'Already purchased NiosPlus?'**
+  String get auditPlusAlreadyPurchased;
+
+  /// No description provided for @auditPlusActivationLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Activation link'**
+  String get auditPlusActivationLink;
+
+  /// No description provided for @auditPlusCheckSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Check subscription'**
+  String get auditPlusCheckSubscription;
+
+  /// No description provided for @auditPlusContinuePurchase.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue to purchase'**
+  String get auditPlusContinuePurchase;
+
+  /// No description provided for @auditPlusPurchaseInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'FunPay will give you a single-use link. Open it in NiosMess to activate your purchase.'**
+  String get auditPlusPurchaseInstructions;
+
+  /// No description provided for @auditPlusFeeNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'A payment gateway fee is added to the price. FunPay will show the total before payment.'**
+  String get auditPlusFeeNotice;
+
+  /// No description provided for @auditPlusDeviceHashConsent.
+  ///
+  /// In en, this message translates to:
+  /// **'I agree to share the SHA-256 device hash during activation'**
+  String get auditPlusDeviceHashConsent;
+
+  /// No description provided for @auditPlusDeviceHashPurpose.
+  ///
+  /// In en, this message translates to:
+  /// **'This protects your purchase. Promotional plans also check your account and IP address.'**
+  String get auditPlusDeviceHashPurpose;
+
+  /// No description provided for @auditPlusOpenFunPay.
+  ///
+  /// In en, this message translates to:
+  /// **'Open FunPay'**
+  String get auditPlusOpenFunPay;
+
+  /// No description provided for @auditAppLockCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t check the app lock. Try again.'**
+  String get auditAppLockCheckFailed;
+
+  /// No description provided for @auditAppLockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosMess is locked'**
+  String get auditAppLockTitle;
+
+  /// No description provided for @auditAppLockDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm your identity to access messages and data'**
+  String get auditAppLockDescription;
+
+  /// No description provided for @auditAppLockAuthenticating.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get auditAppLockAuthenticating;
+
+  /// No description provided for @auditAppLockUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get auditAppLockUnlock;
+
+  /// No description provided for @auditAppLockMinimize.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimize'**
+  String get auditAppLockMinimize;
 }
 
 class _SecretChatLocalizationsDelegate

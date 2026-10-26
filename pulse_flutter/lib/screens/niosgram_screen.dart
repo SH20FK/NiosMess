@@ -1,3 +1,6 @@
+import 'package:pulse_flutter/core/utils/cancellation_token.dart';
+import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/notifications/notification_center.dart';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
@@ -372,11 +375,13 @@ class _CompactQuickCreateBar extends ConsumerStatefulWidget {
 class _CompactQuickCreateBarState
     extends ConsumerState<_CompactQuickCreateBar> {
   bool _isExpanded = false;
-  final TextEditingController _textController = TextEditingController();
+  final TextEditingController _textController = CustomEmojiTextController();
   final FocusNode _focusNode = FocusNode();
   List<PlatformFile> _selectedFiles = <PlatformFile>[];
   List<Uint8List> _previewBytesList = <Uint8List>[];
-  bool _isLoading = false;
+  bool _isLoading = false, _isPickingMedia = false;
+  int _draftGeneration = 0;
+  CancellationToken? _uploadCancellation;
   String? _error;
 
   static const int _maxPostLength = 2000;
@@ -384,6 +389,8 @@ class _CompactQuickCreateBarState
 
   @override
   void dispose() {
+    _draftGeneration++;
+    _uploadCancellation?.cancel();
     _textController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -396,6 +403,7 @@ class _CompactQuickCreateBarState
   }
 
   void _collapse() {
+    _draftGeneration++;
     if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
     setState(() {
       _isExpanded = false;
@@ -407,112 +415,163 @@ class _CompactQuickCreateBarState
     _focusNode.unfocus();
   }
 
+  Future<Uint8List> _readMediaBytes(
+    PlatformFile file,
+    String sizeError, {
+    CancellationToken? cancellation,
+  }) async {
+    cancellation?.throwIfCancelled();
+    final length = await file.length();
+    if (length <= 0 || length > _maxFileBytes) throw FormatException(sizeError);
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in file.readAsByteStream()) {
+      cancellation?.throwIfCancelled();
+      if (bytes.length + chunk.length > _maxFileBytes) {
+        throw FormatException(sizeError);
+      }
+      bytes.add(chunk);
+    }
+    if (bytes.isEmpty) throw FormatException(sizeError);
+    return bytes.takeBytes();
+  }
+
   Future<void> _pickMedia() async {
-    final int availableSlots = 5 - _selectedFiles.length;
-    if (availableSlots <= 0) {
-      if (mounted) AppToast.showInfo(context, 'Максимум 5 фотографий');
+    if (_isLoading ||
+        _isPickingMedia ||
+        ref.read(authProvider.notifier).isLoggingOut) {
       return;
     }
-
-    final List<PlatformFile> result = await FilePicker.pickFiles(
-      type: FileType.media,
-    );
-    if (result.isEmpty) return;
-
-    final List<PlatformFile> picked = result.take(availableSlots).toList();
-    final List<PlatformFile> validFiles = List<PlatformFile>.from(
-      _selectedFiles,
-    );
-    final List<Uint8List> previews = List<Uint8List>.from(_previewBytesList);
-
-    for (final PlatformFile file in picked) {
-      if ((await file.length()) > _maxFileBytes) {
-        setState(() {
-          _isExpanded = true;
-          _error = context.l10n.postFileTooLarge;
-        });
-        continue;
+    final slots = 5 - _selectedFiles.length;
+    if (slots <= 0) return;
+    _isPickingMedia = true;
+    final generation = _draftGeneration;
+    final account = ref.read(authProvider).session;
+    bool active() =>
+        mounted &&
+        generation == _draftGeneration &&
+        !ref.read(authProvider.notifier).isLoggingOut &&
+        ref.read(authProvider).session?.userId == account?.userId &&
+        ref.read(authProvider).session?.accessToken == account?.accessToken;
+    final sizeError = context.l10n.postFileTooLarge;
+    try {
+      final picked = await FilePicker.pickFiles(type: FileType.media);
+      if (!active() || picked.isEmpty) return;
+      final files = List<PlatformFile>.of(_selectedFiles);
+      final previews = List<Uint8List>.of(_previewBytesList);
+      for (final file in picked.take(slots)) {
+        final bytes = await _readMediaBytes(file, sizeError);
+        if (!active()) return;
+        final compressed = await ImageCompressor.compressImageBytes(
+          bytes: bytes,
+          fileName: file.name,
+        );
+        if (!active()) return;
+        files.add(file);
+        previews.add(compressed ?? bytes);
       }
-
-      Uint8List previewBytes = await file.readAsBytes();
-      final Uint8List? compressed = await ImageCompressor.compressImageBytes(
-        bytes: previewBytes,
-        fileName: file.name,
-      );
-      if (compressed != null) previewBytes = compressed;
-      validFiles.add(file);
-      previews.add(previewBytes);
-    }
-
-    if (validFiles.length != _selectedFiles.length) {
+      if (!active()) return;
       setState(() {
         _isExpanded = true;
-        _selectedFiles = validFiles;
+        _selectedFiles = files;
         _previewBytesList = previews;
         _error = null;
       });
+    } catch (error) {
+      if (active()) {
+        setState(
+          () => _error = AppErrorFormatter.format(
+            error,
+            l10n: context.l10n,
+          ).toString(),
+        );
+      }
+    } finally {
+      _isPickingMedia = false;
     }
   }
 
   Future<void> _submit() async {
-    final String text = _textController.text.trim();
+    if (_isLoading ||
+        _isPickingMedia ||
+        ref.read(authProvider.notifier).isLoggingOut) {
+      return;
+    }
+    final text = _textController.text.trim();
     if (text.isEmpty && _selectedFiles.isEmpty) {
       setState(() => _error = context.l10n.postEmptyContent);
       return;
     }
-
+    final files = List<PlatformFile>.of(_selectedFiles);
+    final previews = List<Uint8List>.of(_previewBytesList);
+    final generation = _draftGeneration;
+    final account = ref.read(authProvider).session;
+    final repository = ref.read(chatRepositoryProvider),
+        feed = ref.read(niosgramProvider.notifier);
+    final sizeError = context.l10n.postFileTooLarge;
+    final cancellation = CancellationToken();
+    _uploadCancellation = cancellation;
+    bool active() =>
+        mounted &&
+        generation == _draftGeneration &&
+        !ref.read(authProvider.notifier).isLoggingOut &&
+        ref.read(authProvider).session?.userId == account?.userId &&
+        ref.read(authProvider).session?.accessToken == account?.accessToken;
     if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-
     setState(() {
       _isLoading = true;
       _error = null;
     });
-
     try {
-      List<String>? uploadIds;
-      if (_selectedFiles.isNotEmpty) {
-        uploadIds = <String>[];
-        for (int i = 0; i < _selectedFiles.length; i++) {
-          final PlatformFile file = _selectedFiles[i];
-          final Uint8List fileBytes = (i < _previewBytesList.length)
-              ? _previewBytesList[i]
-              : await file.readAsBytes();
-          String filename = file.name;
-          if (!filename.contains('.')) {
-            filename = '$filename.jpg';
-          }
-          final String uploadIdStr = await ref
-              .read(chatRepositoryProvider)
-              .uploadStreamInChunks(
-                bytes: fileBytes,
-                filename: filename,
-                mediaSubtype: 'media',
-                fileSize: fileBytes.length,
-                onProgress: (_, _) {},
+      final uploadIds = <String>[];
+      for (var i = 0; i < files.length; i++) {
+        cancellation.throwIfCancelled();
+        if (!active()) return;
+        final file = files[i];
+        final bytes = i < previews.length && previews[i].isNotEmpty
+            ? previews[i]
+            : await _readMediaBytes(
+                file,
+                sizeError,
+                cancellation: cancellation,
               );
-          if (uploadIdStr.isNotEmpty) {
-            uploadIds.add(uploadIdStr);
-          }
-        }
+        if (!active()) return;
+        final id = await repository.uploadStreamInChunks(
+          bytes: bytes,
+          filename: file.name.contains('.') ? file.name : '${file.name}.jpg',
+          mediaSubtype: 'media',
+          fileSize: bytes.length,
+          onProgress: (_, _) {},
+          cancellationToken: cancellation,
+        );
+        if (!active()) return;
+        if (id.isEmpty) throw StateError('empty_upload_id');
+        uploadIds.add(id);
       }
-
-      await ref
-          .read(niosgramProvider.notifier)
-          .createPost(
-            text,
-            uploadIds: uploadIds,
-            uploadId: uploadIds?.firstOrNull,
-          );
-
-      if (mounted) {
-        if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
-        AppToast.showSuccess(context, 'Публикация добавлена');
-        _collapse();
+      if (!active()) return;
+      await feed.createPost(
+        text,
+        uploadIds: uploadIds,
+        uploadId: uploadIds.firstOrNull,
+      );
+      if (!mounted || !active()) return;
+      if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
+      AppToast.showSuccess(context, context.l10n.auditPostPublished);
+      // Preserve edits typed or inserted while this particular draft was pending.
+      if (_textController.text.trim() == text) _collapse();
+    } catch (error) {
+      if (active() && !cancellation.isCancelled) {
+        if (ref.read(uiSettingsProvider).haptics) HapticService.destructive();
+        setState(
+          () => _error = AppErrorFormatter.format(
+            error,
+            l10n: context.l10n,
+          ).toString(),
+        );
       }
-    } catch (e) {
-      if (ref.read(uiSettingsProvider).haptics) HapticService.destructive();
-      setState(() => _error = e.toString());
     } finally {
+      if (identical(_uploadCancellation, cancellation)) {
+        _uploadCancellation = null;
+      }
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -689,7 +748,9 @@ class _CompactQuickCreateBarState
                             focusNode: _focusNode,
                             maxLines: 6,
                             minLines: 1,
-                            maxLength: _maxPostLength,
+                            inputFormatters: [
+                              CustomEmojiLengthFormatter(_maxPostLength),
+                            ],
                             buildCounter:
                                 (
                                   _, {
@@ -779,8 +840,9 @@ class _CompactQuickCreateBarState
                               ) {
                                 final bool isVeryNarrow =
                                     constraints.maxWidth < 310;
-                                final int textLength =
-                                    _textController.text.length;
+                                final int textLength = customEmojiLength(
+                                  _textController.text,
+                                );
                                 final bool isNearLimit =
                                     textLength > (_maxPostLength - 200);
 

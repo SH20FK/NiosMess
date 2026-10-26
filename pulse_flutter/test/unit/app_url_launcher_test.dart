@@ -19,6 +19,87 @@ void main() {
       '/plus/activate#abc',
     );
   });
+  group('untrusted links', () {
+    test(
+      'dangerous schemes and credential-bearing URLs never launch',
+      () async {
+        for (final raw in [
+          'javascript:alert(1)',
+          'data:text/html,<script>1</script>',
+          'file:///etc/passwd',
+          'intent://scan/#Intent;scheme=zxing;end',
+          'ms-settings:privacy',
+          'https://user:password@ni-os.ru/settings',
+        ]) {
+          expect(
+            await AppUrlLauncher.openUrl(null, raw, enableHaptics: false),
+            isFalse,
+            reason: raw,
+          );
+        }
+        expect(
+          AppUrlLauncher.isInternalNiosLink(
+            Uri.parse('file://ni-os.ru/settings'),
+          ),
+          isFalse,
+        );
+        expect(
+          AppUrlLauncher.isTelegramLink(Uri.parse('file://t.me/hello')),
+          isFalse,
+        );
+      },
+    );
+    test('supported web, contact and app schemes remain available', () {
+      for (final raw in [
+        'https://example.com/path',
+        'http://example.com/',
+        'mailto:user@example.com?subject=Hello',
+        'tel:+1234567',
+        'sms:+1234567?body=Hello',
+        'niosmess://chat/1',
+        'nios://post/1',
+        'tg://resolve?domain=fixture',
+      ]) {
+        expect(
+          AppUrlLauncher.isSupportedLink(Uri.parse(raw)),
+          isTrue,
+          reason: raw,
+        );
+      }
+      expect(
+        AppUrlLauncher.isSupportedLink(Uri.parse('mailto://evil.test/user')),
+        isFalse,
+      );
+      expect(
+        AppUrlLauncher.isSupportedLink(Uri.parse('https:missing-host')),
+        isFalse,
+      );
+      expect(
+        AppUrlLauncher.isSupportedLink(Uri.parse('tel:%0D%0A123')),
+        isFalse,
+      );
+    });
+    test(
+      'Telegram decoded path values cannot inject extra query parameters',
+      () {
+        final uri = AppUrlLauncher.convertTelegramToNativeScheme(
+          Uri.parse('https://t.me/name%26post%3D999/123%26domain%3Devil'),
+        )!;
+        expect(uri.queryParameters, {
+          'domain': 'name&post=999',
+          'post': '123&domain=evil',
+        });
+        final invite = AppUrlLauncher.convertTelegramToNativeScheme(
+          Uri.parse('https://t.me/+abc%26invite%3Devil'),
+        )!;
+        expect(invite.queryParameters, {'invite': 'abc&invite=evil'});
+        final route = AppUrlLauncher.resolveInternalAppRoute(
+          Uri.parse('https://ni-os.ru/join?slug=abc%26admin%3D1'),
+        )!;
+        expect(Uri.parse(route).queryParameters, {'slug': 'abc&admin=1'});
+      },
+    );
+  });
   group('AppUrlLauncher Internal Link Resolution', () {
     test('Identifies NiosMess ecosystem domains correctly', () {
       expect(

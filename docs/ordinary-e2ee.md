@@ -74,16 +74,23 @@ With neither a device nor recovery secret, NiosID still restores account access.
 Explicit key reset requires a login less than 15 minutes old, revokes other
 sessions, preserves old public epochs, and makes old encrypted history unavailable
 without old private keys. A new identity is staged durably before publication so
-lost acknowledgements cannot destroy the new private keys. Contacts must verify
-changed identities before trusting them.
+lost acknowledgements cannot destroy the new private keys. Ordinary chats adopt a
+new current contact epoch from the authenticated messenger chat API and show a
+key-change notice. Users can compare fingerprints out of band; the composer does
+not require that comparison. See [automatic key maintenance](ordinary-automatic-keys.md).
 
 ## Trust and limits
 
-- Contact keys use trust on first use plus persisted pins. Changed epochs require
-  explicit out-of-band fingerprint comparison; changed keys within an existing
-  epoch are rejected. Fingerprints can be compared in the settings screen.
-- A malicious directory at the first contact can substitute keys unless users
-  compare fingerprints. This version has no key transparency directory.
+- Contact keys use trust on first use plus persisted immutable per-epoch pins.
+  Different key bytes within an existing epoch are rejected. A new current epoch
+  from the authenticated messenger chat API is adopted automatically, with a
+  nonblocking key-change notice. Historical lookups cannot move the current epoch
+  backwards. Fingerprints can optionally be compared in settings.
+- This policy trusts the authenticated directory to introduce new epochs. A
+  malicious directory can substitute first-contact keys or introduce a different
+  new epoch unless users independently compare fingerprints. This version has no
+  key transparency directory. Device-bound secret chats use a separate
+  identity-change confirmation policy, unchanged by this audit.
 - Static account recipient keys do not provide forward secrecy or post-compromise
   security. A stolen account key can decrypt retained ciphertext for its epoch.
 - Confirmed devices share account identity keys. Removing a session prevents future

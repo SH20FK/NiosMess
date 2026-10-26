@@ -46,6 +46,30 @@ void main() {
       );
     },
   );
+  test('album rejects a missing or inconsistent central directory', () {
+    final zip = MediaAlbum.encode([
+      AlbumImage('a.png', pixel()),
+      AlbumImage('b.png', pixel()),
+    ]);
+    final data = ByteData.sublistView(zip);
+    final centralOffset = data.getUint32(zip.length - 6, Endian.little);
+    expect(
+      () => MediaAlbum.decode(Uint8List.sublistView(zip, 0, centralOffset + 4)),
+      throwsFormatException,
+    );
+    final badCrc = Uint8List.fromList(zip)..[centralOffset + 16] ^= 1;
+    expect(() => MediaAlbum.decode(badCrc), throwsFormatException);
+    final badOffset = Uint8List.fromList(zip);
+    ByteData.sublistView(
+      badOffset,
+    ).setUint32(centralOffset + 42, 1, Endian.little);
+    expect(() => MediaAlbum.decode(badOffset), throwsFormatException);
+    final badEnd = Uint8List.fromList(zip);
+    ByteData.sublistView(badEnd).setUint16(zip.length - 12, 1, Endian.little);
+    expect(() => MediaAlbum.decode(badEnd), throwsFormatException);
+    final trailing = Uint8List.fromList([...zip, 0]);
+    expect(() => MediaAlbum.decode(trailing), throwsFormatException);
+  });
   test('album rejects foreign files, missing items and too many photos', () {
     expect(
       () => MediaAlbum.encode([

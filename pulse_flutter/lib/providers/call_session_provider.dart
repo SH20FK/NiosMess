@@ -24,11 +24,35 @@ final callSessionProvider =
 final callRefProvider = Provider<Ref>((Ref ref) => ref);
 
 class CallSessionNotifier extends Notifier<CallSessionManager?> {
+  CallSessionManager? _ownedSession;
   @override
-  CallSessionManager? build() => null;
+  CallSessionManager? build() {
+    ref.listen(
+      authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
+      (previous, next) {
+        if (previous != next && _ownedSession != null) setSession(null);
+      },
+    );
+    ref.onDispose(() {
+      final manager = _ownedSession;
+      _ownedSession = null;
+      manager?.dispose();
+    });
+    return null;
+  }
+
+  /// Stop native capture before account storage and the main socket disappear.
+  /// Account exit must not wait for an unavailable remote signaling response.
+  Future<void> shutdownForAccountExit() async {
+    final manager = state;
+    _ownedSession = null;
+    state = null;
+    await manager?.disposeAsync();
+  }
 
   void setSession(CallSessionManager? manager) {
     final previous = state;
+    _ownedSession = manager;
     state = manager;
     if (previous != null && !identical(previous, manager)) previous.dispose();
   }
@@ -57,9 +81,13 @@ class CallSessionManager {
     this.peerUsername,
     this.isListener = false,
     this.gatewayInfo,
-  }) : _gatewayInfo = gatewayInfo;
+  }) : _gatewayInfo = gatewayInfo,
+       _accountId = ref.read(authProvider).session?.userId,
+       _accountToken = ref.read(authProvider).session?.accessToken;
 
   final dynamic ref;
+  final int? _accountId;
+  final String? _accountToken;
   final int chatId;
   final int callId;
   final String roomId;
@@ -87,8 +115,11 @@ class CallSessionManager {
   /// Set once the peer is in the room, so the ringback loop and the
   /// "connected" cue fire exactly once per call.
   bool _answerHandled = false;
-  bool _renderersReady = false;
+  bool _localRendererReady = false, _remoteRendererReady = false;
   Future<void>? _rendererInit;
+  Future<void>? _resourceDisposal;
+  Future<WebRtcCallSession>? _sessionInit;
+  Future<void>? _connection;
   bool _disposed = false;
   SoundService? _callSound;
 
@@ -136,13 +167,24 @@ class CallSessionManager {
     String action,
     Map<String, dynamic> payload,
   ) async {
+    if (ref is Ref && !(ref as Ref).mounted) {
+      throw StateError('call_account_unavailable');
+    }
+    final auth = ref.read(authProvider);
+    if (auth.session?.userId != _accountId ||
+        auth.session?.accessToken != _accountToken) {
+      throw StateError('call_account_changed');
+    }
     final dynamic res = await ref
         .read(webSocketClientProvider)
         .request(action, payload: payload);
     return asStringMap(res);
   }
 
-  Future<WebRtcCallSession> _ensureSession() async {
+  Future<WebRtcCallSession> _ensureSession() =>
+      _sessionInit ??= _createSession();
+
+  Future<WebRtcCallSession> _createSession() async {
     final WebRtcCallSession? existing = _session;
     if (existing != null) return existing;
 
@@ -173,6 +215,7 @@ class CallSessionManager {
   }
 
   void _onSessionData(CallSessionData data) {
+    if (_disposed) return;
     if (!_stateController.isClosed) {
       _stateController.add(currentData);
     }
@@ -205,7 +248,10 @@ class CallSessionManager {
     }
   }
 
-  Future<void> _connect() async {
+  Future<void> _connect() => _connection ??= _connectOnce();
+
+  Future<void> _connectOnce() async {
+    if (_disposed || _ended) return;
     final sound = ref.read(appSoundProvider) as SoundService;
     _callSound = sound;
     await sound.suspendForCall();
@@ -214,9 +260,14 @@ class CallSessionManager {
       return;
     }
     final WebRtcCallSession session = await _ensureSession();
-    _networkSub ??= ref.listen<AsyncValue<NetworkType>>(networkTypeProvider, (previous, next) {
+    _networkSub ??= ref.listen<AsyncValue<NetworkType>>(networkTypeProvider, (
+      previous,
+      next,
+    ) {
       final before = previous?.asData?.value, after = next.asData?.value;
-      if (before != null && after != null && before != after && !_ended) session.requestRecovery();
+      if (before != null && after != null && before != after && !_ended) {
+        session.requestRecovery();
+      }
     });
     await session.start();
   }
@@ -329,12 +380,17 @@ class CallSessionManager {
       ? <int, MediaStream>{0: _session!.remoteStream!}
       : const <int, MediaStream>{};
 
-  Future<void> initRenderers() => _rendererInit ??= _initRenderers();
+  Future<void> initRenderers() {
+    if (_disposed || _ended) return Future<void>.value();
+    return _rendererInit ??= _initRenderers();
+  }
 
   Future<void> _initRenderers() async {
     await _localRenderer.initialize();
+    _localRendererReady = true;
+    if (_disposed || _ended) return;
     await _remoteRenderer.initialize();
-    _renderersReady = true;
+    _remoteRendererReady = true;
   }
 
   void toggleMute({bool? muted}) => setMuted(muted ?? !isMuted);
@@ -372,16 +428,23 @@ class CallSessionManager {
     _networkSub = null;
     _soloTimer?.cancel();
     _soloTimer = null;
-    unawaited(ref.read(appSoundProvider).stopLoop());
+    unawaited(_callSound?.stopLoop());
+  }
+
+  Future<void> disposeAsync() {
+    dispose();
+    return _resourceDisposal!;
   }
 
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _ended = true;
     _cleanup();
     unawaited(_sessionSub?.cancel());
     _sessionSub = null;
-    unawaited(_disposeResources());
+    _resourceDisposal = _disposeResources();
+    unawaited(_resourceDisposal);
   }
 
   Future<void> _disposeResources() async {
@@ -392,10 +455,8 @@ class CallSessionManager {
         await _rendererInit;
       } catch (_) {}
     }
-    if (_renderersReady) {
-      await _localRenderer.dispose();
-      await _remoteRenderer.dispose();
-    }
+    if (_localRendererReady) await _localRenderer.dispose();
+    if (_remoteRendererReady) await _remoteRenderer.dispose();
     await _stateController.close();
   }
 

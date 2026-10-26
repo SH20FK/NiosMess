@@ -508,7 +508,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         color: Colors.transparent,
         child: Semantics(
           button: true,
-          label: context.l10n.loginWhatIsNiosId,
           expanded: _isExplainerExpanded,
           child: InkWell(
             onTap: () {

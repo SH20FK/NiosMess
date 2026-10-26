@@ -48,6 +48,9 @@ class MockAuthNotifier extends AuthNotifier {
 Widget _buildTestApp({
   required String initialLocation,
   List<dynamic> overrides = const [],
+  String locale = 'en',
+  double textScale = 1,
+  Brightness brightness = Brightness.light,
 }) {
   final GoRouter router = GoRouter(
     initialLocation: initialLocation,
@@ -79,7 +82,15 @@ Widget _buildTestApp({
     overrides: overrides.cast(),
     child: MaterialApp.router(
       routerConfig: router,
-      locale: const Locale('en'),
+      locale: Locale(locale),
+      theme: ThemeData(useMaterial3: true, brightness: brightness),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(textScale),
+          disableAnimations: true,
+        ),
+        child: child!,
+      ),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
     ),
@@ -98,77 +109,109 @@ void main() {
   });
 
   group('Unified Onboarding Screen (4 slides with Language & Timezone)', () {
-    testWidgets('Renders Hero header with AppLogoMark, indicators and navigation buttons', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildTestApp(initialLocation: '/onboarding'),
-      );
-      await _pumpFrames(tester, 4);
+    testWidgets(
+      'step targets and language labels fit 320dp at 200% in both themes and locales',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        for (final locale in ['ru', 'en']) {
+          for (final brightness in Brightness.values) {
+            await tester.pumpWidget(
+              _buildTestApp(
+                initialLocation: '/onboarding',
+                locale: locale,
+                textScale: 2,
+                brightness: brightness,
+              ),
+            );
+            await _pumpFrames(tester, 12);
+            for (var i = 0; i < 4; i++) {
+              final size = tester.getSize(
+                find.byKey(ValueKey('onboarding-step-$i')),
+              );
+              expect(size.width, greaterThanOrEqualTo(48));
+              expect(size.height, greaterThanOrEqualTo(48));
+            }
+            await tester.tap(find.byKey(const ValueKey('onboarding-step-3')));
+            await _pumpFrames(tester, 12);
+            final system = find.text(locale == 'ru' ? 'Системный' : 'System');
+            await tester.ensureVisible(system);
+            expect(system, findsOneWidget);
+            expect(tester.takeException(), isNull);
+            await tester.pumpWidget(const SizedBox.shrink());
+          }
+        }
+      },
+    );
 
-      // Hero brand logo
-      expect(find.byType(AppLogoMark), findsOneWidget);
-      expect(find.text('NiosMess'), findsOneWidget);
+    testWidgets(
+      'Renders Hero header with AppLogoMark, indicators and navigation buttons',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(_buildTestApp(initialLocation: '/onboarding'));
+        await _pumpFrames(tester, 4);
 
-      // Slide 1 Content
-      expect(find.text('Fast calls with less friction'), findsOneWidget);
+        // Hero brand logo
+        expect(find.byType(AppLogoMark), findsOneWidget);
+        expect(find.text('NiosMess'), findsOneWidget);
 
-      // Indicators and Buttons
-      expect(find.text('Continue'), findsOneWidget);
-      expect(find.text('Skip'), findsOneWidget);
-    });
+        // Slide 1 Content
+        expect(find.text('Fast calls with less friction'), findsOneWidget);
 
-    testWidgets('Swiping carousel slides advances through slides to region and language setup', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildTestApp(initialLocation: '/onboarding'),
-      );
-      await _pumpFrames(tester, 4);
+        // Indicators and Buttons
+        expect(find.text('Continue'), findsOneWidget);
+        expect(find.text('Skip'), findsOneWidget);
+      },
+    );
 
-      expect(find.text('Fast calls with less friction'), findsOneWidget);
+    testWidgets(
+      'Swiping carousel slides advances through slides to region and language setup',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(_buildTestApp(initialLocation: '/onboarding'));
+        await _pumpFrames(tester, 4);
 
-      // Drag to slide 2 (Chats)
-      await tester.drag(find.byType(PageView), const Offset(-450, 0));
-      await _pumpFrames(tester, 12);
-      expect(find.text('Organized conversations'), findsOneWidget);
+        expect(find.text('Fast calls with less friction'), findsOneWidget);
 
-      // Drag to slide 3 (Speed)
-      await tester.drag(find.byType(PageView), const Offset(-450, 0));
-      await _pumpFrames(tester, 12);
-      expect(find.text('Designed for daily rhythm'), findsOneWidget);
+        // Drag to slide 2 (Chats)
+        await tester.drag(find.byType(PageView), const Offset(-450, 0));
+        await _pumpFrames(tester, 12);
+        expect(find.text('Organized conversations'), findsOneWidget);
 
-      // Drag to slide 4 (Language & Timezone setup)
-      await tester.drag(find.byType(PageView), const Offset(-450, 0));
-      await _pumpFrames(tester, 12);
-      expect(find.text('Choose your language'), findsOneWidget);
-      expect(find.text('Start messaging'), findsOneWidget);
-    });
+        // Drag to slide 3 (Speed)
+        await tester.drag(find.byType(PageView), const Offset(-450, 0));
+        await _pumpFrames(tester, 12);
+        expect(find.text('Designed for daily rhythm'), findsOneWidget);
 
-    testWidgets('Tapping Skip jumps directly to slide 4 (Language & Timezone)', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildTestApp(initialLocation: '/onboarding'),
-      );
-      await _pumpFrames(tester, 4);
+        // Drag to slide 4 (Language & Timezone setup)
+        await tester.drag(find.byType(PageView), const Offset(-450, 0));
+        await _pumpFrames(tester, 12);
+        expect(find.text('Choose your language'), findsOneWidget);
+        expect(find.text('Start messaging'), findsOneWidget);
+      },
+    );
 
-      expect(find.text('Fast calls with less friction'), findsOneWidget);
+    testWidgets(
+      'Tapping Skip jumps directly to slide 4 (Language & Timezone)',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(_buildTestApp(initialLocation: '/onboarding'));
+        await _pumpFrames(tester, 4);
 
-      // Tap Skip on Slide 0
-      await tester.tap(find.widgetWithText(TextButton, 'Skip'));
-      await _pumpFrames(tester, 8);
+        expect(find.text('Fast calls with less friction'), findsOneWidget);
 
-      expect(find.text('Choose your language'), findsOneWidget);
-      expect(find.text('Start messaging'), findsOneWidget);
-    });
+        // Tap Skip on Slide 0
+        await tester.tap(find.widgetWithText(TextButton, 'Skip'));
+        await _pumpFrames(tester, 8);
+
+        expect(find.text('Choose your language'), findsOneWidget);
+        expect(find.text('Start messaging'), findsOneWidget);
+      },
+    );
 
     testWidgets('Completing onboarding on slide 4 navigates to /login', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(
-        _buildTestApp(initialLocation: '/onboarding'),
-      );
+      await tester.pumpWidget(_buildTestApp(initialLocation: '/onboarding'));
       await _pumpFrames(tester, 4);
 
       // Skip to slide 4
@@ -184,29 +227,32 @@ void main() {
       expect(find.text('Login Target'), findsOneWidget);
     });
 
-    testWidgets('When already authenticated, completing onboarding routes to /main/chats', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          initialLocation: '/onboarding',
-          overrides: [
-            authProvider.overrideWith(() => MockAuthNotifier(authenticated: true)),
-          ],
-        ),
-      );
-      await _pumpFrames(tester, 4);
+    testWidgets(
+      'When already authenticated, completing onboarding routes to /main/chats',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(
+          _buildTestApp(
+            initialLocation: '/onboarding',
+            overrides: [
+              authProvider.overrideWith(
+                () => MockAuthNotifier(authenticated: true),
+              ),
+            ],
+          ),
+        );
+        await _pumpFrames(tester, 4);
 
-      // Skip to slide 4
-      await tester.tap(find.widgetWithText(TextButton, 'Skip'));
-      await _pumpFrames(tester, 8);
+        // Skip to slide 4
+        await tester.tap(find.widgetWithText(TextButton, 'Skip'));
+        await _pumpFrames(tester, 8);
 
-      expect(find.text('Chats Target'), findsNothing);
+        expect(find.text('Chats Target'), findsNothing);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Start messaging'));
-      await _pumpFrames(tester, 6);
+        await tester.tap(find.widgetWithText(FilledButton, 'Start messaging'));
+        await _pumpFrames(tester, 6);
 
-      expect(find.text('Chats Target'), findsOneWidget);
-    });
+        expect(find.text('Chats Target'), findsOneWidget);
+      },
+    );
   });
 }

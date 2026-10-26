@@ -11,6 +11,7 @@ import 'package:pulse_flutter/services/calls/webrtc_call_session.dart';
 class _Peer extends Fake implements RTCPeerConnection {
   final events = <String>[];
   void Function(RTCPeerConnectionState)? onState;
+  void Function(RTCTrackEvent)? remoteTrack;
   @override
   RTCSignalingState? get signalingState => RTCSignalingState.RTCSignalingStateStable;
   @override
@@ -50,7 +51,7 @@ class _Peer extends Fake implements RTCPeerConnection {
   @override
   set onIceCandidate(void Function(RTCIceCandidate)? callback) {}
   @override
-  set onTrack(void Function(RTCTrackEvent)? callback) {}
+  set onTrack(void Function(RTCTrackEvent)? callback) { remoteTrack = callback; }
   @override
   set onConnectionState(void Function(RTCPeerConnectionState)? callback) { onState = callback; }
   @override
@@ -69,8 +70,91 @@ class _Renderer extends Fake implements RTCVideoRenderer {
   set srcObject(MediaStream? stream) {}
 }
 
+class _RemoteStream extends Fake implements MediaStream {}
+class _RemoteTrack extends Fake implements MediaStreamTrack {
+  @override
+  String get kind => 'audio';
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'remote track queued before teardown cannot rebind disposed media',
+    () async {
+      final peer = _Peer();
+      final session = WebRtcCallSession(
+        chatId: 1,
+        callId: 2,
+        roomId: 'fixture',
+        isVideo: false,
+        direction: CallDirection.incoming,
+        displayName: 'Fixture',
+        gatewayInfo: ApiCallGatewayInfo.defaultFor(),
+        localRenderer: _Renderer(),
+        remoteRenderer: _Renderer(),
+        peerConnectionFactory: (_) async => peer,
+      );
+      await session.handleSignalingMessage({
+        'type': 'offer',
+        'from_id': 7,
+        'sdp': {'sdp': 'offer', 'type': 'offer'},
+      });
+      final callback = peer.remoteTrack!;
+      final stream = _RemoteStream();
+      callback(RTCTrackEvent(streams: [stream], track: _RemoteTrack()));
+      expect(session.remoteStream, same(stream));
+      await session.dispose();
+      callback(RTCTrackEvent(streams: [stream], track: _RemoteTrack()));
+      expect(session.remoteStream, isNull);
+    },
+  );
+  test('late start cannot revive an ended call or capture again', () async {
+    var captures = 0;
+    final session = WebRtcCallSession(
+      chatId: 1,
+      callId: 2,
+      roomId: 'fixture',
+      isVideo: false,
+      direction: CallDirection.incoming,
+      displayName: 'Fixture',
+      gatewayInfo: ApiCallGatewayInfo.defaultFor(),
+      localRenderer: _Renderer(),
+      remoteRenderer: _Renderer(),
+      mediaStreamFactory: (_) async {
+        captures++;
+        throw StateError('fixture');
+      },
+    );
+    await session.end();
+    await session.start();
+    expect(session.currentData.state, CallSessionState.ended);
+    expect(captures, 0);
+  });
+  test(
+    'concurrent start shares one media capture and one session lifecycle',
+    () async {
+      var captures = 0;
+      final session = WebRtcCallSession(
+        chatId: 1,
+        callId: 2,
+        roomId: 'fixture',
+        isVideo: false,
+        direction: CallDirection.incoming,
+        displayName: 'Fixture',
+        gatewayInfo: ApiCallGatewayInfo.defaultFor(),
+        localRenderer: _Renderer(),
+        remoteRenderer: _Renderer(),
+        mediaStreamFactory: (_) async {
+          captures++;
+          throw StateError('fixture');
+        },
+      );
+      await Future.wait([session.start(), session.start()]);
+      await session.dispose();
+      expect(captures, 1);
+      expect(session.currentData.state, CallSessionState.ended);
+    },
+  );
   testWidgets('a failed peer gets a recovery window, then ends after its bounded deadline', (tester) async {
     final peer = _Peer();
     final session = WebRtcCallSession(chatId: 1, callId: 2, roomId: 'test', isVideo: false,

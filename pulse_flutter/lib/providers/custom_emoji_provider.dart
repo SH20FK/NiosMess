@@ -20,21 +20,69 @@ Future<Map<String, dynamic>> emojiRequest(
 }
 
 class CustomEmojiSets extends AsyncNotifier<List<ApiCustomEmojiSet>> {
+  int _epoch = 0, _revision = 0;
+  int? _account;
+  Future<void> _writes = Future<void>.value();
+  bool _current(int epoch) => ref.mounted && epoch == _epoch;
+
+  List<ApiCustomEmojiSet> _parse(dynamic raw) => (raw as List? ?? const [])
+      .whereType<Map>()
+      .map(
+        (item) => ApiCustomEmojiSet.fromJson(Map<String, dynamic>.from(item)),
+      )
+      .toList(growable: false);
+
+  Future<void> _cache(
+    int account,
+    int epoch,
+    int revision,
+    List<ApiCustomEmojiSet> sets,
+  ) {
+    return _writes = _writes.catchError((Object _) {}).then((_) async {
+      if (!_current(epoch) || revision != _revision) return;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (!_current(epoch) || revision != _revision) return;
+        await prefs.setString(
+          'custom_emoji_sets_v1_$account',
+          jsonEncode(sets.map((item) => item.toJson()).toList()),
+        );
+      } catch (_) {
+        // Public asset metadata cache is optional; keep the fresh in-memory list.
+      }
+    });
+  }
+
   @override
   Future<List<ApiCustomEmojiSet>> build() async {
-    final account = ref.watch(authProvider.select((a) => a.session?.userId));
+    final session = ref.watch(
+      authProvider.select((a) => (a.session?.userId, a.session?.accessToken)),
+    );
+    final account = session.$1;
+    if (_account != null && _account != account) {
+      // Loading retains the previous value in Riverpod. Clear that value first,
+      // then keep the new account's future pending until its own request ends.
+      state = const AsyncData<List<ApiCustomEmojiSet>>([]);
+      state = const AsyncLoading<List<ApiCustomEmojiSet>>();
+    }
+    _account = account;
+    final epoch = ++_epoch;
+    final revision = ++_revision;
+    ref.onDispose(() {
+      if (epoch == _epoch) _epoch++;
+    });
     if (account == null) return const [];
+    final request = ref.read(customEmojiRequestProvider);
     final prefs = await SharedPreferences.getInstance();
-    final key = 'custom_emoji_sets_v1_$account';
+    if (!_current(epoch)) return const [];
     List<ApiCustomEmojiSet> cached = const [];
     try {
-      cached = (jsonDecode(prefs.getString(key) ?? '[]') as List)
-          .whereType<Map>()
-          .map((e) => ApiCustomEmojiSet.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+      cached = _parse(
+        jsonDecode(prefs.getString('custom_emoji_sets_v1_$account') ?? '[]'),
+      );
       if (cached.isNotEmpty) state = AsyncData(cached);
     } catch (_) {
-      /* A damaged optional UI cache can be refetched. */
+      // A damaged optional UI cache can be refetched.
     }
     final subscription = ref
         .read(webSocketClientProvider)
@@ -42,17 +90,16 @@ class CustomEmojiSets extends AsyncNotifier<List<ApiCustomEmojiSet>> {
         .listen((_) => unawaited(refresh().catchError((Object _) {})));
     ref.onDispose(subscription.cancel);
     try {
-      final result = await emojiRequest(ref, 'list_emoji_sets', {});
-      final sets = (result['sets'] as List? ?? [])
-          .whereType<Map>()
-          .map((e) => ApiCustomEmojiSet.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
-      await prefs.setString(
-        key,
-        jsonEncode(sets.map((e) => e.toJson()).toList()),
-      );
-      return sets;
+      final result = await request('list_emoji_sets', {});
+      if (!_current(epoch)) return const [];
+      if (revision != _revision) return state.value ?? cached;
+      final sets = _parse(result['sets']);
+      await _cache(account, epoch, revision, sets);
+      if (!_current(epoch)) return const [];
+      return revision == _revision ? sets : state.value ?? cached;
     } catch (_) {
+      if (!_current(epoch)) return const [];
+      if (revision != _revision) return state.value ?? cached;
       if (cached.isNotEmpty) return cached;
       rethrow;
     }
@@ -60,14 +107,17 @@ class CustomEmojiSets extends AsyncNotifier<List<ApiCustomEmojiSet>> {
 
   Future<void> refresh() async {
     final account = ref.read(authProvider).session?.userId;
-    final result = await emojiRequest(ref, 'list_emoji_sets', {});
-    if (account != ref.read(authProvider).session?.userId) return;
-    state = AsyncData(
-      (result['sets'] as List? ?? [])
-          .whereType<Map>()
-          .map((e) => ApiCustomEmojiSet.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
+    if (account == null) return;
+    final epoch = _epoch, revision = ++_revision;
+    final result = await ref.read(customEmojiRequestProvider)(
+      'list_emoji_sets',
+      {},
     );
+    if (!_current(epoch) || revision != _revision) return;
+    final sets = _parse(result['sets']);
+    await _cache(account, epoch, revision, sets);
+    if (!_current(epoch) || revision != _revision) return;
+    state = AsyncData(sets);
   }
 }
 

@@ -854,18 +854,29 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
-    _inputController.clear();
-    _clearReply();
-    _scrollToBottom();
+    if (_savingSecretMessage) return;
+    _savingSecretMessage = true;
+    var savedLocally = false;
+    void clearSavedComposer() {
+      savedLocally = true;
+      _savingSecretMessage = false;
+      if (!mounted) return;
+      if (_inputController.text == originalText) _inputController.clear();
+      if (_replyToMessageId == replyId) _clearReply();
+      _scrollToBottom();
+    }
 
     unawaited(
       ref
           .read(chatMessagesProvider(chatId).notifier)
-          .send(text, replyToId: replyId)
+          .send(text, replyToId: replyId, onLocalSaved: clearSavedComposer)
           .catchError((error) {
             if (!mounted) {
               return;
             }
+            if (!savedLocally) _savingSecretMessage = false;
+            // A delayed failure must never replace text typed in the meantime.
+            if (savedLocally || _inputController.text != originalText) return;
             _inputController.text = originalText;
             _inputController.selection = TextSelection.fromPosition(
               TextPosition(offset: originalText.length),
@@ -890,6 +901,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             } else {
               AppToast.showError(context, error);
             }
+          })
+          .whenComplete(() {
+            if (!savedLocally) _savingSecretMessage = false;
           }),
     );
   }
@@ -1247,6 +1261,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     final int? editId = _editingMessageId;
     if (chatId == null || editId == null) return;
+    final session = ref.read(authProvider).session;
+    final identity = (session?.userId, session?.accessToken);
     final String edited = _inputController.text.trim();
     final String originalDraft = _inputController.text;
     final String? originalText = _editingOriginalText;
@@ -1258,9 +1274,21 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       await ref
           .read(chatMessagesProvider(chatId).notifier)
           .editMessage(editId, edited);
-      if (mounted && _inputController.text == originalDraft) _cancelEdit();
+      if (!mounted) return;
+      final current = ref.read(authProvider).session;
+      if (identity != (current?.userId, current?.accessToken)) return;
+      if (_editingMessageId == editId && _inputController.text == originalDraft) {
+        _cancelEdit();
+      }
     } catch (error) {
       if (!mounted) return;
+      final current = ref.read(authProvider).session;
+      if (identity != (current?.userId, current?.accessToken)) return;
+      if (_editingMessageId != editId ||
+          _inputController.text != originalDraft) {
+        AppToast.showError(context, error);
+        return;
+      }
       _composerNotifier.value = _composerNotifier.value.copyWith(
         editingMessageId: () => editId,
         editingOriginalText: () => originalText,
@@ -2077,13 +2105,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
-    // Text message retry: remove optimistic message and resend
-    ref
-        .read(chatMessagesProvider(chatId).notifier)
-        .removeLocalMessage(message.id);
+    // Keep the only durable original until its replacement is acknowledged.
     await ref
         .read(chatMessagesProvider(chatId).notifier)
-        .send(message.content, replyToId: message.replyToId);
+        .send(message.content, replyToId: message.replyToId, localId: localId);
   }
 
   void _startCall({required bool isVideo}) {

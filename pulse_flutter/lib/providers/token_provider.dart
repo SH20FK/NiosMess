@@ -1,9 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/network/api_constants.dart';
 
 String? _cachedToken;
 
-Map<String, String> cachedAuthHeaders() {
-  if (_cachedToken == null || _cachedToken!.isEmpty) return const {};
+Map<String, String> cachedAuthHeaders(String? destinationUrl) {
+  if (_cachedToken == null ||
+      _cachedToken!.isEmpty ||
+      !ApiConstants.isAuthenticatedMediaUrl(destinationUrl)) {
+    return const {};
+  }
   return {'Authorization': 'Bearer $_cachedToken'};
 }
 
@@ -24,10 +29,11 @@ class SessionAccessTokenNotifier extends Notifier<String?> {
 
 /// Canonical provider for user session access token.
 /// Distinct from AI quota/character limits to eliminate naming drift.
-final NotifierProvider<SessionAccessTokenNotifier, String?> sessionAccessTokenProvider =
+final NotifierProvider<SessionAccessTokenNotifier, String?>
+sessionAccessTokenProvider =
     NotifierProvider<SessionAccessTokenNotifier, String?>(
-  SessionAccessTokenNotifier.new,
-);
+      SessionAccessTokenNotifier.new,
+    );
 
 /// Backward-compatibility alias for [sessionAccessTokenProvider].
 final NotifierProvider<SessionAccessTokenNotifier, String?> authTokenProvider =

@@ -18,6 +18,7 @@ class CacheService {
   static const String _feedBoxName = 'feed_cache_box';
   static const String _stickersBoxName = 'stickers_cache_box';
   static Future<void>? _initialization;
+  static int _generation = 0;
 
   Future<Box<List<dynamic>>?> _ensureBox(String name) async {
     try {
@@ -67,16 +68,17 @@ class CacheService {
   }
 
   Future<void> saveProfile(ApiProfile profile) async {
+    final generation = _generation;
     try {
       final Box<Map<dynamic, dynamic>>? box = await _ensureMapBox(
         _profilesBoxName,
       );
-      if (box == null) return;
+      if (box == null || generation != _generation) return;
       final Map<String, dynamic> json = profile.toJson();
       if (profile.username.isNotEmpty) {
         await box.put(profile.username.toLowerCase(), json);
       }
-      if (profile.id > 0) {
+      if (profile.id > 0 && generation == _generation) {
         await box.put('id_${profile.id}', json);
       }
     } catch (e) {
@@ -148,10 +150,11 @@ class CacheService {
     }
   }
 
-  Future<void> saveChats(List<ApiChatSummary> chats) async {
+  Future<void> saveChats(List<ApiChatSummary> chats, {int? accountId}) async {
+    final generation = _generation;
     try {
       final Box<List<dynamic>>? box = await _ensureBox(_chatsBoxName);
-      if (box == null) return;
+      if (box == null || generation != _generation) return;
       final List<Map<String, dynamic>> jsonList = chats.map((e) {
         final data = e.toJson();
         if (e.isSecret) {
@@ -173,17 +176,18 @@ class CacheService {
         }
         return data;
       }).toList();
-      await box.put('list', jsonList);
+      if (generation != _generation) return;
+      await box.put(accountId == null ? 'list' : 'account:$accountId', jsonList);
     } catch (e) {
       debugPrint('[CacheService] Error saving chats: $e');
     }
   }
 
-  List<ApiChatSummary> getCachedChats() {
+  List<ApiChatSummary> getCachedChats({int? accountId}) {
     try {
       if (!Hive.isBoxOpen(_chatsBoxName)) return <ApiChatSummary>[];
       final Box<List<dynamic>> box = Hive.box<List<dynamic>>(_chatsBoxName);
-      final List<dynamic>? list = box.get('list');
+      final List<dynamic>? list = box.get(accountId == null ? 'list' : 'account:$accountId');
       if (list == null) return <ApiChatSummary>[];
       return list
           .whereType<Map>()
@@ -246,9 +250,11 @@ class CacheService {
       if (list == null) return <NgPost>[];
       return list
           .whereType<Map>()
-          .map(
-            (dynamic e) => NgPost.fromJson(Map<String, dynamic>.from(e as Map)),
-          )
+          .map((dynamic e) {
+            final post = NgPost.fromJson(Map<String, dynamic>.from(e as Map));
+            // Old shared cache entries can contain the previous account's flags.
+            return NgPost.fromJson(post.toPublicCacheJson());
+          })
           .toList(growable: false);
     } catch (e) {
       debugPrint('[CacheService] Error loading cached feed: $e');
@@ -289,6 +295,7 @@ class CacheService {
   }
 
   Future<void> clearAll() async {
+    _generation++;
     try {
       if (Hive.isBoxOpen('bluetooth_mesh_ciphertext_v1')) {
         await Hive.box<String>('bluetooth_mesh_ciphertext_v1').clear();

@@ -10,28 +10,64 @@ abstract class NotificationReplyService {
 }
 
 class AccountNotificationReplyService implements NotificationReplyService {
-  AccountNotificationReplyService(this.ref);
+  AccountNotificationReplyService(this.ref)
+    : _accountId = ref.read(authProvider).session?.userId,
+      _token = ref.read(authProvider).session?.accessToken;
   final Ref ref;
-  int get _account =>
-      ref.read(authProvider).session?.userId ??
-      (throw StateError('NOTIFICATION_ACCOUNT_UNAVAILABLE'));
+  final int? _accountId;
+  final String? _token;
+
+  int _requireCurrentAccount() {
+    if (!ref.mounted || _accountId == null || _token == null) {
+      throw StateError('NOTIFICATION_ACCOUNT_CHANGED');
+    }
+    final auth = ref.read(authProvider);
+    if (auth.session?.userId != _accountId ||
+        auth.session?.accessToken != _token ||
+        ref.read(authProvider.notifier).isLoggingOut) {
+      throw StateError('NOTIFICATION_ACCOUNT_CHANGED');
+    }
+    return _accountId;
+  }
+
   @override
-  Future<String> loadDraft(int chatId) =>
-      NotificationHistoryStore.forAccount(_account).readReplyDraft(chatId);
+  Future<String> loadDraft(int chatId) async {
+    final account = _requireCurrentAccount();
+    final draft = await NotificationHistoryStore.forAccount(
+      account,
+    ).readReplyDraft(chatId);
+    _requireCurrentAccount();
+    return draft;
+  }
+
   @override
-  Future<void> saveDraft(int chatId, String text) =>
-      NotificationHistoryStore.forAccount(
-        _account,
-      ).saveReplyDraft(chatId, text);
+  Future<void> saveDraft(int chatId, String text) async {
+    final account = _requireCurrentAccount();
+    await NotificationHistoryStore.forAccount(
+      account,
+    ).saveReplyDraft(chatId, text);
+    _requireCurrentAccount();
+  }
+
   @override
-  Future<void> send(int chatId, String text, {required String localId}) =>
-      // This path owns ordinary E2EE, secret-chat persistence and outgoing state.
-      // Never call send_message directly from an alert or pass plaintext to FCM.
-      ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .sendNotificationReply(text, localId: localId);
+  Future<void> send(int chatId, String text, {required String localId}) async {
+    _requireCurrentAccount();
+    // This path owns ordinary E2EE, secret persistence and outgoing state.
+    // Never issue send_message directly from an alert or send plaintext to FCM.
+    await ref
+        .read(chatMessagesProvider(chatId).notifier)
+        .sendNotificationReply(text, localId: localId);
+    _requireCurrentAccount();
+  }
 }
 
-final notificationReplyServiceProvider = Provider<NotificationReplyService>(
-  AccountNotificationReplyService.new,
-);
+final notificationReplyServiceProvider = Provider<NotificationReplyService>((
+  ref,
+) {
+  ref.watch(
+    authProvider.select(
+      (state) => (state.session?.userId, state.session?.accessToken),
+    ),
+  );
+  return AccountNotificationReplyService(ref);
+});

@@ -67,6 +67,7 @@ class WebRtcCallSession {
   bool _ended = false;
   Future<void> _signalChain = Future<void>.value();
   Future<void>? _disposeFuture;
+  Future<void>? _startFuture;
   final Map<int, List<RTCIceCandidate>> _pendingIce = {};
   final Set<int> _remoteDescriptionReady = {};
 
@@ -116,7 +117,12 @@ class WebRtcCallSession {
   MediaStream? get localStream => _localStream;
   MediaStream? get remoteStream => _remoteStream;
 
-  Future<void> start() async {
+  Future<void> start() {
+    if (_ended) return Future<void>.value();
+    return _startFuture ??= _start();
+  }
+
+  Future<void> _start() async {
     _setState(CallSessionState.connecting);
 
     try {
@@ -289,7 +295,7 @@ class WebRtcCallSession {
     }
 
     pc.onIceCandidate = (RTCIceCandidate candidate) {
-      if (candidate.candidate != null && _signaling != null) {
+      if (!_ended && candidate.candidate != null && _signaling != null) {
         _signaling!.sendIceCandidate(peerId, {
           'candidate': candidate.candidate,
           'sdpMid': candidate.sdpMid,
@@ -299,6 +305,7 @@ class WebRtcCallSession {
     };
 
     pc.onTrack = (RTCTrackEvent event) {
+      if (_ended) return;
       debugPrint(
         '[WebRtcCallSession] Received remote track: ${event.track.kind}',
       );
