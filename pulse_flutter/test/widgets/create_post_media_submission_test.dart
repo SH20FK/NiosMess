@@ -16,12 +16,18 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/screens/create_post_screen.dart';
 
+// Unused platform methods added by newer picker versions fail explicitly;
+// the byte/size/stream contract exercised by the composer stays concrete.
 final class _File extends PlatformFile {
   _File(this.name, this.bytes, {this.declaredLength});
   @override
   final String name;
   final Uint8List bytes;
   final int? declaredLength;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnsupportedError(
+    'Unexpected picker fixture member: ${invocation.memberName}',
+  );
   @override
   Uri get uri => Uri.parse('memory:fixture');
   @override
