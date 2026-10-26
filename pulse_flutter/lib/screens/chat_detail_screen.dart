@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
+import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/chat/chat_file_drop_target.dart';
 import 'package:pulse_flutter/core/media/media_album.dart';
@@ -1277,7 +1279,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (!mounted) return;
       final current = ref.read(authProvider).session;
       if (identity != (current?.userId, current?.accessToken)) return;
-      if (_editingMessageId == editId && _inputController.text == originalDraft) {
+      if (_editingMessageId == editId &&
+          _inputController.text == originalDraft) {
         _cancelEdit();
       }
     } catch (error) {
@@ -1531,6 +1534,29 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       case MessageActionType.copy:
         Clipboard.setData(ClipboardData(text: _displayText(message)));
         AppToast.showInfo(context, context.l10n.chatMessageTextCopied);
+      case MessageActionType.saveToSaved:
+        try {
+          var text = _displayText(message);
+          if (message.hasMedia) {
+            text =
+                '$text\nhttps://ni-os.ru/web/#/chat/${message.chatId}?highlight=${message.id}';
+          }
+          await ref
+              .read(chatProductivityRepositoryProvider)
+              .saveMessageText(message, text);
+          if (mounted) AppToast.showSuccess(context, 'Сохранено в Избранное');
+        } catch (e) {
+          if (mounted) AppToast.showError(context, e);
+        }
+      case MessageActionType.remind:
+        await showScheduledMessageComposer(
+          context,
+          ref,
+          chatId: message.chatId,
+          reminder: message,
+          text:
+              '${_displayText(message)}\nhttps://ni-os.ru/web/#/chat/${message.chatId}?highlight=${message.id}',
+        );
       case MessageActionType.forward:
         _forwardMessage(message);
       case MessageActionType.comments:
@@ -2539,13 +2565,32 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
       members,
       myUserId,
     );
-    final String title = chat?.chatType == 'direct'
+    final String title = chat?.isSaved == true
+        ? 'Избранное'
+        : chat?.chatType == 'direct'
         ? resolveDirectDisplayName(context, chat, members, myUserId, chatId)
         : ((chat?.name ?? '').trim().isNotEmpty
               ? chat!.name.trim()
               : context.l10n.chatTitleFallback(chatId));
 
     return ChatDetailAppBar(
+      managementChatId: chat?.topicParentId,
+      isSaved: chat?.isSaved == true,
+      onScheduledMessages: isSecret || chat?.isSecret == true
+          ? null
+          : () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ScheduledMessagesScreen(chatId: chatId),
+              ),
+            ),
+      onTopics: isGroup
+          ? () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    GroupTopicsScreen(chatId: chat?.topicParentId ?? chatId),
+              ),
+            )
+          : null,
       onCreateInteractive:
           chat != null &&
               !isSecret &&
@@ -2606,18 +2651,23 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
           isSecret: chat?.isSecret == true || isSecret,
         );
       },
-      typingSubtitle: _TypingSubtitle(
-        chatId: chatId,
-        isOnline: chat?.isOnline == true,
-        isDirect: chat?.chatType == 'direct' && !isGroup && !isChannel,
-        fallback: chatSubtitle(
-          context,
-          chat,
-          isChannel,
-          isGroup,
-          directUsername: directUsername,
-        ),
-      ),
+      typingSubtitle: chat?.isSaved == true
+          ? Text(
+              'Заметки и сохранённые сообщения',
+              style: Theme.of(context).textTheme.bodySmall,
+            )
+          : _TypingSubtitle(
+              chatId: chatId,
+              isOnline: chat?.isOnline == true,
+              isDirect: chat?.chatType == 'direct' && !isGroup && !isChannel,
+              fallback: chatSubtitle(
+                context,
+                chat,
+                isChannel,
+                isGroup,
+                directUsername: directUsername,
+              ),
+            ),
     );
   }
 }
@@ -2890,6 +2940,19 @@ class _ChatComposerScope extends ConsumerWidget {
       ),
     );
 
+    if (ref.watch(
+      chatByIdProvider(chatId).select((c) => c?.topicClosed == true),
+    )) {
+      return const SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            'Тема закрыта. Читать сообщения можно, отправлять — после открытия темы.',
+          ),
+        ),
+      );
+    }
     return ValueListenableBuilder<ChatComposerState>(
       valueListenable: composerNotifier,
       builder:

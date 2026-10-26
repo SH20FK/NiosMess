@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
+import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -14,6 +16,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ChatDetailAppBar({
     super.key,
     required this.chatId,
+    this.managementChatId,
     required this.isDesktopSplit,
     required this.title,
     this.avatarUrl,
@@ -34,9 +37,13 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onSecurityTap,
     this.onAutoDeleteTap,
     this.onCreateInteractive,
+    this.onTopics,
+    this.onScheduledMessages,
+    this.isSaved = false,
   });
 
   final int chatId;
+  final int? managementChatId;
   final bool isDesktopSplit;
   final String title;
   final String? avatarUrl;
@@ -57,8 +64,11 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onSecurityTap;
   final VoidCallback? onAutoDeleteTap;
   final ValueChanged<String>? onCreateInteractive;
+  final VoidCallback? onTopics, onScheduledMessages;
+  final bool isSaved;
 
   bool get _showCallButtons =>
+      !isSaved &&
       !isSecret &&
       !isChannel &&
       !isBot &&
@@ -96,7 +106,10 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
           if (directUsername != null) {
             openResponsiveProfile(context, username: directUsername!);
           } else if (isGroup || isChannel) {
-            openResponsiveGroupProfile(context, chatId: chatId);
+            openResponsiveGroupProfile(
+              context,
+              chatId: managementChatId ?? chatId,
+            );
           }
         },
         borderRadius: BorderRadius.circular(16),
@@ -111,12 +124,20 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                     enabled: !isDesktopSplit,
                     child: Hero(
                       tag: 'chat_avatar_$chatId',
-                      child: PulseAvatar(
-                        radius: 19,
-                        name: title,
-                        id: chatId.toString(),
-                        avatarUrl: avatarUrl,
-                      ),
+                      child: isSaved
+                          ? const SizedBox(
+                              width: 38,
+                              height: 38,
+                              child: Center(
+                                child: ProductivityIcon('bookmark', size: 26),
+                              ),
+                            )
+                          : PulseAvatar(
+                              radius: 19,
+                              name: title,
+                              id: chatId.toString(),
+                              avatarUrl: avatarUrl,
+                            ),
                     ),
                   ),
                   if (isOnline && !isGroup && !isChannel)
@@ -165,7 +186,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         Flexible(
-                          child: Text(
+                          child: CustomEmojiText(
                             title,
                             style: textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w800,
@@ -336,6 +357,20 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                     icon: Icons.videocam_rounded,
                     onPressed: onVideoCall,
                   ),
+                if (onScheduledMessages != null)
+                  AppActionMenuItem(
+                    label: 'Отложенные сообщения',
+                    icon: Icons.schedule,
+                    leading: const ProductivityIcon('clock'),
+                    onPressed: onScheduledMessages,
+                  ),
+                if (onTopics != null)
+                  AppActionMenuItem(
+                    label: 'Темы группы',
+                    icon: Icons.tag,
+                    leading: const ProductivityIcon('hash'),
+                    onPressed: onTopics,
+                  ),
                 if (isSecret)
                   AppActionMenuItem(
                     label: context.l10n.autoDeleteTitle,
@@ -348,12 +383,16 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                   AppActionMenuItem(
                     label: context.l10n.chatMembers,
                     icon: Icons.people_rounded,
-                    onPressed: () => context.push('/chat/$chatId/members'),
+                    onPressed: () => context.push(
+                      '/chat/${managementChatId ?? chatId}/members',
+                    ),
                   ),
                   AppActionMenuItem(
                     label: context.l10n.chatManage,
                     icon: Icons.settings_rounded,
-                    onPressed: () => context.push('/chat/$chatId/manage'),
+                    onPressed: () => context.push(
+                      '/chat/${managementChatId ?? chatId}/manage',
+                    ),
                   ),
                 ],
               ]),

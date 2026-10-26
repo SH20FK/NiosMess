@@ -282,7 +282,8 @@ class NotificationsNotifier extends Notifier<NotificationsState> {
           'avatar_url': previous.event.avatarUrl,
         });
       }
-      if (PushNotificationService.currentChatId == event.chatId &&
+      if (event.type != 'reminder' &&
+          PushNotificationService.currentChatId == event.chatId &&
           event.chatId != null &&
           PushNotificationService.isForeground) {
         event = event.read();

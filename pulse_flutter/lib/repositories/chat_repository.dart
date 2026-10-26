@@ -77,7 +77,9 @@ class ChatRepository {
   }
 
   Future<List<ApiChatSummary>> listChats({String? publicKey}) async {
-    final Map<String, dynamic> payload = <String, dynamic>{};
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'include_topics': true,
+    };
     if (publicKey != null && publicKey.isNotEmpty) {
       payload['public_key'] = publicKey;
     }
@@ -372,7 +374,10 @@ class ChatRepository {
 
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request(interactiveUpdate ? 'interactive_update' : 'send_message', payload: payload);
+        .request(
+          interactiveUpdate ? 'interactive_update' : 'send_message',
+          payload: payload,
+        );
 
     if (response is! Map) {
       throw const ApiException(
@@ -470,8 +475,9 @@ class ChatRepository {
   }) async* {
     for (int i = 0; i < bytes.length; i += chunkSize) {
       cancellationToken?.throwIfCancelled();
-      final int end =
-          (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
+      final int end = (i + chunkSize < bytes.length)
+          ? i + chunkSize
+          : bytes.length;
       yield bytes.sublist(i, end);
     }
   }
@@ -500,8 +506,8 @@ class ChatRepository {
     // Server accepts only "media", "voice", or "circle". Map "photo", "video", "document" to "media".
     final String serverSubtype =
         (mediaSubtype == 'voice' || mediaSubtype == 'circle')
-            ? mediaSubtype
-            : 'media';
+        ? mediaSubtype
+        : 'media';
 
     // 1. Try modern Content-Addressed Storage (NiosBlobStore) with instant dedup
     try {
@@ -698,21 +704,36 @@ class ChatRepository {
 
   /// Secret uploads always use the deployed opaque-file endpoint, never CAS
   /// deduplication or a fallback that could receive the original plaintext.
-  Future<String> uploadSecretCiphertext({Uint8List? bytes, String? filePath,
-    required String mediaSubtype, required String localId,
-    CancellationToken? cancellationToken}) async {
+  Future<String> uploadSecretCiphertext({
+    Uint8List? bytes,
+    String? filePath,
+    required String mediaSubtype,
+    required String localId,
+    CancellationToken? cancellationToken,
+  }) async {
     cancellationToken?.throwIfCancelled();
     final token = _ref.read(webSocketClientProvider).readToken();
     if (token == null) throw StateError('No session');
-    if ((filePath == null || filePath.isEmpty) && (bytes == null || bytes.isEmpty)) {
+    if ((filePath == null || filePath.isEmpty) &&
+        (bytes == null || bytes.isEmpty)) {
       throw StateError('Secret ciphertext unavailable');
     }
     final size = filePath != null && filePath.isNotEmpty
-        ? await File(filePath).length() : bytes!.length;
-    return _httpMultipartUpload(bytes: bytes, filePath: filePath, filename: 'encrypted.bin',
-      mediaSubtype: (mediaSubtype == 'voice' || mediaSubtype == 'circle') ? mediaSubtype : 'media',
-      fileSize: size, token: token, localId: localId,
-      cancellationToken: cancellationToken, onProgress: (sent, total) {});
+        ? await File(filePath).length()
+        : bytes!.length;
+    return _httpMultipartUpload(
+      bytes: bytes,
+      filePath: filePath,
+      filename: 'encrypted.bin',
+      mediaSubtype: (mediaSubtype == 'voice' || mediaSubtype == 'circle')
+          ? mediaSubtype
+          : 'media',
+      fileSize: size,
+      token: token,
+      localId: localId,
+      cancellationToken: cancellationToken,
+      onProgress: (sent, total) {},
+    );
   }
 
   Future<String> _httpMultipartUpload({
@@ -771,8 +792,9 @@ class ChatRepository {
 
     if (filePath != null && filePath.isNotEmpty) {
       final File file = File(filePath);
-      final int actualSize =
-          (await file.exists()) ? await file.length() : fileSize;
+      final int actualSize = (await file.exists())
+          ? await file.length()
+          : fileSize;
       if (actualSize == 0 && bytes != null && bytes.isNotEmpty) {
         // Fall back to chunked bytes if file is empty/inaccessible
         final Stream<List<int>> source = _createChunkedStream(
@@ -795,12 +817,7 @@ class ChatRepository {
           ),
         );
         request.files.add(
-          http.MultipartFile(
-            'file',
-            counted,
-            bytes.length,
-            filename: filename,
-          ),
+          http.MultipartFile('file', counted, bytes.length, filename: filename),
         );
       } else {
         final Stream<List<int>> source = file.openRead();
@@ -820,12 +837,7 @@ class ChatRepository {
           ),
         );
         request.files.add(
-          http.MultipartFile(
-            'file',
-            counted,
-            actualSize,
-            filename: filename,
-          ),
+          http.MultipartFile('file', counted, actualSize, filename: filename),
         );
       }
     } else if (bytes != null && bytes.isNotEmpty) {
@@ -849,12 +861,7 @@ class ChatRepository {
         ),
       );
       request.files.add(
-        http.MultipartFile(
-          'file',
-          counted,
-          bytes.length,
-          filename: filename,
-        ),
+        http.MultipartFile('file', counted, bytes.length, filename: filename),
       );
     } else {
       throw Exception('No file path or bytes provided for upload');
@@ -876,7 +883,9 @@ class ChatRepository {
       cancellationToken?.throwIfCancelled();
 
       if (response.statusCode != 200) {
-        throw Exception('Upload failed: ${response.statusCode} ${response.body}');
+        throw Exception(
+          'Upload failed: ${response.statusCode} ${response.body}',
+        );
       }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -979,10 +988,7 @@ class ChatRepository {
 
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request(
-          'edit_message',
-          payload: payload,
-        );
+        .request('edit_message', payload: payload);
 
     if (response is! Map) {
       return null;
@@ -1000,20 +1006,25 @@ class ChatRepository {
         .read(webSocketClientProvider)
         .request(
           'delete_message',
-          payload: <String, dynamic>{'chat_id': chatId, 'message_id': messageId},
+          payload: <String, dynamic>{
+            'chat_id': chatId,
+            'message_id': messageId,
+          },
         );
   }
 
   Future<void> sendCallbackQuery(int chatId, int messageId, String data) async {
-    await _ref.read(webSocketClientProvider).request(
-      'callback_query',
-      maxRetries: 0,
-      payload: <String, dynamic>{
-        'chat_id': chatId,
-        'message_id': messageId,
-        'data': data,
-      },
-    );
+    await _ref
+        .read(webSocketClientProvider)
+        .request(
+          'callback_query',
+          maxRetries: 0,
+          payload: <String, dynamic>{
+            'chat_id': chatId,
+            'message_id': messageId,
+            'data': data,
+          },
+        );
   }
 
   Future<Map<String, dynamic>> toggleReaction(
@@ -1132,23 +1143,20 @@ class ChatRepository {
 
     final List<ApiMessage> comments = commentsRaw
         .whereType<Map>()
-        .map(
-          (Map item) {
-            final Map<String, dynamic> flat = <String, dynamic>{};
-            item.forEach((dynamic k, dynamic v) {
-              flat[k.toString()] = v;
-            });
-            if (flat['author'] is Map) {
-              final Map author = flat['author'] as Map;
-              flat['sender_username'] = author['username'] ?? '';
-              flat['sender_display_name'] = author['display_name'] ??
-                  author['username'] ??
-                  'Unknown';
-              flat['sender_avatar_url'] = author['avatar_url'];
-            }
-            return ApiMessage.fromJson(flat);
-          },
-        )
+        .map((Map item) {
+          final Map<String, dynamic> flat = <String, dynamic>{};
+          item.forEach((dynamic k, dynamic v) {
+            flat[k.toString()] = v;
+          });
+          if (flat['author'] is Map) {
+            final Map author = flat['author'] as Map;
+            flat['sender_username'] = author['username'] ?? '';
+            flat['sender_display_name'] =
+                author['display_name'] ?? author['username'] ?? 'Unknown';
+            flat['sender_avatar_url'] = author['avatar_url'];
+          }
+          return ApiMessage.fromJson(flat);
+        })
         .toList(growable: false);
 
     comments.sort((ApiMessage a, ApiMessage b) => a.id.compareTo(b.id));
@@ -1158,10 +1166,7 @@ class ChatRepository {
   Future<int> markRead(int chatId) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request(
-          'mark_read',
-          payload: <String, dynamic>{'chat_id': chatId},
-        );
+        .request('mark_read', payload: <String, dynamic>{'chat_id': chatId});
 
     if (response is Map<String, dynamic>) {
       return response['unread_count'] as int? ?? 0;
@@ -1172,10 +1177,7 @@ class ChatRepository {
   Future<List<ApiChatMember>> getMembers(int chatId) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request(
-          'get_members',
-          payload: <String, dynamic>{'chat_id': chatId},
-        );
+        .request('get_members', payload: <String, dynamic>{'chat_id': chatId});
     if (response is! List) {
       return const <ApiChatMember>[];
     }
@@ -1225,9 +1227,9 @@ class ChatRepository {
     List<int> bytes,
     String filename,
   ) async {
-    final uploadId = await _ref.read(publicMediaUploadServiceProvider).upload(
-      Uint8List.fromList(bytes), filename: filename,
-    );
+    final uploadId = await _ref
+        .read(publicMediaUploadServiceProvider)
+        .upload(Uint8List.fromList(bytes), filename: filename);
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request(
@@ -1237,7 +1239,8 @@ class ChatRepository {
             'upload_id': uploadId,
             'filename': filename,
           },
-          timeout: const Duration(seconds: 45), maxRetries: 0,
+          timeout: const Duration(seconds: 45),
+          maxRetries: 0,
         );
     return asStringMap(response)['avatar_url'] as String? ?? '';
   }
@@ -1251,7 +1254,10 @@ class ChatRepository {
         );
   }
 
-  Future<ChatInviteBatchResult> inviteUsers(int chatId, List<int> userIds) async {
+  Future<ChatInviteBatchResult> inviteUsers(
+    int chatId,
+    List<int> userIds,
+  ) async {
     final List<int> invited = <int>[];
     final List<int> failed = <int>[];
 
@@ -1296,10 +1302,7 @@ class ChatRepository {
 
     await _ref
         .read(webSocketClientProvider)
-        .request(
-          'ban_member',
-          payload: payload,
-        );
+        .request('ban_member', payload: payload);
   }
 
   Future<void> muteUser(
@@ -1327,10 +1330,7 @@ class ChatRepository {
 
     await _ref
         .read(webSocketClientProvider)
-        .request(
-          'mute_member',
-          payload: payload,
-        );
+        .request('mute_member', payload: payload);
   }
 
   Future<void> promoteUser(int chatId, int userId, String role) async {
@@ -1338,17 +1338,18 @@ class ChatRepository {
         .read(webSocketClientProvider)
         .request(
           'promote_member',
-          payload: <String, dynamic>{'chat_id': chatId, 'user_id': userId, 'role': role},
+          payload: <String, dynamic>{
+            'chat_id': chatId,
+            'user_id': userId,
+            'role': role,
+          },
         );
   }
 
   Future<void> leaveChat(int chatId) async {
     await _ref
         .read(webSocketClientProvider)
-        .request(
-          'leave_chat',
-          payload: <String, dynamic>{'chat_id': chatId},
-        );
+        .request('leave_chat', payload: <String, dynamic>{'chat_id': chatId});
   }
 
   Future<List<int>> downloadMedia(String filePath) async {
@@ -1398,7 +1399,10 @@ class ChatRepository {
   Future<Map<String, dynamic>?> getInviteLink(int chatId) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('get_invite_link', payload: <String, dynamic>{'chat_id': chatId});
+        .request(
+          'get_invite_link',
+          payload: <String, dynamic>{'chat_id': chatId},
+        );
     if (response is! Map) return null;
     return asStringMap(response);
   }
@@ -1406,7 +1410,10 @@ class ChatRepository {
   Future<Map<String, dynamic>?> rotateInviteLink(int chatId) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('rotate_invite_link', payload: <String, dynamic>{'chat_id': chatId});
+        .request(
+          'rotate_invite_link',
+          payload: <String, dynamic>{'chat_id': chatId},
+        );
     if (response is! Map) return null;
     return asStringMap(response);
   }

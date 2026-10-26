@@ -177,6 +177,39 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       ref.onDispose(() => ordinary.removeListener(onKeysChanged));
       unawaited(ordinary.open().catchError((Object _) {}));
     }
+    final productivitySubscription = ref
+        .read(webSocketClientProvider)
+        .pushStream
+        .listen((event) {
+          if (!_valid(generation)) return;
+          final data = event['payload'];
+          if (event['action'] == 'productivity_changed' &&
+              data is Map &&
+              data['chat_id'] != null) {
+            unawaited(refresh());
+          }
+          if (event['action'] == 'chat_reminder_due' && data is Map) {
+            final notification = <String, dynamic>{
+              'event_id': 'reminder:${data['id']}',
+              'account_id': identity.$1,
+              'type': 'reminder',
+              'chat_id': data['chat_id'],
+              'message_id': data['message_id'],
+              'title': 'Напоминание',
+              'body': 'Время вернуться к сообщению',
+              'created_at': DateTime.now().toUtc().toIso8601String(),
+            };
+            unawaited(
+              ref.read(notificationsProvider.notifier).accept(notification),
+            );
+            if (!PushNotificationService.isForeground) {
+              unawaited(
+                PushNotificationService.showLocalNotification(notification),
+              );
+            }
+          }
+        });
+    ref.onDispose(() => unawaited(productivitySubscription.cancel()));
     ref.read(webSocketDispatcherProvider);
     WebSocketPushDispatcher.registerGlobal(_handlePushEvent);
     final connected = ref.read(webSocketClientProvider).onConnected.listen((_) {
@@ -2914,7 +2947,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         final ordinary = ref.read(ordinaryE2eeProvider);
         final prepared = await ordinary?.prepare(
           _chatId,
-          force: e2eeFileKey != null,
+          force: e2eeFileKey != null || chat?.isSaved == true,
         );
         if (ordinary != null && prepared != null) {
           if (uploadId != null && e2eeFileKey == null) {

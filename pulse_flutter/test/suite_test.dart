@@ -1,3 +1,4 @@
+import 'widgets/chat_productivity_test.dart' as chat_productivity;
 import 'widgets/custom_emoji_forms_test.dart' as audit_emoji_forms;
 import 'features/security/app_lock_lifecycle_test.dart' as audit_app_lock;
 import 'providers/auth_lifecycle_race_test.dart' as audit_auth;
@@ -369,6 +370,7 @@ void main() {
     widgets_public_profile_gallery.main();
     settings_refresh.main();
     settings_registry_navigation.main();
+    chat_productivity.main();
     widgets_settings_about_screen.main();
     widgets_settings_desktop_restructure.main();
     widgets_settings_master_detail.main();

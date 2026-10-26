@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/widgets/chat_productivity.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/core/utils/expression_editing.dart';
 import 'package:pulse_flutter/widgets/chat/expression_picker_panel.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -1223,6 +1225,37 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
         onTap: widget.editingMessageId != null
             ? widget.onCommitEdit
             : widget.onSend,
+        onLongPress:
+            widget.editingMessageId != null ||
+                widget.chatId == null ||
+                widget.uploadingMedia ||
+                ref.read(chatByIdProvider(widget.chatId!))?.isSecret == true
+            ? null
+            : () async {
+                final draft = widget.inputController.text;
+                if (draft.trim().isEmpty) return;
+                final session = ref.read(authProvider).session;
+                final account = (session?.userId, session?.accessToken);
+                final saved = await showScheduledMessageComposer(
+                  context,
+                  ref,
+                  chatId: widget.chatId!,
+                  text: draft,
+                  replyTo: widget.replyToMessageId,
+                );
+                if (!mounted ||
+                    (
+                          ref.read(authProvider).session?.userId,
+                          ref.read(authProvider).session?.accessToken,
+                        ) !=
+                        account) {
+                  return;
+                }
+                if (saved && widget.inputController.text == draft) {
+                  widget.inputController.clear();
+                  widget.onClearReply();
+                }
+              },
         child: Container(
           width: 48,
           height: 48,

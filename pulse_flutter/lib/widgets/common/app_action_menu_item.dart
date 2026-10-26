@@ -12,6 +12,7 @@ class AppActionMenuItem {
     this.isDestructive = false,
     this.isDisabled = false,
     this.iconColor,
+    this.leading,
   });
 
   /// The visible action title.
@@ -19,6 +20,7 @@ class AppActionMenuItem {
 
   /// The leading glyph icon.
   final IconData icon;
+  final Widget? leading;
 
   /// Callback executed when this action is tapped.
   final VoidCallback? onPressed;
@@ -46,13 +48,15 @@ class AppActionMenuItem {
         : (iconColor ?? scheme.onSurfaceVariant);
 
     return MenuItemButton(
-      leadingIcon: Icon(
-        icon,
-        size: 20,
-        color: isDisabled
-            ? scheme.onSurface.withValues(alpha: 0.38)
-            : effectiveIconColor,
-      ),
+      leadingIcon:
+          leading ??
+          Icon(
+            icon,
+            size: 20,
+            color: isDisabled
+                ? scheme.onSurface.withValues(alpha: 0.38)
+                : effectiveIconColor,
+          ),
       onPressed: isDisabled ? null : onPressed,
       child: Text(
         label,

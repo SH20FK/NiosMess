@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -34,6 +35,7 @@ class ChatTile extends StatefulWidget {
     this.compact = false,
     this.isOnline = false,
     this.isSecret = false,
+    this.isSaved = false,
     this.partnerBadges = const <ApiBadge>[],
     this.statusEmoji,
     this.animateEntrance = false,
@@ -63,6 +65,7 @@ class ChatTile extends StatefulWidget {
   final bool compact;
   final bool isOnline;
   final bool isSecret;
+  final bool isSaved;
   final List<ApiBadge> partnerBadges;
   final ApiStatusEmoji? statusEmoji;
   final bool animateEntrance;
@@ -196,19 +199,29 @@ class _ChatTileState extends State<ChatTile>
                       Stack(
                         clipBehavior: Clip.none,
                         children: <Widget>[
-                          PulseAvatar(
-                            key: ValueKey<String>(
-                              '${widget.avatarText}_${widget.avatarUrl ?? ''}',
-                            ),
-                            radius: widget.compact ? 22 : 24,
-                            name: widget.avatarText,
-                            avatarUrl: widget.avatarUrl,
-                            fallbackColor: widget.avatarColor,
-                            textColor: AppColors.avatarTextColorFor(
-                              widget.avatarColor,
-                              scheme,
-                            ),
-                          ),
+                          widget.isSaved
+                              ? SizedBox.square(
+                                  dimension: widget.compact ? 44 : 48,
+                                  child: const Center(
+                                    child: ProductivityIcon(
+                                      'bookmark',
+                                      size: 28,
+                                    ),
+                                  ),
+                                )
+                              : PulseAvatar(
+                                  key: ValueKey<String>(
+                                    '${widget.avatarText}_${widget.avatarUrl ?? ''}',
+                                  ),
+                                  radius: widget.compact ? 22 : 24,
+                                  name: widget.avatarText,
+                                  avatarUrl: widget.avatarUrl,
+                                  fallbackColor: widget.avatarColor,
+                                  textColor: AppColors.avatarTextColorFor(
+                                    widget.avatarColor,
+                                    scheme,
+                                  ),
+                                ),
                           if (widget.isOnline)
                             Positioned(
                               right: 0,
@@ -239,7 +252,7 @@ class _ChatTileState extends State<ChatTile>
                                   child: Row(
                                     children: <Widget>[
                                       Flexible(
-                                        child: Text(
+                                        child: CustomEmojiText(
                                           widget.title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,

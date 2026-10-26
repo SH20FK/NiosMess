@@ -46,6 +46,10 @@ class ApiChatSummary {
     this.isBlockedByUser = false,
     this.isBlocked = false,
     this.isOnline = false,
+    this.isSaved = false,
+    this.topicsEnabled = false,
+    this.topicParentId,
+    this.topicClosed = false,
   });
 
   final int id;
@@ -77,6 +81,8 @@ class ApiChatSummary {
   final bool isBlockedByUser;
   final bool isBlocked;
   final bool isOnline;
+  final bool isSaved, topicsEnabled, topicClosed;
+  final int? topicParentId;
 
   String? get formattedAutoDeleteDuration {
     if (autoDeleteSeconds == null || autoDeleteSeconds! <= 0) return null;
@@ -152,18 +158,30 @@ class ApiChatSummary {
         : null;
 
     final int? partnerUserId = partnerMap != null
-        ? ((partnerMap['id'] as num?)?.toInt() ?? (partnerMap['user_id'] as num?)?.toInt())
-        : ((json['with_user_id'] as num?)?.toInt() ?? (json['partner_id'] as num?)?.toInt() ?? (json['other_user_id'] as num?)?.toInt());
+        ? ((partnerMap['id'] as num?)?.toInt() ??
+              (partnerMap['user_id'] as num?)?.toInt())
+        : ((json['with_user_id'] as num?)?.toInt() ??
+              (json['partner_id'] as num?)?.toInt() ??
+              (json['other_user_id'] as num?)?.toInt());
 
-    final bool isBlockedByMe = _parseBool(partnerMap?['is_blocked_by_me'] ?? json['is_blocked_by_me']);
-    final bool isBlockedByUser = _parseBool(partnerMap?['is_blocked_by_user'] ?? json['is_blocked_by_user']);
-    final bool isBlocked = _parseBool(partnerMap?['is_blocked'] ?? json['is_blocked']) || isBlockedByMe || isBlockedByUser;
-    final bool isOnline = _parseBool(json['is_online']) || _parseBool(partnerMap?['is_online']);
+    final bool isBlockedByMe = _parseBool(
+      partnerMap?['is_blocked_by_me'] ?? json['is_blocked_by_me'],
+    );
+    final bool isBlockedByUser = _parseBool(
+      partnerMap?['is_blocked_by_user'] ?? json['is_blocked_by_user'],
+    );
+    final bool isBlocked =
+        _parseBool(partnerMap?['is_blocked'] ?? json['is_blocked']) ||
+        isBlockedByMe ||
+        isBlockedByUser;
+    final bool isOnline =
+        _parseBool(json['is_online']) || _parseBool(partnerMap?['is_online']);
 
     final String? partnerUsername = partnerMap?['username'] as String?;
     final String? partnerDisplayName = partnerMap?['display_name'] as String?;
     final String? rawUsername = json['username'] as String?;
-    final String? resolvedUsername = (rawUsername != null && rawUsername.isNotEmpty)
+    final String? resolvedUsername =
+        (rawUsername != null && rawUsername.isNotEmpty)
         ? rawUsername
         : partnerUsername;
 
@@ -171,24 +189,28 @@ class ApiChatSummary {
     final String resolvedName = rawName.isNotEmpty
         ? rawName
         : (partnerDisplayName?.isNotEmpty == true
-            ? partnerDisplayName!
-            : (resolvedUsername ?? ''));
+              ? partnerDisplayName!
+              : (resolvedUsername ?? ''));
 
-    final String? resolvedAvatar = json['avatar_url'] as String? ?? partnerMap?['avatar_url'] as String?;
+    final String? resolvedAvatar =
+        json['avatar_url'] as String? ?? partnerMap?['avatar_url'] as String?;
 
-    final dynamic emojiRaw = json['partner_status_emoji'] ?? partnerMap?['status_emoji'];
+    final dynamic emojiRaw =
+        json['partner_status_emoji'] ?? partnerMap?['status_emoji'];
     final ApiStatusEmoji? partnerStatusEmoji = emojiRaw is Map
         ? ApiStatusEmoji.fromJson(
-            emojiRaw.map(
-              (dynamic k, dynamic v) => MapEntry(k.toString(), v),
-            ),
+            emojiRaw.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
           )
         : null;
 
     return ApiChatSummary(
+      isSaved: _parseBool(json['is_saved']),
+      topicsEnabled: _parseBool(json['topics_enabled']),
+      topicParentId: (json['topic_parent_id'] as num?)?.toInt(),
+      topicClosed: _parseBool(json['topic_closed']),
       id: json['id'] as int? ?? 0,
       chatType: json['chat_type'] as String? ?? 'direct',
-      name: resolvedName,
+      name: _parseBool(json['is_saved']) ? 'Избранное' : resolvedName,
       username: resolvedUsername,
       avatarUrl: resolvedAvatar,
       unreadCount: json['unread_count'] as int? ?? 0,
@@ -196,7 +218,9 @@ class ApiChatSummary {
       partnerBadges: partnerBadges,
       partnerStatusEmoji: partnerStatusEmoji,
       description: json['description'] as String? ?? '',
-      commentsEnabled: json['comments_enabled'] != null ? _parseBool(json['comments_enabled']) : null,
+      commentsEnabled: json['comments_enabled'] != null
+          ? _parseBool(json['comments_enabled'])
+          : null,
       commentsChatId: json['comments_chat_id'] as int?,
       inviteLink: json['invite_link'] as String?,
       shareLink: json['share_link'] as String?,
@@ -213,9 +237,7 @@ class ApiChatSummary {
       isOnline: isOnline,
       lastMessage: last is Map
           ? ApiMessage.fromJson(
-              last.map(
-                (dynamic k, dynamic v) => MapEntry(k.toString(), v),
-              ),
+              last.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
             )
           : null,
     );
@@ -250,6 +272,10 @@ class ApiChatSummary {
     bool? isOnline,
   }) {
     return ApiChatSummary(
+      isSaved: isSaved,
+      topicsEnabled: topicsEnabled,
+      topicParentId: topicParentId,
+      topicClosed: topicClosed,
       id: id ?? this.id,
       chatType: chatType ?? this.chatType,
       name: name ?? this.name,
@@ -283,6 +309,10 @@ class ApiChatSummary {
     return {
       'id': id,
       'chat_type': chatType,
+      'is_saved': isSaved,
+      'topics_enabled': topicsEnabled,
+      'topic_parent_id': topicParentId,
+      'topic_closed': topicClosed,
       'name': name,
       'username': username,
       'avatar_url': avatarUrl,

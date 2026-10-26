@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,8 @@ enum MessageActionType {
   reply,
   copy,
   forward,
+  saveToSaved,
+  remind,
   comments,
   edit,
   delete,
@@ -96,7 +99,10 @@ class MessageContextMenuSheet extends StatelessWidget {
             onShowAllReactions: onShowAllReactions,
           ),
           const SizedBox(height: 10),
-          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.2)),
+          Divider(
+            height: 1,
+            color: scheme.outlineVariant.withValues(alpha: 0.2),
+          ),
           const SizedBox(height: 4),
 
           // 3. Flat Action List
@@ -113,127 +119,193 @@ class MessageContextMenuSheet extends StatelessWidget {
     final List<Widget> list = <Widget>[];
 
     // Reply
-    list.add(_ActionListTile(
-      icon: Icons.reply_rounded,
-      title: context.l10n.chatReply,
-      onTap: () {
-        Navigator.of(context).pop(const MessageActionResult(MessageActionType.reply));
-        onReply?.call();
-      },
-    ));
+    list.add(
+      _ActionListTile(
+        icon: Icons.reply_rounded,
+        title: context.l10n.chatReply,
+        onTap: () {
+          Navigator.of(
+            context,
+          ).pop(const MessageActionResult(MessageActionType.reply));
+          onReply?.call();
+        },
+      ),
+    );
 
     // Copy text (with honest secret chat explanation if disabled)
     if (message.content.trim().isNotEmpty && !message.isDeleted) {
       if (isSecret) {
-        list.add(_ActionListTile(
-          icon: Icons.copy_rounded,
-          title: context.l10n.chatCopyText,
-          subtitle: 'Запрещено политикой секретного чата',
-          enabled: false,
-          onTap: () {},
-        ));
+        list.add(
+          _ActionListTile(
+            icon: Icons.copy_rounded,
+            title: context.l10n.chatCopyText,
+            subtitle: 'Запрещено политикой секретного чата',
+            enabled: false,
+            onTap: () {},
+          ),
+        );
       } else {
-        list.add(_ActionListTile(
-          icon: Icons.copy_rounded,
-          title: context.l10n.chatCopyText,
-          onTap: () {
-            Navigator.of(context).pop(const MessageActionResult(MessageActionType.copy));
-            onCopy?.call();
-          },
-        ));
+        list.add(
+          _ActionListTile(
+            icon: Icons.copy_rounded,
+            title: context.l10n.chatCopyText,
+            onTap: () {
+              Navigator.of(
+                context,
+              ).pop(const MessageActionResult(MessageActionType.copy));
+              onCopy?.call();
+            },
+          ),
+        );
       }
     }
 
     // Forward (with honest secret chat explanation if disabled)
     if (isSecret) {
-      list.add(_ActionListTile(
-        icon: Icons.forward_rounded,
-        title: context.l10n.chatResendTo,
-        subtitle: 'Пересылка недоступна в секретном чате',
-        enabled: false,
-        onTap: () {},
-      ));
+      list.add(
+        _ActionListTile(
+          icon: Icons.forward_rounded,
+          title: context.l10n.chatResendTo,
+          subtitle: 'Пересылка недоступна в секретном чате',
+          enabled: false,
+          onTap: () {},
+        ),
+      );
     } else {
-      list.add(_ActionListTile(
-        icon: Icons.forward_rounded,
-        title: context.l10n.chatResendTo,
-        onTap: () {
-          Navigator.of(context).pop(const MessageActionResult(MessageActionType.forward));
-          onForward?.call();
-        },
-      ));
+      list.add(
+        _ActionListTile(
+          icon: Icons.forward_rounded,
+          title: context.l10n.chatResendTo,
+          onTap: () {
+            Navigator.of(
+              context,
+            ).pop(const MessageActionResult(MessageActionType.forward));
+            onForward?.call();
+          },
+        ),
+      );
     }
 
+    if (!isSecret &&
+        !message.isDeleted &&
+        message.id > 0 &&
+        (!message.isE2ee || message.isDecrypted)) {
+      list.add(
+        _ActionListTile(
+          icon: Icons.bookmark_border,
+          leading: const ProductivityIcon('bookmark'),
+          title: 'Сохранить в Избранное',
+          subtitle: message.hasMedia
+              ? 'Сохранится подпись и ссылка на исходное сообщение'
+              : null,
+          onTap: () => Navigator.of(
+            context,
+          ).pop(const MessageActionResult(MessageActionType.saveToSaved)),
+        ),
+      );
+      list.add(
+        _ActionListTile(
+          icon: Icons.notifications_none,
+          leading: const ProductivityIcon('bell'),
+          title: 'Напомнить',
+          onTap: () => Navigator.of(
+            context,
+          ).pop(const MessageActionResult(MessageActionType.remind)),
+        ),
+      );
+    }
     // Comments for channel
     if (isChannel) {
-      list.add(_ActionListTile(
-        icon: Icons.forum_outlined,
-        title: context.l10n.commentsTitle,
-        onTap: () {
-          Navigator.of(context).pop(const MessageActionResult(MessageActionType.comments));
-          onComments?.call();
-        },
-      ));
+      list.add(
+        _ActionListTile(
+          icon: Icons.forum_outlined,
+          title: context.l10n.commentsTitle,
+          onTap: () {
+            Navigator.of(
+              context,
+            ).pop(const MessageActionResult(MessageActionType.comments));
+            onComments?.call();
+          },
+        ),
+      );
     }
 
     // Edit (mine & text message)
-    if (isMine && !message.isDeleted && message.content.trim().isNotEmpty && InteractiveMessage.parse(message.content) == null) {
-      list.add(_ActionListTile(
-        icon: Icons.edit_outlined,
-        title: context.l10n.chatEdit,
-        onTap: () {
-          Navigator.of(context).pop(const MessageActionResult(MessageActionType.edit));
-          onEdit?.call();
-        },
-      ));
+    if (isMine &&
+        !message.isDeleted &&
+        message.content.trim().isNotEmpty &&
+        InteractiveMessage.parse(message.content) == null) {
+      list.add(
+        _ActionListTile(
+          icon: Icons.edit_outlined,
+          title: context.l10n.chatEdit,
+          onTap: () {
+            Navigator.of(
+              context,
+            ).pop(const MessageActionResult(MessageActionType.edit));
+            onEdit?.call();
+          },
+        ),
+      );
     }
 
     return list;
   }
 
-  List<Widget> _buildDestructiveActions(BuildContext context, ColorScheme scheme) {
+  List<Widget> _buildDestructiveActions(
+    BuildContext context,
+    ColorScheme scheme,
+  ) {
     final List<Widget> list = <Widget>[];
 
     if (isMine || amAdminOrOwner) {
-      list.add(Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Container(
-          decoration: BoxDecoration(
-            color: scheme.errorContainer.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: scheme.error.withValues(alpha: 0.2)),
-          ),
-          child: _ActionListTile(
-            icon: Icons.delete_outline_rounded,
-            title: context.l10n.chatDelete,
-            color: scheme.error,
-            onTap: () {
-              Navigator.of(context).pop(const MessageActionResult(MessageActionType.delete));
-              onDelete?.call();
-            },
+      list.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Container(
+            decoration: BoxDecoration(
+              color: scheme.errorContainer.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: scheme.error.withValues(alpha: 0.2)),
+            ),
+            child: _ActionListTile(
+              icon: Icons.delete_outline_rounded,
+              title: context.l10n.chatDelete,
+              color: scheme.error,
+              onTap: () {
+                Navigator.of(
+                  context,
+                ).pop(const MessageActionResult(MessageActionType.delete));
+                onDelete?.call();
+              },
+            ),
           ),
         ),
-      ));
+      );
     } else {
-      list.add(Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Container(
-          decoration: BoxDecoration(
-            color: scheme.errorContainer.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: scheme.error.withValues(alpha: 0.15)),
-          ),
-          child: _ActionListTile(
-            icon: Icons.flag_outlined,
-            title: context.l10n.reportMessage,
-            color: scheme.error,
-            onTap: () {
-              Navigator.of(context).pop(const MessageActionResult(MessageActionType.report));
-              onReport?.call();
-            },
+      list.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Container(
+            decoration: BoxDecoration(
+              color: scheme.errorContainer.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: scheme.error.withValues(alpha: 0.15)),
+            ),
+            child: _ActionListTile(
+              icon: Icons.flag_outlined,
+              title: context.l10n.reportMessage,
+              color: scheme.error,
+              onTap: () {
+                Navigator.of(
+                  context,
+                ).pop(const MessageActionResult(MessageActionType.report));
+                onReport?.call();
+              },
+            ),
           ),
         ),
-      ));
+      );
     }
 
     return list;
@@ -256,7 +328,9 @@ class _MessagePreviewCard extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    String previewText = (InteractiveMessage.parse(message.content)?.preview ?? message.content).trim();
+    String previewText =
+        (InteractiveMessage.parse(message.content)?.preview ?? message.content)
+            .trim();
     if (previewText.isEmpty) {
       if (message.isSticker) {
         final String emoji = message.sticker?.emoji.trim() ?? '';
@@ -286,12 +360,17 @@ class _MessagePreviewCard extends StatelessWidget {
           width: 38,
           height: 38,
           fit: BoxFit.contain,
-          errorWidget: (_, _, _) => Icon(Icons.sticky_note_2_rounded, size: 20, color: scheme.primary),
+          errorWidget: (_, _, _) => Icon(
+            Icons.sticky_note_2_rounded,
+            size: 20,
+            color: scheme.primary,
+          ),
         ),
       );
     } else if (message.hasMedia &&
         message.mediaUrl != null &&
-        (message.msgType == 'image' || (message.mediaType ?? '').startsWith('image/'))) {
+        (message.msgType == 'image' ||
+            (message.mediaType ?? '').startsWith('image/'))) {
       thumbnail = ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: CachedNetworkImage(
@@ -299,16 +378,19 @@ class _MessagePreviewCard extends StatelessWidget {
           width: 38,
           height: 38,
           fit: BoxFit.cover,
-          errorWidget: (_, _, _) => Icon(Icons.image_rounded, size: 20, color: scheme.primary),
+          errorWidget: (_, _, _) =>
+              Icon(Icons.image_rounded, size: 20, color: scheme.primary),
         ),
       );
     } else if (message.hasMedia) {
-      final IconData iconData = message.msgType == 'voice' ||
+      final IconData iconData =
+          message.msgType == 'voice' ||
               (message.mediaType ?? '').startsWith('audio/')
           ? Icons.mic_rounded
-          : message.msgType == 'video' || (message.mediaType ?? '').startsWith('video/')
-              ? Icons.videocam_rounded
-              : Icons.insert_drive_file_rounded;
+          : message.msgType == 'video' ||
+                (message.mediaType ?? '').startsWith('video/')
+          ? Icons.videocam_rounded
+          : Icons.insert_drive_file_rounded;
       thumbnail = Container(
         width: 38,
         height: 38,
@@ -326,7 +408,9 @@ class _MessagePreviewCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.16)),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.16),
+        ),
       ),
       child: Row(
         children: <Widget>[
@@ -404,14 +488,22 @@ class _ReactionsRow extends ConsumerWidget {
               child: TouchContainer(
                 onTap: () {
                   TriSync.reaction(ref: ref, context: context);
-                  Navigator.of(context).pop(MessageActionResult(MessageActionType.react, emoji: reaction.emoji));
+                  Navigator.of(context).pop(
+                    MessageActionResult(
+                      MessageActionType.react,
+                      emoji: reaction.emoji,
+                    ),
+                  );
                   onReact?.call(reaction.emoji);
                 },
                 borderRadius: BorderRadius.circular(24),
                 width: 48,
                 height: 48,
                 child: Center(
-                  child: Text(reaction.emoji, style: const TextStyle(fontSize: 22)),
+                  child: Text(
+                    reaction.emoji,
+                    style: const TextStyle(fontSize: 22),
+                  ),
                 ),
               ),
             ),
@@ -421,7 +513,9 @@ class _ReactionsRow extends ConsumerWidget {
             child: TouchContainer(
               onTap: () {
                 TriSync.pop(ref: ref, context: context);
-                Navigator.of(context).pop(const MessageActionResult(MessageActionType.showAllReactions));
+                Navigator.of(context).pop(
+                  const MessageActionResult(MessageActionType.showAllReactions),
+                );
                 onShowAllReactions?.call();
               },
               borderRadius: BorderRadius.circular(24),
@@ -446,9 +540,11 @@ class _ActionListTile extends StatelessWidget {
     this.color,
     this.subtitle,
     this.enabled = true,
+    this.leading,
   });
 
   final IconData icon;
+  final Widget? leading;
   final String title;
   final VoidCallback onTap;
   final Color? color;
@@ -463,14 +559,10 @@ class _ActionListTile extends StatelessWidget {
         : (color ?? scheme.onSurface);
 
     return ListTile(
-      leading: Icon(icon, color: fg, size: 20),
+      leading: leading ?? Icon(icon, color: fg, size: 20),
       title: Text(
         title,
-        style: TextStyle(
-          color: fg,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
+        style: TextStyle(color: fg, fontSize: 14, fontWeight: FontWeight.w500),
       ),
       subtitle: subtitle != null
           ? Text(

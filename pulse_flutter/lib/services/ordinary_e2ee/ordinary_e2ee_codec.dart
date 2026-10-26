@@ -266,7 +266,9 @@ class OrdinaryCodec {
       throw const FormatException('E2E authentication failed');
     }
     final boxes = h['boxes'] as E2eJson;
-    if (boxes.length != 2 || !boxes.containsKey('$from')) {
+    final selfRecipient =
+        boxes.length == 1 && own.userId == from && boxes.containsKey('$from');
+    if ((!selfRecipient && boxes.length != 2) || !boxes.containsKey('$from')) {
       throw const FormatException('Invalid recipients');
     }
     final box = boxes['${own.userId}'] as E2eJson;

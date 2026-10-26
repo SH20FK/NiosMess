@@ -1,3 +1,5 @@
+import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
+import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/widgets/chat/ordinary_e2ee_notice.dart';
@@ -136,7 +138,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       authProvider.select((s) => s.isAuthenticated),
     );
     final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
-      chatsProvider,
+      visibleChatsProvider,
     );
     final AsyncValue<ApiSearchResult> searchAsync = ref.watch(
       chatListSearchProvider,
@@ -180,6 +182,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                       RepaintBoundary(child: ChatSearchField()),
                       SizedBox(height: 10),
                       RepaintBoundary(child: ChatListFilterBar()),
+                      ChatProductivityBar(),
                       SizedBox(height: 12),
                     ],
                   ),
@@ -312,7 +315,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     required ChatFilter filter,
     required int? desktopChatId,
   }) {
-    final List<ApiChatSummary> filtered = _applyFilter(chats, filter);
+    final folders = ref.watch(chatFoldersProvider).value ?? [];
+    final selected = ref.watch(selectedChatFolderProvider);
+    final folder = folders.where((f) => f.id == selected).firstOrNull;
+    final List<ApiChatSummary> filtered = _applyFilter(
+      folder == null ? chats : chats.where(folder.includes).toList(),
+      filter,
+    );
     final Set<int> resultChatIds = <int>{
       ...?searchResult?.chats.map((ApiSearchChat chat) => chat.id),
       ...?searchResult?.messages.map(
@@ -453,6 +462,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           compact: compact,
                           isOnline: chat.chatType == 'direct' && chat.isOnline,
                           isSecret: chat.isSecret,
+                          isSaved: chat.isSaved,
                           partnerBadges: chat.partnerBadges,
                           isMuted:
                               ref.watch(chatMutedProvider(chat.id)).value ??
