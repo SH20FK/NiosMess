@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.venv/
+!evidence/original-calls-baseline.log
+!evidence/original-calls-regressions.log
+!evidence/original-video-regressions.log

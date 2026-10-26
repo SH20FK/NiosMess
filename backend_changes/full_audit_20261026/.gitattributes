@@ -1,0 +1,3 @@
+# Preserve source/deployment SHA bytes on Windows and CI checkouts.
+* -text whitespace=cr-at-eol
+patches/*.patch -whitespace

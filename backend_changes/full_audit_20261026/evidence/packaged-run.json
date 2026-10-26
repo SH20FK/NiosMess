@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-26",
+  "python": "3.12.10",
+  "candidate_calls": {
+    "passed": 15,
+    "seconds": 44.071,
+    "database": "Disposable SQLite; actual SQLAlchemy ORM and source AST"
+  },
+  "video": {
+    "passed": 11,
+    "seconds": 7.532,
+    "media": "Real local ffmpeg/ffprobe; synthetic MP4 fixtures"
+  },
+  "baseline_calls": {
+    "passed": 5,
+    "seconds": 15.764,
+    "meaning": "Successful isolated reproductions of original vulnerabilities"
+  },
+  "runner_exit_code": 0,
+  "sha_and_ast_verification": "passed",
+  "python310_grammar": {
+    "files": 10,
+    "passed": true
+  },
+  "python310_execution": "Not executed locally; CI runtime requested",
+  "ssh_or_production_data_access": false,
+  "raw_run_log": "output/full-audit-2026-10-26/server-package-tests.log"
+}

@@ -1,0 +1,116 @@
+{
+  "format": 1,
+  "approval": "Owner approved; deployed by root on 2026-10-26",
+  "schema_changes": false,
+  "api_fields_changed": false,
+  "deployment_state": "deployed_service_active",
+  "deployed_files": [
+    {
+      "path": "app/ws/handlers/call_handler.py",
+      "before_sha256": "5c50e2b69db6d62b708a105040db9a080a6991b045b4bccd9cd2d915f8806042",
+      "after_sha256": "e49900b13f3f938ad397fcfebc98fc435f4dbda1643be7aedb1d9bb1ad40bc2d"
+    },
+    {
+      "path": "app/services/public_media_uploads.py",
+      "before_sha256": "45f460240b48cf332e42e496e6f0584da6dfbbd4cce0a1fbbee43ac41bd21155",
+      "after_sha256": "4e70ee39fd3ff2feb12c8b6899f243f2ab170ea182bbc91a72cf99de4851675f"
+    },
+    {
+      "path": "app/ws/handlers/media_handler.py",
+      "before_sha256": "9c8d2f98d223d2a6fdb44418d80c2d3d748a1b14037a522af1b0f6f504542830",
+      "after_sha256": "03aa317e9579f23327d75a7be7d8a2c6ebc1f95202cc6fc91ba1d7c03583b327"
+    }
+  ],
+  "fixture_sources": [
+    {
+      "path": "fixtures/app/ws/handlers/call_handler.py",
+      "source_path": "app/ws/handlers/call_handler.py",
+      "source_sha256": "5c50e2b69db6d62b708a105040db9a080a6991b045b4bccd9cd2d915f8806042",
+      "symbols": {
+        "_finish_call": "170d3e5f1b229ebafc8a06a3e48e8aec00187b1e7351101b20ed69040bae9632",
+        "handle_start_call": "17d2a03c9fd4d8e30f0cc9bbebf0004ffdab19f0cd748219ba2dfce5d7291cf8",
+        "handle_decline_call": "359b7a58d4bde424d0437546be5a99ef49529740614023de75fe2f6a5028b4be",
+        "handle_end_call_signaling": "523d7ab4f5ff9eea580f407a79cd8739a54d73a5a5b84b6b4066850b9222b89f",
+        "_log_call_message": "033944df79033e059c4671186207b798217d79d2042eb69bd5f34acdf9be60d3",
+        "handle_answer_call": "5828667db29bac1ac83eae78ac1777b7dd67b8d9ff13b5616a5fabca39c7253b",
+        "handle_end_call": "004fcfec55a06cd78193a011e5aa5b966e479070e73e2fbd5a2bed339010a77a",
+        "handle_get_call": "701ffceb097351c10f89adc66378b0dc17a98d4765cfb2ae66b839180a4ffa4e"
+      }
+    },
+    {
+      "path": "fixtures/app/ws/handlers/chat_handler.py",
+      "source_path": "app/ws/handlers/chat_handler.py",
+      "source_sha256": "50d6b9b27b034f562cb14dadc0479000aca0a9a43a87d1fb96b9c8750625f073",
+      "symbols": {
+        "_require_member": "74d13330689450073a5f9ef0543ad58cf04ec336c6fb034df2bdcbe8293bad42",
+        "_can_send": "f261f5367b04f1ae3a7c4edc575d73cca649f2a533cf62930d3343d360b12891"
+      }
+    },
+    {
+      "path": "fixtures/app/services/custom_emojis.py",
+      "source_path": "app/services/custom_emojis.py",
+      "source_sha256": "3b9b8309cb77329cf7add809089ba07ba77e0ed6f6fc20d7cfaa45e4ba181dab",
+      "symbols": {
+        "validate_image": "e2f692fc21fbd640f308d3b9ed5cdc6c055cff08fc18a6e75996a6a2206505d6"
+      }
+    }
+  ],
+  "orm_fixture": {
+    "path": "fixtures/app/models/models.py",
+    "source_path": "app/models/models.py",
+    "source_sha256": "11729906f0f00a811a95330398e5eaf0e443a91a880252aa19349d4f654336c8",
+    "reason": "Full declarative schema needed by the actual SQLAlchemy relationship/foreign-key mapper. Schema only; no records or config."
+  },
+  "test_adaptations": "Only whitelisted relative fixture/candidate path bindings; test bodies and media validator unchanged.",
+  "files": {
+    ".gitattributes": "ba86f32901ecb0903a8702ca82caff1a991aa4d0ddfc5dbc333f697b07db7fb6",
+    ".gitignore": "d45c35230e52f08db7baa0f42bfcb41af24775331446bff1b79788c74cb352b7",
+    "README.md": "88ed43e6892891f127c929bd36e5397f1744e5f29ab4f25b19fc840428f95efe",
+    "candidate/app/services/public_media_uploads.py": "4e70ee39fd3ff2feb12c8b6899f243f2ab170ea182bbc91a72cf99de4851675f",
+    "candidate/app/ws/handlers/call_handler.py": "e49900b13f3f938ad397fcfebc98fc435f4dbda1643be7aedb1d9bb1ad40bc2d",
+    "candidate/app/ws/handlers/media_handler.py": "03aa317e9579f23327d75a7be7d8a2c6ebc1f95202cc6fc91ba1d7c03583b327",
+    "evidence/original-calls-baseline.log": "8482db934a72d28547fe2f898092b709e5ae1480cf9936645c6fef5d8ac6427f",
+    "evidence/original-calls-regressions.log": "caf627a003ec710c1bc48c9a07fbf9de99dcf8991de3f47b78e700dc1a9457d3",
+    "evidence/original-video-regressions.log": "fc708766f910d552d5fdbd09aacecef24d8b2a7949ed6d1442bd20e176df5de6",
+    "evidence/packaged-run.json": "2b9aaa3b7367301d96734ead748ad40c8b28b661d365fe1ef0016bce1cd236fc",
+    "fixtures/app/models/models.py": "11729906f0f00a811a95330398e5eaf0e443a91a880252aa19349d4f654336c8",
+    "fixtures/app/services/custom_emojis.py": "5277eb0f26d131b072d0341114eebdd5e399d88b57a47b95555c1e64751a5c93",
+    "fixtures/app/ws/handlers/call_handler.py": "4268e5f89da89ca0b33757b432d0a2dccfa077df6eb123acdb08a7983e3d60f1",
+    "fixtures/app/ws/handlers/chat_handler.py": "6af772bb19d3095680f04a845cf9a8723c246a45121072e447bdb8fe4daf4eb1",
+    "patches/call-access.patch": "25be8cf8d78ceeff670ae06640034a8420676482a37c7459358b8add97d585b3",
+    "patches/video-emoji-validation.patch": "b7f79d66dfdadbd500d5b59b8db5267e193b14b89bd33fb2001d0db957b4573e",
+    "requirements-test.txt": "ab3cd222a9ae7bfe3d6911841794f608ab04fc61fce213fe887925e9876790f0",
+    "run_regressions.py": "194599d612f57fe24c8d0a134eb1caf03585375d7e7d9c6558dffbfc7021e860",
+    "tests/test_call_access.py": "3da1194b2ecf155983f0ccee5ab4f8e5089b0c602db9a910d5a29bea5e79016c",
+    "tests/test_video_emoji_validation.py": "c9c3537fde0f1da3e0ba2fbf02c6e78081468bf7713b03ada8bbf8b6fc399d29"
+  },
+  "credential_scan": {
+    "checked_python_files": 10,
+    "suspicious_literals": 0,
+    "production_config_files_included": false,
+    "production_records_included": false,
+    "model_imports_allowlist": [
+      "enum",
+      "datetime",
+      "sqlalchemy"
+    ]
+  },
+  "test_path_rewrites": {
+    "tests/test_call_access.py": [
+      {
+        "old": "ROOT = Path(__file__).resolve().parents[2]\nPROPOSAL = Path(__file__).resolve().parent\nSNAPSHOT = ROOT / 'server-readonly'",
+        "new": "PROPOSAL = Path(__file__).resolve().parents[1]\nSNAPSHOT = PROPOSAL / 'fixtures'"
+      },
+      {
+        "old": "PROPOSAL/'candidate/call_handler.py'",
+        "new": "PROPOSAL/'candidate/app/ws/handlers/call_handler.py'"
+      }
+    ],
+    "tests/test_video_emoji_validation.py": [
+      {
+        "old": "ROOT = Path(__file__).resolve().parent\nSNAPSHOT = ROOT.parent.parent / 'server-readonly'",
+        "new": "ROOT = Path(__file__).resolve().parents[1]\nSNAPSHOT = ROOT / 'fixtures'"
+      }
+    ]
+  }
+}

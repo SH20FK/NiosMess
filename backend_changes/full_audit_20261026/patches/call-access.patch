@@ -1,0 +1,89 @@
+--- a/app/ws/handlers/call_handler.py
++++ b/app/ws/handlers/call_handler.py
+@@ -164,7 +164,33 @@
+             active_calls.pop(room_id, None)
+ 
+ 
++_pending_start_rooms: set[str] = set()
++_pending_start_users: set[int] = set()
++
++
+ async def handle_start_call(payload: dict, db: AsyncSession, user: User) -> dict:
++    room_id = payload.get("room_id")
++    if not isinstance(room_id, str) or not re.fullmatch(r"[a-fA-F0-9]{32}", room_id):
++        return {"error": "chat_id and room_id are required"}
++    if room_id in active_calls or room_id in _pending_start_rooms:
++        return {"error": "Call room is unavailable"}
++    if user.id in _pending_start_users or any(
++        info.get("status") in ("ringing", "active") and
++        (info.get("initiator_id") == user.id or user.id in info.get("participants", set()))
++        for info in active_calls.values()
++    ):
++        return {"error": "You are already in a call"}
++    # No await occurs between checking and reserving these process-local IDs.
++    _pending_start_rooms.add(room_id)
++    _pending_start_users.add(user.id)
++    try:
++        return await _start_call_reserved(payload, db, user)
++    finally:
++        _pending_start_rooms.discard(room_id)
++        _pending_start_users.discard(user.id)
++
++
++async def _start_call_reserved(payload: dict, db: AsyncSession, user: User) -> dict:
+     chat_id = payload.get("chat_id")
+     room_id = payload.get("room_id")
+     caller_nickname = user.display_name
+@@ -205,9 +231,6 @@
+         call_access_token = _call_access_token(user, room_id, tester_badge, bool(is_video))
+     except RuntimeError:
+         return {"error": "Calls are temporarily unavailable"}
+-
+-    if room_id in active_calls:
+-        active_calls.pop(room_id, None)
+ 
+     call_type = "Видеозвонок" if is_video else "Голосовой звонок"
+     text_content = f"{call_type} — Вызов..."
+@@ -454,7 +477,17 @@
+     if not chat_id or not room_id or not message_id:
+         return {"error": "chat_id, room_id, and message_id are required"}
+ 
+-    await _require_member(db, chat_id, user.id)
++    info = active_calls.get(room_id)
++    if not info:
++        return {"status": "ended"}
++    if chat_id != info["chat_id"] or message_id != info["message_id"]:
++        return {"error": "Call identity mismatch"}
++    await _require_member(db, info["chat_id"], user.id)
++    current = active_calls.get(room_id)
++    if current is None:
++        return {"status": "ended"}
++    if current is not info or current.get("chat_id") != chat_id or current.get("message_id") != message_id:
++        return {"error": "Call identity mismatch"}
+     await _finish_call(db, room_id, was_missed=was_missed, duration=duration)
+     return {"status": "ended"}
+ 
+@@ -501,6 +534,7 @@
+     call = r.scalar_one_or_none()
+     if not call:
+         return {"error": "Call not found"}
++    await _require_member(db, call.chat_id, user.id)
+     if call.status not in (CallStatus.RINGING, CallStatus.ACTIVE):
+         return {"error": f"Call is already {call.status.value}"}
+     if accept:
+@@ -520,6 +554,7 @@
+     call = r.scalar_one_or_none()
+     if not call:
+         return {"error": "Call not found"}
++    await _require_member(db, call.chat_id, user.id)
+     now = datetime.now(timezone.utc)
+     was_missed = call.status == CallStatus.RINGING
+     call.status = CallStatus.MISSED if was_missed else CallStatus.ENDED
+@@ -546,6 +581,7 @@
+     call = r.scalar_one_or_none()
+     if not call:
+         return {"error": "Call not found"}
++    await _require_member(db, call.chat_id, user.id)
+     pr = await db.execute(
+         select(CallParticipant).where(CallParticipant.call_id == call_id, CallParticipant.is_active == True)
+     )

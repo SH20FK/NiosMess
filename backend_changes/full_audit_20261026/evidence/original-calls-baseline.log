@@ -1,0 +1,10 @@
+test_current_end_accepts_owned_chat_with_foreign_room (__main__.BaselineEvidence.test_current_end_accepts_owned_chat_with_foreign_room) ... ok
+test_current_legacy_answer_inserts_nonmember_participant (__main__.BaselineEvidence.test_current_legacy_answer_inserts_nonmember_participant) ... ok
+test_current_legacy_end_changes_other_chat_call (__main__.BaselineEvidence.test_current_legacy_end_changes_other_chat_call) ... ok
+test_current_legacy_get_discloses_other_chat_participants (__main__.BaselineEvidence.test_current_legacy_get_discloses_other_chat_participants) ... ok
+test_current_start_replaces_foreign_active_room (__main__.BaselineEvidence.test_current_start_replaces_foreign_active_room) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 13.945s
+
+OK

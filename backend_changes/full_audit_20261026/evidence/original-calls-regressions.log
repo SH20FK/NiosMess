@@ -1,0 +1,20 @@
+test_actual_room_member_can_end (__main__.CandidateSecurityRegression.test_actual_room_member_can_end) ... ok
+test_busy_caller_does_not_leave_orphan_message (__main__.CandidateSecurityRegression.test_busy_caller_does_not_leave_orphan_message) ... ok
+test_decline_keeps_its_existing_identity_check (__main__.CandidateSecurityRegression.test_decline_keeps_its_existing_identity_check) ... ok
+test_legacy_answer_requires_membership_before_inserting_participant (__main__.CandidateSecurityRegression.test_legacy_answer_requires_membership_before_inserting_participant) ... ok
+test_legacy_end_requires_membership_before_status_or_log_change (__main__.CandidateSecurityRegression.test_legacy_end_requires_membership_before_status_or_log_change) ... ok
+test_legacy_get_requires_real_chat_membership (__main__.CandidateSecurityRegression.test_legacy_get_requires_real_chat_membership) ... ok
+test_membership_failure_releases_reservation_for_retry (__main__.CandidateSecurityRegression.test_membership_failure_releases_reservation_for_retry) ... ok
+test_nonmember_cannot_end_with_correct_identifiers (__main__.CandidateSecurityRegression.test_nonmember_cannot_end_with_correct_identifiers) ... ok
+test_reject_foreign_room_without_messages_or_notifications (__main__.CandidateSecurityRegression.test_reject_foreign_room_without_messages_or_notifications) ... ok
+test_repeated_end_is_idempotent (__main__.CandidateSecurityRegression.test_repeated_end_is_idempotent) ... ok
+test_room_collision_does_not_replace_or_write_message (__main__.CandidateSecurityRegression.test_room_collision_does_not_replace_or_write_message) ... ok
+test_room_reused_during_membership_await_cannot_change_target (__main__.CandidateSecurityRegression.test_room_reused_during_membership_await_cannot_change_target) ... ok
+test_simultaneous_same_caller_cannot_create_two_calls (__main__.CandidateSecurityRegression.test_simultaneous_same_caller_cannot_create_two_calls) ... ok
+test_simultaneous_same_room_has_one_owner (__main__.CandidateSecurityRegression.test_simultaneous_same_room_has_one_owner) ... ok
+test_wrong_message_id_does_not_end_same_chat_call (__main__.CandidateSecurityRegression.test_wrong_message_id_does_not_end_same_chat_call) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 43.441s
+
+OK

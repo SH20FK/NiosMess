@@ -1,0 +1,92 @@
+--- a/app/services/public_media_uploads.py
++++ b/app/services/public_media_uploads.py
+@@ -88,7 +88,8 @@
+ 
+ 
+ async def _save_public_media(payload, db, user, *, directory, limit, max_seconds,
+-                            square=False, max_dimension=8192, image_limit=None, consume=True):
++                            square=False, max_dimension=8192, image_limit=None, consume=True,
++                            require_video=False, max_aspect_ratio=None):
+     """Validate the owner, bytes and real video metadata before permanent storage.
+ 
+     Legacy inline uploads remain supported. A caller cannot adopt an arbitrary
+@@ -131,6 +132,8 @@
+             raise ValueError('Unsupported media format')
+     elif image_limit is not None and len(data) > image_limit:
+         raise ValueError('Image file is too large')
++    if require_video and not is_video:
++        raise ValueError('Expected a video emoji')
+     # Probe only a newly generated local path, never a user-controlled URL.
+     temp_dir = root / 'temp'
+     temp_dir.mkdir(parents=True, exist_ok=True)
+@@ -145,6 +148,8 @@
+             raise ValueError('Media validation is temporarily unavailable; try again') from error
+         if width > max_dimension or height > max_dimension:
+             raise ValueError('Media dimensions are too large')
++        if max_aspect_ratio is not None and max(width, height) / min(width, height) > max_aspect_ratio:
++            raise ValueError('Media aspect ratio exceeds supported limits')
+         if is_video:
+             if duration is None or not math.isfinite(duration) or not 0 < duration <= max_seconds:
+                 raise ValueError(f'Video duration must be at most {max_seconds} seconds')
+--- a/app/ws/handlers/media_handler.py
++++ b/app/ws/handlers/media_handler.py
+@@ -442,12 +442,23 @@
+         return {"error": f"Emoji file is empty or exceeds {settings.CUSTOM_EMOJI_MAX_BYTES // 1024} KB"}
+ 
+     from app.services.custom_emojis import validate_image
+-    try:
+-        inspected = validate_image(data, ext, settings.CUSTOM_EMOJI_MAX_SECONDS)
++    from app.services.public_media_uploads import save_public_media
++    verified_video = None
++    try:
++        if ext in video_exts:
++            verified_video = await save_public_media(
++                payload, db, user, directory=f'emoji/{set_id}',
++                limit=settings.CUSTOM_EMOJI_MAX_BYTES,
++                max_seconds=settings.CUSTOM_EMOJI_MAX_SECONDS,
++                max_dimension=2048, max_aspect_ratio=2, require_video=True,
++            )
++            width, height = verified_video['width'], verified_video['height']
++            actual_animated, actual_duration = True, verified_video['duration']
++        else:
++            inspected = validate_image(data, ext, settings.CUSTOM_EMOJI_MAX_SECONDS)
++            width, height, actual_animated, actual_duration = inspected
+     except ValueError as exc:
+         return {"error": str(exc)}
+-    if inspected:
+-        width, height, actual_animated, actual_duration = inspected
+     is_adaptive = ext in adaptive_exts or (ext in image_exts and payload.get('is_adaptive') is True)
+     if ext in adaptive_exts:
+         # Rendered client-side as a CSS mask (recolourable, adapts to theme/accent) —
+@@ -459,20 +470,23 @@
+         if "<svg" not in text_head:
+             return {"error": "Adaptive emoji must be a valid SVG file"}
+ 
+-    is_animated = actual_animated if inspected else ext in video_exts
+-    duration = actual_duration if inspected else payload.get("duration_seconds")
++    is_animated = actual_animated
++    duration = actual_duration
+     if is_animated:
+         if not isinstance(duration, (int, float)) or duration <= 0 or duration > settings.CUSTOM_EMOJI_MAX_SECONDS:
+             return {"error": f"Animated emoji duration must be 1-{settings.CUSTOM_EMOJI_MAX_SECONDS} seconds"}
+     else:
+         duration = None
+ 
+-    relative = f"emoji/{set_id}/{uuid.uuid4().hex}.{ext}"
+-    full_path = os.path.join(settings.UPLOAD_DIR, relative)
+-    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+-    async with aiofiles.open(full_path, "wb") as file_handle:
+-        await file_handle.write(data)
+-    mime = _guess_mime(filename)
++    if verified_video is not None:
++        relative, mime = verified_video['path'], verified_video['mime']
++    else:
++        relative = f"emoji/{set_id}/{uuid.uuid4().hex}.{ext}"
++        full_path = os.path.join(settings.UPLOAD_DIR, relative)
++        os.makedirs(os.path.dirname(full_path), exist_ok=True)
++        async with aiofiles.open(full_path, "wb") as file_handle:
++            await file_handle.write(data)
++        mime = _guess_mime(filename)
+     emoji = CustomEmoji(
+         set_id=set_id,
+         shortcode=shortcode,
