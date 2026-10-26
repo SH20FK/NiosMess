@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -134,20 +134,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isWeb = ref.watch(clientCapabilitiesProvider).isWeb;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final double bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return M3OrganicBackground(
-      contentMaxWidth: kIsWeb ? 1040 : 560,
+      contentMaxWidth: isWeb ? 1040 : 560,
       showBackButton: false,
       showThemeToggle: true,
       child: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: kIsWeb ? 1040 : double.infinity,
-              maxHeight: kIsWeb ? 800 : double.infinity,
+              maxWidth: isWeb ? 1040 : double.infinity,
+              maxHeight: isWeb ? 800 : double.infinity,
             ),
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
@@ -211,6 +212,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 );
 
                 final Widget carouselSection = PageView.builder(
+                  key: const PageStorageKey('onboarding-pages'),
                   controller: _pageController,
                   onPageChanged: (int index) {
                     if (ref.read(uiSettingsProvider).haptics) {
@@ -347,7 +349,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 );
 
-                if (kIsWeb &&
+                if (isWeb &&
                     bounded &&
                     constraints.maxWidth >= 840 &&
                     constraints.maxHeight >= 500) {
@@ -537,7 +539,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         value: lang.code ?? 'system',
                         tooltip: lang.code == null
                             ? context.l10n.languageRegionUseSystemLanguage
-                            : lang.name,
+                            : null,
                         label: Text(
                           lang.name,
                           maxLines: 2,

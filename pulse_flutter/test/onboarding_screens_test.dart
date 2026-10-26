@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -109,6 +110,53 @@ void main() {
   });
 
   group('Unified Onboarding Screen (4 slides with Language & Timezone)', () {
+    testWidgets(
+      'browser resize preserves the selected slide across layout branches',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(1280, 800);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final semantics = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(
+            _buildTestApp(
+              initialLocation: '/onboarding',
+              overrides: [
+                clientCapabilitiesProvider.overrideWithValue(
+                  const ClientCapabilities(
+                    isWeb: true,
+                    platform: TargetPlatform.windows,
+                  ),
+                ),
+              ],
+            ),
+          );
+          await _pumpFrames(tester, 8);
+          await tester.tap(find.byKey(const ValueKey('onboarding-step-3')));
+          await _pumpFrames(tester, 8);
+          for (final size in [const Size(320, 800), const Size(1280, 800)]) {
+            tester.view.physicalSize = size;
+            await _pumpFrames(tester, 12);
+            expect(
+              tester.widget<PageView>(find.byType(PageView)).controller!.page,
+              closeTo(3, .001),
+            );
+            expect(
+              find.text('Choose your language').hitTestable(),
+              findsOneWidget,
+            );
+            expect(find.bySemanticsLabel('English English'), findsNothing);
+            expect(find.bySemanticsLabel('English'), findsWidgets);
+            expect(tester.takeException(), isNull);
+          }
+          await tester.pumpWidget(const SizedBox.shrink());
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+
     testWidgets(
       'step targets and language labels fit 320dp at 200% in both themes and locales',
       (tester) async {
