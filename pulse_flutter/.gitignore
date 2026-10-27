@@ -52,5 +52,4 @@ app.*.map.json
 # Local dev artifacts
 mock_quic/
 jobs.json
-pubspec.lock
 *.hive
