@@ -35,6 +35,8 @@ class MeshMessage {
   final DateTime sentAt;
   final int? reply;
   bool acknowledged = false;
+  bool relayed = false;
+  bool cloudSynced = false;
   int? cloudId;
   int get localId =>
       -int.parse(
@@ -63,11 +65,13 @@ class MeshMessage {
         'is_sending':
             senderId == ownId &&
             !acknowledged &&
+            !cloudSynced &&
             cloudId == null &&
             packet.expiresAt.isAfter(DateTime.now()),
         'is_failed':
             senderId == ownId &&
             !acknowledged &&
+            !cloudSynced &&
             cloudId == null &&
             !packet.expiresAt.isAfter(DateTime.now()),
       });
@@ -94,6 +98,7 @@ class BluetoothMeshService extends ChangeNotifier {
   final _messages = <String, MeshMessage>{};
   final _receipts = <String, Set<int>>{};
   final _ackSent = <String>{};
+  final _relayed = <String>{};
   final _peers = <String>{};
   final _cloudDone = <String>{};
   final _hidden = <String>{};
@@ -104,6 +109,22 @@ class BluetoothMeshService extends ChangeNotifier {
   List<MeshMessage> messages(int chatId) => _messages.values
       .where((m) => m.chatId == chatId && !_hidden.contains(m.operationId))
       .toList();
+  String? deliveryStatus(String? clientId) {
+    if (clientId == null || !clientId.startsWith('mesh:')) return null;
+    final message = _messages[clientId.substring(5)];
+    if (message == null || message.senderId != userId) return null;
+    final recipient = chat(message.chatId)?.partnerUserId;
+    if (recipient != null &&
+        _receipts['${message.chatId}:${message.operationId}']?.contains(recipient) == true) {
+      return 'Доставлено';
+    }
+    if (message.cloudSynced || message.cloudId != null) return 'На сервере';
+    if (!message.packet.expiresAt.isAfter(DateTime.now())) {
+      return 'Срок доставки истёк';
+    }
+    return message.relayed ? 'Передано дальше' : 'Ищем получателя';
+  }
+
   MeshRouter? _router;
   Box<String>? _box;
   StreamSubscription<Map<String, dynamic>>? _subscription;
@@ -194,6 +215,27 @@ class BluetoothMeshService extends ChangeNotifier {
           if (!_closed) await _box!.put(scope(), value);
         },
         deliver: _deliver,
+        onRelayed: (packet) async {
+          for (final message in _messages.values) {
+            if (message.packet.id != packet.id ||
+                message.senderId != userId ||
+                message.relayed) {
+              continue;
+            }
+            message.relayed = true;
+            _relayed.add(packet.id);
+            while (_relayed.length > 256) {
+              _relayed.remove(_relayed.first);
+            }
+            if (!_closed) {
+              await _box!.put(
+                '${scope()}.relayed',
+                jsonEncode(_relayed.toList()),
+              );
+            }
+            _changed(message.chatId);
+          }
+        },
       );
       if (!_loaded) {
         await _router!.restore(_box!.get(scope()));
@@ -220,6 +262,13 @@ class BluetoothMeshService extends ChangeNotifier {
             (jsonDecode(hidden) as List).whereType<String>().take(4096),
           );
         }
+        final relayed = _box!.get('${scope()}.relayed');
+        if (relayed != null && relayed.length < 20000) {
+          final ids = jsonDecode(relayed);
+          if (ids is List && ids.length <= 256) {
+            _relayed.addAll(ids.whereType<String>());
+          }
+        }
         final savedCloud = _box!.get('${scope()}.cloud');
         if (savedCloud != null) {
           final ids = jsonDecode(savedCloud);
@@ -233,6 +282,7 @@ class BluetoothMeshService extends ChangeNotifier {
                 key != scope() &&
                 key != '${scope()}.cloud' &&
                 key != '${scope()}.hidden' &&
+                key != '${scope()}.relayed' &&
                 key != '${scope()}.outbox',
           );
           await _box!.delete(key);
@@ -408,7 +458,6 @@ class BluetoothMeshService extends ChangeNotifier {
       if (message != null &&
           message.chatId == chatId &&
           message.senderId == userId &&
-          !message.acknowledged &&
           sender == summary.partnerUserId) {
         message.acknowledged = true;
         _changed(chatId);
@@ -443,6 +492,8 @@ class BluetoothMeshService extends ChangeNotifier {
       );
       message.acknowledged =
           _receipts['$chatId:$id']?.contains(summary.partnerUserId) == true;
+      message.relayed = _relayed.contains(packet.id);
+      message.cloudSynced = _cloudDone.contains(packet.id);
       _messages[id] = message;
       _changed(chatId);
     }
@@ -494,6 +545,7 @@ class BluetoothMeshService extends ChangeNotifier {
         final local = _messages[id];
         if (local != null) {
           local.cloudId = result.id;
+          local.cloudSynced = true;
           local.acknowledged = true;
           _changed(local.chatId);
         }
@@ -594,6 +646,7 @@ class BluetoothMeshService extends ChangeNotifier {
     _decoded.clear();
     _outbox.clear();
     _receipts.clear();
+    _relayed.clear();
     _warmQueue.clear();
     unawaited(_subscription?.cancel());
     unawaited(transport.stop());

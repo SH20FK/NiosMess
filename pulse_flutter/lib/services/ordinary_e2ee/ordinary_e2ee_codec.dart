@@ -61,6 +61,42 @@ class OrdinaryKeys {
 class OrdinaryCodec {
   static final _aes = AesGcm.with256bits();
   static final _hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
+
+  static Future<SecretKey> _draftKey(OrdinaryKeys keys) => _hkdf.deriveKey(
+    secretKey: SecretKey(keys.dhSeed),
+    nonce: utf8.encode('niosmess-draft-v1:${keys.epoch}'),
+    info: utf8.encode('account:${keys.userId}'),
+  );
+
+  static Future<String> sealDraft(
+    OrdinaryKeys keys,
+    int chatId,
+    String text,
+  ) async {
+    if (chatId <= 0 || utf8.encode(text).length > 32000) {
+      throw const FormatException('Invalid draft');
+    }
+    return seal(
+      utf8.encode(text),
+      await _draftKey(keys),
+      'niosmess-draft-v1:${keys.userId}:$chatId:${keys.epoch}',
+    );
+  }
+
+  static Future<String> openDraft(
+    OrdinaryKeys keys,
+    int chatId,
+    String packet,
+  ) async {
+    if (chatId <= 0) throw const FormatException('Invalid draft');
+    final plain = await open(
+      packet,
+      await _draftKey(keys),
+      'niosmess-draft-v1:${keys.userId}:$chatId:${keys.epoch}',
+    );
+    return utf8.decode(plain);
+  }
+
   static Future<String> seal(List<int> clear, SecretKey key, String aad) async {
     final box = await _aes.encrypt(
       clear,

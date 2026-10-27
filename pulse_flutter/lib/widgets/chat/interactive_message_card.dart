@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
+import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -39,6 +41,55 @@ class _InteractiveMessageCardState
   int? _projectedOwner, _projectedRoot;
   bool? _projectedEncryption;
   InteractiveState? _projection;
+  Timer? _deadlineTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleDeadline();
+  }
+
+  void _scheduleDeadline() {
+    _deadlineTimer?.cancel();
+    final now = DateTime.now().toUtc();
+    final deadlines = <DateTime>[];
+    final deadline = widget.definition.closesAt;
+    if (deadline != null && deadline.isAfter(now)) deadlines.add(deadline);
+    if (widget.definition.kind == 'list') {
+      final anchor = widget.message.sentAt.toUtc().millisecondsSinceEpoch;
+      for (var i = 0; i < widget.definition.items.length; i++) {
+        final interval = widget.definition.repeatSeconds(i) * 1000;
+        if (interval <= 0) continue;
+        final elapsed = (now.millisecondsSinceEpoch - anchor).clamp(
+          0,
+          8640000000000000,
+        );
+        deadlines.add(
+          DateTime.fromMillisecondsSinceEpoch(
+            anchor + (elapsed ~/ interval + 1) * interval,
+            isUtc: true,
+          ),
+        );
+      }
+    }
+    if (deadlines.isEmpty) return;
+    deadlines.sort();
+    final remaining = deadlines.first.difference(now);
+    final delay = remaining > const Duration(days: 30)
+        ? const Duration(days: 30)
+        : remaining;
+    _deadlineTimer = Timer(delay, () {
+      if (!mounted) return;
+      setState(() => _projectedEvents = null);
+      _scheduleDeadline();
+    });
+  }
+
+  @override
+  void dispose() {
+    _deadlineTimer?.cancel();
+    super.dispose();
+  }
 
   InteractiveState _stateFor(List<ApiMessage> events) {
     final root = widget.message;
@@ -61,15 +112,75 @@ class _InteractiveMessageCardState
       events,
       rootId: root.id,
       requireE2ee: root.isE2ee,
+      rootSentAt: root.sentAt,
     );
   }
 
   @override
   void didUpdateWidget(covariant InteractiveMessageCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.definition.fingerprint != widget.definition.fingerprint) {
+    if (oldWidget.definition.fingerprint != widget.definition.fingerprint ||
+        oldWidget.message.sentAt != widget.message.sentAt) {
       _selection = null;
+      _projectedEvents = null;
+      _scheduleDeadline();
     }
+  }
+
+  Future<void> _assign(int item) async {
+    try {
+      final members = await ref.read(
+        chatMembersProvider(widget.message.chatId).future,
+      );
+      if (!mounted) return;
+      final selected = await showModalBottomSheet<int>(
+        context: context,
+        useSafeArea: true,
+        constraints: const BoxConstraints(maxWidth: 520),
+        builder: (context) => ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(title: Text('Ответственный за пункт')),
+            ListTile(
+              title: const Text('Не назначен'),
+              onTap: () => Navigator.pop(context, 0),
+            ),
+            for (final member in members.where((m) => !m.isBanned))
+              ListTile(
+                leading: PulseAvatar(
+                  name: member.displayName,
+                  avatarUrl: member.avatarUrl,
+                  radius: 18,
+                ),
+                title: Text(
+                  member.displayName.isEmpty
+                      ? member.username
+                      : member.displayName,
+                ),
+                onTap: () => Navigator.pop(context, member.userId),
+              ),
+          ],
+        ),
+      );
+      if (selected != null && mounted) {
+        await _update({
+          'action': 'assign',
+          'item': item,
+          'assignee': selected == 0 ? null : selected,
+        }, 'Ответственный изменён');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.showError(context, 'Не удалось загрузить участников');
+      }
+    }
+  }
+
+  ApiChatMember? _member(List<ApiChatMember> members, int? id) {
+    for (final member in members) {
+      if (member.userId == id) return member;
+    }
+    return null;
   }
 
   Future<void> _update(Map<String, dynamic> action, String description) async {
@@ -204,6 +315,10 @@ class _InteractiveMessageCardState
             : mine);
     final quiz = definition.kind == 'quiz';
     final list = definition.kind == 'list';
+    final members = list && state.assigned.values.any((id) => id != null)
+        ? ref.watch(chatMembersProvider(message.chatId)).value ??
+              <ApiChatMember>[]
+        : <ApiChatMember>[];
     final showResults = mine.isNotEmpty || state.closed;
     final foreground = widget.foreground;
     final theme = Theme.of(context);
@@ -317,13 +432,22 @@ class _InteractiveMessageCardState
                     percentage: !list && showResults && state.voters > 0
                         ? state.count(i) / state.voters
                         : null,
-                    helper: list && state.checked[i] == true
+                    helper: state.assigned[i] != null
+                        ? 'Ответственный: ${_member(members, state.assigned[i])?.displayName ?? 'Участник'}'
+                        : list && state.checked[i] == true
                         ? state.checkedBy[i]
                         : quiz && showResults && i == definition.correct
                         ? context.l10n.interactiveCorrectAnswerLabel
                         : null,
-                    helperAvatar: list ? state.checkedByAvatar[i] : null,
-                    helperIsPerson: list && state.checked[i] == true,
+                    helperAvatar: state.assigned[i] != null
+                        ? _member(members, state.assigned[i])?.avatarUrl
+                        : list
+                        ? state.checkedByAvatar[i]
+                        : null,
+                    helperIsPerson:
+                        list &&
+                        (state.assigned[i] != null || state.checked[i] == true),
+                    onAssign: canAct ? () => _assign(i) : null,
                     onTap: () {
                       if (list) {
                         _update(
@@ -656,6 +780,7 @@ class _InteractiveMessageCardState
     String? helper,
     String? helperAvatar,
     bool helperIsPerson = false,
+    VoidCallback? onAssign,
   }) {
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
@@ -683,6 +808,16 @@ class _InteractiveMessageCardState
                         child: Checkbox(value: selected, onChanged: (_) {}),
                       ),
                       Expanded(child: CustomEmojiText(label)),
+                      if (onAssign != null)
+                        IconButton(
+                          tooltip: 'Назначить ответственного',
+                          onPressed: onAssign,
+                          icon: InteractiveIcon(
+                            'assign',
+                            color: foreground,
+                            size: 18,
+                          ),
+                        ),
                       if (percentage != null)
                         Padding(
                           padding: const EdgeInsets.only(left: 8),

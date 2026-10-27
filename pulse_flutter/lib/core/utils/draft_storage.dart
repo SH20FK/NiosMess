@@ -103,6 +103,27 @@ class DraftStorage {
     await _store(drafts);
   });
 
+  /// Apply a remote draft only if no local edit happened while it was fetched.
+  Future<bool> compareAndSet(
+    int chatId,
+    String expected,
+    String replacement,
+  ) async {
+    var changed = false;
+    await _mutate(() async {
+      final drafts = await _read();
+      if ((drafts['$chatId'] ?? '') != expected) return;
+      if (replacement.trim().isEmpty) {
+        drafts.remove('$chatId');
+      } else {
+        drafts['$chatId'] = replacement;
+      }
+      await _store(drafts);
+      changed = true;
+    });
+    return changed;
+  }
+
   Future<void> remove(int chatId) async {
     if (accountId == null) {
       final prefs = await SharedPreferences.getInstance();
@@ -137,9 +158,10 @@ class DraftStorage {
   static Future<void> eraseAccount(int accountId) async {
     _generations[accountId] = (_generations[accountId] ?? 0) + 1;
     final previous = _writes[accountId] ?? Future<void>.value();
-    final job = previous.then(
-      (_) => _secure.delete(key: 'draft.secure.v2.$accountId'),
-    );
+    final job = previous.then((_) async {
+      await _secure.delete(key: 'draft.secure.v2.$accountId');
+      await _secure.delete(key: 'draft.sync.v1.$accountId');
+    });
     _writes[accountId] = job.then<void>(
       (_) {},
       onError: (Object _, StackTrace _) {},

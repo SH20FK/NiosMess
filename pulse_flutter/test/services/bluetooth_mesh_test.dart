@@ -103,6 +103,7 @@ void main() {
     () async {
       final routers = <String, MeshRouter>{}, stored = <String, String>{};
       final deliveries = <String, List<String>>{};
+      final relayed = <String, List<String>>{};
       final frames = <(String, String, String)>[];
       MeshRouter make(String name) => MeshRouter(
         now: () => now,
@@ -115,6 +116,7 @@ void main() {
         deliver: (p) async {
           deliveries.putIfAbsent(name, () => []).add(p.id);
         },
+        onRelayed: (p) => relayed.putIfAbsent(name, () => []).add(p.id),
       );
       Future<void> link(String a, String b) async {
         await routers[a]!.connected(b);
@@ -135,8 +137,28 @@ void main() {
       }
       await routers['A']!.enqueue(packet);
       await link('A', 'B');
+      // A neighbour cannot report a packet as stored before it was sent.
+      await routers['A']!.receive(
+        'B',
+        jsonEncode({
+          'v': 1,
+          'type': 'stored',
+          'ids': [packet.id],
+        }),
+      );
+      expect(relayed['A'], isNull);
       await drain();
       expect(deliveries['B'], [packet.id]);
+      expect(relayed['A'], [packet.id]);
+      await routers['A']!.receive(
+        'B',
+        jsonEncode({
+          'v': 1,
+          'type': 'stored',
+          'ids': [packet.id],
+        }),
+      );
+      expect(relayed['A'], [packet.id]);
       routers['B']!.close();
       routers['B'] = make('B');
       await routers['B']!.restore(stored['B']);

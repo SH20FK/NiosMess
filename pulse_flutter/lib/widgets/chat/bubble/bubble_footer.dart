@@ -16,6 +16,7 @@ class MessageBubbleFooter extends StatelessWidget {
     this.expiresAt,
     this.isSending = false,
     this.isFailed = false,
+    this.meshDeliveryStatus,
     this.onRetrySend,
     super.key,
   });
@@ -31,6 +32,7 @@ class MessageBubbleFooter extends StatelessWidget {
   final DateTime? expiresAt;
   final bool isSending;
   final bool isFailed;
+  final String? meshDeliveryStatus;
   final VoidCallback? onRetrySend;
 
   @override
@@ -77,6 +79,10 @@ class MessageBubbleFooter extends StatelessWidget {
             ),
           ),
         if (isEdited) const SizedBox(width: 4),
+        if (meshDeliveryStatus != null) ...[
+          Text(meshDeliveryStatus!, style: textTheme.labelSmall?.copyWith(fontSize: 10, color: footerTextColor)),
+          const SizedBox(width: 4),
+        ],
         Text(
           formattedTime,
           style: textTheme.labelSmall?.copyWith(

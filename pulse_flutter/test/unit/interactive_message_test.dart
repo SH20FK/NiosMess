@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
@@ -39,6 +40,114 @@ ApiMessage action(
 }).copyWith(isDecrypted: decrypted);
 
 void main() {
+  test('recurring list resets only the due item and keeps assignments', () {
+    final start = DateTime.utc(2026, 10, 1, 12);
+    final now = start.add(const Duration(days: 8));
+    final doc = InteractiveMessage.parse(
+      InteractiveMessage.encode({
+        'kind': 'list',
+        'document': 'repeat-001',
+        'title': 'Покупки',
+        'items': ['Молоко', 'Хлеб'],
+        'repeat_seconds': [604800, 0],
+      }, 'Список'),
+    )!;
+    final events = [
+      action(doc, 11, 1, {
+        'action': 'check',
+        'item': 0,
+        'checked': true,
+      }).copyWith(sentAt: start.add(const Duration(days: 1))),
+      action(doc, 12, 1, {
+        'action': 'check',
+        'item': 1,
+        'checked': true,
+      }).copyWith(sentAt: start.add(const Duration(days: 1))),
+      action(doc, 13, 1, {
+        'action': 'assign',
+        'item': 0,
+        'assignee': 2,
+      }).copyWith(sentAt: start.add(const Duration(days: 2))),
+    ];
+    final state = InteractiveState(
+      doc,
+      1,
+      events,
+      rootId: 10,
+      now: now,
+      rootSentAt: start,
+    );
+    expect(state.checked[0], isNull);
+    expect(state.checked[1], isTrue);
+    expect(state.assigned[0], 2);
+    final current = action(doc, 14, 2, {
+      'action': 'check',
+      'item': 0,
+      'checked': true,
+    }).copyWith(sentAt: start.add(const Duration(days: 7, hours: 1)));
+    final after = InteractiveState(
+      doc,
+      1,
+      [...events, current],
+      rootId: 10,
+      now: now,
+      rootSentAt: start,
+    );
+    expect(after.checked[0], isTrue);
+  });
+  test('deadline closes a poll and counts only votes sent before expiry', () {
+    final end = DateTime.utc(2026, 10, 27, 12);
+    final doc = InteractiveMessage.parse(
+      InteractiveMessage.encode({
+        'kind': 'poll',
+        'document': 'deadline-001',
+        'title': 'Вопрос',
+        'items': ['Да', 'Нет'],
+        'closes_at': end.millisecondsSinceEpoch,
+      }, 'Опрос'),
+    )!;
+    final early = action(doc, 11, 1, {
+      'action': 'vote',
+      'choices': [0],
+    }).copyWith(sentAt: end.subtract(const Duration(seconds: 1)));
+    final late = action(doc, 12, 2, {
+      'action': 'vote',
+      'choices': [1],
+    }).copyWith(sentAt: end);
+    final state = InteractiveState(
+      doc,
+      1,
+      [early, late],
+      rootId: 10,
+      now: end.add(const Duration(minutes: 1)),
+    );
+    expect(state.closed, true);
+    expect(state.votes, {
+      1: {0},
+    });
+  });
+  test('invalid deadlines and deadlines on lists are rejected', () {
+    final base = {
+      'v': 1,
+      'kind': 'poll',
+      'document': 'deadline-002',
+      'title': 'Вопрос',
+      'items': ['Да', 'Нет'],
+      'closes_at': 'tomorrow',
+    };
+    expect(
+      InteractiveMessage.parse(
+        'Пример${InteractiveMessage.marker}${jsonEncode(base)}',
+      ),
+      isNull,
+    );
+    expect(
+      InteractiveMessage.parse(
+        'Пример${InteractiveMessage.marker}${jsonEncode({...base, 'kind': 'list', 'closes_at': 123})}',
+      ),
+      isNull,
+    );
+  });
 
   test('one definition hash and stable counts for a thousand authenticated updates', () {
     final parsed = definition('poll');

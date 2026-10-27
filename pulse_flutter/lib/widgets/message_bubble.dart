@@ -3,6 +3,9 @@ import 'package:pulse_flutter/widgets/chat/bubble/media_album_bubble.dart';
 import 'dart:async';
 import 'package:pulse_flutter/widgets/chat/video_message_preview.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
+import 'package:pulse_flutter/models/live_location.dart';
+import 'package:pulse_flutter/widgets/chat/live_location_card.dart';
+import 'package:pulse_flutter/widgets/chat/file_request_action.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_message_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -98,6 +101,7 @@ class MessageBubble extends ConsumerWidget {
     this.hideFooter = false,
     this.isSending = false,
     this.isFailed = false,
+    this.meshDeliveryStatus,
     this.onRetrySend,
     this.uploadProgress,
     this.uploadBytesSent,
@@ -156,6 +160,7 @@ class MessageBubble extends ConsumerWidget {
   final bool hideFooter;
   final bool isSending;
   final bool isFailed;
+  final String? meshDeliveryStatus;
   final VoidCallback? onRetrySend;
   final double? uploadProgress;
   final int? uploadBytesSent;
@@ -489,6 +494,7 @@ class MessageBubble extends ConsumerWidget {
                               isRead: isRead,
                               isSending: isSending,
                               isFailed: isFailed,
+                              meshDeliveryStatus: meshDeliveryStatus,
                               onRetrySend: onRetrySend,
                               formattedTime: formattedTime,
                               scheme: scheme,
@@ -507,6 +513,7 @@ class MessageBubble extends ConsumerWidget {
                               isRead: isRead,
                               isSending: isSending,
                               isFailed: isFailed,
+                              meshDeliveryStatus: meshDeliveryStatus,
                               onRetrySend: onRetrySend,
                               formattedTime: formattedTime,
                               scheme: scheme,
@@ -534,6 +541,8 @@ class MessageBubble extends ConsumerWidget {
             else if (replyMarkup != null &&
                 replyMarkup!.inlineKeyboard.isNotEmpty)
               _buildInlineKeyboard(scheme, textTheme),
+            if (hasMedia && !isSticker && !isDeleted && messageData != null)
+              FileRequestAction(message: messageData!),
             if (reactions.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -1378,6 +1387,7 @@ class MessageBubble extends ConsumerWidget {
       isRead: isRead,
       isSending: isSending,
       isFailed: isFailed,
+      meshDeliveryStatus: meshDeliveryStatus,
       onRetrySend: onRetrySend,
       formattedTime: formattedTime,
       scheme: scheme,
@@ -1565,7 +1575,11 @@ class MessageBubble extends ConsumerWidget {
     final interactive = messageData != null && !isDeleted
         ? InteractiveMessage.parse(messageData!.content)
         : null;
-    final Widget textWidget = interactive?.isDocument == true
+    final location = messageData != null && !isDeleted
+        ? LiveLocation.parse(messageData!.content) : null;
+    final Widget textWidget = location != null
+        ? LiveLocationCard(location: location, chatId: chatId, foreground: textColor)
+        : interactive?.isDocument == true
         ? InteractiveMessageCard(
             message: messageData!,
             definition: interactive!,

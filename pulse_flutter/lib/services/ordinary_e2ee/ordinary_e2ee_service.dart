@@ -165,6 +165,56 @@ class OrdinaryE2eeService extends ChangeNotifier {
     return Map<String, dynamic>.from(result);
   }
 
+  Future<void> _draftReady() async {
+    if (!initialised) await open();
+    if (_disposed || locked || _keys == null || !isOnline()) {
+      throw StateError('DRAFT_ENCRYPTION_UNAVAILABLE');
+    }
+  }
+
+  /// Only encrypted draft packets cross the server boundary.
+  Future<List<E2eJson>> encryptedDrafts() async {
+    await _draftReady();
+    final data = await _call('draft_get');
+    final drafts = data['drafts'];
+    if (drafts is! List || drafts.length > 500) {
+      throw const FormatException('Invalid draft collection');
+    }
+    return drafts.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  Future<String> decryptDraft(E2eJson record) async {
+    await _draftReady();
+    final chatId = record['chat_id'];
+    final epoch = record['epoch'];
+    final packet = record['packet'];
+    if (chatId is! int || chatId <= 0 || epoch is! String || packet is! String) {
+      throw const FormatException('Invalid encrypted draft');
+    }
+    final keys = _keyring[epoch];
+    if (keys == null) throw StateError('DRAFT_KEY_UNAVAILABLE');
+    return OrdinaryCodec.openDraft(keys, chatId, packet);
+  }
+
+  Future<int> putEncryptedDraft(int chatId, int revision, String text) async {
+    await _draftReady();
+    final keys = _keys!;
+    final generation = _identityGeneration;
+    final packet = await OrdinaryCodec.sealDraft(keys, chatId, text);
+    if (_disposed || generation != _identityGeneration) {
+      throw StateError('DRAFT_SESSION_CHANGED');
+    }
+    final result = await _call('draft_put', {
+      'chat_id': chatId, 'epoch': keys.epoch,
+      'revision': revision, 'packet': packet,
+    });
+    final next = result['revision'];
+    if (next is! int || next != revision + 1) {
+      throw const FormatException('Invalid draft revision');
+    }
+    return next;
+  }
+
   Future<void> open() =>
       _opening ??= _open().whenComplete(() => _opening = null);
   Future<void> _open() async {

@@ -1,7 +1,9 @@
+import 'package:pulse_flutter/providers/encrypted_draft_sync_provider.dart';
 import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
+import 'package:pulse_flutter/models/live_location.dart';
 import 'package:pulse_flutter/widgets/chat/ordinary_e2ee_notice.dart';
 import 'dart:async';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
@@ -131,6 +133,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(encryptedDraftSyncProvider);
     final bool compact = ref.watch(
       uiSettingsProvider.select((s) => s.compactMode),
     );
@@ -520,7 +523,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   String _previewText(String? raw, {bool cache = true}) {
     final String text =
-        (InteractiveMessage.parse(raw ?? '')?.preview ?? raw ?? '').trim();
+        (LiveLocation.parse(raw ?? '')?.preview ?? InteractiveMessage.parse(raw ?? '')?.preview ?? raw ?? '').trim();
     if (text.isEmpty) return context.l10n.chatNoMessages;
     final RegExp forwarded = RegExp(r'^_fwd from\s+(.+?):');
     final Match? match = forwarded.firstMatch(text);

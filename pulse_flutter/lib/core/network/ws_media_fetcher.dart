@@ -227,6 +227,9 @@ class WsMediaFetcher {
 
   /// Current number of entries stored in memory cache.
   static int get memoryEntryCount => _memoryCache.length;
+  static final _availability = StreamController<(String, bool)>.broadcast();
+  static Stream<(String, bool)> get availabilityChanges => _availability.stream;
+  static String mediaIdentity(String value) => _cleanFilePath(value);
 
   /// Clears the in-memory media cache.
   static void clearMemoryCache() {
@@ -272,7 +275,11 @@ class WsMediaFetcher {
       final Uint8List bytes = await future;
       if (generation != _accountGeneration) throw StateError('Account changed');
       _putMemory(memKey, bytes);
+      _availability.add((cleanPath, true));
       return bytes;
+    } catch (_) {
+      if (generation == _accountGeneration) _availability.add((cleanPath, false));
+      rethrow;
     } finally {
       if (identical(_inFlightFetches[memKey], future)) {
         _inFlightFetches.remove(memKey);
@@ -404,7 +411,12 @@ class WsMediaFetcher {
     );
     _inFlightFiles[cacheKey] = future;
     try {
-      return await future;
+      final path = await future;
+      if (generation == _accountGeneration) _availability.add((cleanPath, true));
+      return path;
+    } catch (_) {
+      if (generation == _accountGeneration) _availability.add((cleanPath, false));
+      rethrow;
     } finally {
       if (identical(_inFlightFiles[cacheKey], future)) {
         _inFlightFiles.remove(cacheKey);

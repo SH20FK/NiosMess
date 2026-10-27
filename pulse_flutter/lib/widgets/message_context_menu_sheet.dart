@@ -2,6 +2,7 @@ import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
@@ -14,6 +15,7 @@ enum MessageActionType {
   react,
   showAllReactions,
   reply,
+  requestFile,
   copy,
   forward,
   saveToSaved,
@@ -131,6 +133,29 @@ class MessageContextMenuSheet extends StatelessWidget {
         },
       ),
     );
+
+    if (!isMine &&
+        !isChannel &&
+        !isSecret &&
+        message.hasMedia &&
+        !message.isDeleted &&
+        message.id > 0) {
+      list.add(
+        _ActionListTile(
+          icon: Icons.file_download_outlined,
+          leading: SvgPicture.string(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>',
+            width: 20,
+            height: 20,
+            colorFilter: ColorFilter.mode(scheme.onSurface, BlendMode.srcIn),
+          ),
+          title: 'Попросить отправить файл снова',
+          onTap: () => Navigator.of(
+            context,
+          ).pop(const MessageActionResult(MessageActionType.requestFile)),
+        ),
+      );
+    }
 
     // Copy text (with honest secret chat explanation if disabled)
     if (message.content.trim().isNotEmpty && !message.isDeleted) {
@@ -558,31 +583,38 @@ class _ActionListTile extends StatelessWidget {
         ? scheme.onSurface.withValues(alpha: 0.38)
         : (color ?? scheme.onSurface);
 
-    return ListTile(
-      leading: leading ?? Icon(icon, color: fg, size: 20),
-      title: Text(
-        title,
-        style: TextStyle(color: fg, fontSize: 14, fontWeight: FontWeight.w500),
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        leading: leading ?? Icon(icon, color: fg, size: 20),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: fg,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle!,
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  fontSize: 11,
+                ),
+              )
+            : null,
+        enabled: enabled,
+        visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onTap: enabled
+            ? () {
+                HapticService.tap();
+                onTap();
+              }
+            : null,
       ),
-      subtitle: subtitle != null
-          ? Text(
-              subtitle!,
-              style: TextStyle(
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                fontSize: 11,
-              ),
-            )
-          : null,
-      enabled: enabled,
-      visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onTap: enabled
-          ? () {
-              HapticService.tap();
-              onTap();
-            }
-          : null,
     );
   }
 }

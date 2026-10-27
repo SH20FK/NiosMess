@@ -6,6 +6,11 @@ import 'package:pulse_flutter/core/media/media_album.dart';
 import 'package:pulse_flutter/core/clipboard/pasted_image.dart';
 import 'package:pulse_flutter/widgets/chat/browser_image_paste_target.dart';
 import 'package:pulse_flutter/widgets/chat/pasted_images_dialog.dart';
+import 'package:pulse_flutter/providers/encrypted_draft_sync_provider.dart';
+import 'package:pulse_flutter/widgets/chat/encrypted_draft_conflict_notice.dart';
+import 'package:pulse_flutter/widgets/chat/live_location_card.dart';
+import 'package:pulse_flutter/widgets/chat/file_request_action.dart';
+import 'package:pulse_flutter/models/live_location.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
@@ -1531,6 +1536,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         _showAllReactionsPicker(message);
       case MessageActionType.reply:
         _setReply(message);
+      case MessageActionType.requestFile:
+        try {
+          await requestChatFile(ref, message);
+          if (mounted) AppToast.showSuccess(context, 'Запрос отправлен');
+        } catch (e) {
+          if (mounted) AppToast.showError(context, e);
+        }
       case MessageActionType.copy:
         Clipboard.setData(ClipboardData(text: _displayText(message)));
         AppToast.showInfo(context, context.l10n.chatMessageTextCopied);
@@ -1861,7 +1873,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   String _displayText(ApiMessage message) =>
-      InteractiveMessage.parse(message.content)?.preview ?? message.content;
+      LiveLocation.parse(message.content)?.preview ?? InteractiveMessage.parse(message.content)?.preview ?? message.content;
 
   Future<void> _showMediaActions(
     ApiMessage message,
@@ -2211,6 +2223,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(encryptedDraftSyncProvider);
     final int? chatId = _chatId;
     if (chatId == null) {
       return Scaffold(
@@ -2245,6 +2258,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
 
     final bool isSecret = isSecretChat || _isSecret;
+    ref.listen<AsyncValue<Map<int, String>>>(liveDraftMapProvider, (previous, next) {
+      if (isSecret || !next.hasValue || _editingMessageId != null) return;
+      final before = previous?.value?[chatId] ?? '';
+      final after = next.value?[chatId] ?? '';
+      if (_inputController.text.trim() == before && before != after) {
+        _inputController.text = after;
+      }
+    });
     if (isSecret && !_isSecret) {
       _isSecret = true;
       ScreenSecurityService.setSecureFlag(enabled: true);
@@ -2365,12 +2386,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   wallpaper: ChatWallpaperBackground(
                     chatId: widget.chatId.toString(),
                   ),
-                  topBanner: ChatTopBannerLayer(
+                  topBanner: Column(mainAxisSize: MainAxisSize.min, children: [ChatTopBannerLayer(
                     chatId: chatId,
                     isSecret: isSecret,
                     loadingOlderNotifier: _loadingOlderNotifier,
                     onE2eeTap: _showE2eeVerification,
                   ),
+                    if (!isSecret) EncryptedDraftConflictNotice(chatId: chatId,
+                      onSelected: (text) { _inputController.text = text; _saveDraft(); }),
+                  ]),
                   messagesBuilder:
                       (BuildContext context, double composerHeight) {
                         return _ChatMessagesScope(
@@ -2574,6 +2598,9 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
               : context.l10n.chatTitleFallback(chatId));
 
     return ChatDetailAppBar(
+      onShareLocation: chat?.chatType == 'direct' && chat?.isSecret != true && !isSecret &&
+          chat?.isBotChat != true && chat?.isSaved != true
+          ? () => showLiveLocationComposer(context, ref, chatId) : null,
       managementChatId: chat?.topicParentId,
       isSaved: chat?.isSaved == true,
       onScheduledMessages: isSecret || chat?.isSecret == true

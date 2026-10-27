@@ -10,6 +10,7 @@ class MeshRouter {
     required this.send,
     required this.persist,
     required this.deliver,
+    this.onRelayed,
     DateTime Function()? now,
   }) : now = now ?? DateTime.now;
   static const maxPackets = 128, maxStoredBytes = 2 * 1024 * 1024;
@@ -17,10 +18,12 @@ class MeshRouter {
   final MeshSend send;
   final Future<void> Function(String state) persist;
   final Future<void> Function(MeshPacket packet) deliver;
+  final FutureOr<void> Function(MeshPacket packet)? onRelayed;
   final DateTime Function() now;
   final _packets = <String, MeshPacket>{};
   final _seen = <String, int>{};
   final _peers = <String, _PeerBudget>{};
+  final _sentToPeer = <String, Set<String>>{};
   Future<void> _serial = Future.value();
   bool _closed = false;
   int _page = 0;
@@ -38,9 +41,13 @@ class MeshRouter {
   void close() {
     _closed = true;
     _peers.clear();
+    _sentToPeer.clear();
   }
 
-  void disconnected(String peer) => _peers.remove(peer);
+  void disconnected(String peer) {
+    _peers.remove(peer);
+    _sentToPeer.remove(peer);
+  }
 
   void _trim() {
     final time = now();
@@ -60,6 +67,7 @@ class MeshRouter {
     while (_peers.length > 32) {
       _peers.remove(_peers.keys.first);
     }
+    _sentToPeer.removeWhere((peer, _) => !_peers.containsKey(peer));
   }
 
   Future<void> _save() async {
@@ -121,14 +129,15 @@ class MeshRouter {
     _peers.putIfAbsent(peer, () => _PeerBudget(now()));
     await _inventory(peer);
   });
-  Future<void> _send(String peer, Map<String, dynamic> message) async {
-    if (_closed) return;
+  Future<bool> _send(String peer, Map<String, dynamic> message) async {
+    if (_closed) return false;
     final frame = jsonEncode(message), budget = _peers[peer];
     if (budget == null ||
         !budget.allow(utf8.encode(frame).length, now(), sending: true)) {
-      return;
+      return false;
     }
     await send(peer, frame);
+    return true;
   }
 
   Future<void> _inventory(String peer) async {
@@ -164,10 +173,26 @@ class MeshRouter {
         value['wire'] as String,
         now: now(),
       );
-      if (_seen.containsKey(packet.id)) return;
+      if (_seen.containsKey(packet.id)) {
+        if (_packets.containsKey(packet.id)) {
+          await _send(peer, {
+            'v': 1,
+            'type': 'stored',
+            'ids': [packet.id],
+          });
+        }
+        return;
+      }
       _seen[packet.id] = packet.expiresAt.millisecondsSinceEpoch;
       _packets[packet.id] = packet;
       await _save();
+      if (_packets.containsKey(packet.id)) {
+        await _send(peer, {
+          'v': 1,
+          'type': 'stored',
+          'ids': [packet.id],
+        });
+      }
       await deliver(packet);
       for (final other in _peers.keys.toList()) {
         if (other != peer) await _inventory(other);
@@ -180,7 +205,14 @@ class MeshRouter {
         ids.any((id) => id is! String || id.length != 43)) {
       return;
     }
-    if (value['type'] == 'inventory') {
+    if (value['type'] == 'stored' && ids.length <= 8) {
+      final sent = _sentToPeer[peer];
+      for (final id in ids.cast<String>()) {
+        if (sent?.remove(id) == true && _packets[id] != null) {
+          await onRelayed?.call(_packets[id]!);
+        }
+      }
+    } else if (value['type'] == 'inventory') {
       final wanted = ids
           .cast<String>()
           .where((id) => !_seen.containsKey(id))
@@ -193,11 +225,19 @@ class MeshRouter {
       for (final id in ids) {
         final packet = _packets[id];
         if (packet != null && packet.hops < MeshPacket.maxHops) {
-          await _send(peer, {
-            'v': 1,
-            'type': 'packet',
-            'wire': packet.forwarded().wire,
-          });
+          final pending = _sentToPeer.putIfAbsent(peer, () => <String>{});
+          pending.add(id);
+          try {
+            final sent = await _send(peer, {
+              'v': 1,
+              'type': 'packet',
+              'wire': packet.forwarded().wire,
+            });
+            if (!sent) pending.remove(id);
+          } catch (_) {
+            pending.remove(id);
+            rethrow;
+          }
         }
       }
     }

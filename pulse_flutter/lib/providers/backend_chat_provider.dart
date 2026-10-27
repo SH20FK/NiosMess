@@ -8,6 +8,7 @@ import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'dart:async';
 import 'package:pulse_flutter/models/interactive_message.dart';
+import 'package:pulse_flutter/models/live_location.dart';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -626,7 +627,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         : (message.isE2ee && !message.isDecrypted)
         ? strings.noticeNewMessage
         : message.content.isNotEmpty
-        ? (InteractiveMessage.parse(message.content)?.preview ??
+        ? (LiveLocation.parse(message.content)?.preview ?? InteractiveMessage.parse(message.content)?.preview ??
               message.content)
         : strings.noticeAttachment;
     final notification = <String, dynamic>{
@@ -2699,6 +2700,16 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         }
       });
 
+  Future<ApiMessage> sendAcknowledged(String content, {int? replyToId, bool requireE2ee = false}) => _retainOperation(() async {
+    final localId = -DateTime.now().microsecondsSinceEpoch;
+    await _send(content, replyToId: replyToId, localId: '$localId', requestAi: false, propagateFailure: true, requireE2ee: requireE2ee);
+    final row = (state.value ?? const <ApiMessage>[]).where(
+      (m) => m.clientMessageId?.endsWith(':$localId') == true && m.id > 0,
+    ).firstOrNull;
+    if (row == null) throw StateError('Отправка ещё не подтверждена');
+    return row;
+  });
+
   Future<void> _send(
     String content, {
     int? replyToId,
@@ -2710,6 +2721,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     VoidCallback? onLocalSaved,
     bool requestAi = true,
     bool propagateFailure = false,
+    bool requireE2ee = false,
   }) async {
     final generation = _generation;
     final originalSession = ref.read(authProvider).session;
@@ -2947,8 +2959,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         final ordinary = ref.read(ordinaryE2eeProvider);
         final prepared = await ordinary?.prepare(
           _chatId,
-          force: e2eeFileKey != null || chat?.isSaved == true,
+          force: requireE2ee || e2eeFileKey != null || chat?.isSaved == true || LiveLocation.parse(trimmed) != null,
         );
+        if ((requireE2ee || LiveLocation.parse(trimmed) != null) && prepared == null) {
+          throw StateError('Для геопозиции требуется подключённое сквозное шифрование');
+        }
         if (ordinary != null && prepared != null) {
           if (uploadId != null && e2eeFileKey == null) {
             throw StateError(

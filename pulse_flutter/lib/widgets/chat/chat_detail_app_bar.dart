@@ -11,6 +11,7 @@ import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/status_emoji_badge.dart';
 import 'package:pulse_flutter/widgets/chat/security_status_chip.dart';
 import 'package:pulse_flutter/widgets/chat/ordinary_peer_key_notice.dart';
+import 'package:pulse_flutter/widgets/chat/live_location_card.dart';
 
 class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ChatDetailAppBar({
@@ -37,6 +38,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onSecurityTap,
     this.onAutoDeleteTap,
     this.onCreateInteractive,
+    this.onShareLocation,
     this.onTopics,
     this.onScheduledMessages,
     this.isSaved = false,
@@ -64,6 +66,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onSecurityTap;
   final VoidCallback? onAutoDeleteTap;
   final ValueChanged<String>? onCreateInteractive;
+  final VoidCallback? onShareLocation;
   final VoidCallback? onTopics, onScheduledMessages;
   final bool isSaved;
 
@@ -328,6 +331,12 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                   );
                 },
             menuChildren: [
+              if (onShareLocation != null)
+                MenuItemButton(
+                  leadingIcon: const LocationIcon(),
+                  onPressed: onShareLocation,
+                  child: const Text('Передавать геопозицию'),
+                ),
               if (onCreateInteractive != null)
                 SubmenuButton(
                   leadingIcon: const Icon(Icons.interests_outlined),

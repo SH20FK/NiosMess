@@ -26,6 +26,15 @@ class InteractiveMessage {
   bool get multiple => data['multiple'] == true;
   int? get correct => data['correct'] as int?;
   String get explanation => (data['explanation'] as String?) ?? '';
+  int repeatSeconds(int index) => data['repeat_seconds'] is List
+      ? (data['repeat_seconds'] as List)[index] as int
+      : 0;
+  DateTime? get closesAt => data['closes_at'] is int
+      ? DateTime.fromMillisecondsSinceEpoch(
+          data['closes_at'] as int,
+          isUtc: true,
+        )
+      : null;
 
   static InteractiveMessage? parse(String text) {
     if (text.length > 12000) return null;
@@ -46,7 +55,17 @@ class InteractiveMessage {
           return null;
         }
         if (raw['root'] is! int || (raw['root'] as int) <= 0) return null;
-        if (!{'vote', 'check', 'close'}.contains(raw['action'])) return null;
+        if (!{'vote', 'check', 'close', 'assign'}.contains(raw['action'])) {
+          return null;
+        }
+        if (raw['action'] == 'assign' &&
+            (raw['item'] is! int ||
+                raw['item'] < 0 ||
+                raw['item'] >= 20 ||
+                (raw['assignee'] != null &&
+                    (raw['assignee'] is! int || raw['assignee'] <= 0)))) {
+          return null;
+        }
         if (raw['action'] == 'vote') {
           final choices = raw['choices'];
           if (choices is! List ||
@@ -63,6 +82,13 @@ class InteractiveMessage {
           return null;
         }
       } else {
+        if (raw['closes_at'] != null &&
+            (kind == 'list' ||
+                raw['closes_at'] is! int ||
+                raw['closes_at'] <= 0 ||
+                raw['closes_at'] > 8640000000000000)) {
+          return null;
+        }
         final title = raw['title'], items = raw['items'];
         if (title is! String ||
             title.trim().isEmpty ||
@@ -80,6 +106,16 @@ class InteractiveMessage {
           return null;
         }
         if (raw['multiple'] != null && raw['multiple'] is! bool) return null;
+        final repeats = raw['repeat_seconds'];
+        if (repeats != null &&
+            (kind != 'list' ||
+                repeats is! List ||
+                repeats.length != items.length ||
+                repeats.any(
+                  (v) => v is! int || !{0, 86400, 604800}.contains(v),
+                ))) {
+          return null;
+        }
         if (kind == 'quiz' &&
             (raw['correct'] is! int ||
                 raw['correct'] < 0 ||
@@ -117,6 +153,8 @@ class InteractiveState {
     List<ApiMessage> events, {
     required int rootId,
     bool requireE2ee = false,
+    DateTime? now,
+    DateTime? rootSentAt,
   }) {
     // The server IDs establish one order across devices; provisional messages
     // never vote twice. Sender and reply binding come from authenticated messages.
@@ -148,6 +186,10 @@ class InteractiveState {
         continue;
       }
       final data = update.data;
+      final deadline = definition.closesAt;
+      if (deadline != null && !message.sentAt.toUtc().isBefore(deadline)) {
+        continue;
+      }
       if (data['action'] == 'close' && message.senderId == ownerId) {
         closed = true;
       } else if (data['action'] == 'vote' && definition.kind != 'list') {
@@ -166,10 +208,33 @@ class InteractiveState {
       } else if (data['action'] == 'check' && definition.kind == 'list') {
         final item = data['item'] as int;
         if (item >= itemCount) continue;
+        final interval = definition.repeatSeconds(item);
+        if (interval > 0 && rootSentAt != null) {
+          final anchor = rootSentAt.toUtc().millisecondsSinceEpoch;
+          final current = (now ?? DateTime.now())
+              .toUtc()
+              .millisecondsSinceEpoch;
+          final period = interval * 1000;
+          final cycleStart =
+              anchor +
+              ((current - anchor).clamp(0, 8640000000000000) ~/ period) *
+                  period;
+          if (message.sentAt.toUtc().millisecondsSinceEpoch < cycleStart) {
+            continue;
+          }
+        }
         checked[item] = data['checked'] as bool;
         checkedBy[item] = message.senderDisplayName;
         checkedByAvatar[item] = message.senderAvatarUrl;
+      } else if (data['action'] == 'assign' && definition.kind == 'list') {
+        final item = data['item'] as int;
+        if (item < itemCount) assigned[item] = data['assignee'] as int?;
       }
+    }
+    final deadline = definition.closesAt;
+    if (deadline != null &&
+        !(now ?? DateTime.now()).toUtc().isBefore(deadline)) {
+      closed = true;
     }
     for (final choices in votes.values) {
       for (final choice in choices) {
@@ -185,6 +250,7 @@ class InteractiveState {
   final names = <int, String>{};
   final avatars = <int, String?>{};
   final checked = <int, bool>{};
+  final assigned = <int, int?>{};
   final checkedBy = <int, String>{};
   final checkedByAvatar = <int, String?>{};
   int get voters => votes.values.where((v) => v.isNotEmpty).length;

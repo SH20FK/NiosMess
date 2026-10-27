@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,12 +24,48 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
   late Map<String, dynamic> _poll = widget.poll;
   final _selected = <int>{};
   bool _busy = false;
+  Timer? _deadlineTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleDeadline();
+  }
+
+  void _scheduleDeadline() {
+    _deadlineTimer?.cancel();
+    final value = _poll['closes_at'];
+    if (value is! int) return;
+    final remaining = DateTime.fromMillisecondsSinceEpoch(
+      value,
+      isUtc: true,
+    ).difference(DateTime.now().toUtc());
+    if (remaining <= Duration.zero) return;
+    _deadlineTimer = Timer(
+      remaining > const Duration(days: 30)
+          ? const Duration(days: 30)
+          : remaining,
+      () {
+        if (!mounted) return;
+        setState(() {});
+        _scheduleDeadline();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _deadlineTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   void didUpdateWidget(FeedPollCard old) {
     super.didUpdateWidget(old);
     if (old.postId != widget.postId || old.poll != widget.poll) {
       _poll = widget.poll;
       _selected.clear();
+      _scheduleDeadline();
     }
   }
 
@@ -59,6 +96,12 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
     final mine = (_poll['my_choices'] as List? ?? []).whereType<int>().toSet();
     final quiz = _poll['kind'] == 'quiz', multiple = _poll['multiple'] == true;
     final voted = mine.isNotEmpty, correct = _poll['correct'] as int?;
+    final deadline = _poll['closes_at'];
+    final closed =
+        _poll['closed'] == true ||
+        (deadline is int &&
+            DateTime.now().toUtc().millisecondsSinceEpoch >= deadline);
+    final showResults = voted || closed;
     final total = (_poll['total_voters'] as num?)?.toInt() ?? 0;
     final counts = (_poll['counts'] as List? ?? [])
         .whereType<num>()
@@ -75,7 +118,11 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
         ),
         const SizedBox(height: 4),
         Text(
-          quiz ? 'Анонимная викторина' : 'Анонимный опрос',
+          closed
+              ? 'Голосование завершено'
+              : quiz
+              ? 'Анонимная викторина'
+              : 'Анонимный опрос',
           style: theme.textTheme.labelSmall?.copyWith(
             color: scheme.onSurfaceVariant,
           ),
@@ -94,7 +141,7 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
               ),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
-                onTap: _busy || widget.preview || (quiz && voted)
+                onTap: _busy || widget.preview || closed || (quiz && voted)
                     ? null
                     : () {
                         if (multiple) {
@@ -109,7 +156,7 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
                       },
                 child: Stack(
                   children: [
-                    if (voted && total > 0)
+                    if (showResults && total > 0)
                       Positioned.fill(
                         child: Align(
                           alignment: Alignment.centerLeft,
@@ -155,7 +202,7 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
                               padding: EdgeInsets.only(left: 8),
                               child: Icon(Icons.check_rounded, size: 20),
                             ),
-                          if (voted)
+                          if (showResults)
                             Padding(
                               padding: const EdgeInsets.only(left: 8),
                               child: Text(
@@ -173,7 +220,7 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
           ),
         if (multiple && !widget.preview)
           TextButton(
-            onPressed: _busy || _selected.isEmpty
+            onPressed: _busy || closed || _selected.isEmpty
                 ? null
                 : () => _vote(_selected.toList()),
             child: const Text('Проголосовать'),

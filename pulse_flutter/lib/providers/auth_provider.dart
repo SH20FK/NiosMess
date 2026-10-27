@@ -1,6 +1,8 @@
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
+import 'package:pulse_flutter/services/encrypted_draft_sync.dart';
+import 'package:pulse_flutter/services/live_location_service.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/services/e2ee_service.dart';
@@ -533,6 +535,10 @@ class AuthNotifier extends Notifier<AuthState> {
       // Release native media and notification/background handlers before any
       // account journal/history erasure can begin.
       await Future.wait([
+        if (accountId != null)
+          stopHandler(() => LiveLocationService.shutdownAccount(accountId)),
+        if (accountId != null)
+          stopHandler(() => EncryptedDraftSync.shutdownAccount(accountId)),
         stopHandler(BackgroundService.stop),
         if (ref.exists(callSessionProvider))
           stopHandler(

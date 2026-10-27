@@ -49,6 +49,8 @@
 		<string>This app needs access to your photo library to select and share photos in chat.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
 		<string>This app needs access to save photos from chat to your photo library.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Геопозиция передаётся выбранному собеседнику только после вашего разрешения.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>This app needs access to your camera to take photos and videos to share in chat.</string>
 		<key>NSMicrophoneUsageDescription</key>

@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Геопозиция передаётся выбранному собеседнику только после вашего разрешения.</string>
 </dict>
 </plist>

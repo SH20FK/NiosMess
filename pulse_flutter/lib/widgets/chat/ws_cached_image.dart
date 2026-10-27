@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:universal_io/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
@@ -62,7 +60,7 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
     _checkSyncCache();
     if (_bytes == null) {
       final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
-      final bool isLocal = widget.mediaUrl.startsWith('local://') || _tryLocalFile(widget.mediaUrl) != null;
+      final bool isLocal = widget.mediaUrl.startsWith('local://');
       if (autoAllowed || isLocal) {
         _load();
       } else {
@@ -73,7 +71,9 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
   }
 
   void _checkSyncCache() {
-    if (widget.mediaUrl.isEmpty || widget.mediaUrl.startsWith('local://')) return;
+    if (widget.mediaUrl.isEmpty || widget.mediaUrl.startsWith('local://')) {
+      return;
+    }
     Uint8List? fileKey;
     if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
       try {
@@ -99,7 +99,7 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
       _checkSyncCache();
       if (_bytes == null) {
         final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
-        final bool isLocal = widget.mediaUrl.startsWith('local://') || _tryLocalFile(widget.mediaUrl) != null;
+        final bool isLocal = widget.mediaUrl.startsWith('local://');
         if (autoAllowed || isLocal) {
           _load();
         } else {
@@ -129,42 +129,9 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
       // local:// placeholder while bytes are in flight) — never fetch those
       // over the network.
       if (widget.mediaUrl.startsWith('local://')) {
-        if (kIsWeb) {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-          }
-          return;
-        }
-        final String localSubPath =
-            widget.mediaUrl.substring('local://'.length);
-        final File local = File(localSubPath);
-        if (await local.exists()) {
-          final Uint8List localBytes = await local.readAsBytes();
-          if (mounted) {
-            setState(() {
-              _bytes = localBytes;
-              _isLoading = false;
-            });
-          }
-          return;
-        }
-        // Local pseudo-path not on disk; keep placeholder without attempting network
+        // These are identifiers for pending uploads, not filesystem paths.
         if (mounted) {
           setState(() {
-            _isLoading = false;
-          });
-        }
-        return;
-      }
-
-      final File? local = _tryLocalFile(widget.mediaUrl);
-      if (local != null && await local.exists()) {
-        final Uint8List localBytes = await local.readAsBytes();
-        if (mounted) {
-          setState(() {
-            _bytes = localBytes;
             _isLoading = false;
           });
         }
@@ -199,24 +166,15 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
     }
   }
 
-  /// Returns a [File] when [path] points at the local filesystem.
-  static File? _tryLocalFile(String path) {
-    if (kIsWeb) return null;
-    if (path.startsWith('http://') ||
-        path.startsWith('https://') ||
-        path.startsWith('local://')) {
-      return null;
-    }
-    if (path.contains('://')) return null; // other schemes
-    try {
-      return File(path);
-    } catch (_) {
-      return null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (_bytes == null && widget.mediaUrl.startsWith('local://')) {
+      return widget.placeholder?.call(context) ??
+          MediaPlaceholderIllustration(
+            width: widget.width ?? double.infinity,
+            height: widget.height ?? 200,
+          );
+    }
     if (_manualDownloadRequired) {
       final ColorScheme scheme = Theme.of(context).colorScheme;
       final TextTheme textTheme = Theme.of(context).textTheme;
@@ -287,8 +245,9 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
           MediaErrorIllustration(
             width: widget.width ?? double.infinity,
             height: widget.height ?? 160,
-            message:
-                _error != null ? context.l10n.sharedMediaDownloadError : context.l10n.sharedMediaUnavailable,
+            message: _error != null
+                ? context.l10n.sharedMediaDownloadError
+                : context.l10n.sharedMediaUnavailable,
           );
     }
 

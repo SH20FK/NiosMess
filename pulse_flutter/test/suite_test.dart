@@ -1,4 +1,10 @@
 import 'widgets/chat_productivity_test.dart' as chat_productivity;
+import 'services/encrypted_draft_sync_test.dart' as encrypted_draft_sync;
+import 'unit/encrypted_draft_codec_test.dart' as encrypted_draft_codec;
+import 'services/live_location_service_test.dart' as live_location;
+import 'widgets/chat_extras_test.dart' as chat_extras;
+import 'widgets/file_request_menu_test.dart' as file_request;
+import 'widgets/media_local_path_security_test.dart' as media_local_path_security;
 import 'widgets/custom_emoji_forms_test.dart' as audit_emoji_forms;
 import 'features/security/app_lock_lifecycle_test.dart' as audit_app_lock;
 import 'providers/auth_lifecycle_race_test.dart' as audit_auth;
@@ -348,6 +354,12 @@ void main() {
     group('audit_comments_draft', audit_comments_draft.main);
     group('audit_logs', audit_logs.main);
     group('audit_media_origin', audit_media_origin.main);
+    group('encrypted_draft_sync', encrypted_draft_sync.main);
+    group('encrypted_draft_codec', encrypted_draft_codec.main);
+    group('live_location', live_location.main);
+    group('chat_extras', chat_extras.main);
+    group('file_request', file_request.main);
+    group('media_local_path_security', media_local_path_security.main);
 
     // Widgets
     expression_picker.main();

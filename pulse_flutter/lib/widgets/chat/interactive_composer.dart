@@ -1,6 +1,7 @@
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
@@ -12,23 +13,35 @@ class InteractiveIcon extends StatelessWidget {
   final Color? color;
   final double size;
   @override
-  Widget build(BuildContext context) => Icon(
-    switch (kind) {
-      'poll' => Icons.poll_outlined,
-      'quiz' => Icons.quiz_outlined,
-      'list' => Icons.checklist_rounded,
-      'answer' => Icons.radio_button_unchecked_rounded,
-      'selected' => Icons.radio_button_checked_rounded,
-      'check' => Icons.check_rounded,
-      'incorrect' || 'close' => Icons.close_rounded,
-      'unchecked' => Icons.check_box_outline_blank_rounded,
-      'checked' => Icons.check_box_rounded,
-      'remove' => Icons.remove_rounded,
-      _ => Icons.add_rounded,
-    },
-    size: size,
-    color: color,
-  );
+  Widget build(BuildContext context) => kind == 'assign'
+      ? SvgPicture.string(
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>',
+          width: size,
+          height: size,
+          colorFilter: ColorFilter.mode(
+            color ??
+                IconTheme.of(context).color ??
+                Theme.of(context).colorScheme.onSurface,
+            BlendMode.srcIn,
+          ),
+        )
+      : Icon(
+          switch (kind) {
+            'poll' => Icons.poll_outlined,
+            'quiz' => Icons.quiz_outlined,
+            'list' => Icons.checklist_rounded,
+            'answer' => Icons.radio_button_unchecked_rounded,
+            'selected' => Icons.radio_button_checked_rounded,
+            'check' => Icons.check_rounded,
+            'incorrect' || 'close' => Icons.close_rounded,
+            'unchecked' => Icons.check_box_outline_blank_rounded,
+            'checked' => Icons.check_box_rounded,
+            'remove' => Icons.remove_rounded,
+            _ => Icons.add_rounded,
+          },
+          size: size,
+          color: color,
+        );
 }
 
 Future<String?> showInteractiveComposer(BuildContext context, String kind) =>
@@ -53,9 +66,12 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
   final _title = CustomEmojiTextController();
   final _explanation = CustomEmojiTextController();
   final _items = [CustomEmojiTextController(), CustomEmojiTextController()];
+  final _repeats = <int>[0, 0];
   final _removed = <TextEditingController>[];
   bool _multiple = false;
   int _correct = 0;
+  int _duration = 0;
+  DateTime? _customClose;
   String? _error;
   bool get _list => widget.kind == 'list';
   bool get _quiz => widget.kind == 'quiz';
@@ -108,6 +124,15 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
       return;
     }
     final title = _title.text.trim();
+    final closesAt = _duration == -1
+        ? _customClose
+        : _duration > 0
+        ? DateTime.now().add(Duration(seconds: _duration))
+        : null;
+    if (closesAt != null && !closesAt.isAfter(DateTime.now())) {
+      setState(() => _error = 'Выберите будущее время завершения');
+      return;
+    }
     final preview = '$_label: $title\n${items.map((s) => '— $s').join('\n')}';
     final result = InteractiveMessage.encode({
       'kind': widget.kind,
@@ -115,10 +140,54 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
       'title': title,
       'items': items,
       'multiple': !_quiz && !_list && _multiple,
+      if (_list && _repeats.any((seconds) => seconds > 0))
+        'repeat_seconds': List<int>.of(_repeats),
+      if (closesAt != null)
+        'closes_at': closesAt.toUtc().millisecondsSinceEpoch,
       if (_quiz) 'correct': _correct,
       if (_quiz) 'explanation': _explanation.text.trim(),
     }, preview);
     Navigator.pop(context, result);
+  }
+
+  Future<void> _selectDuration(int? value) async {
+    if (value == null) return;
+    if (value != -1) {
+      setState(() {
+        _duration = value;
+        _customClose = null;
+      });
+      return;
+    }
+    final now = DateTime.now();
+    final day = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (day == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now),
+    );
+    if (time == null || !mounted) return;
+    final chosen = DateTime(
+      day.year,
+      day.month,
+      day.day,
+      time.hour,
+      time.minute,
+    );
+    if (!chosen.isAfter(DateTime.now())) {
+      setState(() => _error = 'Выберите будущее время завершения');
+      return;
+    }
+    setState(() {
+      _duration = -1;
+      _customClose = chosen;
+      _error = null;
+    });
   }
 
   @override
@@ -213,28 +282,58 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                   ),
                                 ),
                               Expanded(
-                                child: TextFormField(
-                                  key: ObjectKey(_items[i]),
-                                  controller: _items[i],
-                                  inputFormatters: [
-                                    CustomEmojiLengthFormatter(100),
-                                  ],
-                                  decoration: InputDecoration(
-                                    suffixIcon: CustomEmojiComposerButton(
+                                child: Column(
+                                  children: [
+                                    TextFormField(
+                                      key: ObjectKey(_items[i]),
                                       controller: _items[i],
+                                      inputFormatters: [
+                                        CustomEmojiLengthFormatter(100),
+                                      ],
+                                      decoration: InputDecoration(
+                                        suffixIcon: CustomEmojiComposerButton(
+                                          controller: _items[i],
+                                        ),
+                                        labelText: _list
+                                            ? context.l10n
+                                                  .interactiveItemNumber(i + 1)
+                                            : context.l10n
+                                                  .interactiveOptionNumber(
+                                                    i + 1,
+                                                  ),
+                                        counterText: _list ? null : '',
+                                      ),
+                                      validator: (v) => (v ?? '').trim().isEmpty
+                                          ? context
+                                                .l10n
+                                                .interactiveFieldRequired
+                                          : null,
                                     ),
-                                    labelText: _list
-                                        ? context.l10n.interactiveItemNumber(
-                                            i + 1,
-                                          )
-                                        : context.l10n.interactiveOptionNumber(
-                                            i + 1,
+                                    if (_list)
+                                      DropdownButton<int>(
+                                        value: _repeats[i],
+                                        isExpanded: true,
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 0,
+                                            child: Text('Не повторять'),
                                           ),
-                                    counterText: _list ? null : '',
-                                  ),
-                                  validator: (v) => (v ?? '').trim().isEmpty
-                                      ? context.l10n.interactiveFieldRequired
-                                      : null,
+                                          DropdownMenuItem(
+                                            value: 86400,
+                                            child: Text('Каждый день'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 604800,
+                                            child: Text('Каждую неделю'),
+                                          ),
+                                        ],
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            setState(() => _repeats[i] = value);
+                                          }
+                                        },
+                                      ),
+                                  ],
                                 ),
                               ),
                               IconButton(
@@ -245,6 +344,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                     ? null
                                     : () => setState(() {
                                         _removed.add(_items.removeAt(i));
+                                        _repeats.removeAt(i);
                                         if (_correct == i) {
                                           _correct = 0;
                                         } else if (_correct > i) {
@@ -260,9 +360,10 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
-                            onPressed: () => setState(
-                              () => _items.add(CustomEmojiTextController()),
-                            ),
+                            onPressed: () => setState(() {
+                              _items.add(CustomEmojiTextController());
+                              _repeats.add(0);
+                            }),
                             icon: const InteractiveIcon('add'),
                             label: Text(
                               _list
@@ -277,6 +378,44 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                           title: Text(context.l10n.interactiveMultiple),
                           value: _multiple,
                           onChanged: (v) => setState(() => _multiple = v),
+                        ),
+                      if (!_list)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Завершить голосование'),
+                            DropdownButton<int>(
+                              value: _duration,
+                              isExpanded: true,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 0,
+                                  child: Text('Вручную'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 3600,
+                                  child: Text('Через час'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 86400,
+                                  child: Text('Через день'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 604800,
+                                  child: Text('Через неделю'),
+                                ),
+                                DropdownMenuItem(
+                                  value: -1,
+                                  child: Text('Выбрать дату и время'),
+                                ),
+                              ],
+                              onChanged: _selectDuration,
+                            ),
+                          ],
+                        ),
+                      if (!_list && _customClose != null)
+                        Text(
+                          'До ${_customClose!.day.toString().padLeft(2, '0')}.${_customClose!.month.toString().padLeft(2, '0')}.${_customClose!.year} ${_customClose!.hour.toString().padLeft(2, '0')}:${_customClose!.minute.toString().padLeft(2, '0')}',
                         ),
                       if (_quiz) ...[
                         const SizedBox(height: 8),

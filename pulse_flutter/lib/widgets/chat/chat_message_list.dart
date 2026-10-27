@@ -1,4 +1,5 @@
 import 'package:pulse_flutter/models/interactive_message.dart';
+import 'package:pulse_flutter/services/bluetooth_mesh/bluetooth_mesh_service.dart';
 import 'dart:async';
 import 'package:pulse_flutter/widgets/chat/chat_history_scroll_controller.dart';
 import 'package:pulse_flutter/widgets/chat/ordinary_encryption_settings_button.dart';
@@ -711,6 +712,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
           text: InteractiveMessage.parse(rawText)?.preview ?? rawText,
           messageData: message,
           isMine: isMine,
+          meshDeliveryStatus: isMine ? ref.read(bluetoothMeshProvider)?.deliveryStatus(message.clientMessageId) : null,
           isE2ee: message.isE2ee,
           showEncryptionSettings: needsOrdinaryEncryptionSettings(message),
           e2eeFileKey: message.e2eeFileKey,
