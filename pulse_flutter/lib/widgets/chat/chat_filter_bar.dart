@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/widgets/motion/m3_selection_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
@@ -28,11 +29,21 @@ class ChatFilterBar extends ConsumerWidget {
       ref.read(chatFilterProvider.notifier).updateFilter(value);
     }
 
-    Widget chip(ChatFilter value, String label) => FilterChip(
-      label: Text(label),
+    Widget animatedChip({
+      required bool selected,
+      required Widget child,
+      Key? key,
+    }) => M3SelectionMotion(key: key, selected: selected, child: child);
+
+    Widget chip(ChatFilter value, String label) => animatedChip(
+      key: ValueKey('chat-filter-${value.name}'),
       selected: filter == value,
-      showCheckmark: false,
-      onSelected: (_) => select(value),
+      child: FilterChip(
+        label: Text(label),
+        selected: filter == value,
+        showCheckmark: false,
+        onSelected: (_) => select(value),
+      ),
     );
 
     return Wrap(
@@ -58,19 +69,23 @@ class ChatFilterBar extends ConsumerWidget {
                 child: Text(entry.value),
               ),
           ],
-          builder: (context, controller, child) => FilterChip(
-            label: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(types[filter] ?? l.inboxChatType),
-                const SizedBox(width: 2),
-                const Icon(Icons.expand_more_rounded, size: 18),
-              ],
-            ),
+          builder: (context, controller, child) => animatedChip(
+            key: const ValueKey('chat-filter-type'),
             selected: types.containsKey(filter),
-            showCheckmark: false,
-            onSelected: (_) =>
-                controller.isOpen ? controller.close() : controller.open(),
+            child: FilterChip(
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(types[filter] ?? l.inboxChatType),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.expand_more_rounded, size: 18),
+                ],
+              ),
+              selected: types.containsKey(filter),
+              showCheckmark: false,
+              onSelected: (_) =>
+                  controller.isOpen ? controller.close() : controller.open(),
+            ),
           ),
         ),
       ],

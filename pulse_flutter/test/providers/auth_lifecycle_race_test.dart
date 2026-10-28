@@ -188,10 +188,11 @@ void main() {
   const pathChannel = MethodChannel('plugins.flutter.io/path_provider');
   setUp(() async {
     mediaDirectory = await Directory.systemTemp.createTemp('logout-media-');
+    final taskDirectory = mediaDirectory;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           pathChannel,
-          (_) async => mediaDirectory.path,
+          (_) async => taskDirectory.path,
         );
     CacheManager cache(String name) => CacheManager(
       Config(
@@ -205,9 +206,9 @@ void main() {
     playbackMedia = cache('playback');
     sharedImages = cache('shared');
     await Future.wait([
-      rawMedia.getFileFromCache('fixture'),
-      playbackMedia.getFileFromCache('fixture'),
-      sharedImages.getFileFromCache('fixture'),
+      rawMedia.putFile('fixture', Uint8List.fromList([1])),
+      playbackMedia.putFile('fixture', Uint8List.fromList([1])),
+      sharedImages.putFile('fixture', Uint8List.fromList([1])),
     ]);
     mediaClient = MockClient((_) async => http.Response('', 500));
     restoreMedia = WsMediaFetcher.debugOverride(
@@ -215,7 +216,7 @@ void main() {
       playbackCache: playbackMedia,
       sharedImageCache: sharedImages,
       httpClient: mediaClient,
-      temporaryDirectory: () async => mediaDirectory,
+      temporaryDirectory: () async => taskDirectory,
     );
   });
   tearDown(() async {

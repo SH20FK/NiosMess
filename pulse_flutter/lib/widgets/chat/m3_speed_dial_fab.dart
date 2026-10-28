@@ -49,8 +49,8 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 280),
-      reverseDuration: const Duration(milliseconds: 200),
+      duration: M3Durations.medium2,
+      reverseDuration: M3Durations.short4,
     );
 
     _expandAnimation = CurvedAnimation(
@@ -61,8 +61,8 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
 
     _fadeAnimation = CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeOut,
-      reverseCurve: Curves.easeIn,
+      curve: M3SpringCurves.expressiveDecel,
+      reverseCurve: M3SpringCurves.expressiveAccel,
     );
 
     _rotationAnimation = Tween<double>(begin: 0.0, end: 0.5).animate(
@@ -101,18 +101,30 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
   void _open() {
     if (_isOpen) return;
     _isOpen = true;
+    _removeOverlay();
     _overlayEntry = _createOverlayEntry();
     Overlay.of(context).insert(_overlayEntry!);
-    _controller.forward();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
     if (mounted) setState(() {});
   }
 
   void _close() {
     if (!_isOpen) return;
     _isOpen = false;
-    _controller.reverse().then((_) {
+    final closingEntry = _overlayEntry;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = 0;
       _removeOverlay();
-    });
+    } else {
+      _overlayEntry?.markNeedsBuild();
+      _controller.reverse().then((_) {
+        if (!_isOpen && identical(_overlayEntry, closingEntry)) _removeOverlay();
+      });
+    }
     if (mounted) setState(() {});
   }
 
@@ -127,7 +139,9 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
       builder: (BuildContext overlayContext) {
         final ColorScheme scheme = Theme.of(overlayContext).colorScheme;
 
-        return PopScope(
+        return IgnorePointer(
+          ignoring: !_isOpen,
+          child: PopScope(
           canPop: false,
           onPopInvokedWithResult: (bool didPop, Object? result) {
             if (!didPop) {
@@ -233,6 +247,7 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                 ),
               ),
             ],
+          ),
           ),
         );
       },
@@ -369,12 +384,16 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
       link: _layerLink,
       child: AnimatedScale(
         scale: widget.visible ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 220),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : M3Durations.short4,
         curve: M3SpringCurves.spatial,
         child: AnimatedOpacity(
           opacity: widget.visible ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeInOut,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : M3Durations.short4,
+          curve: M3SpringCurves.expressiveStandard,
           child: _isOpen
               ? const SizedBox(width: 56, height: 56)
               : (widget.heroTag != null

@@ -511,11 +511,12 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 // ── Edit panel ──
-                if (widget.editingMessageId != null)
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOutCubic,
-                    child: Container(
+                AnimatedSize(
+                    key: const ValueKey('edit-context-transition'),
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero : M3Durations.short4,
+                    curve: M3SpringCurves.expressiveDecel,
+                    child: widget.editingMessageId != null ? Container(
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -569,15 +570,16 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                           ),
                         ],
                       ),
-                    ),
+                    ) : const SizedBox.shrink(),
                   ),
 
                 // ── Reply panel ──
-                if (widget.replyToMessageId != null)
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOutCubic,
-                    child: Container(
+                AnimatedSize(
+                    key: const ValueKey('reply-context-transition'),
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero : M3Durations.short4,
+                    curve: M3SpringCurves.expressiveDecel,
+                    child: widget.replyToMessageId != null ? Container(
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -614,7 +616,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                           ),
                         ],
                       ),
-                    ),
+                    ) : const SizedBox.shrink(),
                   ),
 
                 // ── Voice Recording Panel ──

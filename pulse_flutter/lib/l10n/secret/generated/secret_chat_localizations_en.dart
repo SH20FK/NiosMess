@@ -1324,4 +1324,10 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get auditAppLockMinimize => 'Minimize';
+
+  @override
+  String get savedMessagesTitle => 'Saved Messages';
+
+  @override
+  String get savedMessagesSubtitle => 'Notes and saved messages';
 }

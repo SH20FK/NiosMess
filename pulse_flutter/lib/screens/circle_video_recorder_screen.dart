@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -38,6 +39,7 @@ class _CircleVideoRecorderScreenState
   bool _initialized = false;
   Timer? _recordingTimer;
   int _elapsedSec = 0;
+  bool _motionAllowed = false;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
@@ -56,7 +58,7 @@ class _CircleVideoRecorderScreenState
       duration: const Duration(milliseconds: 800),
     );
     _pulseAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _pulseController, curve: M3SpringCurves.expressiveStandard),
     );
 
     _progressController = AnimationController(
@@ -66,23 +68,40 @@ class _CircleVideoRecorderScreenState
 
     _scrimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: M3Durations.medium3,
     );
     _scrimAnim = CurvedAnimation(
       parent: _scrimController,
-      curve: Curves.easeOut,
+      curve: M3SpringCurves.expressiveDecel,
     );
 
     _flipController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 320),
+      duration: M3Durations.medium2,
     );
     _flipAnim = CurvedAnimation(
       parent: _flipController,
-      curve: Curves.easeInOutCubic,
+      curve: M3SpringCurves.expressiveStandard,
     );
 
     _initCamera();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _motionAllowed = !MediaQuery.disableAnimationsOf(context) &&
+        TickerMode.valuesOf(context).enabled;
+    _syncPulse();
+  }
+
+  void _syncPulse() {
+    if (_isRecording && _motionAllowed) {
+      if (!_pulseController.isAnimating) _pulseController.repeat(reverse: true);
+    } else {
+      _pulseController.stop();
+      _pulseController.value = 0;
+    }
   }
 
   Future<void> _initCamera() async {
@@ -145,7 +164,7 @@ class _CircleVideoRecorderScreenState
       if (mounted) {
         setState(() => _isRecording = true);
         _elapsedSec = 0;
-        _pulseController.repeat(reverse: true);
+        _syncPulse();
         _progressController.forward();
         _recordingTimer = Timer.periodic(
           const Duration(seconds: 1),

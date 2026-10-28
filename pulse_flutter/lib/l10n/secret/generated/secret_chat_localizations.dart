@@ -2548,6 +2548,18 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Minimize'**
   String get auditAppLockMinimize;
+
+  /// No description provided for @savedMessagesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved Messages'**
+  String get savedMessagesTitle;
+
+  /// No description provided for @savedMessagesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes and saved messages'**
+  String get savedMessagesSubtitle;
 }
 
 class _SecretChatLocalizationsDelegate

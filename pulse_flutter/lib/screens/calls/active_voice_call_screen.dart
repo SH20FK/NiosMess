@@ -39,8 +39,21 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     _rippleController = AnimationController(
       vsync: this,
       duration: CallTokens.rippleAnimationDuration,
-    )..repeat();
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _listenToState());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final animate = !MediaQuery.disableAnimationsOf(context) &&
+        TickerMode.valuesOf(context).enabled;
+    if (animate && !_rippleController.isAnimating) {
+      _rippleController.repeat();
+    } else if (!animate) {
+      _rippleController.stop();
+      _rippleController.value = 0;
+    }
   }
 
   int _retryCount = 0;

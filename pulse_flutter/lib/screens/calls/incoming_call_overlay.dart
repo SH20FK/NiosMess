@@ -39,6 +39,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   late final Animation<double> _pulseOpacity;
 
   IncomingCallData? _lastIncoming;
+  bool _reducedMotion = false;
   late final SoundService _sound;
   late final ProviderSubscription<IncomingCallData?> _incomingSubscription;
 
@@ -60,13 +61,13 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         );
     _fadeAnimation = CurvedAnimation(
       parent: _slideController,
-      curve: Curves.easeInOutCubic,
+      curve: M3SpringCurves.expressiveStandard,
     );
 
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
-    )..repeat();
+    );
 
     _pulseScale = Tween<double>(begin: 1.0, end: 1.45).animate(
       CurvedAnimation(parent: _pulseController, curve: M3SpringCurves.gentle),
@@ -74,7 +75,10 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     _pulseOpacity = Tween<double>(
       begin: 0.45,
       end: 0.0,
-    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: M3SpringCurves.expressiveDecel,
+    ));
     ref.listenManual(notificationPreferencesProvider, (_, next) {
       if (next.value?.sound == false) unawaited(_sound.stopLoop());
     });
@@ -85,20 +89,46 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     );
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (_reducedMotion) {
+      _slideController.value = _lastIncoming == null ? 0 : 1;
+    }
+    final animate = !_reducedMotion &&
+        TickerMode.valuesOf(context).enabled;
+    if (animate && !_pulseController.isAnimating) {
+      _pulseController.repeat();
+    } else if (!animate) {
+      _pulseController.stop();
+      _pulseController.value = 0;
+    }
+  }
+
   void _onIncomingChanged(IncomingCallData? incoming) {
     if (incoming != null) {
       final bool startRinging = _lastIncoming == null;
       setState(() => _lastIncoming = incoming);
       if (startRinging) {
-        _slideController.forward();
+        if (_reducedMotion) {
+          _slideController.value = 1;
+        } else {
+          _slideController.forward();
+        }
         if (ref.read(uiSettingsProvider).haptics) HapticService.notification();
         unawaited(_startNotificationRingtone(incoming));
       }
     } else if (_lastIncoming != null) {
       unawaited(_sound.stopLoop());
-      _slideController.reverse().then((_) {
-        if (mounted) setState(() => _lastIncoming = null);
-      });
+      if (_reducedMotion) {
+        _slideController.value = 0;
+        setState(() => _lastIncoming = null);
+      } else {
+        _slideController.reverse().then((_) {
+          if (mounted) setState(() => _lastIncoming = null);
+        });
+      }
     }
   }
 

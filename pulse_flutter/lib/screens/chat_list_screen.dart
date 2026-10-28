@@ -402,7 +402,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     },
                     child: Consumer(
                       builder: (BuildContext context, WidgetRef ref, _) {
-                        final bool isTyping = ref.watch(
+                        final bool isTyping = !chat.isSaved && ref.watch(
                           typingProvider(chat.id).select(
                             (TypingState s) => s.typingUserIds.isNotEmpty,
                           ),
@@ -424,7 +424,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         }
                         final hasDraft = draft?.trim().isNotEmpty == true;
                         return ChatTile(
-                          title: chat.name,
+                          title: chat.isSaved ? context.l10n.savedMessagesTitle : chat.name,
                           draftLabel: hasDraft
                               ? context.l10n.inboxDraftLabel
                               : null,
@@ -454,7 +454,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                     : Icons.done_rounded)
                               : null,
                           unreadCount: chat.unreadCount,
-                          avatarText: chat.name,
+                          avatarText: chat.isSaved ? context.l10n.savedMessagesTitle : chat.name,
                           avatarUrl: chat.avatarUrl,
                           avatarColor: _avatarColor(chat.id, scheme),
                           subtitleIcon: hasDraft

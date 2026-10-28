@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/chat_productivity.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -15,6 +16,7 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
+import 'package:pulse_flutter/widgets/motion/m3_selection_motion.dart';
 
 class ProductivityIcon extends StatelessWidget {
   const ProductivityIcon(this.name, {super.key, this.size = 20, this.color});
@@ -79,8 +81,8 @@ class ChatProductivityBar extends ConsumerWidget {
                 child: TextButton.icon(
                   onPressed: () => openSavedMessages(context, ref),
                   icon: const ProductivityIcon('bookmark'),
-                  label: const Text(
-                    'Избранное',
+                  label: Text(
+                    context.l10n.savedMessagesTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -114,23 +116,29 @@ class ChatProductivityBar extends ConsumerWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
-                  child: FilterChip(
-                    label: const Text('Все папки'),
+                  child: M3SelectionMotion(
                     selected: selected == null,
-                    onSelected: (_) => ref
-                        .read(selectedChatFolderProvider.notifier)
-                        .select(null),
+                    child: FilterChip(
+                      label: const Text('Все папки'),
+                      selected: selected == null,
+                      onSelected: (_) => ref
+                          .read(selectedChatFolderProvider.notifier)
+                          .select(null),
+                    ),
                   ),
                 ),
                 for (final folder in folders)
                   Padding(
                     padding: const EdgeInsets.only(right: 6),
-                    child: FilterChip(
-                      label: CustomEmojiText(folder.title),
+                    child: M3SelectionMotion(
                       selected: selected == folder.id,
-                      onSelected: (_) => ref
-                          .read(selectedChatFolderProvider.notifier)
-                          .select(selected == folder.id ? null : folder.id),
+                      child: FilterChip(
+                        label: CustomEmojiText(folder.title),
+                        selected: selected == folder.id,
+                        onSelected: (_) => ref
+                            .read(selectedChatFolderProvider.notifier)
+                            .select(selected == folder.id ? null : folder.id),
+                      ),
                     ),
                   ),
               ],

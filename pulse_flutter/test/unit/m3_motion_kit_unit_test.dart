@@ -47,6 +47,8 @@ void main() {
 
       expect(curve.transform(0.0), 0.0);
       expect(curve.transform(1.0), 1.0);
+      expect(curve.transformInternal(0.0), 0.0);
+      expect(curve.transformInternal(1.0), 1.0);
       expect(curve.transform(0.5), greaterThan(0.0));
     });
   });

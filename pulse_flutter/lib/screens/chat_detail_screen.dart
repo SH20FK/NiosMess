@@ -415,7 +415,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         .onInputChanged(chatId: _chatId, text: _inputController.text);
     if (!isEmpty) {
       final int? chatId = _chatId;
-      if (chatId != null) {
+      if (chatId != null && ref.read(chatByIdProvider(chatId))?.isSaved != true) {
         ref.read(typingProvider(chatId).notifier).sendTyping();
       }
     }
@@ -2590,7 +2590,7 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
       myUserId,
     );
     final String title = chat?.isSaved == true
-        ? 'Избранное'
+        ? context.l10n.savedMessagesTitle
         : chat?.chatType == 'direct'
         ? resolveDirectDisplayName(context, chat, members, myUserId, chatId)
         : ((chat?.name ?? '').trim().isNotEmpty
@@ -2680,7 +2680,7 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
       },
       typingSubtitle: chat?.isSaved == true
           ? Text(
-              'Заметки и сохранённые сообщения',
+              context.l10n.savedMessagesSubtitle,
               style: Theme.of(context).textTheme.bodySmall,
             )
           : _TypingSubtitle(

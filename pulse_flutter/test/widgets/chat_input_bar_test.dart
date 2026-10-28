@@ -55,6 +55,41 @@ void main() {
   });
 
   group('ChatInputBar Widget & Motion Tests', () {
+    testWidgets('reply context expands without replacing the composer', (tester) async {
+      Widget input(int? reply) => _wrapWidget(
+        child: ChatInputBar(
+          inputController: controller,
+          inputFocusNode: focusNode,
+          isAiProcessing: false,
+          uploadingMedia: false,
+          editingMessageId: null,
+          editingOriginalText: null,
+          replyToMessageId: reply,
+          replyPreviewText: 'Original',
+          onSend: () {},
+          onCommitEdit: () {},
+          onCancelEdit: () {},
+          onClearReply: () {},
+          onAttachMedia: () {},
+          onAiPressed: () {},
+          onVoiceSend: (_) {},
+          hapticsEnabled: false,
+        ),
+      );
+      controller.text = 'Draft';
+      await tester.pumpWidget(input(null));
+      final panel = find.byKey(const ValueKey('reply-context-transition'));
+      expect(tester.getSize(panel).height, 0);
+      await tester.pumpWidget(input(42));
+      await tester.pump(const Duration(milliseconds: 100));
+      final midway = tester.getSize(panel).height;
+      await tester.pumpAndSettle();
+      final finished = tester.getSize(panel).height;
+      expect(midway, greaterThan(0));
+      expect(midway, lessThan(finished));
+      expect(controller.text, 'Draft');
+      expect(find.text('Original'), findsOneWidget);
+    });
     testWidgets('renders input pill and action buttons in initial empty state', (
       WidgetTester tester,
     ) async {

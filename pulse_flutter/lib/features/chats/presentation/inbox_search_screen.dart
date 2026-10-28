@@ -3,16 +3,21 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/navigation/direct_chat_navigator.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/repositories/search_repository.dart';
+import 'package:pulse_flutter/features/chats/presentation/saved_messages_search.dart';
+import 'package:pulse_flutter/widgets/chat_productivity.dart' show openSavedMessages;
 import 'package:pulse_flutter/widgets/empty_state_widget.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/motion/m3_selection_motion.dart';
 
 enum InboxSearchScope {
   all,
@@ -44,6 +49,10 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
   void initState() {
     super.initState();
     _queryController.addListener(_onQueryChanged);
+    ref.listenManual(authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
+        (before, after) {
+      if (before != after && mounted) _onQueryChanged();
+    });
   }
 
   @override
@@ -72,6 +81,7 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _searchResult = null;
     });
 
     _debounce = Timer(const Duration(milliseconds: 220), () {
@@ -126,13 +136,23 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
 
     final query = _queryController.text.trim();
     final allChats = ref.watch(chatsProvider).value ?? <ApiChatSummary>[];
+    final identity = ref.watch(authProvider.select((s) => (s.session, s.profile)));
+    final session = identity.$1;
+    final savedChat = allChats.where((chat) => chat.isSaved).firstOrNull;
+    final matchesSaved = session != null && matchesSavedMessagesQuery(
+      query: query,
+      username: session.username,
+      displayName: identity.$2?.displayName ?? session.displayName,
+      savedTitle: context.l10n.savedMessagesTitle,
+    );
 
     // Local chat filtering for instant response
     final localMatchingChats = query.isEmpty
         ? <ApiChatSummary>[]
         : allChats.where((c) {
             final q = query.toLowerCase();
-            return c.name.toLowerCase().contains(q) ||
+            return (c.isSaved && matchesSaved) ||
+                c.name.toLowerCase().contains(q) ||
                 (c.username != null && c.username!.toLowerCase().contains(q)) ||
                 c.description.toLowerCase().contains(q);
           }).toList(growable: false);
@@ -162,9 +182,9 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
 
         // Main content
         Expanded(
-          child: _isLoading
+          child: _isLoading && localMatchingChats.isEmpty && !matchesSaved
               ? const Center(child: AppLoadingIndicator(size: 32))
-              : _errorMessage != null
+              : _errorMessage != null && localMatchingChats.isEmpty && !matchesSaved
                   ? Center(
                       child: EmptyStateWidget(
                         icon: Icons.error_outline_rounded,
@@ -178,6 +198,9 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
                           localMatchingChats,
                           _searchResult,
                           allChats,
+                          matchesSaved && savedChat == null,
+                          session?.userId,
+                          session?.username,
                           scheme,
                           textTheme,
                         ),
@@ -240,7 +263,9 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
     ColorScheme scheme,
   ) {
     final isSelected = _scope == scope;
-    return ChoiceChip(
+    return M3SelectionMotion(
+      selected: isSelected,
+      child: ChoiceChip(
       label: Text(label),
       selected: isSelected,
       showCheckmark: false,
@@ -261,6 +286,7 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
         side: BorderSide(
           color: isSelected ? Colors.transparent : scheme.outlineVariant,
         ),
+      ),
       ),
     );
   }
@@ -312,10 +338,17 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
     List<ApiChatSummary> localChats,
     ApiSearchResult? serverResult,
     List<ApiChatSummary> allChats,
+    bool showSavedShortcut,
+    int? ownUserId,
+    String? ownUsername,
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
-    final matchingUsers = serverResult?.users ?? <ApiSearchUser>[];
+    final matchingUsers = (serverResult?.users ?? <ApiSearchUser>[])
+        .where((user) => user.id != ownUserId &&
+            (ownUsername == null || ownUsername.isEmpty ||
+                user.username.toLowerCase() != ownUsername.toLowerCase()))
+        .toList(growable: false);
     final matchingMessages = serverResult?.messages ?? <ApiSearchMessage>[];
     final serverChats = serverResult?.chats ?? <ApiSearchChat>[];
 
@@ -323,8 +356,13 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
     final Set<int> seenChatIds = localChats.map((c) => c.id).toSet();
     final combinedChats = List<dynamic>.from(localChats);
     for (final sc in serverChats) {
+      if (showSavedShortcut && sc.chatType == 'direct' &&
+          ownUsername != null && ownUsername.isNotEmpty &&
+          sc.username?.toLowerCase() == ownUsername.toLowerCase()) {
+        continue;
+      }
       if (!seenChatIds.contains(sc.id)) {
-        combinedChats.add(sc);
+        combinedChats.add(allChats.where((c) => c.id == sc.id && c.isSaved).firstOrNull ?? sc);
         seenChatIds.add(sc.id);
       }
     }
@@ -336,7 +374,7 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
     final bool showUsers = _scope == InboxSearchScope.all ||
         _scope == InboxSearchScope.people;
 
-    final bool hasAny = (showChats && combinedChats.isNotEmpty) ||
+    final bool hasAny = (showChats && (combinedChats.isNotEmpty || showSavedShortcut)) ||
         (showMessages && matchingMessages.isNotEmpty) ||
         (showUsers && matchingUsers.isNotEmpty);
 
@@ -382,16 +420,30 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
         ],
 
         // Chats Section
-        if (showChats && combinedChats.isNotEmpty) ...[
+        if (showChats && (combinedChats.isNotEmpty || showSavedShortcut)) ...[
           _buildSectionHeader('Чаты', scheme, textTheme),
+          if (showSavedShortcut)
+            ListTile(
+              leading: SizedBox.square(
+                dimension: 40,
+                child: Icon(Icons.bookmark_rounded, color: scheme.primary),
+              ),
+              title: Text(context.l10n.savedMessagesTitle),
+              subtitle: Text(context.l10n.savedMessagesSubtitle),
+              onTap: () => openSavedMessages(context, ref),
+            ),
           ...combinedChats.map((c) {
-            final String name = c is ApiChatSummary ? c.name : (c as ApiSearchChat).name;
+            final bool isSaved = c is ApiChatSummary && c.isSaved;
+            final String name = isSaved ? context.l10n.savedMessagesTitle : c is ApiChatSummary ? c.name : (c as ApiSearchChat).name;
             final String? avatar = c is ApiChatSummary ? c.avatarUrl : (c as ApiSearchChat).avatarUrl;
             final int id = c is ApiChatSummary ? c.id : (c as ApiSearchChat).id;
             final String type = c is ApiChatSummary ? c.chatType : (c as ApiSearchChat).chatType;
 
             return ListTile(
-              leading: PulseAvatar(
+              leading: isSaved ? SizedBox.square(
+                dimension: 40,
+                child: Icon(Icons.bookmark_rounded, color: scheme.primary),
+              ) : PulseAvatar(
                 avatarUrl: avatar,
                 name: name,
                 radius: 20,
@@ -405,7 +457,7 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
                 ),
               ),
               subtitle: Text(
-                type == 'channel'
+                isSaved ? context.l10n.savedMessagesSubtitle : type == 'channel'
                     ? 'Канал'
                     : type == 'group'
                         ? 'Группа'
@@ -426,7 +478,7 @@ class _InboxSearchScreenState extends ConsumerState<InboxSearchScreen> {
           ...matchingMessages.map((msg) {
             final chat =
                 allChats.where((c) => c.id == msg.chatId).firstOrNull;
-            final chatTitle = chat?.name ??
+            final chatTitle = chat?.isSaved == true ? context.l10n.savedMessagesTitle : chat?.name ??
                 (msg.senderDisplayName.isNotEmpty
                     ? msg.senderDisplayName
                     : 'Сообщение');

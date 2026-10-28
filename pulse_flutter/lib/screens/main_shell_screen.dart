@@ -469,7 +469,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                               ? Duration.zero
                               : M3Durations.medium1,
                           switchInCurve: M3SpringCurves.expressiveDecel,
-                          switchOutCurve: Curves.easeInCubic,
+                          switchOutCurve: M3SpringCurves.expressiveAccel,
                           transitionBuilder:
                               (Widget child, Animation<double> animation) {
                                 return FadeTransition(

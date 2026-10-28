@@ -21,6 +21,20 @@ Widget _wrapWidget({
 
 void main() {
   group('M3SpeedDialFab Widget Tests', () {
+    testWidgets('reopening during dismissal keeps only the new menu', (tester) async {
+      await tester.pumpWidget(_wrapWidget(
+        child: M3SpeedDialFab(onSelectGroup: () {}, onSelectChannel: () {}),
+      ));
+      await tester.tap(find.byType(M3SpeedDialFab));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pump();
+      await tester.tap(find.byType(M3SpeedDialFab));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.groups_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.campaign_rounded), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
     testWidgets('renders initial collapsed state with edit icon', (
       WidgetTester tester,
     ) async {

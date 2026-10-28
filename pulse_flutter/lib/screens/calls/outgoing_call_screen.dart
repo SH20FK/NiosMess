@@ -46,31 +46,19 @@ class OutgoingCallScreen extends ConsumerStatefulWidget {
   ConsumerState<OutgoingCallScreen> createState() => _OutgoingCallScreenState();
 }
 
-class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen>
-    with SingleTickerProviderStateMixin {
+class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
   bool _cancelled = false;
   bool _isListenerNotice = false;
   String? _errorMessage;
-  late final AnimationController _rippleController;
 
   @override
   void initState() {
     super.initState();
-    _rippleController = AnimationController(
-      vsync: this,
-      duration: CallTokens.rippleAnimationDuration,
-    )..repeat();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _startCallFlow();
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _rippleController.dispose();
-    super.dispose();
   }
 
   Future<void> _startCallFlow() async {

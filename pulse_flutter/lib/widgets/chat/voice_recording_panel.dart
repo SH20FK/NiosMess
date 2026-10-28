@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
 
 class VoiceRecordingPanel extends StatefulWidget {
@@ -37,9 +38,24 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
       duration: const Duration(milliseconds: 1000),
     );
     _pulseAnim = Tween<double>(begin: 1.0, end: 1.12).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+      CurvedAnimation(
+        parent: _pulseController,
+        curve: M3SpringCurves.expressiveStandard,
+      ),
     );
-    _pulseController.repeat(reverse: true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final animate = !MediaQuery.disableAnimationsOf(context) &&
+        TickerMode.valuesOf(context).enabled;
+    if (animate && !_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    } else if (!animate) {
+      _pulseController.stop();
+      _pulseController.value = 0;
+    }
   }
 
   @override
@@ -71,6 +87,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
       animation: _pulseAnim,
       builder: (BuildContext context, Widget? child) {
         return Transform.scale(
+          key: const ValueKey('voice-recording-pulse'),
           scale: _pulseAnim.value,
           child: child,
         );
@@ -118,8 +135,10 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
           return Flexible(child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 1.0),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 80),
-              curve: Curves.easeOut,
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : M3Durations.short2,
+              curve: M3SpringCurves.expressiveDecel,
               width: 3.0,
               height: barHeight,
               decoration: BoxDecoration(

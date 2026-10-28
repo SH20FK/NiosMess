@@ -117,6 +117,10 @@ import 'widgets/m3_route_tab_switcher_test.dart' as route_tab_switcher;
 import 'widgets/nav_power_saver_test.dart' as nav_power_saver;
 import 'widgets/incremental_media_list_test.dart' as incremental_media_list;
 import 'widgets/ws_cached_image_race_test.dart' as ws_cached_image_race;
+import 'widgets/recording_motion_test.dart' as recording_motion;
+import 'widgets/inbox_saved_search_test.dart' as inbox_saved_search;
+import 'widgets/m3_speed_dial_fab_test.dart' as speed_dial_motion;
+import 'widgets/chat_input_bar_test.dart' as chat_input_motion;
 import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
 import 'widgets/appearance_palette_test.dart' as appearance_palette;
 import 'widgets/app_modals_test.dart' as app_modals;
@@ -396,6 +400,10 @@ void main() {
     nav_power_saver.main();
     incremental_media_list.main();
     ws_cached_image_race.main();
+    recording_motion.main();
+    inbox_saved_search.main();
+    speed_dial_motion.main();
+    chat_input_motion.main();
     widgets_vector_illustrations.main();
     widgets_m3_motion_kit.main();
 

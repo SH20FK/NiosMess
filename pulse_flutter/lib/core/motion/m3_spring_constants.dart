@@ -85,16 +85,13 @@ class SpringCurve extends Curve {
 
   @override
   double transform(double t) {
-    if (t <= 0.0) return 0.0;
-    if (t >= 1.0) return 1.0;
+    if (t < 0.0) return 0.0;
+    if (t > 1.0) return 1.0;
     return transformInternal(t);
   }
 
   @override
   double transformInternal(double t) {
-    if (t <= 0.0) return 0.0;
-    if (t >= 1.0) return 1.0;
-
     final double raw = _rawResponse(t);
     final double rawEnd = _rawResponse(1.0);
     if (rawEnd == 0.0) return raw;

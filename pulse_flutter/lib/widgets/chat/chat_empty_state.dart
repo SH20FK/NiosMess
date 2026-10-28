@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 enum ChatEmptyStateVariant {
   empty,
@@ -127,8 +128,10 @@ class ChatEmptyState extends StatelessWidget {
     return Center(
       child: TweenAnimationBuilder<double>(
         tween: Tween<double>(begin: 0.0, end: 1.0),
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : M3Durations.short4,
+        curve: M3SpringCurves.expressiveDecel,
         builder: (context, value, child) {
           return Opacity(
             opacity: value,

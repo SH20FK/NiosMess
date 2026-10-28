@@ -1336,4 +1336,10 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get auditAppLockMinimize => 'Свернуть';
+
+  @override
+  String get savedMessagesTitle => 'Избранное';
+
+  @override
+  String get savedMessagesSubtitle => 'Заметки и сохранённые сообщения';
 }

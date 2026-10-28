@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_status_card.dart';
@@ -41,8 +42,10 @@ class ChatTopBannerLayer extends StatelessWidget {
         ValueListenableBuilder<bool>(
           valueListenable: loadingOlderNotifier,
           builder: (BuildContext context, bool isLoading, _) => AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : M3Durations.short4,
+            curve: M3SpringCurves.expressiveDecel,
             child: isLoading
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 6),

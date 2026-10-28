@@ -3,6 +3,8 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.dart';
 
 extension SecretChatL10n on AppLocalizations {
+  String get savedMessagesTitle => _secret.savedMessagesTitle;
+  String get savedMessagesSubtitle => _secret.savedMessagesSubtitle;
   String get auditAppLockCheckFailed => _secret.auditAppLockCheckFailed;
   String get auditAppLockTitle => _secret.auditAppLockTitle;
   String get auditAppLockDescription => _secret.auditAppLockDescription;
