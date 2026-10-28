@@ -114,6 +114,7 @@ import 'providers/incoming_call_delivery_test.dart' as incoming_call_delivery;
 import 'services/secret_chat_e2ee_test.dart' as secret_chat_e2ee;
 import 'widgets/secret_chat_ui_test.dart' as secret_chat_ui;
 import 'widgets/m3_route_tab_switcher_test.dart' as route_tab_switcher;
+import 'widgets/nav_power_saver_test.dart' as nav_power_saver;
 import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
 import 'widgets/appearance_palette_test.dart' as appearance_palette;
 import 'widgets/app_modals_test.dart' as app_modals;
@@ -390,6 +391,7 @@ void main() {
     widgets_settings_scroll_smoothness.main();
     widgets_settings_system_device.main();
     widgets_tab_shared_axis_switcher.main();
+    nav_power_saver.main();
     widgets_vector_illustrations.main();
     widgets_m3_motion_kit.main();
 

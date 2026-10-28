@@ -19,6 +19,7 @@ import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
+import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/screens/main_shell_screen.dart';
@@ -28,6 +29,9 @@ import 'package:pulse_flutter/widgets/chat/chat_input_bar.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
+import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
+import 'package:pulse_flutter/core/performance/frame_timing_monitor.dart';
+import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
 
 class _Auth extends AuthNotifier {
   @override
@@ -70,6 +74,11 @@ class _Chats extends ChatsNotifier {
   ];
 }
 
+class _Feed extends NiosgramNotifier {
+  @override
+  Future<NiosgramState> build() async => const NiosgramState(hasMore: false);
+}
+
 Widget app(Widget child) => MaterialApp(
   theme: ThemeData(useMaterial3: true),
   locale: const Locale('ru'),
@@ -99,6 +108,119 @@ void main() {
     () => SharedPreferences.setMockInitialValues({
       'alpha_test_acknowledged': true,
     }),
+  );
+  testWidgets(
+    'main shell keeps an in-flight tab transition when performance drops',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final container = ProviderContainer(
+        overrides: [
+          clientCapabilitiesProvider.overrideWithValue(
+            const ClientCapabilities(
+              isWeb: false,
+              platform: TargetPlatform.android,
+            ),
+          ),
+          uiSettingsProvider.overrideWith(_Settings.new),
+          authProvider.overrideWith(_Auth.new),
+          webSocketClientProvider.overrideWith((ref) {
+            final client = WebSocketClient(
+              baseUrl: 'https://fixture.invalid',
+              readToken: () => null,
+            );
+            ref.onDispose(client.close);
+            return client;
+          }),
+          chatsProvider.overrideWith(_Chats.new),
+          niosgramProvider.overrideWith(_Feed.new),
+          connectivityProvider.overrideWith((ref) => Stream.value(true)),
+          liveDraftMapProvider.overrideWith((ref) => Stream.value(const {})),
+          secretChatEngineProvider.overrideWithValue(null),
+          secretChatCoordinatorProvider.overrideWith((ref) async => null),
+          secretChatRevisionProvider.overrideWith((ref) => Stream.value(0)),
+          ordinaryE2eeProvider.overrideWithValue(null),
+        ],
+      );
+      addTearDown(container.dispose);
+      var tab = 'chats';
+      var reduced = false;
+      late StateSetter update;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: const Locale('ru'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: StatefulBuilder(
+              builder: (context, setState) {
+                update = setState;
+                return MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(disableAnimations: reduced),
+                  child: MainShellScreen(tab: tab),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final performance = container.read(adaptivePerformanceProvider.notifier);
+      performance.setMode(PerformanceMode.balanced);
+      await tester.pump();
+      update(() => tab = 'niosgram');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 40));
+      double horizontalOffset() => tester
+          .widgetList<Transform>(
+            find.descendant(
+              of: find.byType(M3RouteTabSwitcher),
+              matching: find.byType(Transform),
+            ),
+          )
+          .first
+          .transform
+          .storage[12];
+      final offsetBefore = horizontalOffset();
+      for (var i = 0; i < 4; i++) {
+        performance.recordMetric(
+          const FrameMetric(
+            buildDurationMs: 100,
+            rasterDurationMs: 100,
+            totalSpanMs: 100,
+          ),
+        );
+      }
+      expect(
+        container.read(adaptivePerformanceProvider).mode,
+        PerformanceMode.powerSaver,
+      );
+      await tester.pump();
+      var switcher = tester.widget<M3RouteTabSwitcher>(
+        find.byType(M3RouteTabSwitcher),
+      );
+      expect(switcher.animate, isTrue);
+      expect(switcher.controller!.isTransitioning, isTrue);
+      expect(horizontalOffset(), closeTo(offsetBefore, 0.001));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 220));
+      await tester.pump();
+      expect(switcher.controller!.isTransitioning, isFalse);
+      update(() => reduced = true);
+      await tester.pump();
+      switcher = tester.widget<M3RouteTabSwitcher>(
+        find.byType(M3RouteTabSwitcher),
+      );
+      expect(switcher.animate, isFalse);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
   );
   test(
     'relative inbox time follows the screen locale, including minute and day units',

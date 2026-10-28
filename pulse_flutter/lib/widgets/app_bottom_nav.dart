@@ -202,11 +202,10 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
   Widget build(BuildContext context) {
     final int totalUnread = ref.watch(totalUnreadCountProvider);
     final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
-    final bool animate =
-        !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
+    final bool animate = !MediaQuery.disableAnimationsOf(context);
     final scheme = Theme.of(context).colorScheme;
     final duration = animate
-        ? const Duration(milliseconds: 280)
+        ? Duration(milliseconds: tier.isTierC ? 200 : 280)
         : Duration.zero;
     final items = <_NavItem>[
       _NavItem(

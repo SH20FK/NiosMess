@@ -532,8 +532,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               final PerformanceTier tier = ref.watch(
                 adaptivePerformanceProvider.select((s) => s.tier),
               );
-              final bool tabMotion =
-                  !tier.isTierC && !MediaQuery.disableAnimationsOf(context);
+              final bool tabMotion = !MediaQuery.disableAnimationsOf(context);
 
               final Widget body = NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
@@ -551,7 +550,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   index: currentIndex,
                   controller: _tabTransition,
                   animate: tabMotion,
-                  duration: tier.isTierA
+                  duration: tier.isTierC
+                      ? const Duration(milliseconds: 200)
+                      : tier.isTierA
                       ? (isWide
                             ? const Duration(milliseconds: 300)
                             : const Duration(milliseconds: 320))
