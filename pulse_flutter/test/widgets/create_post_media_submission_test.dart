@@ -18,6 +18,7 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/screens/create_post_screen.dart';
 import 'package:pulse_flutter/widgets/post_media_strip.dart';
+import 'package:universal_io/io.dart' as io;
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
 // Unused platform methods added by newer picker versions fail explicitly;
@@ -33,7 +34,7 @@ final class _File extends PlatformFile {
     'Unexpected picker fixture member: ${invocation.memberName}',
   );
   @override
-  Uri get uri => Uri.file('C:/fixture/$name');
+  Uri get uri => io.File('${io.Directory.systemTemp.path}/$name').uri;
   @override
   get xFile => throw UnimplementedError();
   @override
@@ -269,6 +270,7 @@ void main() {
         ),
       );
       container = ProviderScope.containerOf(tester.element(find.text('Open')));
+      repository = container.read(chatRepositoryProvider) as _Repository;
       // Instantiate the same real provider boundary that the screen uses.
       await container.read(niosgramProvider.future);
       await tester.tap(find.text('Open'));
