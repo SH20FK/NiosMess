@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/media/m3_video_controls.dart';
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -136,42 +137,9 @@ class _NiosgramVideoScreenState extends ConsumerState<NiosgramVideoScreen> {
                         child: VideoPlayer(controller),
                       ),
                     ),
-                    ValueListenableBuilder<VideoPlayerValue>(
-                      valueListenable: controller,
-                      builder: (context, value, _) {
-                        final maxMs = value.duration.inMilliseconds.toDouble();
-                        final position = value.position.inMilliseconds
-                            .toDouble()
-                            .clamp(0.0, maxMs > 0 ? maxMs : 1.0);
-                        return Row(
-                          children: [
-                            IconButton(
-                              tooltip: value.isPlaying
-                                  ? context.l10n.filePreviewPause
-                                  : context.l10n.filePreviewPlay,
-                              icon: Icon(
-                                value.isPlaying
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                              ),
-                              onPressed: () => value.isPlaying
-                                  ? controller.pause()
-                                  : controller.play(),
-                            ),
-                            Expanded(
-                              child: Slider(
-                                value: position,
-                                max: maxMs > 0 ? maxMs : 1,
-                                onChanged: maxMs > 0
-                                    ? (ms) => controller.seekTo(
-                                        Duration(milliseconds: ms.round()),
-                                      )
-                                    : null,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: M3VideoPlaybackBar(controller: controller),
                     ),
                   ],
                 ),

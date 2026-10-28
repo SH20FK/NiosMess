@@ -1474,4 +1474,43 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   @override
   String get niosgramPublishedCleanupFailed =>
       'Публикация отправлена, но очистить её черновик не удалось.';
+
+  @override
+  String get mediaSendRecording => 'Отправить запись';
+
+  @override
+  String get mediaRecordStart => 'Начать запись';
+
+  @override
+  String get mediaRecordStop => 'Остановить запись';
+
+  @override
+  String get mediaFrontCamera => 'Фронтальная камера';
+
+  @override
+  String get mediaRearCamera => 'Основная камера';
+
+  @override
+  String get mediaPlaybackPosition => 'Положение воспроизведения';
+
+  @override
+  String get mediaPlaybackSpeed => 'Скорость воспроизведения';
+
+  @override
+  String get mediaEnterFullscreen => 'На весь экран';
+
+  @override
+  String get mediaExitFullscreen => 'Выйти из полного экрана';
+
+  @override
+  String get mediaShowControls => 'Показать управление видео';
+
+  @override
+  String get mediaHideControls => 'Скрыть управление видео';
+
+  @override
+  String get mediaMute => 'Выключить звук';
+
+  @override
+  String get mediaUnmute => 'Включить звук';
 }

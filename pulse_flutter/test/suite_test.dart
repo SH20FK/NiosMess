@@ -123,6 +123,8 @@ import 'widgets/nav_power_saver_test.dart' as nav_power_saver;
 import 'widgets/incremental_media_list_test.dart' as incremental_media_list;
 import 'widgets/ws_cached_image_race_test.dart' as ws_cached_image_race;
 import 'widgets/recording_motion_test.dart' as recording_motion;
+import 'widgets/media_controls_redesign_test.dart' as media_controls_redesign;
+import 'widgets/circle_recorder_design_test.dart' as circle_recorder_design;
 import 'widgets/inbox_saved_search_test.dart' as inbox_saved_search;
 import 'widgets/m3_speed_dial_fab_test.dart' as speed_dial_motion;
 import 'widgets/chat_input_bar_test.dart' as chat_input_motion;
@@ -411,6 +413,8 @@ void main() {
     incremental_media_list.main();
     ws_cached_image_race.main();
     recording_motion.main();
+    media_controls_redesign.main();
+    circle_recorder_design.main();
     inbox_saved_search.main();
     speed_dial_motion.main();
     chat_input_motion.main();

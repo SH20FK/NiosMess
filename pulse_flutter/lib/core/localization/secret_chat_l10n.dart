@@ -3,6 +3,19 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.dart';
 
 extension SecretChatL10n on AppLocalizations {
+  String get mediaSendRecording => _secret.mediaSendRecording;
+  String get mediaRecordStart => _secret.mediaRecordStart;
+  String get mediaRecordStop => _secret.mediaRecordStop;
+  String get mediaFrontCamera => _secret.mediaFrontCamera;
+  String get mediaRearCamera => _secret.mediaRearCamera;
+  String get mediaPlaybackPosition => _secret.mediaPlaybackPosition;
+  String get mediaPlaybackSpeed => _secret.mediaPlaybackSpeed;
+  String get mediaEnterFullscreen => _secret.mediaEnterFullscreen;
+  String get mediaExitFullscreen => _secret.mediaExitFullscreen;
+  String get mediaShowControls => _secret.mediaShowControls;
+  String get mediaHideControls => _secret.mediaHideControls;
+  String get mediaMute => _secret.mediaMute;
+  String get mediaUnmute => _secret.mediaUnmute;
   String get niosgramSavedTitle => _secret.niosgramSavedTitle;
   String get niosgramSavedLocalNotice => _secret.niosgramSavedLocalNotice;
   String get niosgramSavedEmpty => _secret.niosgramSavedEmpty;

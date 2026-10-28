@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -93,8 +94,66 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CreatePostScreen), findsOneWidget);
+      expect(tester.getTopLeft(find.text('Alice Cooper')).dy, lessThan(200));
+      expect(tester.getSize(find.byType(TextField)).height, greaterThan(80));
       expect(tester.takeException(), isNull);
     });
+
+    for (final brightness in Brightness.values) {
+      for (final locale in [const Locale('en'), const Locale('ru')]) {
+        testWidgets('editor fits 320 dp with 200% text: $brightness $locale', (
+          tester,
+        ) async {
+          tester.view.physicalSize = const Size(320, 640);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          addTearDown(tester.view.resetViewInsets);
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                authProvider.overrideWith(_MockAuthNotifier.new),
+                niosgramDraftStoreProvider.overrideWith((_) => _DraftFixture()),
+                niosgramProvider.overrideWith(_MockNiosgramNotifier.new),
+              ],
+              child: MaterialApp(
+                locale: locale,
+                theme: ThemeData(useMaterial3: true, brightness: brightness),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: const TextScaler.linear(2),
+                    disableAnimations: true,
+                  ),
+                  child: child!,
+                ),
+                home: const CreatePostScreen(),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          final title = locale.languageCode == 'ru' ? 'Новый пост' : 'New post';
+          final publish = locale.languageCode == 'ru'
+              ? 'Опубликовать'
+              : 'Publish';
+          final render = tester.renderObject<RenderParagraph>(find.text(title));
+          expect(render.didExceedMaxLines, isFalse);
+          expect(find.text(publish).hitTestable(), findsOneWidget);
+          expect(
+            find.byIcon(Icons.add_photo_alternate_outlined).hitTestable(),
+            findsOneWidget,
+          );
+          await tester.showKeyboard(find.byType(TextField));
+          tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.text(publish).hitTestable(), findsOneWidget);
+          await tester.pumpWidget(const SizedBox.shrink());
+        });
+      }
+    }
 
     testWidgets('feed composer opens the shared editor without overflow', (
       WidgetTester tester,

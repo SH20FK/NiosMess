@@ -23,7 +23,7 @@ import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/nios_dismissible.dart';
-import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/media/m3_video_controls.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:universal_io/io.dart';
 
@@ -206,6 +206,12 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         await _videoController!.initialize();
         _chewieController = ChewieController(
           videoPlayerController: _videoController!,
+          customControls: M3VideoOverlayControls(
+            controller: _videoController!,
+            onVisibilityChanged: (visible) {
+              if (mounted) setState(() => _showChrome = visible);
+            },
+          ),
           autoPlay: !kIsWeb,
           looping: false,
           placeholder: const AppLoadingIndicator(size: 32),
@@ -239,7 +245,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final MediaViewerItem currentItem = _playlistItems[_currentIndex];
     final String displayTitle = _hasPlaylist
-        ? '${_currentIndex + 1} из ${_playlistItems.length}'
+        ? '${_currentIndex + 1} / ${_playlistItems.length}'
         : ((currentItem.title ?? '').trim().isEmpty
             ? context.l10n.mediaViewerTitle
             : currentItem.title!.trim());
@@ -279,21 +285,17 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
 
             // ── Top Animated App Bar ─────────────────────────────────
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 200),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
               curve: M3SpringCurves.spatial,
               top: (_showChrome && !isInteractingWithDrag) ? 0 : -110,
               left: 0,
               right: 0,
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: <Color>[
-                      scheme.surface.withValues(alpha: 0.85),
-                      scheme.surface.withValues(alpha: 0.0),
-                    ],
-                  ),
+                  color: scheme.surfaceContainerHigh.withValues(alpha: 0.96),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
                 ),
                 child: SafeArea(
                   bottom: false,
@@ -323,6 +325,12 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
                       ],
                     ),
                     actions: <Widget>[
+                      if (!kIsWeb)
+                        IconButton(
+                          icon: const Icon(Icons.share_rounded),
+                          tooltip: MaterialLocalizations.of(context).shareButtonLabel,
+                          onPressed: () => _shareCurrentMedia(context, ref),
+                        ),
                       IconButton(
                         icon: const Icon(Icons.download_rounded),
                         tooltip: context.l10n.mediaViewerDownload,
@@ -334,46 +342,6 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
               ),
             ),
 
-            // ── Bottom Animated Action Pill ──────────────────────────
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 200),
-              curve: M3SpringCurves.spatial,
-              bottom: (_showChrome && !isInteractingWithDrag)
-                  ? (MediaQuery.paddingOf(context).bottom + 20)
-                  : -90,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHigh.withValues(alpha: 0.90),
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(
-                      color: scheme.outlineVariant.withValues(alpha: 0.25),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      if (!kIsWeb) TouchContainer(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => _shareCurrentMedia(context, ref),
-                        padding: const EdgeInsets.all(8),
-                        child: Icon(Icons.share_rounded, size: 22, color: scheme.onSurface),
-                      ),
-                      if (!kIsWeb) const SizedBox(width: 16),
-                      TouchContainer(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => _downloadCurrentMedia(context, ref),
-                        padding: const EdgeInsets.all(8),
-                        child: Icon(Icons.file_download_outlined, size: 22, color: scheme.onSurface),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       );
@@ -412,6 +380,11 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
               url: item.url,
               e2eeFileKey: key,
               isActive: _currentIndex == index,
+              onVisibilityChanged: (visible) {
+                if (mounted && _currentIndex == index) {
+                  setState(() => _showChrome = visible);
+                }
+              },
             );
           } else {
             return _buildFallback(scheme, item);
@@ -553,12 +526,14 @@ class _InlineVideoPlayer extends ConsumerStatefulWidget {
     required this.url,
     this.e2eeFileKey,
     this.isActive = false,
+    this.onVisibilityChanged,
     super.key,
   });
 
   final String url;
   final Uint8List? e2eeFileKey;
   final bool isActive;
+  final ValueChanged<bool>? onVisibilityChanged;
 
   @override
   ConsumerState<_InlineVideoPlayer> createState() => _InlineVideoPlayerState();
@@ -606,6 +581,10 @@ class _InlineVideoPlayerState extends ConsumerState<_InlineVideoPlayer> {
       await _videoController!.initialize();
       _chewieController = ChewieController(
         videoPlayerController: _videoController!,
+        customControls: M3VideoOverlayControls(
+          controller: _videoController!,
+          onVisibilityChanged: widget.onVisibilityChanged,
+        ),
         autoPlay: widget.isActive && !kIsWeb,
         looping: false,
         placeholder: const AppLoadingIndicator(size: 32),

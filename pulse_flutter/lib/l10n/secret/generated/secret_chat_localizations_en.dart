@@ -1460,4 +1460,43 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   @override
   String get niosgramPublishedCleanupFailed =>
       'The post was published, but its draft couldn\'t be removed.';
+
+  @override
+  String get mediaSendRecording => 'Send recording';
+
+  @override
+  String get mediaRecordStart => 'Start recording';
+
+  @override
+  String get mediaRecordStop => 'Stop recording';
+
+  @override
+  String get mediaFrontCamera => 'Front camera';
+
+  @override
+  String get mediaRearCamera => 'Rear camera';
+
+  @override
+  String get mediaPlaybackPosition => 'Playback position';
+
+  @override
+  String get mediaPlaybackSpeed => 'Playback speed';
+
+  @override
+  String get mediaEnterFullscreen => 'Full screen';
+
+  @override
+  String get mediaExitFullscreen => 'Exit full screen';
+
+  @override
+  String get mediaShowControls => 'Show video controls';
+
+  @override
+  String get mediaHideControls => 'Hide video controls';
+
+  @override
+  String get mediaMute => 'Mute';
+
+  @override
+  String get mediaUnmute => 'Unmute';
 }

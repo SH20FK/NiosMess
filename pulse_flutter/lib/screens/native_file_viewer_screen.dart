@@ -24,6 +24,7 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/media/m3_video_controls.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:universal_io/io.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1106,6 +1107,7 @@ class _VideoViewerState extends State<_VideoViewer> {
       if (!mounted) return;
       _chewieController = ChewieController(
         videoPlayerController: _videoController!,
+        customControls: M3VideoOverlayControls(controller: _videoController!),
         autoPlay: !kIsWeb,
         looping: false,
         placeholder: const AppLoadingIndicator(size: 32),
@@ -1134,7 +1136,7 @@ class _VideoViewerState extends State<_VideoViewer> {
 
     if (_isLoading) {
       return Container(
-        color: scheme.scrim,
+        color: scheme.surface,
         alignment: Alignment.center,
         child: const Center(
           child: AppLoadingIndicator(size: 32),
@@ -1144,7 +1146,7 @@ class _VideoViewerState extends State<_VideoViewer> {
 
     if (_error != null || _chewieController == null) {
       return Container(
-        color: scheme.scrim,
+        color: scheme.surface,
         alignment: Alignment.center,
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -1153,7 +1155,7 @@ class _VideoViewerState extends State<_VideoViewer> {
             Icon(Icons.error_outline_rounded, size: 48, color: scheme.error),
             const SizedBox(height: 12),
             Text(
-              'Не удалось воспроизвести видео',
+              context.l10n.mediaViewerCannotPreview,
               style: TextStyle(color: scheme.onSurface),
             ),
           ],
@@ -1162,7 +1164,7 @@ class _VideoViewerState extends State<_VideoViewer> {
     }
 
     return Container(
-      color: scheme.scrim,
+      color: scheme.surface,
       alignment: Alignment.center,
       child: Chewie(controller: _chewieController!),
     );

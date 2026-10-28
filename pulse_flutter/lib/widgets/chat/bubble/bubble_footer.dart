@@ -18,6 +18,7 @@ class MessageBubbleFooter extends StatelessWidget {
     this.isFailed = false,
     this.meshDeliveryStatus,
     this.onRetrySend,
+    this.isUnframed = false,
     super.key,
   });
 
@@ -34,16 +35,19 @@ class MessageBubbleFooter extends StatelessWidget {
   final bool isFailed;
   final String? meshDeliveryStatus;
   final VoidCallback? onRetrySend;
+  final bool isUnframed;
 
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final Color footerTextColor = isMine
+    final Color footerTextColor = isMine && !isUnframed
         ? scheme.onPrimaryContainer.withValues(alpha: 0.70)
         : scheme.onSurfaceVariant.withValues(alpha: 0.75);
 
-    final Color statusIconColor = isMine
+    final Color statusIconColor = isUnframed
+        ? scheme.onSurfaceVariant
+        : isMine
         ? (isSending
               ? scheme.onPrimaryContainer.withValues(alpha: 0.60)
               : (isDark

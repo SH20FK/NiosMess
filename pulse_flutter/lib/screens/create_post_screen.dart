@@ -705,7 +705,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(context.l10n.postNewPost),
+          title: Text(context.l10n.postNewPost, maxLines: 2),
+          toolbarHeight:
+              kToolbarHeight *
+              MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
           centerTitle: isWide,
           scrolledUnderElevation: 0,
           backgroundColor: Colors.transparent,
@@ -719,21 +722,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
               icon: const Icon(Icons.delete_outline_rounded),
               onPressed: _isLoading || _finalizing ? null : _discard,
             ),
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: FilledButton(
-                onPressed: _isLoading || _finalizing || _alreadyPublished
-                    ? null
-                    : _submit,
-                child: _isLoading
-                    ? const AppLoadingIndicator(size: 18)
-                    : Text(context.l10n.postPublish),
-              ),
-            ),
           ],
         ),
         body: SafeArea(
-          child: Center(
+          child: Align(
+            alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 680),
               child: SingleChildScrollView(
@@ -774,12 +767,16 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                               children: <Widget>[
                                 Text(
                                   displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 Text(
                                   context.l10n.niosgramPublishToFeed,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: textTheme.bodySmall?.copyWith(
                                     color: scheme.onSurfaceVariant.withValues(
                                       alpha: 0.75,
@@ -808,8 +805,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                         child: TextField(
                           controller: _textController,
                           readOnly: _finalizing,
-                          maxLines: 8,
-                          minLines: 1,
+                          maxLines: 12,
+                          minLines:
+                              MediaQuery.textScalerOf(context).scale(1) > 1.5
+                              ? 2
+                              : 4,
                           inputFormatters: [
                             CustomEmojiLengthFormatter(_maxPostLength),
                           ],
@@ -822,6 +822,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                               }) => null,
                           style: textTheme.bodyLarge?.copyWith(fontSize: 15),
                           decoration: InputDecoration(
+                            filled: false,
                             hintText: context.l10n.postHint,
                             hintStyle: TextStyle(
                               color: scheme.onSurfaceVariant.withValues(
@@ -829,6 +830,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                               ),
                             ),
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 4,
@@ -840,51 +844,104 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                       ),
                       const SizedBox(height: 16),
 
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: CustomEmojiComposerButton(
-                          controller: _textController,
-                        ),
+                      Row(
+                        children: [
+                          IconButton.filledTonal(
+                            tooltip: context.l10n.postAttachMedia,
+                            onPressed:
+                                _selectedFiles.length >= 5 ||
+                                    _isLoading ||
+                                    _finalizing
+                                ? null
+                                : _pickMedia,
+                            icon: Badge(
+                              isLabelVisible: _selectedFiles.isNotEmpty,
+                              label: Text('${_selectedFiles.length}'),
+                              child: const Icon(
+                                Icons.add_photo_alternate_outlined,
+                              ),
+                            ),
+                            style: IconButton.styleFrom(
+                              minimumSize: const Size(48, 48),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          IgnorePointer(
+                            ignoring: _finalizing,
+                            child: CustomEmojiComposerButton(
+                              controller: _textController,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (_textController.text.isNotEmpty)
+                            Flexible(
+                              child: Text(
+                                '${customEmojiLength(_textController.text)} / $_maxPostLength',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.end,
+                                style: textTheme.labelSmall?.copyWith(
+                                  color:
+                                      customEmojiLength(_textController.text) >
+                                          _maxPostLength - 200
+                                      ? scheme.error
+                                      : scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
+                      const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
                         children: [
                           for (final kind in ['poll', 'quiz'])
-                            TextButton.icon(
-                              onPressed: _isLoading || _finalizing
-                                  ? null
-                                  : () async {
-                                      final result =
-                                          await showInteractiveComposer(
-                                            context,
-                                            kind,
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: screenWidth - (isWide ? 80 : 32),
+                              ),
+                              child: ActionChip(
+                                onPressed: _isLoading || _finalizing
+                                    ? null
+                                    : () async {
+                                        final result =
+                                            await showInteractiveComposer(
+                                              context,
+                                              kind,
+                                            );
+                                        final parsed = result == null
+                                            ? null
+                                            : InteractiveMessage.parse(result);
+                                        if (parsed != null && mounted) {
+                                          setState(
+                                            () => _poll =
+                                                Map<String, dynamic>.from(
+                                                  parsed.data,
+                                                ),
                                           );
-                                      final parsed = result == null
-                                          ? null
-                                          : InteractiveMessage.parse(result);
-                                      if (parsed != null && mounted) {
-                                        setState(
-                                          () =>
-                                              _poll = Map<String, dynamic>.from(
-                                                parsed.data,
-                                              ),
-                                        );
-                                        _changed();
-                                      }
-                                    },
-                              icon: InteractiveIcon(kind),
-                              label: Text(
-                                kind == 'quiz'
-                                    ? context.l10n.niosgramAnonymousQuiz
-                                    : context.l10n.niosgramAnonymousPoll,
+                                          _changed();
+                                        }
+                                      },
+                                avatar: InteractiveIcon(kind),
+                                side: BorderSide.none,
+                                backgroundColor: scheme.surfaceContainerHigh,
+                                label: Text(
+                                  kind == 'quiz'
+                                      ? context.l10n.niosgramAnonymousQuiz
+                                      : context.l10n.niosgramAnonymousPoll,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           if (_poll != null)
                             TextButton(
-                              onPressed: () {
-                                setState(() => _poll = null);
-                                _changed();
-                              },
+                              onPressed: _isLoading || _finalizing
+                                  ? null
+                                  : () {
+                                      setState(() => _poll = null);
+                                      _changed();
+                                    },
                               child: Text(context.l10n.niosgramRemovePoll),
                             ),
                         ],
@@ -961,88 +1018,29 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
             ),
           ),
         ),
-        bottomNavigationBar: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: isDark ? scheme.surfaceContainerLow : scheme.surface,
-            border: Border(
-              top: BorderSide(
-                color: scheme.outlineVariant.withValues(
-                  alpha: isDark ? 0.20 : 0.35,
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Center(
+              heightFactor: 1,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 680),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _isLoading || _finalizing || _alreadyPublished
+                        ? null
+                        : _submit,
+                    child: _isLoading
+                        ? const AppLoadingIndicator(size: 18)
+                        : Text(
+                            context.l10n.postPublish,
+                            textAlign: TextAlign.center,
+                          ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-                final bool isNarrow = constraints.maxWidth < 360;
-                final bool isVeryNarrow = constraints.maxWidth < 310;
-                return Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: FilledButton.tonalIcon(
-                        onPressed:
-                            _selectedFiles.length >= 5 ||
-                                _isLoading ||
-                                _finalizing
-                            ? null
-                            : _pickMedia,
-                        icon: Badge(
-                          isLabelVisible: _selectedFiles.isNotEmpty,
-                          label: Text('${_selectedFiles.length}'),
-                          child: const Icon(
-                            Icons.add_photo_alternate_outlined,
-                            size: 19,
-                          ),
-                        ),
-                        label: Text(
-                          _selectedFiles.isEmpty
-                              ? context.l10n.postAttachMedia
-                              : (isNarrow
-                                    ? '${_selectedFiles.length}/5'
-                                    : '${context.l10n.postAttachMedia} (${_selectedFiles.length}/5)'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isNarrow ? 10 : 14,
-                            vertical: 8,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    if (_textController.text.isNotEmpty && !isVeryNarrow)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: Text(
-                          '${customEmojiLength(_textController.text)} / $_maxPostLength',
-                          style: textTheme.bodySmall?.copyWith(
-                            color:
-                                customEmojiLength(_textController.text) >
-                                    (_maxPostLength - 200)
-                                ? scheme.error
-                                : scheme.onSurfaceVariant.withValues(
-                                    alpha: 0.6,
-                                  ),
-                            fontSize: 11,
-                            fontWeight:
-                                customEmojiLength(_textController.text) >
-                                    (_maxPostLength - 200)
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
             ),
           ),
         ),

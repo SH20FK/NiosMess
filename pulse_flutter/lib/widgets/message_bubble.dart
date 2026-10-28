@@ -223,6 +223,8 @@ class MessageBubble extends ConsumerWidget {
         : (isMine ? scheme.primaryContainer : scheme.surfaceContainerHigh);
     final Color textColor = isDeleted
         ? scheme.onSurfaceVariant
+        : isVoice
+        ? scheme.onSurface
         : (isMine ? scheme.onPrimaryContainer : scheme.onSurface);
     final Border? bubbleBorder = (!isMine && !isDark)
         ? Border.all(
@@ -440,17 +442,22 @@ class MessageBubble extends ConsumerWidget {
                   }
                 },
                 child: Container(
+                  key: isVoice && !isDeleted
+                      ? const ValueKey('voice-message-unframed')
+                      : null,
                   constraints: BoxConstraints(
                     minWidth: 76,
                     maxWidth: MediaQuery.sizeOf(context).width > 600
                         ? 520.0
                         : MediaQuery.sizeOf(context).width * 0.78,
                   ),
-                  padding: const EdgeInsets.fromLTRB(14, 9, 14, 7),
+                  padding: isVoice && !isDeleted
+                      ? const EdgeInsets.symmetric(horizontal: 4, vertical: 4)
+                      : const EdgeInsets.fromLTRB(14, 9, 14, 7),
                   decoration: BoxDecoration(
-                    color: bubbleColor,
+                    color: isVoice && !isDeleted ? null : bubbleColor,
                     borderRadius: bubbleRadius,
-                    border: bubbleBorder,
+                    border: isVoice && !isDeleted ? null : bubbleBorder,
                   ),
                   child: Semantics(
                     label: isMine
@@ -488,6 +495,7 @@ class MessageBubble extends ConsumerWidget {
                             hideFooter: hideFooter,
                             footer: MessageBubbleFooter(
                               isMine: isMine,
+                              isUnframed: isVoice && !isDeleted,
                               isE2ee: isE2ee,
                               isEdited: isEdited,
                               isDeleted: isDeleted,
@@ -507,6 +515,7 @@ class MessageBubble extends ConsumerWidget {
                             alignment: Alignment.bottomRight,
                             child: MessageBubbleFooter(
                               isMine: isMine,
+                              isUnframed: isVoice && !isDeleted,
                               isE2ee: isE2ee,
                               isEdited: isEdited,
                               isDeleted: isDeleted,

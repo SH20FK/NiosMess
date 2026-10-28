@@ -793,6 +793,7 @@ class _FullScreenImage extends StatefulWidget {
 
 class _FullScreenImageState extends State<_FullScreenImage> {
   bool _visible = false;
+  bool _showControls = true;
 
   @override
   void initState() {
@@ -806,7 +807,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
+      onTap: () => setState(() => _showControls = !_showControls),
       child: ColoredBox(
         color: scheme.surface,
         child: Stack(
@@ -820,7 +821,9 @@ class _FullScreenImageState extends State<_FullScreenImage> {
                   child: Center(
                     child: AnimatedOpacity(
                       opacity: _visible ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 250),
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : M3Durations.medium1,
                       child: CachedNetworkImage(
                         imageUrl: widget.url,
                         fit: BoxFit.contain,
@@ -845,26 +848,40 @@ class _FullScreenImageState extends State<_FullScreenImage> {
               ),
             ),
             Positioned(
-              top: MediaQuery.paddingOf(context).top + 4,
-              left: 0,
-              right: 0,
+              top: 0,
+              left: 12,
+              right: 12,
               child: SafeArea(
                 bottom: false,
-                child: Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest.withValues(
-                        alpha: 0.8,
+                child: IgnorePointer(
+                  ignoring: !_showControls,
+                  child: AnimatedOpacity(
+                    opacity: _showControls ? 1 : 0,
+                    curve: M3SpringCurves.expressiveDecel,
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : M3Durations.short3,
+                    child: Material(
+                      color: scheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(24),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          Expanded(
+                            child: Text(
+                              context.l10n.mediaViewerTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.close_rounded,
-                        color: scheme.onSurface,
-                        size: 22,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
                 ),
@@ -956,6 +973,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                     _feedVideoTile(context, widget.mediaUrls.first)
                   else
                     GestureDetector(
+                      key: ValueKey('post-media-open-${widget.post.id}'),
                       onTap: widget.onMediaTap,
                       child: Hero(
                         tag: 'post_media_${widget.post.id}',

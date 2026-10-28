@@ -2794,6 +2794,84 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'The post was published, but its draft couldn\'t be removed.'**
   String get niosgramPublishedCleanupFailed;
+
+  /// No description provided for @mediaSendRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Send recording'**
+  String get mediaSendRecording;
+
+  /// No description provided for @mediaRecordStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start recording'**
+  String get mediaRecordStart;
+
+  /// No description provided for @mediaRecordStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording'**
+  String get mediaRecordStop;
+
+  /// No description provided for @mediaFrontCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Front camera'**
+  String get mediaFrontCamera;
+
+  /// No description provided for @mediaRearCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Rear camera'**
+  String get mediaRearCamera;
+
+  /// No description provided for @mediaPlaybackPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback position'**
+  String get mediaPlaybackPosition;
+
+  /// No description provided for @mediaPlaybackSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback speed'**
+  String get mediaPlaybackSpeed;
+
+  /// No description provided for @mediaEnterFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Full screen'**
+  String get mediaEnterFullscreen;
+
+  /// No description provided for @mediaExitFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit full screen'**
+  String get mediaExitFullscreen;
+
+  /// No description provided for @mediaShowControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Show video controls'**
+  String get mediaShowControls;
+
+  /// No description provided for @mediaHideControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide video controls'**
+  String get mediaHideControls;
+
+  /// No description provided for @mediaMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get mediaMute;
+
+  /// No description provided for @mediaUnmute.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute'**
+  String get mediaUnmute;
 }
 
 class _SecretChatLocalizationsDelegate

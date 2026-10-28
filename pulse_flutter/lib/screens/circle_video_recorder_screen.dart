@@ -14,10 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const int _kMaxRecordSeconds = 60;
 
 class CircleVideoRecorderScreen extends ConsumerStatefulWidget {
-  const CircleVideoRecorderScreen({
-    this.autoStart = false,
-    super.key,
-  });
+  const CircleVideoRecorderScreen({this.autoStart = false, super.key});
 
   /// If true, recording starts automatically after camera initializes.
   final bool autoStart;
@@ -28,7 +25,8 @@ class CircleVideoRecorderScreen extends ConsumerStatefulWidget {
 }
 
 class _CircleVideoRecorderScreenState
-    extends ConsumerState<CircleVideoRecorderScreen> with TickerProviderStateMixin {
+    extends ConsumerState<CircleVideoRecorderScreen>
+    with TickerProviderStateMixin {
   static const String _kCameraLensPrefKey = 'circle_video_preferred_lens';
 
   CameraController? _controller;
@@ -58,7 +56,10 @@ class _CircleVideoRecorderScreenState
       duration: const Duration(milliseconds: 800),
     );
     _pulseAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _pulseController, curve: M3SpringCurves.expressiveStandard),
+      CurvedAnimation(
+        parent: _pulseController,
+        curve: M3SpringCurves.expressiveStandard,
+      ),
     );
 
     _progressController = AnimationController(
@@ -90,7 +91,8 @@ class _CircleVideoRecorderScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _motionAllowed = !MediaQuery.disableAnimationsOf(context) &&
+    _motionAllowed =
+        !MediaQuery.disableAnimationsOf(context) &&
         TickerMode.valuesOf(context).enabled;
     _syncPulse();
   }
@@ -166,17 +168,14 @@ class _CircleVideoRecorderScreenState
         _elapsedSec = 0;
         _syncPulse();
         _progressController.forward();
-        _recordingTimer = Timer.periodic(
-          const Duration(seconds: 1),
-          (_) {
-            if (mounted) {
-              setState(() => _elapsedSec++);
-              if (_elapsedSec >= _kMaxRecordSeconds) {
-                _stopRecording();
-              }
+        _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (mounted) {
+            setState(() => _elapsedSec++);
+            if (_elapsedSec >= _kMaxRecordSeconds) {
+              _stopRecording();
             }
-          },
-        );
+          }
+        });
       }
     } catch (_) {
       // Camera may not support recording
@@ -213,9 +212,7 @@ class _CircleVideoRecorderScreenState
     }
 
     if (mounted && ref.read(uiSettingsProvider).haptics) {
-
       HapticService.tap();
-
     }
     _flipController.forward(from: 0.0);
 
@@ -308,15 +305,23 @@ class _CircleVideoRecorderScreenState
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final double circleSize = screenWidth * 0.78;
+    final media = MediaQuery.of(context);
+    final double circleSize = math.min(
+      360.0,
+      math.min(
+        (media.size.width - 48).clamp(120.0, 360.0),
+        (media.size.height - media.padding.vertical - 200).clamp(120.0, 360.0),
+      ),
+    );
 
     final String formatted =
         '${(_elapsedSec ~/ 60).toString().padLeft(2, '0')}:${(_elapsedSec % 60).toString().padLeft(2, '0')}';
 
     final double previewW;
     final double previewH;
-    if (_initialized && _controller != null && _controller!.value.isInitialized) {
+    if (_initialized &&
+        _controller != null &&
+        _controller!.value.isInitialized) {
       final Size pSize = _controller!.value.previewSize!;
       // On mobile camera preview is usually reported landscape (width > height)
       if (pSize.width > pSize.height) {
@@ -339,7 +344,7 @@ class _CircleVideoRecorderScreenState
           child: Container(
             width: double.infinity,
             height: double.infinity,
-            color: scheme.scrim.withValues(alpha: 0.90),
+            color: scheme.surface,
             child: Stack(
               fit: StackFit.expand,
               alignment: Alignment.center,
@@ -363,8 +368,9 @@ class _CircleVideoRecorderScreenState
                                   progress: _progressController.value,
                                   strokeWidth: 4.5,
                                   activeColor: scheme.error,
-                                  trackColor:
-                                      scheme.onSurface.withValues(alpha: 0.20),
+                                  trackColor: scheme.onSurface.withValues(
+                                    alpha: 0.20,
+                                  ),
                                 ),
                               );
                             },
@@ -409,7 +415,8 @@ class _CircleVideoRecorderScreenState
                                     ),
                                   );
                                 },
-                                child: _initialized &&
+                                child:
+                                    _initialized &&
                                         _controller != null &&
                                         _controller!.value.isInitialized
                                     ? FittedBox(
@@ -447,94 +454,114 @@ class _CircleVideoRecorderScreenState
                       // Close button
                       _CircleButton(
                         icon: Icons.close_rounded,
+                        tooltip: MaterialLocalizations.of(
+                          context,
+                        ).closeButtonTooltip,
                         onTap: _cancelAndPop,
                         scheme: scheme,
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       // Timer badge or Camera Lens indicator badge
-                      if (_isRecording)
-                        AnimatedBuilder(
-                          animation: _pulseAnim,
-                          builder: (BuildContext context, Widget? child) {
-                            return Transform.scale(
-                              scale: _pulseAnim.value,
-                              child: child,
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.surface.withValues(alpha: 0.65),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: scheme.error,
-                                    shape: BoxShape.circle,
+                      Expanded(
+                        child: Center(
+                          child: _isRecording
+                              ? AnimatedBuilder(
+                                  animation: _pulseAnim,
+                                  builder:
+                                      (BuildContext context, Widget? child) {
+                                        return Transform.scale(
+                                          scale: _pulseAnim.value,
+                                          child: child,
+                                        );
+                                      },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 7,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: scheme.errorContainer,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: <Widget>[
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: scheme.error,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            formatted,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: textTheme.labelLarge?.copyWith(
+                                              color: scheme.onErrorContainer,
+                                              fontWeight: FontWeight.w600,
+                                              fontFeatures: const <FontFeature>[
+                                                FontFeature.tabularFigures(),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  formatted,
-                                  style: textTheme.labelLarge?.copyWith(
-                                    color: scheme.onSurface,
-                                    fontWeight: FontWeight.w600,
-                                    fontFeatures: const <FontFeature>[
-                                      FontFeature.tabularFigures(),
+                                )
+                              :
+                                // Lens indicator badge (Front / Rear)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surfaceContainerHigh,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      Icon(
+                                        _currentLensDirection ==
+                                                CameraLensDirection.front
+                                            ? Icons.face_rounded
+                                            : Icons.photo_camera_back_rounded,
+                                        size: 16,
+                                        color: scheme.onSurface.withValues(
+                                          alpha: 0.85,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          _currentLensDirection ==
+                                                  CameraLensDirection.front
+                                              ? context.l10n.mediaFrontCamera
+                                              : context.l10n.mediaRearCamera,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: textTheme.labelMedium
+                                              ?.copyWith(
+                                                color: scheme.onSurface
+                                                    .withValues(alpha: 0.85),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
-                        // Lens indicator badge (Front / Rear)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.surface.withValues(alpha: 0.50),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              Icon(
-                                _currentLensDirection ==
-                                        CameraLensDirection.front
-                                    ? Icons.face_rounded
-                                    : Icons.photo_camera_back_rounded,
-                                size: 16,
-                                color: scheme.onSurface.withValues(alpha: 0.85),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _currentLensDirection ==
-                                        CameraLensDirection.front
-                                    ? 'Фронтальная'
-                                    : 'Основная',
-                                style: textTheme.labelMedium?.copyWith(
-                                  color: scheme.onSurface.withValues(alpha: 0.85),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
-                      const Spacer(),
+                      ),
+                      const SizedBox(width: 8),
                       // Symmetrical spacer to balance the close button on the left
-                      const SizedBox(width: 44, height: 44),
+                      const SizedBox(width: 48, height: 48),
                     ],
                   ),
                 ),
@@ -557,51 +584,74 @@ class _CircleVideoRecorderScreenState
                             const SizedBox(width: 48, height: 48),
 
                             // Record / Stop button
-                            GestureDetector(
-                              onTap: () {
-                                if (_isRecording) {
-                                  _stopRecording();
-                                } else {
-                                  _startRecording();
-                                }
-                              },
-                              child: AnimatedBuilder(
-                                animation: _pulseAnim,
-                                builder: (BuildContext context, Widget? child) {
-                                  final double outerSize =
-                                      _isRecording ? 72 * _pulseAnim.value : 80;
-                                  return Container(
-                                    width: outerSize,
-                                    height: outerSize,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: _isRecording
-                                            ? scheme.error
-                                            : scheme.onSurface
-                                                .withValues(alpha: 0.6),
-                                        width: 4,
-                                      ),
-                                    ),
-                                    child: Center(
+                            Tooltip(
+                              message: _isRecording
+                                  ? context.l10n.mediaRecordStop
+                                  : context.l10n.mediaRecordStart,
+                              child: Semantics(
+                                button: true,
+                                label: _isRecording
+                                    ? context.l10n.mediaRecordStop
+                                    : context.l10n.mediaRecordStart,
+                                child: GestureDetector(
+                                  onTap: _isRecording
+                                      ? _stopRecording
+                                      : _startRecording,
+                                  child: SizedBox(
+                                    width: 80,
+                                    height: 80,
+                                    child: AnimatedBuilder(
+                                      animation: _pulseAnim,
+                                      builder: (context, child) =>
+                                          Transform.scale(
+                                            scale: _isRecording
+                                                ? _pulseAnim.value
+                                                : 1,
+                                            child: child,
+                                          ),
                                       child: AnimatedContainer(
                                         duration:
-                                            const Duration(milliseconds: 200),
-                                        curve: Curves.easeInOutCubic,
-                                        width: _isRecording ? 24 : 36,
-                                        height: _isRecording ? 24 : 36,
+                                            MediaQuery.disableAnimationsOf(
+                                              context,
+                                            )
+                                            ? Duration.zero
+                                            : M3Durations.short3,
+                                        curve: M3SpringCurves.expressiveDecel,
                                         decoration: BoxDecoration(
                                           color: _isRecording
-                                              ? scheme.error
-                                              : scheme.onSurface,
+                                              ? scheme.errorContainer
+                                              : scheme.primaryContainer,
                                           borderRadius: BorderRadius.circular(
-                                            _isRecording ? 6 : 18,
+                                            _isRecording ? 26 : 40,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: AnimatedContainer(
+                                            duration:
+                                                MediaQuery.disableAnimationsOf(
+                                                  context,
+                                                )
+                                                ? Duration.zero
+                                                : M3Durations.short3,
+                                            curve:
+                                                M3SpringCurves.expressiveDecel,
+                                            width: _isRecording ? 26 : 36,
+                                            height: _isRecording ? 26 : 36,
+                                            decoration: BoxDecoration(
+                                              color: _isRecording
+                                                  ? scheme.error
+                                                  : scheme.primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    _isRecording ? 7 : 18,
+                                                  ),
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  );
-                                },
+                                  ),
+                                ),
                               ),
                             ),
 
@@ -622,7 +672,9 @@ class _CircleVideoRecorderScreenState
                       Text(
                         _isRecording
                             ? context.l10n.mediaViewerRecording
-                            : context.l10n.chatCircleVideoHoldHint,
+                            : context.l10n.mediaRecordStart,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
                         style: textTheme.bodySmall?.copyWith(
                           color: scheme.onSurface.withValues(alpha: 0.70),
                           fontWeight: FontWeight.w500,
@@ -647,7 +699,7 @@ class _CircleButton extends StatelessWidget {
     required this.onTap,
     required this.scheme,
     this.tooltip,
-    this.size = 44,
+    this.size = 48,
     this.iconSize = 24,
   });
 
@@ -661,9 +713,9 @@ class _CircleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget button = Material(
-      color: scheme.surface.withValues(alpha: 0.35),
+      color: scheme.surfaceContainerHigh,
       shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.none,
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),

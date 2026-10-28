@@ -13,6 +13,7 @@ import 'package:pulse_flutter/core/media/media_playback_source.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/services/global_voice_playback_service.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -54,10 +55,11 @@ class VoiceMessagePlayer extends StatefulWidget {
 
 class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   late final AudioPlayer _player;
-  final ValueNotifier<Duration> _positionNotifier =
-      ValueNotifier<Duration>(Duration.zero);
+  final ValueNotifier<Duration> _positionNotifier = ValueNotifier<Duration>(
+    Duration.zero,
+  );
   Duration _duration = Duration.zero;
-  late final List<double> _waveformBars;
+  late List<double> _waveformBars;
   bool _seeking = false;
   MediaPlaybackSource? _playbackSource;
   int _sourceGeneration = 0;
@@ -65,9 +67,11 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   @override
   void initState() {
     super.initState();
+    _duration = Duration(seconds: widget.durationSeconds.clamp(0, 359999));
     _player = AudioPlayer(handleInterruptions: true);
     _initAudioSession();
-    _waveformBars = (widget.waveformAmplitudes != null &&
+    _waveformBars =
+        (widget.waveformAmplitudes != null &&
             widget.waveformAmplitudes!.isNotEmpty)
         ? _resampleWaveform(widget.waveformAmplitudes!, 50)
         : List<double>.filled(50, 0.35);
@@ -77,14 +81,29 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   @override
   void didUpdateWidget(covariant VoiceMessagePlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.audioUrl != widget.audioUrl ||
+        oldWidget.waveformAmplitudes != widget.waveformAmplitudes) {
+      _waveformBars =
+          (widget.waveformAmplitudes != null &&
+              widget.waveformAmplitudes!.isNotEmpty)
+          ? _resampleWaveform(widget.waveformAmplitudes!, 50)
+          : List<double>.filled(50, 0.35);
+    }
     if (oldWidget.audioUrl != widget.audioUrl) {
+      _positionNotifier.value = Duration.zero;
+      _duration = Duration(seconds: widget.durationSeconds.clamp(0, 359999));
       _setupPlayer();
+    } else if (oldWidget.durationSeconds != widget.durationSeconds &&
+        _duration == Duration.zero) {
+      _duration = Duration(seconds: widget.durationSeconds.clamp(0, 359999));
     }
   }
 
   static List<double> _resampleWaveform(List<double> source, int targetCount) {
     if (source.isEmpty) return List.filled(targetCount, 0.15);
-    if (source.length == targetCount) return source.map((v) => v.clamp(0.08, 1.0)).toList();
+    if (source.length == targetCount) {
+      return source.map((v) => v.clamp(0.08, 1.0)).toList();
+    }
     final List<double> resampled = [];
     final double step = source.length / targetCount;
     for (int i = 0; i < targetCount; i++) {
@@ -102,15 +121,18 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   Future<void> _initAudioSession() async {
     try {
       final AudioSession session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration(
-        androidAudioFocusGainType: AndroidAudioFocusGainType.gainTransient,
-        androidAudioAttributes: AndroidAudioAttributes(
-          contentType: AndroidAudioContentType.music,
-          usage: AndroidAudioUsage.media,
+      await session.configure(
+        const AudioSessionConfiguration(
+          androidAudioFocusGainType: AndroidAudioFocusGainType.gainTransient,
+          androidAudioAttributes: AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.music,
+            usage: AndroidAudioUsage.media,
+          ),
+          avAudioSessionCategory: AVAudioSessionCategory.playback,
+          avAudioSessionCategoryOptions:
+              AVAudioSessionCategoryOptions.mixWithOthers,
         ),
-        avAudioSessionCategory: AVAudioSessionCategory.playback,
-        avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.mixWithOthers,
-      ));
+      );
     } catch (_) {}
   }
 
@@ -224,18 +246,11 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   @override
   Widget build(BuildContext context) {
     final bool playing = _player.playing;
-    final Color fg = widget.isMine ? widget.scheme.onPrimary : widget.scheme.primary;
-    final Color onFg = widget.isMine ? widget.scheme.primary : widget.scheme.onPrimary;
-    final Color bg = widget.isMine
-        ? widget.scheme.onPrimary.withValues(alpha: 0.12)
-        : widget.scheme.surfaceContainerHighest.withValues(alpha: 0.50);
+    final Color fg = widget.scheme.primary;
+    final Color onFg = widget.scheme.onPrimary;
 
     return Container(
-      constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      constraints: const BoxConstraints(maxWidth: 280),
       child: Row(
         children: <Widget>[
           Padding(
@@ -243,37 +258,55 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
             child: widget.audioUrl.startsWith('local://')
                 ? Consumer(
                     builder: (context, ref, child) {
-                      final localId = widget.audioUrl.replaceFirst('local://', '');
+                      final localId = widget.audioUrl.replaceFirst(
+                        'local://',
+                        '',
+                      );
                       ref.watch(uploadTaskProvider(localId));
                       return Container(
                         width: 48,
                         height: 48,
                         alignment: Alignment.center,
-                        child: AppLoadingIndicator(
-                          size: 26,
-                          color: fg,
-                        ),
+                        child: AppLoadingIndicator(size: 26, color: fg),
                       );
                     },
                   )
-                : TouchContainer(
-                    borderRadius: AppRadii.fullRadius,
-                    onTap: _togglePlay,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: fg,
-                        shape: BoxShape.circle,
-                      ),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-                        child: Icon(
-                          playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                          key: ValueKey<bool>(playing),
-                          color: onFg,
-                          size: 26,
+                : Tooltip(
+                    message: playing
+                        ? context.l10n.filePreviewPause
+                        : context.l10n.filePreviewPlay,
+                    child: Semantics(
+                      button: true,
+                      label: playing
+                          ? context.l10n.filePreviewPause
+                          : context.l10n.filePreviewPlay,
+                      child: TouchContainer(
+                        borderRadius: AppRadii.fullRadius,
+                        onTap: _togglePlay,
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: fg,
+                            shape: BoxShape.circle,
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : M3Durations.short3,
+                            switchInCurve: M3SpringCurves.expressiveDecel,
+                            switchOutCurve: M3SpringCurves.expressiveDecel,
+                            transitionBuilder: (child, anim) =>
+                                ScaleTransition(scale: anim, child: child),
+                            child: Icon(
+                              playing
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              key: ValueKey<bool>(playing),
+                              color: onFg,
+                              size: 26,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -285,7 +318,10 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
               valueListenable: _positionNotifier,
               builder: (context, pos, _) {
                 final double progress = _duration.inMilliseconds > 0
-                    ? pos.inMilliseconds / _duration.inMilliseconds
+                    ? (pos.inMilliseconds / _duration.inMilliseconds).clamp(
+                        0.0,
+                        1.0,
+                      )
                     : 0.0;
                 final Duration remaining = _duration - pos;
 
@@ -298,10 +334,15 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           if (widget.audioUrl.startsWith('local://')) {
-                            final localId = widget.audioUrl.replaceFirst('local://', '');
+                            final localId = widget.audioUrl.replaceFirst(
+                              'local://',
+                              '',
+                            );
                             return Consumer(
                               builder: (context, ref, child) {
-                                final task = ref.watch(uploadTaskProvider(localId));
+                                final task = ref.watch(
+                                  uploadTaskProvider(localId),
+                                );
                                 final progressVal = task?.progress ?? 0.0;
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 18),
@@ -311,9 +352,14 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                                       height: 4,
                                       child: Stack(
                                         children: [
-                                          Container(color: fg.withValues(alpha: 0.2)),
+                                          Container(
+                                            color: fg.withValues(alpha: 0.2),
+                                          ),
                                           FractionallySizedBox(
-                                            widthFactor: progressVal.clamp(0.0, 1.0),
+                                            widthFactor: progressVal.clamp(
+                                              0.0,
+                                              1.0,
+                                            ),
                                             child: Container(color: fg),
                                           ),
                                         ],
@@ -324,29 +370,46 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                               },
                             );
                           }
-                          return GestureDetector(
-                            onTapDown: (TapDownDetails details) {
-                              final double localX = details.localPosition.dx;
-                              final double width = constraints.maxWidth;
-                              _seekTo(localX / width);
-                            },
-                            onHorizontalDragStart: (_) => _seeking = true,
-                            onHorizontalDragUpdate: (DragUpdateDetails details) {
-                              final double localX = details.localPosition.dx;
-                              final double width = constraints.maxWidth;
-                              _seekTo(localX / width);
-                            },
-                            onHorizontalDragEnd: (_) => _seeking = false,
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: RepaintBoundary(
-                                child: CustomPaint(
-                                  size: Size(constraints.maxWidth, 34),
-                                  painter: _WaveformPainter(
-                                    bars: _waveformBars,
-                                    progress: progress,
-                                    playedColor: fg,
-                                    unplayedColor: fg.withValues(alpha: 0.30),
+                          return Semantics(
+                            label: context.l10n.mediaPlaybackPosition,
+                            value: '${(progress * 100).round()}%',
+                            increasedValue:
+                                '${((progress + 0.1).clamp(0.0, 1.0) * 100).round()}%',
+                            decreasedValue:
+                                '${((progress - 0.1).clamp(0.0, 1.0) * 100).round()}%',
+                            slider: true,
+                            onIncrease: () => _seekTo(progress + 0.1),
+                            onDecrease: () => _seekTo(progress - 0.1),
+                            child: GestureDetector(
+                              onTapDown: (TapDownDetails details) {
+                                final double localX = details.localPosition.dx;
+                                final double width = constraints.maxWidth;
+                                if (width > 0) _seekTo(localX / width);
+                              },
+                              onHorizontalDragStart: (_) => _seeking = true,
+                              onHorizontalDragUpdate:
+                                  (DragUpdateDetails details) {
+                                    final double localX =
+                                        details.localPosition.dx;
+                                    final double width = constraints.maxWidth;
+                                    if (width > 0) _seekTo(localX / width);
+                                  },
+                              onHorizontalDragEnd: (_) => _seeking = false,
+                              onHorizontalDragCancel: () => _seeking = false,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: RepaintBoundary(
+                                  child: CustomPaint(
+                                    key: const ValueKey(
+                                      'voice-message-waveform',
+                                    ),
+                                    size: Size(constraints.maxWidth, 34),
+                                    painter: _WaveformPainter(
+                                      bars: _waveformBars,
+                                      progress: progress,
+                                      playedColor: fg,
+                                      unplayedColor: fg.withValues(alpha: 0.30),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -415,7 +478,9 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                               color: fg.withValues(alpha: 0.7),
-                              fontFeatures: const [FontFeature.tabularFigures()],
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
                             ),
                           ),
                         ],
@@ -454,16 +519,19 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double gap = 1.5;
-    final double barWidth = (size.width - (bars.length - 1) * gap) / bars.length;
+    if (size.width <= 0 || size.height <= 0 || bars.isEmpty) return;
+    const double gap = 1.5;
+    final int count = (size.width / 4).floor().clamp(1, bars.length);
+    final double barWidth = (size.width - (count - 1) * gap) / count;
     final double midY = size.height / 2;
     final double maxBarHeight = size.height * 0.85;
 
-    for (int i = 0; i < bars.length; i++) {
+    for (int i = 0; i < count; i++) {
       final double x = i * (barWidth + gap);
-      final double barHeight = bars[i] * maxBarHeight;
+      final double barHeight =
+          bars[(i * bars.length / count).floor()] * maxBarHeight;
       final double top = midY - barHeight / 2;
-      final bool played = i / bars.length <= progress;
+      final bool played = i / count <= progress;
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
@@ -474,17 +542,21 @@ class _WaveformPainter extends CustomPainter {
       );
     }
 
-    final double thumbX = progress * size.width;
+    final double radius = math.min(4, size.width / 2);
+    final double thumbX = (progress.clamp(0.0, 1.0) * size.width).clamp(
+      radius,
+      size.width - radius,
+    );
     canvas.drawCircle(
       Offset(thumbX, midY),
-      5,
+      radius,
       Paint()
         ..color = playedColor
         ..style = PaintingStyle.fill,
     );
     canvas.drawCircle(
       Offset(thumbX, midY),
-      5,
+      radius,
       Paint()
         ..color = unplayedColor.withValues(alpha: 0.5)
         ..style = PaintingStyle.stroke
@@ -493,5 +565,9 @@ class _WaveformPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_WaveformPainter old) => old.progress != progress;
+  bool shouldRepaint(_WaveformPainter old) =>
+      old.progress != progress ||
+      old.bars != bars ||
+      old.playedColor != playedColor ||
+      old.unplayedColor != unplayedColor;
 }
