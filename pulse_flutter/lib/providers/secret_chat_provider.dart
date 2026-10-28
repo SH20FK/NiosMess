@@ -200,7 +200,7 @@ class SecretChatCoordinator
     );
     await coordinator.engine.initialize();
     if (!kIsWeb) coordinator._streams = streamFactory?.call(coordinator);
-    await WsMediaFetcher.clearPrivateCache();
+    await WsMediaFetcher.clearPrivateCache(clearSharedImages: false);
     if (epoch != (_accountEpochs[userId] ?? 0)) {
       _retiredRemoteIds
           .putIfAbsent(userId, () => {})
@@ -425,7 +425,7 @@ class SecretChatCoordinator
     final retained = {..._savingAttachments, ...engine.journal.attachmentIds};
     await _streams?.retainOutgoing(retained);
     if (await _attachments.retain(retained)) {
-      await WsMediaFetcher.clearPrivateCache();
+      await WsMediaFetcher.clearPrivateCache(clearSharedImages: false);
     }
   }
 
@@ -961,7 +961,7 @@ class SecretChatCoordinator
       // history keys are erased. A subsequent login starts fresh sessions.
       await _secure.delete(key: '$prefix.key');
     }
-    await WsMediaFetcher.clearPrivateCache();
+    await WsMediaFetcher.clearPrivateCache(clearSharedImages: false);
   }
 
   Iterable<int> get _remoteChatIds => engine.journal.conversations
@@ -982,7 +982,11 @@ class SecretChatCoordinator
     return _accountOperation(userId, () async {
       await stopping;
       ids.addAll(_retiredRemoteIds.remove(userId) ?? {});
-      if (erase) await _eraseClosedAccount(userId);
+      if (erase) {
+        await _eraseClosedAccount(userId);
+      } else {
+        await WsMediaFetcher.clearPrivateCache();
+      }
       return ids.toList(growable: false);
     });
   }

@@ -4,12 +4,17 @@ import 'package:pulse_flutter/providers/api_provider.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
+import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:http/testing.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
@@ -174,6 +179,56 @@ class _FailedAutomaticLogout extends _Auth {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late Directory mediaDirectory;
+  late CacheManager rawMedia;
+  late CacheManager playbackMedia;
+  late CacheManager sharedImages;
+  late http.Client mediaClient;
+  late void Function() restoreMedia;
+  const pathChannel = MethodChannel('plugins.flutter.io/path_provider');
+  setUp(() async {
+    mediaDirectory = await Directory.systemTemp.createTemp('logout-media-');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          pathChannel,
+          (_) async => mediaDirectory.path,
+        );
+    CacheManager cache(String name) => CacheManager(
+      Config(
+        '${name}_${mediaDirectory.path.hashCode}',
+        repo: JsonCacheInfoRepository.withFile(
+          File('${mediaDirectory.path}/$name.json'),
+        ),
+      ),
+    );
+    rawMedia = cache('raw');
+    playbackMedia = cache('playback');
+    sharedImages = cache('shared');
+    await Future.wait([
+      rawMedia.getFileFromCache('fixture'),
+      playbackMedia.getFileFromCache('fixture'),
+      sharedImages.getFileFromCache('fixture'),
+    ]);
+    mediaClient = MockClient((_) async => http.Response('', 500));
+    restoreMedia = WsMediaFetcher.debugOverride(
+      cacheManager: rawMedia,
+      playbackCache: playbackMedia,
+      sharedImageCache: sharedImages,
+      httpClient: mediaClient,
+      temporaryDirectory: () async => mediaDirectory,
+    );
+  });
+  tearDown(() async {
+    await WsMediaFetcher.clearPrivateCache();
+    restoreMedia();
+    mediaClient.close();
+    await rawMedia.dispose();
+    await playbackMedia.dispose();
+    await sharedImages.dispose();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(pathChannel, null);
+    await mediaDirectory.delete(recursive: true);
+  });
   group('production AuthNotifier lifecycle', () {
     late ProviderContainer container;
     late _Repository repository;

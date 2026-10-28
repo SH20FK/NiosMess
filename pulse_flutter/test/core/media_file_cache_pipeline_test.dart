@@ -5,6 +5,8 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
@@ -36,6 +38,7 @@ void main() {
   late Directory directory;
   late CacheManager raw;
   late CacheManager playback;
+  late CacheManager publicImages;
   late _Socket socket;
   late http.Client client;
   late VoidCallback restore;
@@ -61,6 +64,14 @@ void main() {
         'play_${directory.path.hashCode}',
         repo: JsonCacheInfoRepository.withFile(
           File('${directory.path}/playback.json'),
+        ),
+      ),
+    );
+    publicImages = CacheManager(
+      Config(
+        'public_${directory.path.hashCode}',
+        repo: JsonCacheInfoRepository.withFile(
+          File('${directory.path}/public.json'),
         ),
       ),
     );
@@ -94,9 +105,209 @@ void main() {
     client.close();
     await raw.dispose();
     await playback.dispose();
+    await publicImages.dispose();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
     await directory.delete(recursive: true);
+  });
+
+  test(
+    'routine cleanup preserves shared images; logout removes them',
+    () async {
+      expect(
+        identical(
+          WsMediaFetcher.debugDefaultPrivateCache,
+          CachedNetworkImageProvider.defaultCacheManager,
+        ),
+        isFalse,
+      );
+      restore();
+      restore = WsMediaFetcher.debugOverride(
+        cacheManager: raw,
+        playbackCache: playback,
+        httpClient: client,
+        temporaryDirectory: () async => directory,
+        sharedImageCache: publicImages,
+      );
+      const avatar = 'https://fixture.invalid/avatar.png';
+      await publicImages.putFile(avatar, Uint8List.fromList([1, 2, 3]));
+      await raw.putFile('private', Uint8List.fromList([4, 5, 6]));
+      await WsMediaFetcher.clearPrivateCache(clearSharedImages: false);
+      expect(await publicImages.getFileFromCache(avatar), isNotNull);
+      expect(await raw.getFileFromCache('private'), isNull);
+      await WsMediaFetcher.clearPrivateCache();
+      expect(await publicImages.getFileFromCache(avatar), isNull);
+    },
+  );
+
+  test(
+    'legacy mixed cache is purged once; new public entries survive',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      const oldPrivate = 'ws_media_0:private';
+      const avatar = 'https://fixture.invalid/avatar.png';
+      await raw.putFile(oldPrivate, Uint8List.fromList([1, 2, 3]));
+      await WsMediaFetcher.debugClearLegacySharedCache(prefs, raw);
+      expect(await raw.getFileFromCache(oldPrivate), isNull);
+      await raw.putFile(avatar, Uint8List.fromList([4, 5, 6]));
+      await WsMediaFetcher.debugClearLegacySharedCache(prefs, raw);
+      expect(await raw.getFileFromCache(avatar), isNotNull);
+    },
+  );
+
+  test('disk cache is readable without a token or network request', () async {
+    await WsMediaFetcher.fetchAndDecryptMedia(
+      filePath: 'image/offline.png',
+      wsClient: socket,
+    );
+    WsMediaFetcher.clearMemoryCache();
+    final tokenReads = socket.tokenReads;
+    final cached = await WsMediaFetcher.getDiskCachedBytes(
+      filePath: 'image/offline.png',
+    );
+    expect(cached, payload);
+    expect(socket.tokenReads, tokenReads);
+    expect(requests, 1);
+    expect(
+      await WsMediaFetcher.getDiskCachedBytes(filePath: 'missing.png'),
+      isNull,
+    );
+    expect(socket.tokenReads, tokenReads);
+    expect(requests, 1);
+  });
+
+  test('cached secret image is authenticated before display', () async {
+    final key = E2eeFileCrypto.generateFileKey();
+    final clear = payload;
+    payload = await E2eeFileCrypto.encrypt(payload, key);
+    await WsMediaFetcher.fetchAndDecryptMedia(
+      filePath: 'secret/photo.png',
+      wsClient: socket,
+      e2eeFileKey: key,
+    );
+    WsMediaFetcher.clearMemoryCache();
+    await expectLater(
+      WsMediaFetcher.getDiskCachedBytes(
+        filePath: 'secret/photo.png',
+        e2eeFileKey: E2eeFileCrypto.generateFileKey(),
+      ),
+      throwsA(anything),
+    );
+    expect(
+      await WsMediaFetcher.getDiskCachedBytes(
+        filePath: 'secret/photo.png',
+        e2eeFileKey: key,
+      ),
+      clear,
+    );
+    expect(requests, 1);
+  });
+
+  test(
+    'local secret attachment is readable offline and authenticated',
+    () async {
+      final key = E2eeFileCrypto.generateFileKey();
+      final encrypted = await E2eeFileCrypto.encrypt(payload, key);
+      WsMediaFetcher.secretLocalLoader = (id) async {
+        expect(id, 'photo');
+        return encrypted;
+      };
+      addTearDown(() => WsMediaFetcher.secretLocalLoader = null);
+      await expectLater(
+        WsMediaFetcher.getDiskCachedBytes(
+          filePath: 'secret-local://photo',
+          e2eeFileKey: E2eeFileCrypto.generateFileKey(),
+        ),
+        throwsA(anything),
+      );
+      expect(
+        await WsMediaFetcher.getDiskCachedBytes(
+          filePath: 'secret-local://photo',
+          e2eeFileKey: key,
+        ),
+        payload,
+      );
+      expect(requests, 0);
+      expect(socket.tokenReads, 0);
+    },
+  );
+
+  test(
+    'media downloads are globally bounded and duplicate paths share a request',
+    () async {
+      final gate = Completer<void>();
+      final reachedLimit = Completer<void>();
+      var active = 0;
+      var peak = 0;
+      client.close();
+      client = MockClient.streaming((request, body) async {
+        await body.drain<void>();
+        requests++;
+        active++;
+        if (active > peak) peak = active;
+        if (active == 4 && !reachedLimit.isCompleted) reachedLimit.complete();
+        await gate.future;
+        active--;
+        return http.StreamedResponse(Stream.value(payload), 200);
+      });
+      restore();
+      restore = WsMediaFetcher.debugOverride(
+        cacheManager: raw,
+        playbackCache: playback,
+        httpClient: client,
+        temporaryDirectory: () async => directory,
+      );
+      final jobs = <Future<dynamic>>[
+        for (var i = 0; i < 8; i++)
+          WsMediaFetcher.fetchAndDecryptMedia(
+            filePath: 'photo/$i.png',
+            wsClient: socket,
+          ),
+        WsMediaFetcher.fetchToLocalFile(
+          filePath: 'photo/0.png',
+          wsClient: socket,
+        ),
+      ];
+      await reachedLimit.future.timeout(const Duration(seconds: 5));
+      expect(requests, 4);
+      gate.complete();
+      await Future.wait(jobs);
+      expect(peak, lessThanOrEqualTo(4));
+      expect(requests, 8);
+    },
+  );
+
+  test('queued downloads do not start after account cleanup', () async {
+    final gate = Completer<void>();
+    final reachedLimit = Completer<void>();
+    client.close();
+    client = MockClient.streaming((request, body) async {
+      await body.drain<void>();
+      requests++;
+      if (requests == 4) reachedLimit.complete();
+      await gate.future;
+      return http.StreamedResponse(Stream.value(payload), 200);
+    });
+    restore();
+    restore = WsMediaFetcher.debugOverride(
+      cacheManager: raw,
+      playbackCache: playback,
+      httpClient: client,
+      temporaryDirectory: () async => directory,
+    );
+    final jobs = [
+      for (var i = 0; i < 6; i++)
+        WsMediaFetcher.fetchAndDecryptMedia(
+          filePath: 'queued/$i.png',
+          wsClient: socket,
+        ).then((_) => false, onError: (Object _) => true),
+    ];
+    await reachedLimit.future.timeout(const Duration(seconds: 5));
+    await WsMediaFetcher.clearPrivateCache();
+    gate.complete();
+    expect(await Future.wait(jobs), everyElement(isTrue));
+    expect(requests, 4);
   });
 
   test(

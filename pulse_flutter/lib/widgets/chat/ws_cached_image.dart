@@ -53,6 +53,7 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
   Object? _error;
   bool _isLoading = true;
   bool _manualDownloadRequired = false;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -61,12 +62,7 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
     if (_bytes == null) {
       final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
       final bool isLocal = widget.mediaUrl.startsWith('local://');
-      if (autoAllowed || isLocal) {
-        _load();
-      } else {
-        _isLoading = false;
-        _manualDownloadRequired = true;
-      }
+      _load(cacheOnly: !autoAllowed && !isLocal);
     }
   }
 
@@ -93,21 +89,17 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
   @override
   void didUpdateWidget(covariant WsCachedImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.mediaUrl != widget.mediaUrl ||
+    if (oldWidget.chatId != widget.chatId ||
+        oldWidget.isE2ee != widget.isE2ee ||
+        oldWidget.mediaUrl != widget.mediaUrl ||
         oldWidget.e2eeFileKey != widget.e2eeFileKey) {
+      _loadGeneration++;
       _bytes = null;
       _checkSyncCache();
       if (_bytes == null) {
         final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
         final bool isLocal = widget.mediaUrl.startsWith('local://');
-        if (autoAllowed || isLocal) {
-          _load();
-        } else {
-          setState(() {
-            _isLoading = false;
-            _manualDownloadRequired = true;
-          });
-        }
+        _load(cacheOnly: !autoAllowed && !isLocal);
       } else {
         setState(() {
           _isLoading = false;
@@ -118,19 +110,29 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
     }
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _loadGeneration++;
+    super.dispose();
+  }
+
+  Future<void> _load({bool cacheOnly = false}) async {
+    final generation = ++_loadGeneration;
+    final mediaUrl = widget.mediaUrl;
+    final encodedKey = widget.e2eeFileKey;
     setState(() {
       _isLoading = true;
       _error = null;
+      _manualDownloadRequired = false;
     });
 
     try {
       // Optimistic local messages reference a file on disk (or a
       // local:// placeholder while bytes are in flight) — never fetch those
       // over the network.
-      if (widget.mediaUrl.startsWith('local://')) {
+      if (mediaUrl.startsWith('local://')) {
         // These are identifiers for pending uploads, not filesystem paths.
-        if (mounted) {
+        if (mounted && generation == _loadGeneration) {
           setState(() {
             _isLoading = false;
           });
@@ -138,26 +140,31 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
         return;
       }
 
-      final wsClient = ref.read(webSocketClientProvider);
       Uint8List? fileKey;
-      if (widget.e2eeFileKey != null && widget.e2eeFileKey!.isNotEmpty) {
-        fileKey = base64Decode(widget.e2eeFileKey!);
+      if (encodedKey != null && encodedKey.isNotEmpty) {
+        fileKey = base64Decode(encodedKey);
       }
 
-      final bytes = await WsMediaFetcher.fetchAndDecryptMedia(
-        filePath: widget.mediaUrl,
-        wsClient: wsClient,
-        e2eeFileKey: fileKey,
-      );
+      final bytes = cacheOnly
+          ? await WsMediaFetcher.getDiskCachedBytes(
+              filePath: mediaUrl,
+              e2eeFileKey: fileKey,
+            )
+          : await WsMediaFetcher.fetchAndDecryptMedia(
+              filePath: mediaUrl,
+              wsClient: ref.read(webSocketClientProvider),
+              e2eeFileKey: fileKey,
+            );
 
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         setState(() {
           _bytes = bytes;
           _isLoading = false;
+          _manualDownloadRequired = bytes == null;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         setState(() {
           _error = e;
           _isLoading = false;

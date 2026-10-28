@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:collection';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart' as crypto;
@@ -10,6 +11,7 @@ import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/core/utils/e2ee_file_crypto.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/media/media_playback_source.dart';
 import 'package:pulse_flutter/core/media/browser_playback_stub.dart'
@@ -57,23 +59,27 @@ class WsMediaFetcher {
   ).join();
   static const _stagingRootName = 'nios_media_staging_v2';
 
-  static Future<void> clearPrivateCache() async {
+  static Future<void> clearPrivateCache({bool clearSharedImages = true}) async {
     final maxGeneration = _accountGeneration;
     _accountGeneration++;
     releaseBrowserPlayback();
     clearMemoryCache();
     _inFlightFetches.clear();
     _inFlightFiles.clear();
+    _inFlightCiphertext.clear();
     final previous = _cacheClear;
     final done = Completer<void>();
     final tail = done.future;
     _cacheClear = tail;
     try {
       if (previous != null) await previous;
+      await (_configuredLegacyCleanup ?? _clearLegacySharedCacheOnce)();
       await Future.wait([
         _playbackCache.emptyCache(),
         _cacheManager.emptyCache(),
         _purgeStagingDirectories(maxGeneration),
+        if (clearSharedImages && _sharedImageCache != null)
+          _sharedImageCache!.emptyCache(),
       ]);
     } finally {
       if (identical(_cacheClear, tail)) _cacheClear = null;
@@ -82,9 +88,47 @@ class WsMediaFetcher {
   }
 
   static BaseCacheManager? _configuredCacheManager;
-  static final BaseCacheManager _defaultCacheManager = DefaultCacheManager();
+  static BaseCacheManager? _configuredSharedImageCache;
+  static bool _debugCacheOverride = false;
+  static BaseCacheManager? get _sharedImageCache => _debugCacheOverride
+      ? _configuredSharedImageCache
+      : DefaultCacheManager();
+  // Routine private cleanup must not evict the shared image store. Explicit
+  // account shutdown also clears it because some images use authorization.
+  static final BaseCacheManager _defaultCacheManager = CacheManager(
+    Config('nios_private_media_v1'),
+  );
   static BaseCacheManager get _cacheManager =>
       _configuredCacheManager ?? _defaultCacheManager;
+  static const _legacyCleanupKey = 'nios_media_shared_cache_purged_v1';
+  static Future<void> Function()? _configuredLegacyCleanup;
+
+  // Older builds stored private media in the public image cache. Remove that
+  // mixed store once before leaving it to image loaders.
+  static Future<void> _clearLegacySharedCacheOnce() async {
+    final prefs = await SharedPreferences.getInstance();
+    await _clearLegacySharedCache(prefs, DefaultCacheManager());
+  }
+
+  static Future<void> _clearLegacySharedCache(
+    SharedPreferences prefs,
+    BaseCacheManager legacy,
+  ) async {
+    if (prefs.getBool(_legacyCleanupKey) == true) return;
+    await legacy.emptyCache();
+    if (!await prefs.setBool(_legacyCleanupKey, true)) {
+      throw StateError('Media cache migration marker was not saved');
+    }
+  }
+
+  @visibleForTesting
+  static BaseCacheManager get debugDefaultPrivateCache => _defaultCacheManager;
+
+  @visibleForTesting
+  static Future<void> debugClearLegacySharedCache(
+    SharedPreferences prefs,
+    BaseCacheManager legacy,
+  ) => _clearLegacySharedCache(prefs, legacy);
   // Players require a path. These short-lived files are kept out of the shared
   // media cache and are purged at account open/close, including crash recovery.
   static BaseCacheManager? _configuredPlaybackCache;
@@ -101,6 +145,33 @@ class WsMediaFetcher {
   static Future<Directory> Function() _temporaryDirectory =
       getTemporaryDirectory;
   static final Map<String, Future<String>> _inFlightFiles = {};
+  static final Map<String, Future<String>> _inFlightCiphertext = {};
+  static final Queue<Completer<void>> _downloadWaiters = Queue();
+  static const int _maxConcurrentDownloads = 4;
+  static int _activeDownloads = 0;
+
+  static Future<T> _withDownloadSlot<T>(
+    int generation,
+    Future<T> Function() operation,
+  ) async {
+    if (_activeDownloads < _maxConcurrentDownloads) {
+      _activeDownloads++;
+    } else {
+      final waiter = Completer<void>();
+      _downloadWaiters.addLast(waiter);
+      await waiter.future;
+    }
+    try {
+      _checkAccount(generation);
+      return await operation();
+    } finally {
+      if (_downloadWaiters.isNotEmpty) {
+        _downloadWaiters.removeFirst().complete();
+      } else {
+        _activeDownloads--;
+      }
+    }
+  }
 
   @visibleForTesting
   static VoidCallback debugOverride({
@@ -108,20 +179,30 @@ class WsMediaFetcher {
     required BaseCacheManager playbackCache,
     required http.Client httpClient,
     required Future<Directory> Function() temporaryDirectory,
+    BaseCacheManager? sharedImageCache,
   }) {
     final oldCache = _configuredCacheManager;
     final oldPlayback = _configuredPlaybackCache;
     final oldHttp = _httpClient;
     final oldTemporary = _temporaryDirectory;
+    final oldLegacyCleanup = _configuredLegacyCleanup;
+    final oldShared = _configuredSharedImageCache;
+    final oldDebugCacheOverride = _debugCacheOverride;
     _configuredCacheManager = cacheManager;
     _configuredPlaybackCache = playbackCache;
     _httpClient = httpClient;
     _temporaryDirectory = temporaryDirectory;
+    _configuredLegacyCleanup = () async {};
+    _configuredSharedImageCache = sharedImageCache;
+    _debugCacheOverride = true;
     return () {
       _configuredCacheManager = oldCache;
       _configuredPlaybackCache = oldPlayback;
       _httpClient = oldHttp;
       _temporaryDirectory = oldTemporary;
+      _configuredLegacyCleanup = oldLegacyCleanup;
+      _configuredSharedImageCache = oldShared;
+      _debugCacheOverride = oldDebugCacheOverride;
     };
   }
 
@@ -236,6 +317,45 @@ class WsMediaFetcher {
     _memoryCache.clear();
     _lruOrder.clear();
     _currentMemoryBytes = 0;
+  }
+
+  /// Reads only already cached media. It never starts an HTTP or WS request.
+  /// Secret bytes are authenticated before they enter the bounded RAM cache.
+  static Future<Uint8List?> getDiskCachedBytes({
+    required String filePath,
+    Uint8List? e2eeFileKey,
+  }) async {
+    final cleanPath = _cleanFilePath(filePath);
+    if (cleanPath.isEmpty || cleanPath.startsWith('nios-stream://')) {
+      return null;
+    }
+    final generation = _accountGeneration;
+    await _waitForPrivateCacheClear(generation);
+    if (cleanPath.startsWith('secret-local://')) {
+      final loader = secretLocalLoader;
+      if (loader == null || e2eeFileKey == null) return null;
+      final ciphertext = await loader(
+        cleanPath.substring('secret-local://'.length),
+      );
+      _checkAccount(generation);
+      final bytes = await E2eeFileCrypto.decrypt(ciphertext, e2eeFileKey);
+      _checkAccount(generation);
+      _putMemory(_buildMemKey(cleanPath, e2eeFileKey), bytes);
+      return bytes;
+    }
+    final cached = await _cacheManager.getFileFromCache(
+      _rawCacheKey(cleanPath, generation),
+    );
+    _checkAccount(generation);
+    if (cached == null || !await cached.file.exists()) return null;
+    final blob = await cached.file.readAsBytes();
+    _checkAccount(generation);
+    final bytes = e2eeFileKey == null
+        ? blob
+        : await E2eeFileCrypto.decrypt(blob, e2eeFileKey);
+    _checkAccount(generation);
+    _putMemory(_buildMemKey(cleanPath, e2eeFileKey), bytes);
+    return bytes;
   }
 
   /// Fetches media bytes; decrypts them when [e2eeFileKey] is provided.
@@ -633,6 +753,29 @@ class WsMediaFetcher {
     final cached = await _cacheManager.getFileFromCache(cacheKey);
     _checkAccount(generation);
     if (cached != null && await cached.file.exists()) return cached.file.path;
+    _checkAccount(generation);
+    final existing = _inFlightCiphertext[cacheKey];
+    if (existing != null) return existing;
+    final future = _withDownloadSlot(
+      generation,
+      () => _downloadCiphertext(cleanPath, wsClient, generation, cacheKey),
+    );
+    _inFlightCiphertext[cacheKey] = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_inFlightCiphertext[cacheKey], future)) {
+        _inFlightCiphertext.remove(cacheKey);
+      }
+    }
+  }
+
+  static Future<String> _downloadCiphertext(
+    String cleanPath,
+    WebSocketClient wsClient,
+    int generation,
+    String cacheKey,
+  ) async {
     final token = wsClient.readToken();
     if (token == null) throw StateError('Unauthorized: No session token');
     final releaseWork = BackgroundService.retainWork();

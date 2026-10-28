@@ -17,12 +17,13 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
-import 'package:pulse_flutter/providers/connectivity_provider.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/profile/incremental_media_list.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 
@@ -90,12 +91,13 @@ class _ProfileSharedMediaTabViewState
     caseSensitive: false,
   );
 
-  static const int _kBatchSize = 12;
   bool _isHistoryLoading = false;
-  final Set<int> _loadedGroups = <int>{};
-  bool _isBatchProcessing = false;
+  int _loadGeneration = 0;
   List<ApiMessage> _cachedMediaMessages = const <ApiMessage>[];
   _CachedMediaExtraction? _cachedExtraction;
+  List<ApiMessage>? _mergedCacheSource;
+  List<ApiMessage>? _mergedLiveSource;
+  List<ApiMessage>? _mergedMessages;
 
   @override
   void initState() {
@@ -120,8 +122,11 @@ class _ProfileSharedMediaTabViewState
         _cachedMediaMessages = const <ApiMessage>[];
       }
       _cachedExtraction = null;
-      _loadedGroups.clear();
-      _isBatchProcessing = false;
+      _mergedCacheSource = null;
+      _mergedLiveSource = null;
+      _mergedMessages = null;
+      _loadGeneration++;
+      _isHistoryLoading = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadAllChatMedia();
       });
@@ -129,66 +134,66 @@ class _ProfileSharedMediaTabViewState
   }
 
   Future<void> _loadAllChatMedia() async {
+    if (!mounted) return;
     final int? cid = widget.chatId;
     if (cid == null || cid <= 0 || _isHistoryLoading) return;
     _isHistoryLoading = true;
+    final generation = _loadGeneration;
+    final account = ref.read(authProvider).session?.userId;
+    bool current() => mounted &&
+        generation == _loadGeneration &&
+        widget.chatId == cid &&
+        ref.read(authProvider).session?.userId == account;
 
     try {
       // 1. Instantly check local persistent cache to display existing media in ~0-2ms
       try {
         final List<ApiMessage> cached = await ChatMediaCache.getCachedMedia(cid);
-        if (cached.isNotEmpty && mounted) {
+        if (cached.isNotEmpty && current()) {
           setState(() {
             _cachedMediaMessages = cached;
           });
-          final List<_SharedMediaItem> cachedMedia = _extractPhotosAndVideos(cached);
-          if (cachedMedia.isNotEmpty) {
-            _startGroupedBatchPipeline(cachedMedia);
-          }
         }
       } catch (_) {}
+      if (!current()) return;
 
       // 2. Fetch full history batch in 1 single WebSocket roundtrip (up to 300 messages)
       final int added = await ref
           .read(chatMessagesProvider(cid).notifier)
           .loadOlder(pageSize: 300);
 
-      if (mounted) {
+      if (current()) {
         final List<ApiMessage> messages =
             ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
-        await ChatMediaCache.saveMediaMessages(cid, messages);
+        await ChatMediaCache.saveMediaMessages(cid, messages, canWrite: current);
         final List<ApiMessage> updated = await ChatMediaCache.getCachedMedia(cid);
-        if (mounted) {
+        if (current()) {
           setState(() {
             _cachedMediaMessages = updated;
           });
-          final List<_SharedMediaItem> allMedia = _extractPhotosAndVideos(updated);
-          _startGroupedBatchPipeline(allMedia);
         }
       }
 
       // 3. If there are 280+ messages (full page), eagerly fetch another 300 older in the background
-      if (added >= 280 && mounted) {
+      if (added >= 280 && current()) {
         await ref
             .read(chatMessagesProvider(cid).notifier)
             .loadOlder(pageSize: 300);
-        if (mounted) {
+        if (current()) {
           final List<ApiMessage> messages =
               ref.read(chatMessagesProvider(cid)).value ?? const <ApiMessage>[];
-          await ChatMediaCache.saveMediaMessages(cid, messages);
+          await ChatMediaCache.saveMediaMessages(cid, messages, canWrite: current);
           final List<ApiMessage> updated = await ChatMediaCache.getCachedMedia(cid);
-          if (mounted) {
+          if (current()) {
             setState(() {
               _cachedMediaMessages = updated;
             });
-            final List<_SharedMediaItem> allMedia = _extractPhotosAndVideos(updated);
-            _startGroupedBatchPipeline(allMedia);
           }
         }
       }
     } catch (_) {
     } finally {
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         setState(() {
           _isHistoryLoading = false;
         });
@@ -196,61 +201,10 @@ class _ProfileSharedMediaTabViewState
     }
   }
 
-  void _startGroupedBatchPipeline(List<_SharedMediaItem> media) {
-    if (media.isEmpty || _isBatchProcessing) return;
-    final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
-    if (!autoAllowed) return; // МЕД-4: respect auto download setting
-
-    _isBatchProcessing = true;
-
-    Future<void>.microtask(() async {
-      try {
-        final int totalGroups = (media.length / _kBatchSize).ceil();
-        final wsClient = ref.read(webSocketClientProvider);
-
-        for (int g = 0; g < totalGroups; g++) {
-          if (!mounted) break;
-          if (_loadedGroups.contains(g)) continue;
-
-          final int start = g * _kBatchSize;
-          final int end = (start + _kBatchSize).clamp(0, media.length);
-
-          final List<String> groupPaths = <String>[];
-          final Map<String, Uint8List?> groupKeys = <String, Uint8List?>{};
-
-          for (int i = start; i < end; i++) {
-            final item = media[i];
-            if (!item.isVideo && item.mediaUrl.isNotEmpty) {
-              groupPaths.add(item.mediaUrl);
-              if (item.e2eeFileKey != null && item.e2eeFileKey!.isNotEmpty) {
-                try {
-                  groupKeys[item.mediaUrl] = base64Decode(item.e2eeFileKey!);
-                } catch (_) {}
-              }
-            }
-          }
-
-          if (groupPaths.isNotEmpty) {
-            await WsMediaFetcher.prefetchBatch(
-              filePaths: groupPaths,
-              wsClient: wsClient,
-              e2eeFileKeys: groupKeys,
-              concurrency: 8,
-            );
-          }
-
-          _loadedGroups.add(g);
-          if (mounted) {
-            setState(() {});
-          }
-
-          // Yield between groups to ensure smooth 60/120 FPS
-          await Future<void>.delayed(const Duration(milliseconds: 16));
-        }
-      } finally {
-        _isBatchProcessing = false;
-      }
-    });
+  @override
+  void dispose() {
+    _loadGeneration++;
+    super.dispose();
   }
 
   static bool _isPureImage(
@@ -407,12 +361,6 @@ class _ProfileSharedMediaTabViewState
     final files = extraction.files;
     final links = extraction.links;
 
-    if (photosAndVideos.isNotEmpty && !_isBatchProcessing) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _startGroupedBatchPipeline(photosAndVideos);
-      });
-    }
-
     final Widget currentTabView;
     switch (_selectedTabIndex) {
       case 0:
@@ -448,7 +396,9 @@ class _ProfileSharedMediaTabViewState
 
         // ── Active Tab View with Smooth Transition (Unified Scrolling) ──
         AnimatedSwitcher(
-          duration: M3Durations.short4,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : M3Durations.short4,
           switchInCurve: M3SpringCurves.expressiveDecel,
           switchOutCurve: M3SpringCurves.expressiveAccel,
           layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
@@ -468,6 +418,26 @@ class _ProfileSharedMediaTabViewState
         ),
       ],
     );
+  }
+
+  List<ApiMessage> _mergeMediaMessages(List<ApiMessage> messages) {
+    if (identical(_mergedCacheSource, _cachedMediaMessages) &&
+        identical(_mergedLiveSource, messages) &&
+        _mergedMessages != null) {
+      return _mergedMessages!;
+    }
+    final byId = <int, ApiMessage>{};
+    for (final message in _cachedMediaMessages) {
+      byId[message.id] = message;
+    }
+    for (final message in messages) {
+      if (ChatMediaCache.isMediaMessage(message)) byId[message.id] = message;
+    }
+    final merged = byId.values.toList()
+      ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
+    _mergedCacheSource = _cachedMediaMessages;
+    _mergedLiveSource = messages;
+    return _mergedMessages = merged;
   }
 
   @override
@@ -499,19 +469,7 @@ class _ProfileSharedMediaTabViewState
               ),
             ),
       data: (List<ApiMessage> messages) {
-        final Map<int, ApiMessage> byId = <int, ApiMessage>{};
-        for (final ApiMessage m in _cachedMediaMessages) {
-          byId[m.id] = m;
-        }
-        for (final ApiMessage m in messages) {
-          if (ChatMediaCache.isMediaMessage(m)) {
-            byId[m.id] = m;
-          }
-        }
-        final List<ApiMessage> allMessages = byId.values.toList()
-          ..sort((ApiMessage a, ApiMessage b) => b.sentAt.compareTo(a.sentAt));
-
-        return _buildContent(allMessages, scheme, textTheme);
+        return _buildContent(_mergeMediaMessages(messages), scheme, textTheme);
       },
     );
   }
@@ -754,9 +712,10 @@ class _ProfileSharedMediaTabViewState
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(rowCount, (rowIndex) {
+          child: IncrementalMediaList(
+            key: ValueKey('shared-media-${widget.chatId}-$crossAxisCount'),
+            itemCount: rowCount,
+            itemBuilder: (context, rowIndex) {
               final int startIdx = rowIndex * crossAxisCount;
               return Padding(
                 padding: EdgeInsets.only(bottom: rowIndex < rowCount - 1 ? 6.0 : 0.0),
@@ -825,7 +784,7 @@ class _ProfileSharedMediaTabViewState
                   }),
                 ),
               );
-            }),
+            },
           ),
         );
       },
@@ -852,9 +811,10 @@ class _ProfileSharedMediaTabViewState
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(items.length, (index) {
+      child: IncrementalMediaList(
+        key: ValueKey('shared-voice-${widget.chatId}'),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
           final m = items[index];
           final isRoundVideo = m.msgType == 'circle_video' ||
               m.msgType == 'video_note' ||
@@ -987,7 +947,7 @@ class _ProfileSharedMediaTabViewState
             padding: EdgeInsets.only(bottom: index < items.length - 1 ? 10.0 : 0.0),
             child: itemWidget,
           );
-        }),
+        },
       ),
     );
   }
@@ -1010,9 +970,10 @@ class _ProfileSharedMediaTabViewState
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(items.length, (index) {
+      child: IncrementalMediaList(
+        key: ValueKey('shared-files-${widget.chatId}'),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
           return Padding(
             padding: EdgeInsets.only(bottom: index < items.length - 1 ? 10.0 : 0.0),
             child: _SharedFileTile(
@@ -1020,7 +981,7 @@ class _ProfileSharedMediaTabViewState
               chatId: widget.chatId ?? 0,
             ),
           );
-        }),
+        },
       ),
     );
   }
@@ -1045,9 +1006,10 @@ class _ProfileSharedMediaTabViewState
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(items.length, (index) {
+      child: IncrementalMediaList(
+        key: ValueKey('shared-links-${widget.chatId}'),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
           final m = items[index];
           final match = _urlRegExp.firstMatch(m.content);
           final url = match?.group(0) ?? '';
@@ -1133,7 +1095,7 @@ class _ProfileSharedMediaTabViewState
               ),
             ),
           );
-        }),
+        },
       ),
     );
   }
