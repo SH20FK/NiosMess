@@ -1342,4 +1342,136 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get savedMessagesSubtitle => 'Заметки и сохранённые сообщения';
+
+  @override
+  String get niosgramPageLoadFailed =>
+      'Не удалось загрузить следующие публикации';
+
+  @override
+  String get niosgramVideoTitle => 'Видео';
+
+  @override
+  String get niosgramVideoUnavailable => 'Не удалось открыть это видео';
+
+  @override
+  String get niosgramPlayVideo => 'Открыть видео';
+
+  @override
+  String get niosgramSavedTitle => 'Сохранённые публикации';
+
+  @override
+  String get niosgramSavedLocalNotice =>
+      'Сохранено на этом устройстве для вашего аккаунта. Копии могут устареть и удалятся при выходе из аккаунта.';
+
+  @override
+  String get niosgramSavedEmpty => 'Пока нет сохранённых публикаций';
+
+  @override
+  String get niosgramRemoveSaved => 'Убрать из сохранённого';
+
+  @override
+  String get niosgramSaveFailed =>
+      'Не удалось изменить сохранённые публикации. Попробуйте ещё раз.';
+
+  @override
+  String get niosgramDraftSaveFailed =>
+      'Не удалось сохранить черновик. Изменения остались здесь — попробуйте ещё раз перед выходом.';
+
+  @override
+  String get niosgramDraftRestoreFailed =>
+      'Не удалось восстановить черновик. Он не удалён.';
+
+  @override
+  String get niosgramScrollTop => 'В начало ленты';
+
+  @override
+  String get niosgramLikeAction => 'Нравится';
+
+  @override
+  String get niosgramDislikeAction => 'Показывать меньше такого';
+
+  @override
+  String get niosgramCommentAction => 'Комментарии';
+
+  @override
+  String get niosgramShareAction => 'Поделиться публикацией';
+
+  @override
+  String get niosgramSaveAction => 'Сохранить публикацию';
+
+  @override
+  String get niosgramPublishToFeed => 'Публикация в NiosGram';
+
+  @override
+  String get niosgramAnonymousPoll => 'Анонимный опрос';
+
+  @override
+  String get niosgramAnonymousQuiz => 'Анонимная викторина';
+
+  @override
+  String get niosgramRemovePoll => 'Убрать опрос';
+
+  @override
+  String get niosgramSendToChat => 'Отправить в чат';
+
+  @override
+  String get niosgramCopyLink => 'Скопировать ссылку';
+
+  @override
+  String get niosgramShareExternal => 'Поделиться в другом приложении';
+
+  @override
+  String get niosgramNoChats => 'Нет доступных чатов';
+
+  @override
+  String get niosgramLinkAddedToChat =>
+      'Добавлено в чат. Статус отправки можно посмотреть там.';
+
+  @override
+  String get niosgramSendLinkFailed =>
+      'Не удалось добавить ссылку в чат. Попробуйте ещё раз.';
+
+  @override
+  String get niosgramUnsupportedMedia =>
+      'Выберите фото JPG, PNG, WebP или GIF либо видео MP4, MOV или WebM.';
+
+  @override
+  String get niosgramMediaTooLarge => 'Размер файла не должен превышать 25 МБ.';
+
+  @override
+  String get niosgramPhotoTooLarge =>
+      'Размер фото после сжатия не должен превышать 5 МБ.';
+
+  @override
+  String get niosgramVideoAlone =>
+      'Видео публикуется отдельно, без других вложений.';
+
+  @override
+  String get niosgramVideoDurationLimit =>
+      'Выберите видео длительностью до 10 секунд.';
+
+  @override
+  String get niosgramVideoDurationFailed =>
+      'Не удалось проверить длительность видео. Попробуйте другой файл или устройство.';
+
+  @override
+  String get niosgramOpenVideoExternal => 'Открыть видео в другом приложении';
+
+  @override
+  String get niosgramTextTooShort =>
+      'В текстовой публикации должно быть не меньше 10 символов.';
+
+  @override
+  String get niosgramReadMore => 'Читать дальше';
+
+  @override
+  String get niosgramReadLess => 'Свернуть';
+
+  @override
+  String get niosgramPostStatusUnknown =>
+      'Сервер не подтвердил публикацию. Проверьте ленту перед повтором; черновик сохранён.';
+
+  @override
+  String get niosgramPublishedCleanupFailed =>
+      'Публикация отправлена, но очистить её черновик не удалось.';
 }

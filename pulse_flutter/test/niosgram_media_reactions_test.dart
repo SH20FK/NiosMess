@@ -49,6 +49,7 @@ class MockWebSocketClient extends WebSocketClient {
     int maxRetries = 2,
   }) async {
     sentRequests.add(<String, dynamic>{'action': action, 'payload': payload});
+    if (action == 'get_feed') return <String, dynamic>{'posts': <dynamic>[]};
     return nextResponse ?? <String, dynamic>{'status': 'ok'};
   }
 }
@@ -214,6 +215,18 @@ void main() {
   });
 
   group('NiosgramNotifier - Reactive Reactions & Multimedia Creation', () {
+    test('following state is read from the server author payload', () {
+      final post = NgPost.fromJson({
+        'id': 1,
+        'author': {
+          'id': 5,
+          'username': 'fixture',
+          'display_name': 'Fixture',
+          'is_followed': true,
+        },
+      });
+      expect(post.isFollowing, isTrue);
+    });
     test('reactPost sends correct action and reaction payload', () async {
       final mockWs = MockWebSocketClient();
       mockWs.nextResponse = <String, dynamic>{
@@ -279,6 +292,47 @@ void main() {
       expect(req['payload']['upload_id'], 'f47ac10b93bc44a8b7c938166d03227e');
       expect(req['payload']['ai_tags'], ['sunset', 'mountain']);
     });
+
+    test('video duration reaches the server with the upload ID', () async {
+      final mockWs = MockWebSocketClient()..nextResponse = {'post_id': 203};
+      final container = ProviderContainer(
+        overrides: [
+          webSocketClientProvider.overrideWithValue(mockWs),
+          authProvider.overrideWith(_FeedAuthFixture.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(niosgramProvider.future);
+      await container
+          .read(niosgramProvider.notifier)
+          .createPost('', uploadIds: ['video-upload'], mediaDurations: [3.25]);
+      final request = mockWs.sentRequests.firstWhere(
+        (r) => r['action'] == 'create_post',
+      );
+      expect(request['payload']['media_durations'], [3.25]);
+    });
+
+    test(
+      'malformed publication acknowledgement is not treated as success',
+      () async {
+        final mockWs = MockWebSocketClient()
+          ..nextResponse = {'message': 'unknown'};
+        final container = ProviderContainer(
+          overrides: [
+            webSocketClientProvider.overrideWithValue(mockWs),
+            authProvider.overrideWith(_FeedAuthFixture.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        await container.read(niosgramProvider.future);
+        await expectLater(
+          container
+              .read(niosgramProvider.notifier)
+              .createPost('This is a post'),
+          throwsStateError,
+        );
+      },
+    );
 
     test('createPost sends upload_ids and ai_tags', () async {
       final mockWs = MockWebSocketClient();

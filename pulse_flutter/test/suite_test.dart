@@ -4,11 +4,16 @@ import 'unit/encrypted_draft_codec_test.dart' as encrypted_draft_codec;
 import 'services/live_location_service_test.dart' as live_location;
 import 'widgets/chat_extras_test.dart' as chat_extras;
 import 'widgets/file_request_menu_test.dart' as file_request;
-import 'widgets/media_local_path_security_test.dart' as media_local_path_security;
+import 'widgets/media_local_path_security_test.dart'
+    as media_local_path_security;
 import 'widgets/custom_emoji_forms_test.dart' as audit_emoji_forms;
 import 'features/security/app_lock_lifecycle_test.dart' as audit_app_lock;
 import 'providers/auth_lifecycle_race_test.dart' as audit_auth;
 import 'core/account_draft_storage_test.dart' as audit_drafts;
+import 'core/niosgram_local_store_test.dart' as niosgram_local_store;
+import 'widgets/niosgram_draft_restore_test.dart' as niosgram_draft_restore;
+import 'widgets/niosgram_layout_test.dart' as niosgram_layout;
+import 'widgets/niosgram_share_test.dart' as niosgram_share;
 import 'providers/chat_account_boundary_test.dart' as audit_accounts;
 import 'providers/send_account_fence_test.dart' as audit_send_fence;
 import 'providers/custom_emoji_lifecycle_test.dart' as audit_emoji_lifecycle;
@@ -121,6 +126,7 @@ import 'widgets/recording_motion_test.dart' as recording_motion;
 import 'widgets/inbox_saved_search_test.dart' as inbox_saved_search;
 import 'widgets/m3_speed_dial_fab_test.dart' as speed_dial_motion;
 import 'widgets/chat_input_bar_test.dart' as chat_input_motion;
+import 'widgets/niosgram_video_test.dart' as niosgram_video;
 import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
 import 'widgets/appearance_palette_test.dart' as appearance_palette;
 import 'widgets/app_modals_test.dart' as app_modals;
@@ -356,6 +362,10 @@ void main() {
     group('audit_send_fence', audit_send_fence.main);
     group('audit_emoji_lifecycle', audit_emoji_lifecycle.main);
     group('audit_feed_races', audit_feed_races.main);
+    group('niosgram_local_store', niosgram_local_store.main);
+    group('niosgram_draft_restore', niosgram_draft_restore.main);
+    group('niosgram_layout', niosgram_layout.main);
+    group('niosgram_share', niosgram_share.main);
     group('audit_post_media', audit_post_media.main);
     group('audit_shared_post', audit_shared_post.main);
     group('audit_comments_draft', audit_comments_draft.main);
@@ -404,6 +414,7 @@ void main() {
     inbox_saved_search.main();
     speed_dial_motion.main();
     chat_input_motion.main();
+    niosgram_video.main();
     widgets_vector_illustrations.main();
     widgets_m3_motion_kit.main();
 

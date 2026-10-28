@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
+import 'package:pulse_flutter/providers/niosgram_draft_provider.dart';
+import 'package:pulse_flutter/core/storage/niosgram_draft_store.dart';
 import 'package:pulse_flutter/providers/notifications_provider.dart';
 import 'package:pulse_flutter/screens/create_post_screen.dart';
 import 'package:pulse_flutter/screens/niosgram_screen.dart';
@@ -49,9 +52,20 @@ class _MockNiosgramNotifier extends NiosgramNotifier {
   }
 }
 
+class _DraftFixture extends NiosgramDraftStore {
+  _DraftFixture() : super(1);
+  @override
+  Future<NiosgramPostDraft?> read() async => null;
+  @override
+  Future<void> write(NiosgramPostDraft draft) async {}
+}
+
 void main() {
   group('CreatePostScreen Responsive Layout', () {
-    testWidgets('renders on compact mobile (320x640) with zero overflow', (WidgetTester tester) async {
+    setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+    testWidgets('renders on compact mobile (320x640) with zero overflow', (
+      WidgetTester tester,
+    ) async {
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -63,7 +77,10 @@ void main() {
         ProviderScope(
           overrides: [
             authProvider.overrideWith(() => _MockAuthNotifier()),
-            notificationsProvider.overrideWith(() => _MockNotificationsNotifier()),
+            niosgramDraftStoreProvider.overrideWith((_) => _DraftFixture()),
+            notificationsProvider.overrideWith(
+              () => _MockNotificationsNotifier(),
+            ),
             niosgramProvider.overrideWith(() => _MockNiosgramNotifier()),
           ],
           child: const MaterialApp(
@@ -79,7 +96,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('inline composer expands and renders compact icon button without overflow', (WidgetTester tester) async {
+    testWidgets('feed composer opens the shared editor without overflow', (
+      WidgetTester tester,
+    ) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -91,7 +110,10 @@ void main() {
         ProviderScope(
           overrides: [
             authProvider.overrideWith(() => _MockAuthNotifier()),
-            notificationsProvider.overrideWith(() => _MockNotificationsNotifier()),
+            niosgramDraftStoreProvider.overrideWith((_) => _DraftFixture()),
+            notificationsProvider.overrideWith(
+              () => _MockNotificationsNotifier(),
+            ),
             niosgramProvider.overrideWith(() => _MockNiosgramNotifier()),
           ],
           child: const MaterialApp(
@@ -105,17 +127,28 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      final quickBarFinder = find.byKey(const ValueKey<String>('collapsed_quick_bar'));
+      final quickBarFinder = find.byKey(
+        const ValueKey<String>('collapsed_quick_bar'),
+      );
       expect(quickBarFinder, findsOneWidget);
       expect(find.text('О чём думаешь?'), findsOneWidget);
       await tester.tap(quickBarFinder);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
+      for (
+        var i = 0;
+        i < 40 &&
+            find.byIcon(Icons.add_photo_alternate_outlined).evaluate().isEmpty;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump(const Duration(milliseconds: 30));
+      }
 
-      final expandedComposerFinder = find.byKey(const ValueKey<String>('expanded_quick_composer'));
-      expect(expandedComposerFinder, findsOneWidget);
-      expect(find.descendant(of: expandedComposerFinder, matching: find.text('Новый пост')), findsOneWidget);
-      expect(find.text('Отмена'), findsOneWidget);
+      expect(find.byType(CreatePostScreen), findsOneWidget);
+      expect(find.text('Новый пост'), findsOneWidget);
       expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

@@ -1330,4 +1330,134 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get savedMessagesSubtitle => 'Notes and saved messages';
+
+  @override
+  String get niosgramPageLoadFailed => 'Couldn\'t load more posts';
+
+  @override
+  String get niosgramVideoTitle => 'Video';
+
+  @override
+  String get niosgramVideoUnavailable => 'Couldn\'t open this video';
+
+  @override
+  String get niosgramPlayVideo => 'Open video';
+
+  @override
+  String get niosgramSavedTitle => 'Saved posts';
+
+  @override
+  String get niosgramSavedLocalNotice =>
+      'Saved on this device for this account. Copies may be out of date and are removed when you sign out.';
+
+  @override
+  String get niosgramSavedEmpty => 'No saved posts yet';
+
+  @override
+  String get niosgramRemoveSaved => 'Remove from saved';
+
+  @override
+  String get niosgramSaveFailed => 'Couldn\'t update saved posts. Try again.';
+
+  @override
+  String get niosgramDraftSaveFailed =>
+      'Couldn\'t save the draft. Your edits are still here; try again before leaving.';
+
+  @override
+  String get niosgramDraftRestoreFailed =>
+      'Couldn\'t restore the draft. It hasn\'t been deleted.';
+
+  @override
+  String get niosgramScrollTop => 'Back to top';
+
+  @override
+  String get niosgramLikeAction => 'Like';
+
+  @override
+  String get niosgramDislikeAction => 'Show fewer posts like this';
+
+  @override
+  String get niosgramCommentAction => 'Comments';
+
+  @override
+  String get niosgramShareAction => 'Share post';
+
+  @override
+  String get niosgramSaveAction => 'Save post';
+
+  @override
+  String get niosgramPublishToFeed => 'Post in NiosGram';
+
+  @override
+  String get niosgramAnonymousPoll => 'Anonymous poll';
+
+  @override
+  String get niosgramAnonymousQuiz => 'Anonymous quiz';
+
+  @override
+  String get niosgramRemovePoll => 'Remove poll';
+
+  @override
+  String get niosgramSendToChat => 'Send to a chat';
+
+  @override
+  String get niosgramCopyLink => 'Copy link';
+
+  @override
+  String get niosgramShareExternal => 'Share in another app';
+
+  @override
+  String get niosgramNoChats => 'There are no available chats';
+
+  @override
+  String get niosgramLinkAddedToChat =>
+      'Added to the chat. Check its delivery status there.';
+
+  @override
+  String get niosgramSendLinkFailed =>
+      'Couldn\'t add the link to the chat. Try again.';
+
+  @override
+  String get niosgramUnsupportedMedia =>
+      'Use a JPG, PNG, WebP or GIF photo, or an MP4, MOV or WebM video.';
+
+  @override
+  String get niosgramMediaTooLarge => 'A file must be no larger than 25 MB.';
+
+  @override
+  String get niosgramPhotoTooLarge =>
+      'A photo must be no larger than 5 MB after compression.';
+
+  @override
+  String get niosgramVideoAlone =>
+      'A video must be posted on its own, without other media.';
+
+  @override
+  String get niosgramVideoDurationLimit =>
+      'Choose a video up to 10 seconds long.';
+
+  @override
+  String get niosgramVideoDurationFailed =>
+      'Couldn\'t check video duration. Try another file or device.';
+
+  @override
+  String get niosgramOpenVideoExternal => 'Open video in another app';
+
+  @override
+  String get niosgramTextTooShort =>
+      'A text-only post needs at least 10 characters.';
+
+  @override
+  String get niosgramReadMore => 'Read more';
+
+  @override
+  String get niosgramReadLess => 'Show less';
+
+  @override
+  String get niosgramPostStatusUnknown =>
+      'The server didn\'t confirm publication. Check the feed before retrying; your draft is still here.';
+
+  @override
+  String get niosgramPublishedCleanupFailed =>
+      'The post was published, but its draft couldn\'t be removed.';
 }

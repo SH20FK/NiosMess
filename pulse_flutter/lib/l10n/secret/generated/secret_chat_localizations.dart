@@ -2560,6 +2560,240 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Notes and saved messages'**
   String get savedMessagesSubtitle;
+
+  /// No description provided for @niosgramPageLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load more posts'**
+  String get niosgramPageLoadFailed;
+
+  /// No description provided for @niosgramVideoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get niosgramVideoTitle;
+
+  /// No description provided for @niosgramVideoUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open this video'**
+  String get niosgramVideoUnavailable;
+
+  /// No description provided for @niosgramPlayVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Open video'**
+  String get niosgramPlayVideo;
+
+  /// No description provided for @niosgramSavedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved posts'**
+  String get niosgramSavedTitle;
+
+  /// No description provided for @niosgramSavedLocalNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this device for this account. Copies may be out of date and are removed when you sign out.'**
+  String get niosgramSavedLocalNotice;
+
+  /// No description provided for @niosgramSavedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved posts yet'**
+  String get niosgramSavedEmpty;
+
+  /// No description provided for @niosgramRemoveSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from saved'**
+  String get niosgramRemoveSaved;
+
+  /// No description provided for @niosgramSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update saved posts. Try again.'**
+  String get niosgramSaveFailed;
+
+  /// No description provided for @niosgramDraftSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the draft. Your edits are still here; try again before leaving.'**
+  String get niosgramDraftSaveFailed;
+
+  /// No description provided for @niosgramDraftRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t restore the draft. It hasn\'t been deleted.'**
+  String get niosgramDraftRestoreFailed;
+
+  /// No description provided for @niosgramScrollTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to top'**
+  String get niosgramScrollTop;
+
+  /// No description provided for @niosgramLikeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Like'**
+  String get niosgramLikeAction;
+
+  /// No description provided for @niosgramDislikeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Show fewer posts like this'**
+  String get niosgramDislikeAction;
+
+  /// No description provided for @niosgramCommentAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Comments'**
+  String get niosgramCommentAction;
+
+  /// No description provided for @niosgramShareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share post'**
+  String get niosgramShareAction;
+
+  /// No description provided for @niosgramSaveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save post'**
+  String get niosgramSaveAction;
+
+  /// No description provided for @niosgramPublishToFeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Post in NiosGram'**
+  String get niosgramPublishToFeed;
+
+  /// No description provided for @niosgramAnonymousPoll.
+  ///
+  /// In en, this message translates to:
+  /// **'Anonymous poll'**
+  String get niosgramAnonymousPoll;
+
+  /// No description provided for @niosgramAnonymousQuiz.
+  ///
+  /// In en, this message translates to:
+  /// **'Anonymous quiz'**
+  String get niosgramAnonymousQuiz;
+
+  /// No description provided for @niosgramRemovePoll.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove poll'**
+  String get niosgramRemovePoll;
+
+  /// No description provided for @niosgramSendToChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to a chat'**
+  String get niosgramSendToChat;
+
+  /// No description provided for @niosgramCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get niosgramCopyLink;
+
+  /// No description provided for @niosgramShareExternal.
+  ///
+  /// In en, this message translates to:
+  /// **'Share in another app'**
+  String get niosgramShareExternal;
+
+  /// No description provided for @niosgramNoChats.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no available chats'**
+  String get niosgramNoChats;
+
+  /// No description provided for @niosgramLinkAddedToChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to the chat. Check its delivery status there.'**
+  String get niosgramLinkAddedToChat;
+
+  /// No description provided for @niosgramSendLinkFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t add the link to the chat. Try again.'**
+  String get niosgramSendLinkFailed;
+
+  /// No description provided for @niosgramUnsupportedMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a JPG, PNG, WebP or GIF photo, or an MP4, MOV or WebM video.'**
+  String get niosgramUnsupportedMedia;
+
+  /// No description provided for @niosgramMediaTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'A file must be no larger than 25 MB.'**
+  String get niosgramMediaTooLarge;
+
+  /// No description provided for @niosgramPhotoTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'A photo must be no larger than 5 MB after compression.'**
+  String get niosgramPhotoTooLarge;
+
+  /// No description provided for @niosgramVideoAlone.
+  ///
+  /// In en, this message translates to:
+  /// **'A video must be posted on its own, without other media.'**
+  String get niosgramVideoAlone;
+
+  /// No description provided for @niosgramVideoDurationLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a video up to 10 seconds long.'**
+  String get niosgramVideoDurationLimit;
+
+  /// No description provided for @niosgramVideoDurationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t check video duration. Try another file or device.'**
+  String get niosgramVideoDurationFailed;
+
+  /// No description provided for @niosgramOpenVideoExternal.
+  ///
+  /// In en, this message translates to:
+  /// **'Open video in another app'**
+  String get niosgramOpenVideoExternal;
+
+  /// No description provided for @niosgramTextTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'A text-only post needs at least 10 characters.'**
+  String get niosgramTextTooShort;
+
+  /// No description provided for @niosgramReadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Read more'**
+  String get niosgramReadMore;
+
+  /// No description provided for @niosgramReadLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get niosgramReadLess;
+
+  /// No description provided for @niosgramPostStatusUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The server didn\'t confirm publication. Check the feed before retrying; your draft is still here.'**
+  String get niosgramPostStatusUnknown;
+
+  /// No description provided for @niosgramPublishedCleanupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The post was published, but its draft couldn\'t be removed.'**
+  String get niosgramPublishedCleanupFailed;
 }
 
 class _SecretChatLocalizationsDelegate

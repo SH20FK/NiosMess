@@ -101,7 +101,10 @@ class NgPost {
           json['dislikes_count'] as int? ?? json['dislikes'] as int? ?? 0,
       commentsCount: json['comments_count'] as int? ?? 0,
       myReaction: myReaction,
-      isFollowing: json['is_following'] as bool? ?? false,
+      isFollowing:
+          json['is_following'] as bool? ??
+          (authorRaw is Map ? authorRaw['is_followed'] as bool? : null) ??
+          false,
       author: author,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()

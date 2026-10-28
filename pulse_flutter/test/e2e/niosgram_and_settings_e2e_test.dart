@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
@@ -103,10 +104,10 @@ class MockE2eNiosgramNotifier extends NiosgramNotifier {
   }
 
   @override
-  Future<void> loadMore() async {}
+  Future<void> loadMore({bool retry = false}) async {}
 
   @override
-  Future<void> reactPost(int postId, bool isLike) async {
+  Future<void> reactPost(int postId, bool isLike, {bool ensureSelected = false}) async {
     lastReactedPostId = postId;
     lastReactedIsLike = isLike;
     final AsyncData<NiosgramState>? current = state.asData;
@@ -186,10 +187,13 @@ List<NgPost> _generateSampleFeed() {
 Widget _buildE2eApp({
   required GoRouter router,
   required MockE2eNiosgramNotifier niosgramNotifier,
+  int currentUserId = 1,
 }) {
   return ProviderScope(
     overrides: [
-      authProvider.overrideWith(() => MockE2eAuthNotifier()),
+      authProvider.overrideWith(
+        () => MockE2eAuthNotifier(currentUserId: currentUserId),
+      ),
       niosgramProvider.overrideWith(() => niosgramNotifier),
       notificationsProvider.overrideWith(MockE2eNotificationsNotifier.new),
       adaptivePerformanceProvider.overrideWith(_StubAdaptivePerformanceNotifier.new),
@@ -221,6 +225,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -397,7 +402,11 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(_buildE2eApp(router: router, niosgramNotifier: niosgramNotifier));
+      await tester.pumpWidget(_buildE2eApp(
+        router: router,
+        niosgramNotifier: niosgramNotifier,
+        currentUserId: 41001,
+      ));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -417,8 +426,16 @@ void main() {
       // 3. Bookmark post
       final bookmarkFinder = find.byIcon(Icons.bookmark_outline_rounded).first;
       await tester.tap(bookmarkFinder);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      String? saved;
+      for (var i = 0; i < 20 && saved == null; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        saved = await const FlutterSecureStorage().read(
+          key: 'niosgram.saved.v1.41001',
+        );
+      }
+      expect(saved, contains('"id":1001'));
+      await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
 
@@ -432,21 +449,15 @@ void main() {
 
       // 5. Navigate back to feed
       router.go('/main/niosgram');
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
 
       // 6. Tap quick-creation in feed
       final createFinder = find.byKey(const ValueKey<String>('collapsed_quick_bar'));
       expect(createFinder, findsOneWidget);
       expect(find.text('О чём думаешь?'), findsOneWidget);
-      await tester.tap(createFinder);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      final expandedComposer = find.byKey(const ValueKey<String>('expanded_quick_composer'));
-      expect(expandedComposer, findsOneWidget);
-      expect(find.descendant(of: expandedComposer, matching: find.text('Новый пост')), findsOneWidget);
-      expect(find.text('Опубликовать'), findsOneWidget);
+      await tester.tap(find.text('О чём думаешь?'));
+      await tester.pumpAndSettle();
+      expect(find.text('Create Screen'), findsOneWidget);
     });
 
     testWidgets('4.2 Full Settings Master-Detail Workflow: section switching and controls adjustments', (

@@ -121,7 +121,7 @@ class PostMediaStrip extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Видео',
+                              context.l10n.niosgramVideoTitle,
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,

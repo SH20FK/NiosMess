@@ -444,7 +444,12 @@ void main() {
       'account erase waits for native call shutdown and respects failure (fail=$stopFails)',
       () async {
         SharedPreferences.setMockInitialValues({});
-        FlutterSecureStorage.setMockInitialValues({});
+        FlutterSecureStorage.setMockInitialValues({
+          'niosgram.saved.v1.1': '[]',
+          'niosgram.draft.v1.1': '{"text":"fixture","files":[]}',
+          'niosgram.saved.v1.2': '[]',
+          'niosgram.draft.v1.2': '{"text":"other","files":[]}',
+        });
         final directory = await Directory.systemTemp.createTemp(
           'logout-erase-order-',
         );
@@ -496,6 +501,11 @@ void main() {
           expect(eraseStarted, !stopFails);
           expect(secrets.deletes, stopFails ? 0 : 1);
           expect(container.read(authProvider).isAuthenticated, isFalse);
+          const feedStorage = FlutterSecureStorage();
+          expect(await feedStorage.read(key: 'niosgram.saved.v1.1'), isNull);
+          expect(await feedStorage.read(key: 'niosgram.draft.v1.1'), isNull);
+          expect(await feedStorage.read(key: 'niosgram.saved.v1.2'), '[]');
+          expect(await feedStorage.read(key: 'niosgram.draft.v1.2'), isNotNull);
           // This isolated fixture does not install secret/notification native
           // storage plugins. Their partial cleanup may fail independently.
           if (cleanupError != null) {

@@ -1,4 +1,6 @@
 import 'package:pulse_flutter/core/utils/cancellation_token.dart';
+import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'dart:async';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'dart:typed_data';
 import 'package:pulse_flutter/models/interactive_message.dart';
@@ -6,6 +8,7 @@ import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
 import 'package:pulse_flutter/widgets/feed_poll_card.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +17,8 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
+import 'package:pulse_flutter/providers/niosgram_draft_provider.dart';
+import 'package:pulse_flutter/core/storage/niosgram_draft_store.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
@@ -23,6 +28,8 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/post_media_strip.dart';
+import 'package:universal_io/io.dart';
+import 'package:video_player/video_player.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key, this.autoPickMedia = false});
@@ -33,7 +40,28 @@ class CreatePostScreen extends ConsumerStatefulWidget {
   ConsumerState<CreatePostScreen> createState() => _CreatePostScreenState();
 }
 
-class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
+/// An authenticated draft copy no longer depends on a picker's temporary URI.
+final class _RestoredDraftFile extends PlatformFile {
+  _RestoredDraftFile(this.name, this.bytes);
+  @override
+  final String name;
+  final Uint8List bytes;
+  @override
+  Uri get uri => Uri(scheme: 'memory', path: name);
+  @override
+  Never get xFile => throw UnsupportedError('No unencrypted temporary file');
+  @override
+  int lengthSync() => bytes.length;
+  @override
+  Future<int> length() async => bytes.length;
+  @override
+  Future<Uint8List> readAsBytes() async => bytes;
+  @override
+  Stream<Uint8List> readAsByteStream() => Stream.value(bytes);
+}
+
+class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _textController = CustomEmojiTextController();
   PlatformFile? _selectedFile;
   List<PlatformFile> _selectedFiles = <PlatformFile>[];
@@ -43,25 +71,260 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   CancellationToken? _uploadCancellation;
   Map<String, dynamic>? _poll;
   String? _error;
+  late final NiosgramDraftStore? _draftStore;
+  final Map<PlatformFile, NiosgramDraftFile> _persistedFiles = {};
+  final Map<PlatformFile, int> _videoDurations = {};
+  final Set<PlatformFile> _compressedFiles = {};
+  Future<void> _draftWrites = Future<void>.value();
+  Timer? _saveTimer;
+  bool _restoring = true, _restoreFailed = false, _allowPop = false;
+  bool _published = false, _leaving = false, _finalizing = false;
+  bool _alreadyPublished = false;
+  int _revision = 0;
+  String _lastText = '';
+  late final (int?, String?) _account;
 
   static const int _maxPostLength = 2000;
-  static const int _maxFileBytes = 10 * 1024 * 1024; // 10 MB
+  static const int _maxFileBytes = 25 * 1024 * 1024;
+  static const int _maxPhotoUploadBytes = 5 * 1024 * 1024;
 
   @override
   void initState() {
     super.initState();
-    if (widget.autoPickMedia) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _pickMedia();
-      });
-    }
+    WidgetsBinding.instance.addObserver(this);
+    final session = ref.read(authProvider).session;
+    _account = (session?.userId, session?.accessToken);
+    _draftStore = ref.read(niosgramDraftStoreProvider);
+    _textController.addListener(_textChanged);
+    ref.listenManual(
+      authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
+      (before, after) {
+        if (before != after && mounted) {
+          _saveTimer?.cancel();
+          _uploadCancellation?.cancel();
+          setState(() => _restoreFailed = true);
+        }
+      },
+    );
+    unawaited(_restore());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _saveTimer?.cancel();
+    if (!_published && !_restoring && !_restoreFailed) {
+      // The queued snapshot does not access the widget after disposal.
+      unawaited(_queueSave().catchError((Object _) {}));
+    }
     _uploadCancellation?.cancel();
+    _textController.removeListener(_textChanged);
     _textController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if ((state == AppLifecycleState.inactive ||
+            state == AppLifecycleState.paused) &&
+        !_published &&
+        !_restoring &&
+        !_restoreFailed &&
+        !_finalizing) {
+      _saveTimer?.cancel();
+      unawaited(
+        _queueSave().catchError((Object _) {
+          if (mounted) {
+            setState(() => _error = context.l10n.niosgramDraftSaveFailed);
+          }
+        }),
+      );
+    }
+  }
+
+  Future<void> _restore() async {
+    try {
+      final session = ref.read(authProvider).session;
+      if ((session?.userId, session?.accessToken) != _account ||
+          ref.read(authProvider.notifier).isLoggingOut) {
+        throw StateError('POST_DRAFT_ACCOUNT_CHANGED');
+      }
+      final store = _draftStore;
+      if (store == null) throw StateError('POST_DRAFT_ACCOUNT_UNAVAILABLE');
+      final draft = await store.read();
+      final files = <PlatformFile>[];
+      final previews = <Uint8List>[];
+      if (draft != null) {
+        for (final item in draft.files) {
+          final bytes = await store.readFile(item);
+          if (bytes.isEmpty || bytes.length > _maxFileBytes) {
+            throw const FormatException('POST_DRAFT_FILE_INVALID');
+          }
+          final file = _RestoredDraftFile(item.name, bytes);
+          files.add(file);
+          if (_isVideoFile(item.name)) {
+            previews.add(Uint8List(0));
+            if (item.durationMs != null) {
+              _videoDurations[file] = item.durationMs!;
+            }
+          } else {
+            final compressed = await ImageCompressor.compressImageBytes(
+              bytes: bytes,
+              fileName: item.name,
+            );
+            if (compressed != null) _compressedFiles.add(file);
+            previews.add(compressed ?? bytes);
+          }
+          _persistedFiles[file] = item;
+        }
+      }
+      if (!mounted || _restoreFailed) return;
+      _textController.text = draft?.text ?? '';
+      _lastText = _textController.text;
+      setState(() {
+        _selectedFiles = files;
+        _selectedFile = files.firstOrNull;
+        _previewBytesList = previews;
+        _poll = draft?.poll;
+        _restoring = false;
+      });
+      if (widget.autoPickMedia) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _pickMedia();
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _restoring = false;
+          _restoreFailed = true;
+        });
+      }
+    }
+  }
+
+  void _textChanged() {
+    if (_restoring || _restoreFailed || _textController.text == _lastText) {
+      return;
+    }
+    _lastText = _textController.text;
+    _changed();
+  }
+
+  void _changed() {
+    _revision++;
+    _alreadyPublished = false;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 350), () {
+      unawaited(
+        _queueSave().catchError((Object _) {
+          if (mounted) {
+            setState(() => _error = context.l10n.niosgramDraftSaveFailed);
+          }
+        }),
+      );
+    });
+  }
+
+  Future<void> _queueSave() {
+    final store = _draftStore;
+    final files = List<PlatformFile>.of(_selectedFiles);
+    final text = _textController.text;
+    final poll = _poll == null ? null : Map<String, dynamic>.of(_poll!);
+    final prior = _draftWrites;
+    final operation = prior.then((_) async {
+      if (store == null) throw StateError('POST_DRAFT_ACCOUNT_UNAVAILABLE');
+      final stored = <NiosgramDraftFile>[];
+      for (final file in files) {
+        var item = _persistedFiles[file];
+        if (item == null) {
+          final bytes = await _readMediaBytes(file, 'POST_DRAFT_FILE_INVALID');
+          item = await store.saveFile(
+            file.name,
+            bytes,
+            durationMs: _videoDurations[file],
+          );
+          _persistedFiles[file] = item;
+        }
+        stored.add(item);
+      }
+      await store.write(
+        NiosgramPostDraft(text: text, poll: poll, files: stored),
+      );
+    });
+    _draftWrites = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<void> _leave() async {
+    if (_leaving || _restoring || _finalizing) return;
+    if (_restoreFailed) {
+      Navigator.maybePop(context);
+      return;
+    }
+    _leaving = true;
+    setState(() => _finalizing = true);
+    _saveTimer?.cancel();
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      await _queueSave();
+      if (!mounted) return;
+      setState(() => _allowPop = true);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else {
+        context.go('/main/niosgram');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = context.l10n.niosgramDraftSaveFailed);
+      }
+    } finally {
+      _leaving = false;
+      if (mounted && !_allowPop) setState(() => _finalizing = false);
+    }
+  }
+
+  Future<void> _discard() async {
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: context.l10n.commonDiscardChanges,
+      subtitle: context.l10n.commonDiscardChangesDesc,
+      confirmLabel: context.l10n.commonDiscardChangesConfirm,
+      cancelLabel: context.l10n.commonCancel,
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _finalizing = true);
+    _saveTimer?.cancel();
+    try {
+      await _draftWrites;
+      await _draftStore?.clear();
+      if (!mounted) return;
+      _textController.clear();
+      _persistedFiles.clear();
+      _videoDurations.clear();
+      _compressedFiles.clear();
+      setState(() {
+        _selectedFiles = [];
+        _selectedFile = null;
+        _previewBytesList = [];
+        _poll = null;
+        _error = null;
+      });
+      _changed();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = context.l10n.niosgramDraftSaveFailed);
+      }
+    } finally {
+      if (mounted) setState(() => _finalizing = false);
+    }
   }
 
   bool _isVideoFile(String name) {
@@ -72,6 +335,28 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         ext == 'webm' ||
         ext == 'avi' ||
         ext == '3gp';
+  }
+
+  Future<int> _videoDurationMs(PlatformFile file) async {
+    final uri = file.uri;
+    final VideoPlayerController controller;
+    if (kIsWeb && (uri.scheme == 'blob' || uri.scheme == 'data')) {
+      controller = VideoPlayerController.networkUrl(uri);
+    } else if (!kIsWeb && uri.scheme == 'file') {
+      controller = VideoPlayerController.file(File.fromUri(uri));
+    } else if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        uri.scheme == 'content') {
+      controller = VideoPlayerController.contentUri(uri);
+    } else {
+      throw StateError('POST_VIDEO_SOURCE_UNAVAILABLE');
+    }
+    try {
+      await controller.initialize().timeout(const Duration(seconds: 12));
+      return controller.value.duration.inMilliseconds;
+    } finally {
+      unawaited(controller.dispose().catchError((Object _) {}));
+    }
   }
 
   Future<Uint8List> _readMediaBytes(
@@ -97,13 +382,15 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _pickMedia() async {
     if (_isPickingMedia ||
         _isLoading ||
+        _finalizing ||
         ref.read(authProvider.notifier).isLoggingOut) {
       return;
     }
     final int availableSlots = 5 - _selectedFiles.length;
     if (availableSlots <= 0) return;
     _isPickingMedia = true;
-    final sizeError = context.l10n.postFileTooLarge;
+    final l10n = context.l10n;
+    final sizeError = l10n.niosgramMediaTooLarge;
     final account = ref.read(authProvider).session;
     bool active() =>
         mounted &&
@@ -115,23 +402,59 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       if (!active() || result.isEmpty || _isLoading) return;
       final validFiles = List<PlatformFile>.from(_selectedFiles);
       final previews = List<Uint8List>.from(_previewBytesList);
+      String? selectionError;
       for (final file in result.take(availableSlots)) {
+        final ext = file.name.split('.').last.toLowerCase();
+        final video = _isVideoFile(file.name);
+        if (!(video
+                ? const {'mp4', 'webm', 'mov'}
+                : const {'jpg', 'jpeg', 'png', 'webp', 'gif'})
+            .contains(ext)) {
+          selectionError = l10n.niosgramUnsupportedMedia;
+          continue;
+        }
+        if ((video && validFiles.isNotEmpty) ||
+            (!video && validFiles.any((item) => _isVideoFile(item.name)))) {
+          selectionError = l10n.niosgramVideoAlone;
+          continue;
+        }
         final length = await file.length();
         if (!active()) return;
         if (length <= 0 || length > _maxFileBytes) {
-          setState(() => _error = sizeError);
+          selectionError = l10n.niosgramMediaTooLarge;
           continue;
         }
         Uint8List previewBytes = Uint8List(0);
-        if (!_isVideoFile(file.name)) {
+        if (video) {
+          try {
+            final duration = await _videoDurationMs(file);
+            if (!active()) return;
+            if (duration <= 0 || duration > 10000) {
+              selectionError = l10n.niosgramVideoDurationLimit;
+              continue;
+            }
+            _videoDurations[file] = duration;
+          } catch (_) {
+            if (!active()) return;
+            selectionError = l10n.niosgramVideoDurationFailed;
+            continue;
+          }
+        } else {
           previewBytes = await _readMediaBytes(file, sizeError);
-          if (!active()) return;
+          if (!mounted || !active()) return;
           final compressed = await ImageCompressor.compressImageBytes(
             bytes: previewBytes,
             fileName: file.name,
           );
-          if (!active()) return;
-          if (compressed != null) previewBytes = compressed;
+          if (!mounted || !active()) return;
+          if (compressed != null) {
+            previewBytes = compressed;
+            _compressedFiles.add(file);
+          }
+          if (previewBytes.length > _maxPhotoUploadBytes) {
+            selectionError = l10n.niosgramPhotoTooLarge;
+            continue;
+          }
         }
         validFiles.add(file);
         previews.add(previewBytes);
@@ -141,8 +464,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           _selectedFiles = validFiles;
           _previewBytesList = previews;
           _selectedFile = validFiles.firstOrNull;
-          _error = null;
+          _error = selectionError;
         });
+        _changed();
+      } else if (active() && selectionError != null) {
+        setState(() => _error = selectionError);
       }
     } catch (error) {
       if (active()) {
@@ -161,6 +487,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Future<void> _submit() async {
     if (_isLoading ||
         _isPickingMedia ||
+        _finalizing ||
+        _alreadyPublished ||
         ref.read(authProvider.notifier).isLoggingOut) {
       return;
     }
@@ -170,6 +498,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         _selectedFiles.isEmpty &&
         _selectedFile == null) {
       setState(() => _error = context.l10n.postEmptyContent);
+      return;
+    }
+    if (text.runes.length < 10 &&
+        _poll == null &&
+        _selectedFiles.isEmpty &&
+        _selectedFile == null) {
+      setState(() => _error = context.l10n.niosgramTextTooShort);
       return;
     }
 
@@ -185,18 +520,32 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     );
     final previews = List<Uint8List>.of(_previewBytesList);
     final poll = _poll == null ? null : Map<String, dynamic>.of(_poll!);
+    final durations = files
+        .map((file) => (_videoDurations[file] ?? 0) / 1000)
+        .toList();
+    final revision = _revision;
     final account = ref.read(authProvider).session;
     final repository = ref.read(chatRepositoryProvider);
     final feed = ref.read(niosgramProvider.notifier);
-    final sizeError = context.l10n.postFileTooLarge;
+    final sizeError = context.l10n.niosgramMediaTooLarge;
+    final videoDurationError = context.l10n.niosgramVideoDurationFailed;
+    final photoSizeError = context.l10n.niosgramPhotoTooLarge;
     final cancellation = CancellationToken();
     _uploadCancellation = cancellation;
+    var draftSaved = false;
+    var publicationRequested = false;
+    var publicationConfirmed = false;
     bool active() =>
         mounted &&
         !ref.read(authProvider.notifier).isLoggingOut &&
         ref.read(authProvider).session?.userId == account?.userId &&
         ref.read(authProvider).session?.accessToken == account?.accessToken;
     try {
+      // A publication attempt must not outrun the durable local draft.
+      _saveTimer?.cancel();
+      await _queueSave();
+      if (!active()) return;
+      draftSaved = true;
       final uploadIds = <String>[];
       for (var i = 0; i < files.length; i++) {
         cancellation.throwIfCancelled();
@@ -214,9 +563,21 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 cancellation: cancellation,
               );
         if (!active()) return;
+        if (_isVideoFile(file.name) &&
+            (_videoDurations[file] == null ||
+                _videoDurations[file]! <= 0 ||
+                _videoDurations[file]! > 10000)) {
+          throw StateError(videoDurationError);
+        }
+        if (!_isVideoFile(file.name) && bytes.length > _maxPhotoUploadBytes) {
+          throw StateError(photoSizeError);
+        }
+        final filename = _compressedFiles.contains(file)
+            ? '${file.name.replaceFirst(RegExp(r'\.[^.]+$'), '')}.jpg'
+            : (file.name.contains('.') ? file.name : '${file.name}.jpg');
         final uploadId = await repository.uploadStreamInChunks(
           bytes: bytes,
-          filename: file.name.contains('.') ? file.name : '${file.name}.jpg',
+          filename: filename,
           mediaSubtype: 'media',
           fileSize: bytes.length,
           onProgress: (_, _) {},
@@ -227,37 +588,74 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         uploadIds.add(uploadId);
       }
       if (!active()) return;
+      publicationRequested = true;
       await feed.createPost(
         text,
         uploadIds: uploadIds,
         poll: poll,
         uploadId: uploadIds.firstOrNull,
+        mediaDurations: durations,
       );
+      publicationConfirmed = true;
 
       if (mounted && active()) {
         if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
-        if (_textController.text.trim() == text) {
-          Navigator.of(context).pop();
+        if (_revision == revision) {
+          // Freeze the editor while the saved copy is cleared. A later edit
+          // must never be erased by completion of an earlier publication.
+          setState(() => _finalizing = true);
+          _saveTimer?.cancel();
+          await WidgetsBinding.instance.endOfFrame;
+          if (!mounted || !active()) return;
+          if (_revision != revision) {
+            AppToast.showSuccess(context, context.l10n.auditPostPublished);
+            return;
+          }
+          await _draftWrites;
+          await _draftStore?.clear();
+          if (!active()) return;
+          _published = true;
+          setState(() => _allowPop = true);
+          await WidgetsBinding.instance.endOfFrame;
+          if (mounted) Navigator.of(context).pop();
         } else {
           AppToast.showSuccess(context, context.l10n.auditPostPublished);
+          _changed();
         }
       }
     } catch (e) {
       if (!mounted || !active() || cancellation.isCancelled) return;
       if (ref.read(uiSettingsProvider).haptics) HapticService.destructive();
-      final String formatted = AppErrorFormatter.format(
-        e,
-        l10n: context.l10n,
-      ).toString();
+      final unknown =
+          publicationRequested &&
+          !publicationConfirmed &&
+          (e is TimeoutException ||
+              (e is ApiException && e.statusCode == 0) ||
+              (e is StateError && e.message == 'POST_CONFIRMATION_UNKNOWN'));
+      final String formatted = !draftSaved
+          ? context.l10n.niosgramDraftSaveFailed
+          : publicationConfirmed
+          ? context.l10n.niosgramPublishedCleanupFailed
+          : unknown
+          ? context.l10n.niosgramPostStatusUnknown
+          : AppErrorFormatter.format(e, l10n: context.l10n).toString();
+      if (publicationConfirmed && _revision == revision) {
+        _alreadyPublished = true;
+      }
       setState(() => _error = formatted);
       if (mounted) {
-        AppToast.showError(context, e);
+        AppToast.showError(context, formatted);
       }
     } finally {
       if (identical(_uploadCancellation, cancellation)) {
         _uploadCancellation = null;
       }
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _finalizing = false;
+        });
+      }
     }
   }
 
@@ -275,55 +673,35 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         auth.session?.displayName ??
         context.l10n.profileGuestName;
 
-    return ListenableBuilder(
-      listenable: _textController,
-      builder: (BuildContext context, Widget? child) {
-        final bool canRoutePop = ModalRoute.of(context)?.canPop ?? false;
-        final bool hasDraft =
-            _textController.text.trim().isNotEmpty ||
-            _selectedFile != null ||
-            _poll != null;
-        return PopScope(
-          canPop: canRoutePop && !hasDraft,
-          onPopInvokedWithResult: (bool didPop, Object? result) async {
-            if (didPop) return;
-            if (!hasDraft) {
-              if (canRoutePop) {
-                if (Navigator.canPop(context)) {
-                  Navigator.pop(context);
-                }
-              } else {
-                try {
-                  context.go('/main/niosgram');
-                } catch (_) {
-                  Navigator.maybePop(context);
-                }
-              }
-              return;
-            }
-            final bool? confirm = await showAppConfirmDialog(
-              context: context,
-              title: context.l10n.commonDiscardChanges,
-              subtitle: context.l10n.commonDiscardChangesDesc,
-              confirmLabel: context.l10n.commonDiscardChangesConfirm,
-              cancelLabel: context.l10n.commonCancel,
-            );
-            if (confirm == true && context.mounted) {
-              if (canRoutePop) {
-                if (Navigator.canPop(context)) {
-                  Navigator.pop(context);
-                }
-              } else {
-                try {
-                  context.go('/main/niosgram');
-                } catch (_) {
-                  Navigator.maybePop(context);
-                }
-              }
-            }
-          },
-          child: child!,
-        );
+    if (_restoring || _restoreFailed) {
+      return Scaffold(
+        appBar: AppBar(title: Text(context.l10n.postNewPost)),
+        body: Center(
+          child: _restoring
+              ? const AppLoadingIndicator()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(context.l10n.niosgramDraftRestoreFailed),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _restoring = true;
+                          _restoreFailed = false;
+                        });
+                        unawaited(_restore());
+                      },
+                      child: Text(context.l10n.commonRetry),
+                    ),
+                  ],
+                ),
+        ),
+      );
+    }
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_leave());
       },
       child: Scaffold(
         appBar: AppBar(
@@ -333,38 +711,20 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           backgroundColor: Colors.transparent,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () async {
-              if (_textController.text.trim().isEmpty &&
-                  _poll == null &&
-                  _selectedFile == null) {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/main/niosgram');
-                }
-                return;
-              }
-              final bool? confirm = await showAppConfirmDialog(
-                context: context,
-                title: context.l10n.commonDiscardChanges,
-                subtitle: context.l10n.commonDiscardChangesDesc,
-                confirmLabel: context.l10n.commonDiscardChangesConfirm,
-                cancelLabel: context.l10n.commonCancel,
-              );
-              if (confirm == true && context.mounted) {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/main/niosgram');
-                }
-              }
-            },
+            onPressed: _leave,
           ),
           actions: <Widget>[
+            IconButton(
+              tooltip: context.l10n.commonDiscardChanges,
+              icon: const Icon(Icons.delete_outline_rounded),
+              onPressed: _isLoading || _finalizing ? null : _discard,
+            ),
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: FilledButton(
-                onPressed: _isLoading ? null : _submit,
+                onPressed: _isLoading || _finalizing || _alreadyPublished
+                    ? null
+                    : _submit,
                 child: _isLoading
                     ? const AppLoadingIndicator(size: 18)
                     : Text(context.l10n.postPublish),
@@ -394,15 +754,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                             ),
                           )
                         : null,
-                    boxShadow: isWide && !isDark
-                        ? <BoxShadow>[
-                            BoxShadow(
-                              color: scheme.shadow.withValues(alpha: 0.04),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
-                        : null,
                   ),
                   padding: EdgeInsets.all(isWide ? 20 : 0),
                   child: Column(
@@ -428,7 +779,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'Публикация в NiosGram',
+                                  context.l10n.niosgramPublishToFeed,
                                   style: textTheme.bodySmall?.copyWith(
                                     color: scheme.onSurfaceVariant.withValues(
                                       alpha: 0.75,
@@ -456,6 +807,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         ),
                         child: TextField(
                           controller: _textController,
+                          readOnly: _finalizing,
                           maxLines: 8,
                           minLines: 1,
                           inputFormatters: [
@@ -499,7 +851,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         children: [
                           for (final kind in ['poll', 'quiz'])
                             TextButton.icon(
-                              onPressed: _isLoading
+                              onPressed: _isLoading || _finalizing
                                   ? null
                                   : () async {
                                       final result =
@@ -517,19 +869,23 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                                                 parsed.data,
                                               ),
                                         );
+                                        _changed();
                                       }
                                     },
                               icon: InteractiveIcon(kind),
                               label: Text(
                                 kind == 'quiz'
-                                    ? 'Анонимная викторина'
-                                    : 'Анонимный опрос',
+                                    ? context.l10n.niosgramAnonymousQuiz
+                                    : context.l10n.niosgramAnonymousPoll,
                               ),
                             ),
                           if (_poll != null)
                             TextButton(
-                              onPressed: () => setState(() => _poll = null),
-                              child: const Text('Убрать опрос'),
+                              onPressed: () {
+                                setState(() => _poll = null);
+                                _changed();
+                              },
+                              child: Text(context.l10n.niosgramRemovePoll),
                             ),
                         ],
                       ),
@@ -550,7 +906,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         PostMediaStrip(
                           selectedFiles: _selectedFiles,
                           previewBytesList: _previewBytesList,
-                          isLoading: _isLoading,
+                          isLoading: _isLoading || _finalizing,
                           tileSize: 84,
                           onAdd: _pickMedia,
                           onRemove: (int index) {
@@ -559,6 +915,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                               _previewBytesList.removeAt(index);
                               _selectedFile = _selectedFiles.firstOrNull;
                             });
+                            _changed();
                           },
                         ),
                         const SizedBox(height: 16),
@@ -624,30 +981,39 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 final bool isVeryNarrow = constraints.maxWidth < 310;
                 return Row(
                   children: <Widget>[
-                    FilledButton.tonalIcon(
-                      onPressed: _selectedFiles.length >= 5 ? null : _pickMedia,
-                      icon: Badge(
-                        isLabelVisible: _selectedFiles.isNotEmpty,
-                        label: Text('${_selectedFiles.length}'),
-                        child: const Icon(
-                          Icons.add_photo_alternate_outlined,
-                          size: 19,
+                    Flexible(
+                      child: FilledButton.tonalIcon(
+                        onPressed:
+                            _selectedFiles.length >= 5 ||
+                                _isLoading ||
+                                _finalizing
+                            ? null
+                            : _pickMedia,
+                        icon: Badge(
+                          isLabelVisible: _selectedFiles.isNotEmpty,
+                          label: Text('${_selectedFiles.length}'),
+                          child: const Icon(
+                            Icons.add_photo_alternate_outlined,
+                            size: 19,
+                          ),
                         ),
-                      ),
-                      label: Text(
-                        _selectedFiles.isEmpty
-                            ? (isNarrow ? 'Фото' : context.l10n.postAttachMedia)
-                            : (isNarrow
-                                  ? '${_selectedFiles.length}/5'
-                                  : '${context.l10n.postAttachMedia} (${_selectedFiles.length}/5)'),
-                      ),
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                        label: Text(
+                          _selectedFiles.isEmpty
+                              ? context.l10n.postAttachMedia
+                              : (isNarrow
+                                    ? '${_selectedFiles.length}/5'
+                                    : '${context.l10n.postAttachMedia} (${_selectedFiles.length}/5)'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isNarrow ? 10 : 14,
-                          vertical: 8,
+                        style: FilledButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isNarrow ? 10 : 14,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
@@ -674,25 +1040,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                           ),
                         ),
                       ),
-                    FilledButton.icon(
-                      onPressed: _isLoading ? null : _submit,
-                      icon: _isLoading
-                          ? AppLoadingIndicator(
-                              size: 16,
-                              color: scheme.onPrimary,
-                            )
-                          : const Icon(Icons.send_rounded, size: 16),
-                      label: Text(isNarrow ? 'Пост' : context.l10n.postPublish),
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isNarrow ? 12 : 16,
-                          vertical: 8,
-                        ),
-                      ),
-                    ),
                   ],
                 );
               },

@@ -43,12 +43,12 @@ class MockNiosgramNotifier extends NiosgramNotifier {
   }
 
   @override
-  Future<void> loadMore() async {
+  Future<void> loadMore({bool retry = false}) async {
     // Hermetic no-op for tests
   }
 
   @override
-  Future<void> reactPost(int postId, bool isLike) async {
+  Future<void> reactPost(int postId, bool isLike, {bool ensureSelected = false}) async {
     lastReactedPostId = postId;
     lastReactedIsLike = isLike;
     final AsyncData<NiosgramState>? current = state.asData;
@@ -97,7 +97,7 @@ class MockErrorNiosgramNotifier extends NiosgramNotifier {
   }
 
   @override
-  Future<void> loadMore() async {}
+  Future<void> loadMore({bool retry = false}) async {}
 }
 
 class MockNotificationsNotifier extends NotificationsNotifier {
@@ -269,7 +269,7 @@ void main() {
 
       final Card card = tester.widget<Card>(find.byType(Card));
       expect(card.elevation, 0);
-      expect(card.clipBehavior, Clip.antiAlias);
+      expect(card.clipBehavior, Clip.none);
     });
 
     testWidgets('1.3 PostCard renders markdown body formatted content', (
@@ -292,7 +292,23 @@ void main() {
       expect(find.textContaining('Bold Header'), findsOneWidget);
     });
 
-    testWidgets('1.4 PostCard displays follow button for other users and triggers toggleFollow', (
+    testWidgets('long content expands without replacing the source text', (tester) async {
+      final post = _createSamplePost(id: 90, content: List.filled(100, 'fixture text').join(' '));
+      await tester.pumpWidget(_buildTestApp(
+        overrides: [authProvider.overrideWith(() => MockAuthNotifier())],
+        child: SingleChildScrollView(child: PostCard(post: post)),
+      ));
+      await tester.pumpAndSettle();
+      final body = find.byKey(const ValueKey('niosgram_post_content_frame_90'));
+      final before = tester.getSize(body).height;
+      await tester.tap(find.text('Читать дальше'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(body).height, greaterThan(before));
+      expect(find.text('Свернуть'), findsOneWidget);
+      expect(post.content, contains('fixture text'));
+    });
+
+    testWidgets('1.4 PostCard offers follow in the menu and triggers toggleFollow', (
       WidgetTester tester,
     ) async {
       final post = _createSamplePost(
@@ -313,7 +329,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final followBtn = find.byType(TextButton);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      final followBtn = find.text('Подписаться');
       expect(followBtn, findsOneWidget);
 
       await tester.tap(followBtn);
@@ -712,10 +730,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Perform fast double-tap on the card
-      await tester.tap(find.byType(PostCard));
+      // Double tap the post content without delaying the separate controls.
+      final content = find.byKey(const ValueKey('niosgram_post_content_701'));
+      await tester.tap(content);
       await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byType(PostCard));
+      await tester.tap(content);
       await tester.pump();
 
       // Check that reaction was triggered
@@ -750,7 +769,7 @@ void main() {
       expect(find.text('Постов пока нет'), findsOneWidget);
     });
 
-    testWidgets('3.4 Compact quick creation bar in feed expands inline composer', (
+    testWidgets('3.4 Compact creation bar opens the shared editor', (
       WidgetTester tester,
     ) async {
       final mockNiosgram = MockNiosgramNotifier(
@@ -792,10 +811,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
-      final expandedComposer = find.byKey(const ValueKey<String>('expanded_quick_composer'));
-      expect(expandedComposer, findsOneWidget);
-      expect(find.descendant(of: expandedComposer, matching: find.text('Новый пост')), findsOneWidget);
-      expect(find.text('Опубликовать'), findsOneWidget);
+      expect(find.text('Create Post View'), findsOneWidget);
     });
 
     testWidgets('3.5 Error feed state displays AppErrorBanner with retry action', (
@@ -956,7 +972,7 @@ void main() {
       expect(find.byType(PostCardSkeleton), findsNWidgets(4));
     });
 
-    testWidgets('4.4 Quick-creation FAB in NiosgramScreen navigates to /niosgram/create', (
+    testWidgets('4.4 Creation action in NiosgramScreen navigates to /niosgram/create', (
       WidgetTester tester,
     ) async {
       bool navigatedToCreate = false;
@@ -997,7 +1013,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Find cookie FAB by edit_note_rounded icon
+      // The compact creation action opens the same editor route.
       final fabFinder = find.byIcon(Icons.edit_note_rounded);
       expect(fabFinder, findsOneWidget);
 

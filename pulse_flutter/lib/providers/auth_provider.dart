@@ -1,6 +1,8 @@
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
+import 'package:pulse_flutter/core/storage/niosgram_saved_store.dart';
+import 'package:pulse_flutter/core/storage/niosgram_draft_store.dart';
 import 'package:pulse_flutter/services/encrypted_draft_sync.dart';
 import 'package:pulse_flutter/services/live_location_service.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
@@ -568,6 +570,12 @@ class AuthNotifier extends Notifier<AuthState> {
         if (accountId != null && eraseAccountData)
           attempt(() => NotificationHistoryStore.eraseAccount(accountId)),
       ]);
+      if (accountId != null && eraseSecretData) {
+        await Future.wait([
+          attempt(() => NiosgramSavedStore.eraseAccount(accountId)),
+          attempt(() => NiosgramDraftStore.eraseAccount(accountId)),
+        ]);
+      }
       if (accountId != null && eraseAccountData && secretStopped) {
         await attempt(() async {
           await DraftStorage.eraseAccount(accountId);

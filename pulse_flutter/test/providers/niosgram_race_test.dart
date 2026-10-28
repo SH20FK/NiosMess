@@ -43,8 +43,9 @@ class _Auth extends AuthNotifier {
 
 class _Cache extends CacheService {
   List<NgPost> saved = [];
+  List<NgPost> cached = [];
   @override
-  List<NgPost> getCachedFeed() => [];
+  List<NgPost> getCachedFeed() => cached;
   @override
   Future<void> saveFeed(List<NgPost> posts) async {
     saved = posts;
@@ -102,6 +103,31 @@ void main() {
       return container.read(niosgramProvider.notifier);
     }
 
+    for (final malformed in [false, true]) {
+      test(
+        'authoritative empty feed replaces cache; invalid response preserves it: malformed=$malformed',
+        () async {
+          socket = _Socket();
+          cache = _Cache()..cached = [NgPost.fromJson(post(99))];
+          socket.response = (_, _) async =>
+              malformed ? {'status': 'ok'} : {'posts': []};
+          container = ProviderContainer(
+            overrides: [
+              authProvider.overrideWith(_Auth.new),
+              webSocketClientProvider.overrideWithValue(socket),
+              cacheServiceProvider.overrideWithValue(cache),
+            ],
+          );
+          addTearDown(container.dispose);
+          addTearDown(socket.disposeFixture);
+          await container.read(niosgramProvider.future);
+          await Future<void>.delayed(Duration.zero);
+          final value = container.read(niosgramProvider).value!;
+          expect(value.posts.map((p) => p.id), malformed ? [99] : isEmpty);
+        },
+      );
+    }
+
     test(
       'page response preserves intervening push and cannot resurrect deleted IDs',
       () async {
@@ -135,6 +161,75 @@ void main() {
       await page;
       expect(container.read(niosgramProvider).value!.posts.first.id, 30);
       expect(container.read(niosgramProvider).value!.isLoadingMore, isFalse);
+      expect(container.read(niosgramProvider).value!.loadMoreFailed, isTrue);
+    });
+    test('failed page stops automatic retries until explicit retry', () async {
+      final notifier = await start();
+      var attempts = 0;
+      socket.response = (_, _) async {
+        attempts++;
+        if (attempts == 1) throw StateError('offline');
+        return {
+          'posts': [post(21)],
+        };
+      };
+      await notifier.loadMore();
+      await notifier.loadMore();
+      expect(attempts, 1);
+      await notifier.loadMore(retry: true);
+      expect(attempts, 2);
+      expect(container.read(niosgramProvider).value!.loadMoreFailed, isFalse);
+      expect(container.read(niosgramProvider).value!.posts.last.id, 21);
+    });
+    test('server-declared 15-item page allows loading the next page', () async {
+      final notifier = await start();
+      final pages = <int>[];
+      socket.response = (_, payload) async {
+        final page = payload!['page'] as int;
+        pages.add(page);
+        return {
+          'limit': 15,
+          'posts': page == 1
+              ? [for (var id = 1; id <= 15; id++) post(id)]
+              : [post(16)],
+        };
+      };
+      await notifier.refresh();
+      expect(container.read(niosgramProvider).value!.hasMore, isTrue);
+      await notifier.loadMore();
+      expect(pages, [1, 2]);
+      expect(container.read(niosgramProvider).value!.posts.last.id, 16);
+      expect(container.read(niosgramProvider).value!.hasMore, isFalse);
+    });
+    test(
+      'repeated ensure-like keeps pending operation and rolls back on failure',
+      () async {
+        final notifier = await start();
+        final pending = Completer<dynamic>();
+        var requests = 0;
+        socket.response = (_, _) {
+          requests++;
+          return pending.future;
+        };
+        final first = notifier.reactPost(20, true, ensureSelected: true);
+        await notifier.reactPost(20, true, ensureSelected: true);
+        expect(requests, 1);
+        pending.completeError(StateError('offline'));
+        await first;
+        expect(
+          container.read(niosgramProvider).value!.posts.first.myReaction,
+          isNull,
+        );
+      },
+    );
+    test('failed dislike restores post at its original position', () async {
+      final notifier = await start();
+      socket.response = (_, _) async => throw StateError('offline');
+      await notifier.reactPost(18, false);
+      expect(
+        container.read(niosgramProvider).value!.posts.take(4).map((p) => p.id),
+        [20, 19, 18, 17],
+      );
     });
     test(
       'refresh preserves a new post and reaction changed during the request',
@@ -142,7 +237,7 @@ void main() {
         final notifier = await start();
         final pending = Completer<dynamic>();
         socket.response = (action, _) async => action == 'get_feed'
-            ? pending.future
+            ? await pending.future
             : {'likes': 1, 'dislikes': 0, 'my_reaction': 'like'};
         final refresh = notifier.refresh();
         socket.push(30);
