@@ -14,6 +14,8 @@ import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
+import 'package:pulse_flutter/screens/settings_chats_screen.dart';
+import 'package:pulse_flutter/l10n/app_localizations.dart';
 
 class _Auth extends AuthNotifier {
   @override
@@ -273,6 +275,27 @@ void main() {
       expect(socket.requests.last['id'], 'same-operation');
     },
   );
+  testWidgets('chat folders are managed from chat settings', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith(_Auth.new),
+          chatFoldersProvider.overrideWith(_Folders.new),
+        ],
+        child: const MaterialApp(
+          locale: Locale('ru'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsChatsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Папки чатов').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(ChatFoldersScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   for (final brightness in Brightness.values) {
     testWidgets(
       'productivity bar, folder editor and topics fit 320px at 200% $brightness',

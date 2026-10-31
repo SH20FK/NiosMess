@@ -70,15 +70,11 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.byIcon(Icons.search_rounded).hitTestable(), findsOneWidget);
+        expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
         expect(
-          find.byIcon(Icons.more_vert_rounded).hitTestable(),
+          find.byKey(const ValueKey('inbox-profile-settings')).hitTestable(),
           findsOneWidget,
         );
-        await tester.tap(find.byIcon(Icons.more_vert_rounded));
-        await tester.pumpAndSettle();
-        expect(find.text('Избранное'), findsOneWidget);
-        expect(find.text('Отложенные сообщения'), findsOneWidget);
-        expect(find.text('Папки чатов'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }

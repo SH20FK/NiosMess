@@ -5,7 +5,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+
+class _AvatarAuth extends AuthNotifier {
+  @override
+  AuthState build() => AuthState.initial().copyWith(
+    hydrated: true,
+    session: const AuthSession(
+      accessToken: 'one',
+      userId: 1,
+      username: 'a',
+      displayName: 'A',
+    ),
+  );
+
+  void switchUser() => state = state.copyWith(
+    session: const AuthSession(
+      accessToken: 'two',
+      userId: 2,
+      username: 'b',
+      displayName: 'B',
+    ),
+  );
+}
 
 void main() {
   late ProviderContainer container;
@@ -51,6 +75,61 @@ void main() {
     container.read(sessionAccessTokenProvider.notifier).clear();
     expect(cachedAuthHeaders('/static/avatar.png'), isEmpty);
   });
+
+  test(
+    'trusted avatar cache keys are isolated by account and never contain tokens',
+    () {
+      const url = 'https://ni-os.ru/static/avatar.png';
+      final a = accountScopedAvatarCacheKey(url, 1);
+      final b = accountScopedAvatarCacheKey(url, 2);
+      expect(a, isNot(b));
+      expect(a, isNot(contains('test-only-token')));
+      expect(
+        accountScopedAvatarCacheKey('https://cdn.example.test/a.png', 1),
+        isNull,
+      );
+    },
+  );
+
+  testWidgets(
+    'avatar switches its actual image cache key when the account changes',
+    (tester) async {
+      if (kIsWeb) return;
+      final accountContainer = ProviderContainer(
+        overrides: [authProvider.overrideWith(_AvatarAuth.new)],
+      );
+      addTearDown(accountContainer.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: accountContainer,
+          child: const MaterialApp(
+            home: PulseAvatar(
+              name: 'A',
+              avatarUrl: 'https://ni-os.ru/static/test.png',
+            ),
+          ),
+        ),
+      );
+      CachedNetworkImageProvider currentProvider() {
+        final image = tester.widget<Image>(
+          find.descendant(
+            of: find.byType(PulseAvatar),
+            matching: find.byType(Image),
+          ),
+        );
+        final source = image.image;
+        return (source is ResizeImage ? source.imageProvider : source)
+            as CachedNetworkImageProvider;
+      }
+
+      final oldKey = currentProvider().cacheKey;
+      (accountContainer.read(authProvider.notifier) as _AvatarAuth)
+          .switchUser();
+      await tester.pump();
+      expect(currentProvider().cacheKey, isNot(oldKey));
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   test('external media stays usable without rewriting spoofed hosts', () {
     for (final url in [
@@ -118,8 +197,15 @@ void main() {
         'http://ni-os.ru/test-origin.png',
       ]) {
         await tester.pumpWidget(
-          MaterialApp(
-            home: PulseAvatar(key: ValueKey(url), name: 'Test', avatarUrl: url),
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: PulseAvatar(
+                key: ValueKey(url),
+                name: 'Test',
+                avatarUrl: url,
+              ),
+            ),
           ),
         );
         final image = tester.widget<Image>(

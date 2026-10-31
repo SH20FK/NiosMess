@@ -415,7 +415,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         .onInputChanged(chatId: _chatId, text: _inputController.text);
     if (!isEmpty) {
       final int? chatId = _chatId;
-      if (chatId != null && ref.read(chatByIdProvider(chatId))?.isSaved != true) {
+      if (chatId != null &&
+          ref.read(chatByIdProvider(chatId))?.isSaved != true) {
         ref.read(typingProvider(chatId).notifier).sendTyping();
       }
     }
@@ -1873,7 +1874,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   String _displayText(ApiMessage message) =>
-      LiveLocation.parse(message.content)?.preview ?? InteractiveMessage.parse(message.content)?.preview ?? message.content;
+      LiveLocation.parse(message.content)?.preview ??
+      InteractiveMessage.parse(message.content)?.preview ??
+      message.content;
 
   Future<void> _showMediaActions(
     ApiMessage message,
@@ -2258,7 +2261,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
 
     final bool isSecret = isSecretChat || _isSecret;
-    ref.listen<AsyncValue<Map<int, String>>>(liveDraftMapProvider, (previous, next) {
+    ref.listen<AsyncValue<Map<int, String>>>(liveDraftMapProvider, (
+      previous,
+      next,
+    ) {
       if (isSecret || !next.hasValue || _editingMessageId != null) return;
       final before = previous?.value?[chatId] ?? '';
       final after = next.value?[chatId] ?? '';
@@ -2386,15 +2392,25 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   wallpaper: ChatWallpaperBackground(
                     chatId: widget.chatId.toString(),
                   ),
-                  topBanner: Column(mainAxisSize: MainAxisSize.min, children: [ChatTopBannerLayer(
-                    chatId: chatId,
-                    isSecret: isSecret,
-                    loadingOlderNotifier: _loadingOlderNotifier,
-                    onE2eeTap: _showE2eeVerification,
+                  topBanner: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ChatTopBannerLayer(
+                        chatId: chatId,
+                        isSecret: isSecret,
+                        loadingOlderNotifier: _loadingOlderNotifier,
+                        onE2eeTap: _showE2eeVerification,
+                      ),
+                      if (!isSecret)
+                        EncryptedDraftConflictNotice(
+                          chatId: chatId,
+                          onSelected: (text) {
+                            _inputController.text = text;
+                            _saveDraft();
+                          },
+                        ),
+                    ],
                   ),
-                    if (!isSecret) EncryptedDraftConflictNotice(chatId: chatId,
-                      onSelected: (text) { _inputController.text = text; _saveDraft(); }),
-                  ]),
                   messagesBuilder:
                       (BuildContext context, double composerHeight) {
                         return _ChatMessagesScope(
@@ -2598,16 +2614,24 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
               : context.l10n.chatTitleFallback(chatId));
 
     return ChatDetailAppBar(
-      onShareLocation: chat?.chatType == 'direct' && chat?.isSecret != true && !isSecret &&
-          chat?.isBotChat != true && chat?.isSaved != true
-          ? () => showLiveLocationComposer(context, ref, chatId) : null,
+      onShareLocation:
+          chat?.chatType == 'direct' &&
+              chat?.isSecret != true &&
+              !isSecret &&
+              chat?.isBotChat != true &&
+              chat?.isSaved != true
+          ? () => showLiveLocationComposer(context, ref, chatId)
+          : null,
       managementChatId: chat?.topicParentId,
       isSaved: chat?.isSaved == true,
       onScheduledMessages: isSecret || chat?.isSecret == true
           ? null
-          : () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => ScheduledMessagesScreen(chatId: chatId),
+          : () => AppModal.showSheet<void>(
+              context: context,
+              isScrollable: true,
+              builder: (sheetContext) => SizedBox(
+                height: MediaQuery.sizeOf(sheetContext).height * 0.75,
+                child: ScheduledMessagesScreen(chatId: chatId),
               ),
             ),
       onTopics: isGroup

@@ -48,9 +48,9 @@ class _ComposeActionContent extends ConsumerWidget {
     final scheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
-    final actions = buildComposeActions(context).where(
-      (action) => action.available && action.id != ComposeActionId.message,
-    );
+    final actions = buildComposeActions(
+      context,
+    ).where((action) => action.available);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 20),

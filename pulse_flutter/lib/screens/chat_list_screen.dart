@@ -254,6 +254,25 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     return false;
   }
 
+  Widget _savedShortcut(ColorScheme scheme, bool compact) => SliverPadding(
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    sliver: SliverToBoxAdapter(
+      child: ChatTile(
+        key: const ValueKey('saved-chat-shortcut'),
+        title: context.l10n.savedMessagesTitle,
+        subtitle: context.l10n.savedMessagesSubtitle,
+        formattedTime: '',
+        unreadCount: 0,
+        avatarText: context.l10n.savedMessagesTitle,
+        avatarColor: scheme.primaryContainer,
+        isSaved: true,
+        isPinned: true,
+        compact: compact,
+        onTap: () => openSavedMessages(context, ref),
+      ),
+    ),
+  );
+
   List<Widget> _buildChatSlivers(
     bool isAuthenticated,
     AsyncValue<List<ApiChatSummary>> chatsAsync,
@@ -296,8 +315,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         filter: filter,
         desktopChatId: desktopChatId,
       ),
-      loading: () => const <Widget>[
-        SliverFillRemaining(
+      loading: () => <Widget>[
+        if (filter == ChatFilter.all &&
+            ref.watch(selectedChatFolderProvider) == null)
+          _savedShortcut(scheme, compact),
+        const SliverFillRemaining(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: ChatListSkeleton(),
@@ -305,6 +327,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         ),
       ],
       error: (Object error, StackTrace stack) => <Widget>[
+        if (filter == ChatFilter.all &&
+            ref.watch(selectedChatFolderProvider) == null)
+          _savedShortcut(scheme, compact),
         SliverFillRemaining(
           child: EmptyStateWidget(
             title: context.l10n.chatListFailedLoad(context.l10n.commonError),
@@ -347,9 +372,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           if (!isSearchActive) return true;
           return resultChatIds.contains(chat.id);
         })
-        .toList(growable: false);
+        .toList(growable: true);
+    // The self-chat is always the first pinned item in the main inbox.
+    if (folder == null && filter == ChatFilter.all && !isSearchActive) {
+      final index = searched.indexWhere((chat) => chat.isSaved);
+      if (index > 0) searched.insert(0, searched.removeAt(index));
+    }
+    final showSavedShortcut =
+        folder == null &&
+        filter == ChatFilter.all &&
+        !isSearchActive &&
+        !searched.any((chat) => chat.isSaved);
 
-    if (searched.isEmpty) {
+    if (searched.isEmpty && !showSavedShortcut) {
       return <Widget>[
         SliverFillRemaining(
           child: EmptyStateWidget(
@@ -378,6 +413,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     };
 
     return <Widget>[
+      if (showSavedShortcut) _savedShortcut(scheme, compact),
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: 10),
         sliver: SliverList(
@@ -480,6 +516,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                           isOnline: chat.chatType == 'direct' && chat.isOnline,
                           isSecret: chat.isSecret,
                           isSaved: chat.isSaved,
+                          isPinned: chat.isSaved,
                           partnerBadges: chat.partnerBadges,
                           isMuted:
                               ref.watch(chatMutedProvider(chat.id)).value ??

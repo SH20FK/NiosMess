@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/features/chats/presentation/compose_action_sheet.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
@@ -43,7 +43,7 @@ class InboxComposeButton extends ConsumerWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
               ),
-              tooltip: context.l10n.chatCreatePersonal,
+              tooltip: context.l10n.inboxCreateMenu,
               onPressed: () {
                 final bool haptics = ref.read(
                   uiSettingsProvider.select((s) => s.haptics),
@@ -51,7 +51,7 @@ class InboxComposeButton extends ConsumerWidget {
                 if (haptics) {
                   HapticService.tap();
                 }
-                context.push('/new-message');
+                openComposeActions(context);
               },
               child: const Icon(Icons.edit_rounded),
             ),

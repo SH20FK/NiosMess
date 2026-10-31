@@ -12,6 +12,12 @@ Map<String, String> cachedAuthHeaders(String? destinationUrl) {
   return {'Authorization': 'Bearer $_cachedToken'};
 }
 
+/// Isolate protected image entries by account without persisting credentials.
+String? accountScopedAvatarCacheKey(String url, int? accountId) {
+  if (!ApiConstants.isAuthenticatedMediaUrl(url)) return null;
+  return 'avatar-v1:${accountId ?? 'anonymous'}:$url';
+}
+
 class SessionAccessTokenNotifier extends Notifier<String?> {
   @override
   String? build() => null;

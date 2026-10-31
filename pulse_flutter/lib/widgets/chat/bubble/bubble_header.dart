@@ -1,5 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
@@ -13,7 +15,7 @@ class ForwardedPayload {
   final String body;
 }
 
-class MessageBubbleHeader extends StatelessWidget {
+class MessageBubbleHeader extends ConsumerWidget {
   const MessageBubbleHeader({
     required this.isMine,
     required this.senderDisplayName,
@@ -34,7 +36,7 @@ class MessageBubbleHeader extends StatelessWidget {
   final TextTheme textTheme;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (isMine ||
         ((senderDisplayName ?? '').trim().isEmpty && visibleBadges.isEmpty)) {
       return const SizedBox.shrink();
@@ -51,6 +53,10 @@ class MessageBubbleHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: CachedNetworkImage(
                 imageUrl: ApiConstants.resolve(senderAvatarUrl),
+                cacheKey: accountScopedAvatarCacheKey(
+                  ApiConstants.resolve(senderAvatarUrl),
+                  ref.watch(authProvider.select((s) => s.session?.userId)),
+                ),
                 httpHeaders: cachedAuthHeaders(senderAvatarUrl),
                 width: 16,
                 height: 16,
@@ -64,10 +70,7 @@ class MessageBubbleHeader extends StatelessWidget {
               senderDisplayName!,
               style: textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: AppColors.avatarColorFor(
-                  senderDisplayName!,
-                  scheme,
-                ),
+                color: AppColors.avatarColorFor(senderDisplayName!, scheme),
               ),
             ),
           ...visibleBadges.map(
@@ -85,4 +88,3 @@ class MessageBubbleHeader extends StatelessWidget {
     );
   }
 }
-

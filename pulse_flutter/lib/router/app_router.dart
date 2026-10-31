@@ -20,7 +20,6 @@ import 'package:pulse_flutter/screens/onboarding_screen.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
 import 'package:pulse_flutter/screens/public_profile_screen.dart';
 import 'package:pulse_flutter/screens/sticker_set_screen.dart';
-import 'package:pulse_flutter/screens/contacts_screen.dart';
 import 'package:pulse_flutter/screens/settings_energy_saving_screen.dart';
 import 'package:pulse_flutter/screens/settings_plus_screen.dart';
 import 'package:pulse_flutter/screens/plus_activation_screen.dart';
@@ -263,11 +262,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           ),
         ),
       ),
-      GoRoute(
-        path: '/contacts',
-        pageBuilder: (context, state) =>
-            _page(state, const ContactsScreen(), pageKey: state.pageKey),
-      ),
+      GoRoute(path: '/contacts', redirect: (context, state) => '/main/chats'),
       GoRoute(
         path: '/main/contacts',
         redirect: (context, state) => '/contacts',

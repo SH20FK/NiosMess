@@ -1,13 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/identity/nios_mark.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
 
-class PulseAvatar extends StatelessWidget {
+class PulseAvatar extends ConsumerWidget {
   const PulseAvatar({
     required this.name,
     this.id,
@@ -33,11 +35,13 @@ class PulseAvatar extends StatelessWidget {
   final double borderWidth;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color background = fallbackColor ?? _colorFromName(id ?? name, scheme);
-    final Color foreground = textColor ??
+    final Color background =
+        fallbackColor ?? _colorFromName(id ?? name, scheme);
+    final Color foreground =
+        textColor ??
         (scheme.brightness == Brightness.dark
             ? scheme.onPrimary
             : scheme.onPrimaryContainer);
@@ -54,10 +58,17 @@ class PulseAvatar extends StatelessWidget {
     final Widget child;
     if (url.isEmpty) {
       child = fallback;
-    } else if (RegExp(r'\.(mp4|webm|mov)$', caseSensitive: false)
-        .hasMatch(Uri.tryParse(url)?.path ?? '')) {
-      child = ClipOval(child: StickerVideoPlayer(url: url,
-        placeholder: fallback, fit: BoxFit.cover));
+    } else if (RegExp(
+      r'\.(mp4|webm|mov)$',
+      caseSensitive: false,
+    ).hasMatch(Uri.tryParse(url)?.path ?? '')) {
+      child = ClipOval(
+        child: StickerVideoPlayer(
+          url: url,
+          placeholder: fallback,
+          fit: BoxFit.cover,
+        ),
+      );
     } else if (kIsWeb) {
       // In Flutter Web, Image.network avoids CanvasKit black texture rendering bugs
       child = ClipOval(
@@ -70,10 +81,7 @@ class PulseAvatar extends StatelessWidget {
           errorBuilder: (context, error, stackTrace) => fallback,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
-            return _ShimmerPlaceholder(
-              radius: radius,
-              background: background,
-            );
+            return _ShimmerPlaceholder(radius: radius, background: background);
           },
         ),
       );
@@ -81,13 +89,17 @@ class PulseAvatar extends StatelessWidget {
       child = ClipOval(
         child: CachedNetworkImage(
           imageUrl: url,
+          cacheKey: accountScopedAvatarCacheKey(
+            url,
+            ApiConstants.isAuthenticatedMediaUrl(url)
+                ? ref.watch(authProvider.select((s) => s.session?.userId))
+                : null,
+          ),
           httpHeaders: cachedAuthHeaders(url),
           memCacheWidth: (radius * 2 * 2).toInt(),
           memCacheHeight: (radius * 2 * 2).toInt(),
-          placeholder: (context, url) => _ShimmerPlaceholder(
-            radius: radius,
-            background: background,
-          ),
+          placeholder: (context, url) =>
+              _ShimmerPlaceholder(radius: radius, background: background),
           errorWidget: (context, url, error) => fallback,
           fadeInDuration: const Duration(milliseconds: 300),
           width: radius * 2,
@@ -139,8 +151,11 @@ class PulseAvatar extends StatelessWidget {
   }
 
   String _initials(String raw) {
-    final List<String> parts =
-        raw.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    final List<String> parts = raw
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (parts.isEmpty) {
       return '?';
     }

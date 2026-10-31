@@ -1,6 +1,7 @@
 import 'package:pulse_flutter/widgets/calls/call_devices_dialog.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -33,6 +34,20 @@ class SettingsChatsScreen extends ConsumerWidget {
       title: context.l10n.settingsV2Chats,
       isEmbedded: isEmbedded,
       children: <Widget>[
+        SettingsSection(
+          title: context.l10n.inboxFolders,
+          children: [
+            SettingsListItem.nav(
+              icon: Icons.folder_outlined,
+              title: context.l10n.inboxFolders,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ChatFoldersScreen(),
+                ),
+              ),
+            ),
+          ],
+        ),
         // 1. Text input & Keyboard
         SettingsSection(
           title: context.l10n.settingsChatsSendSection,

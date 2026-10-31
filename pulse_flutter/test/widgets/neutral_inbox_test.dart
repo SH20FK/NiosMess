@@ -444,11 +444,42 @@ void main() {
             await captureStep('01-inbox');
             expect(find.byType(FilterChip), findsNWidgets(4));
             expect(find.text('never-display-ciphertext'), findsNothing);
-            await tester.tap(find.byIcon(Icons.more_vert_rounded));
-            await tester.pumpAndSettle();
-            await tester.tap(
-              find.text(locale == 'ru' ? 'Создать…' : 'Create…'),
+            expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
+            expect(
+              find.byKey(const ValueKey('saved-chat-shortcut')),
+              findsOneWidget,
             );
+            final container = ProviderScope.containerOf(
+              tester.element(find.byType(ChatListScreen)),
+              listen: false,
+            );
+            container
+                .read(chatsProvider.notifier)
+                .upsertChat(
+                  const ApiChatSummary(
+                    id: 99,
+                    chatType: 'direct',
+                    name: 'Self',
+                    unreadCount: 0,
+                    membersCount: 1,
+                    isSaved: true,
+                  ),
+                );
+            await tester.pumpAndSettle();
+            expect(
+              find.byKey(const ValueKey('saved-chat-shortcut')),
+              findsNothing,
+            );
+            expect(
+              tester.widget<ChatTile>(find.byType(ChatTile).first).isSaved,
+              isTrue,
+            );
+            expect(
+              find.text(locale == 'ru' ? 'Избранное' : 'Saved Messages'),
+              findsOneWidget,
+            );
+
+            await tester.tap(find.byType(FloatingActionButton));
             await tester.pumpAndSettle();
             expect(
               find.text(
@@ -462,16 +493,12 @@ void main() {
               ),
               findsOneWidget,
             );
-            expect(
+            await captureStep('02-create');
+            await tester.tap(
               find.text(
                 locale == 'ru' ? 'Создать личный чат' : 'Create direct chat',
               ),
-              findsNothing,
             );
-            await captureStep('02-create');
-            await tester.binding.handlePopRoute();
-            await tester.pumpAndSettle();
-            await tester.tap(find.byType(FloatingActionButton));
             await tester.pumpAndSettle();
             expect(find.text('compose-person'), findsOneWidget);
             router.pop();

@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
 import 'package:pulse_flutter/core/media/media_playback_visibility.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/providers/token_provider.dart';
 
 class StickerVideoPlayer extends ConsumerStatefulWidget {
   const StickerVideoPlayer({
@@ -176,6 +177,7 @@ class StickerVideoPlayerState extends ConsumerState<StickerVideoPlayer> {
       }
       final controller = VideoPlayerController.networkUrl(
         Uri.parse(widget.url),
+        httpHeaders: cachedAuthHeaders(widget.url),
       );
       _controller = controller;
       await controller.initialize();
