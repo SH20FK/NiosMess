@@ -172,7 +172,7 @@ class _ChatTileState extends State<ChatTile>
                     : (isHovered
                           ? scheme.surfaceContainerHigh
                           : hasUnread
-                          ? scheme.surfaceContainerLow
+                          ? scheme.surfaceContainerHigh.withValues(alpha: 0.65)
                           : Colors.transparent);
 
                 return AnimatedContainer(
@@ -415,20 +415,7 @@ class _ChatTileState extends State<ChatTile>
       ),
     );
 
-    final separatedContent = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        content,
-        Padding(
-          padding: EdgeInsets.only(left: widget.compact ? 68 : 72, right: 12),
-          child: Divider(
-            height: 1,
-            thickness: .5,
-            color: scheme.outlineVariant.withValues(alpha: .35),
-          ),
-        ),
-      ],
-    );
+    final separatedContent = content;
     if (!widget.animateEntrance || _fadeAnim == null || _slideAnim == null) {
       return separatedContent;
     }
@@ -467,14 +454,14 @@ class _AnimatedBadge extends StatelessWidget {
         constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
-          color: scheme.primaryContainer,
+          color: scheme.primary,
           borderRadius: BorderRadius.circular(12),
         ),
         alignment: Alignment.center,
         child: Text(
           count > 99 ? '99+' : '$count',
           style: textTheme.labelSmall?.copyWith(
-            color: scheme.onPrimaryContainer,
+            color: scheme.onPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 11,
           ),

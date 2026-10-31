@@ -41,6 +41,48 @@ void main() {
       expect(find.text('Чаты'), findsOneWidget);
     });
 
+    for (final brightness in Brightness.values) {
+      testWidgets('header actions fit 320 dp at 200%: $brightness', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(320, 640);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              locale: const Locale('ru'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              theme: ThemeData(useMaterial3: true, brightness: brightness),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(2),
+                  disableAnimations: true,
+                ),
+                child: child!,
+              ),
+              home: const Scaffold(appBar: ChatListHeader()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byIcon(Icons.search_rounded).hitTestable(), findsOneWidget);
+        expect(
+          find.byIcon(Icons.more_vert_rounded).hitTestable(),
+          findsOneWidget,
+        );
+        await tester.tap(find.byIcon(Icons.more_vert_rounded));
+        await tester.pumpAndSettle();
+        expect(find.text('Избранное'), findsOneWidget);
+        expect(find.text('Отложенные сообщения'), findsOneWidget);
+        expect(find.text('Папки чатов'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
     testWidgets('keeps the header clear when there are unread messages', (
       WidgetTester tester,
     ) async {

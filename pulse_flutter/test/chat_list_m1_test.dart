@@ -152,60 +152,113 @@ void main() {
   });
 
   group('Milestone 1: ChatFilterBar Tests', () {
-    testWidgets('filter selection animates and remains immediately usable', (tester) async {
+    testWidgets('filter selection animates and remains immediately usable', (
+      tester,
+    ) async {
       await tester.pumpWidget(_buildTestApp(child: const ChatFilterBar()));
       final unread = find.byKey(const ValueKey('chat-filter-unread'));
-      final chip = find.descendant(of: unread, matching: find.byType(FilterChip));
+      final chip = find.descendant(
+        of: unread,
+        matching: find.byType(FilterChip),
+      );
       await tester.tap(chip);
       await tester.pump();
-      final before = tester.widget<Transform>(
-        find.descendant(of: unread, matching: find.byType(Transform)).first,
-      ).transform.entry(0, 0);
+      final before = tester
+          .widget<Transform>(
+            find.descendant(of: unread, matching: find.byType(Transform)).first,
+          )
+          .transform
+          .entry(0, 0);
       expect(
-        tester.widget<Transform>(
-          find.descendant(of: unread, matching: find.byType(Transform)).first,
-        ).transformHitTests,
+        tester
+            .widget<Transform>(
+              find
+                  .descendant(of: unread, matching: find.byType(Transform))
+                  .first,
+            )
+            .transformHitTests,
         isFalse,
       );
       await tester.pump(const Duration(milliseconds: 100));
-      final during = tester.widget<Transform>(
-        find.descendant(of: unread, matching: find.byType(Transform)).first,
-      ).transform.entry(0, 0);
+      final during = tester
+          .widget<Transform>(
+            find.descendant(of: unread, matching: find.byType(Transform)).first,
+          )
+          .transform
+          .entry(0, 0);
       expect(tester.widget<FilterChip>(chip).selected, isTrue);
       expect(during, greaterThan(before));
       await tester.pumpAndSettle();
     });
 
-    testWidgets('filter honors reduced motion and large text on a narrow screen', (tester) async {
-      tester.view.physicalSize = const Size(320, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(_buildTestApp(
-        child: const MediaQuery(
-          data: MediaQueryData(disableAnimations: true, textScaler: TextScaler.linear(2)),
-          child: ChatFilterBar(),
-        ),
-      ));
-      final unread = find.byKey(const ValueKey('chat-filter-unread'));
-      expect(
-        tester.widget<TweenAnimationBuilder<double>>(
-          find.descendant(of: unread, matching: find.byType(TweenAnimationBuilder<double>)).first,
-        ).duration,
-        Duration.zero,
-      );
-      await tester.tap(find.descendant(of: unread, matching: find.byType(FilterChip)));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'filter honors reduced motion and large text on a narrow screen',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(
+          _buildTestApp(
+            child: const MediaQuery(
+              data: MediaQueryData(
+                disableAnimations: true,
+                textScaler: TextScaler.linear(2),
+              ),
+              child: ChatFilterBar(),
+            ),
+          ),
+        );
+        final unread = find.byKey(const ValueKey('chat-filter-unread'));
+        expect(
+          tester
+              .widget<TweenAnimationBuilder<double>>(
+                find
+                    .descendant(
+                      of: unread,
+                      matching: find.byType(TweenAnimationBuilder<double>),
+                    )
+                    .first,
+              )
+              .duration,
+          Duration.zero,
+        );
+        await tester.tap(
+          find.descendant(of: unread, matching: find.byType(FilterChip)),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('renders three controls with chat categories in a menu', (
+    testWidgets('shows groups and keeps remaining categories available', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(_buildTestApp(child: const ChatFilterBar()));
       await tester.pumpAndSettle();
 
-      expect(find.byType(FilterChip), findsNWidgets(3));
+      expect(find.byType(FilterChip), findsNWidgets(4));
+      final groups = find.byKey(const ValueKey('chat-filter-groups'));
+      await tester.ensureVisible(groups);
+      await tester.tap(
+        find.descendant(of: groups, matching: find.byType(FilterChip)),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<FilterChip>(
+              find.descendant(of: groups, matching: find.byType(FilterChip)),
+            )
+            .selected,
+        isTrue,
+      );
+      final typeMenu = find.byKey(const ValueKey('chat-filter-type'));
+      await tester.ensureVisible(typeMenu);
+      await tester.tap(
+        find.descendant(of: typeMenu, matching: find.byType(FilterChip)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(MenuItemButton), findsNWidgets(3));
     });
 
     testWidgets('does not duplicate global unread counts in filters', (

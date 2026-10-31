@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/message_preview_text.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,7 +35,6 @@ import 'package:pulse_flutter/widgets/empty_state_widget.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
-import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -158,56 +158,64 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: const ChatListHeader(),
-      backgroundColor: Colors.transparent,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
-          await _retryChats();
-        },
-        displacement: 40,
-        color: scheme.primary,
-        backgroundColor: scheme.surfaceContainerHigh,
-        elevation: 0,
-        child: NotificationListener<ScrollNotification>(
-          onNotification: _handleScrollNotification,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: <Widget>[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const <Widget>[
-                      SizedBox(height: 4),
-                      RepaintBoundary(child: ChatSearchField()),
-                      SizedBox(height: 10),
-                      RepaintBoundary(child: ChatListFilterBar()),
-                      ChatProductivityBar(),
-                      SizedBox(height: 12),
-                    ],
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
+            context.push('/chats/search'),
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
+            context.push('/chats/search'),
+      },
+      child: Focus(
+        child: Scaffold(
+          appBar: const ChatListHeader(),
+          backgroundColor: Colors.transparent,
+          body: RefreshIndicator(
+            onRefresh: () async {
+              if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
+              await _retryChats();
+            },
+            displacement: 40,
+            color: scheme.primary,
+            backgroundColor: scheme.surfaceContainerHigh,
+            elevation: 0,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleScrollNotification,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: <Widget>[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const <Widget>[
+                          SizedBox(height: 4),
+                          RepaintBoundary(child: ChatListFilterBar()),
+                          ChatProductivityBar(showShortcuts: false),
+                          SizedBox(height: 12),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
+                  ..._buildChatSlivers(
+                    isAuthenticated,
+                    chatsAsync,
+                    compact,
+                    scheme,
+                    textTheme,
+                    searchAsync.asData?.value,
+                    filter,
+                    desktopChatId,
+                  ),
+                  SliverPadding(
+                    padding: EdgeInsets.only(
+                      bottom: 88 + MediaQuery.viewPaddingOf(context).bottom,
+                    ),
+                  ),
+                ],
               ),
-              const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
-              ..._buildChatSlivers(
-                isAuthenticated,
-                chatsAsync,
-                compact,
-                scheme,
-                textTheme,
-                searchAsync.asData?.value,
-                filter,
-                desktopChatId,
-              ),
-              SliverPadding(
-                padding: EdgeInsets.only(
-                  bottom: 88 + MediaQuery.viewPaddingOf(context).bottom,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -402,11 +410,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     },
                     child: Consumer(
                       builder: (BuildContext context, WidgetRef ref, _) {
-                        final bool isTyping = !chat.isSaved && ref.watch(
-                          typingProvider(chat.id).select(
-                            (TypingState s) => s.typingUserIds.isNotEmpty,
-                          ),
-                        );
+                        final bool isTyping =
+                            !chat.isSaved &&
+                            ref.watch(
+                              typingProvider(chat.id).select(
+                                (TypingState s) => s.typingUserIds.isNotEmpty,
+                              ),
+                            );
                         String? draft;
                         if (chat.isSecret) {
                           ref.watch(secretChatRevisionProvider);
@@ -424,7 +434,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                         }
                         final hasDraft = draft?.trim().isNotEmpty == true;
                         return ChatTile(
-                          title: chat.isSaved ? context.l10n.savedMessagesTitle : chat.name,
+                          title: chat.isSaved
+                              ? context.l10n.savedMessagesTitle
+                              : chat.name,
                           draftLabel: hasDraft
                               ? context.l10n.inboxDraftLabel
                               : null,
@@ -454,7 +466,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                     : Icons.done_rounded)
                               : null,
                           unreadCount: chat.unreadCount,
-                          avatarText: chat.isSaved ? context.l10n.savedMessagesTitle : chat.name,
+                          avatarText: chat.isSaved
+                              ? context.l10n.savedMessagesTitle
+                              : chat.name,
                           avatarUrl: chat.avatarUrl,
                           avatarColor: _avatarColor(chat.id, scheme),
                           subtitleIcon: hasDraft
@@ -523,7 +537,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   String _previewText(String? raw, {bool cache = true}) {
     final String text =
-        (LiveLocation.parse(raw ?? '')?.preview ?? InteractiveMessage.parse(raw ?? '')?.preview ?? raw ?? '').trim();
+        (LiveLocation.parse(raw ?? '')?.preview ??
+                InteractiveMessage.parse(raw ?? '')?.preview ??
+                raw ??
+                '')
+            .trim();
     if (text.isEmpty) return context.l10n.chatNoMessages;
     final RegExp forwarded = RegExp(r'^_fwd from\s+(.+?):');
     final Match? match = forwarded.firstMatch(text);

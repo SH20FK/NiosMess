@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/features/chats/presentation/compose_action_sheet.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 
-class ChatListHeader extends StatelessWidget implements PreferredSizeWidget {
+class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
   const ChatListHeader({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final l10n = context.l10n;
+
+    final profile = ref.watch(authProvider.select((s) => s.profile));
+    final sessionName = ref.watch(
+      authProvider.select((s) => s.session?.displayName),
+    );
 
     return AppBar(
       automaticallyImplyLeading: false,
@@ -26,8 +35,46 @@ class ChatListHeader extends StatelessWidget implements PreferredSizeWidget {
       ),
       centerTitle: false,
       actions: <Widget>[
+        IconButton(
+          tooltip: l10n.chatListSearchMessagesHint,
+          onPressed: () => context.push('/chats/search'),
+          icon: const Icon(Icons.search_rounded),
+        ),
+        IconButton(
+          key: const ValueKey('inbox-profile-settings'),
+          tooltip: l10n.tabSettings,
+          onPressed: () => context.go('/main/settings'),
+          icon: PulseAvatar(
+            avatarUrl: profile?.avatarUrl,
+            name: profile?.displayName ?? sessionName ?? '',
+            radius: 16,
+          ),
+        ),
         MenuAnchor(
           menuChildren: <Widget>[
+            MenuItemButton(
+              leadingIcon: const ProductivityIcon('bookmark'),
+              onPressed: () => openSavedMessages(context, ref),
+              child: Text(l10n.savedMessagesTitle),
+            ),
+            MenuItemButton(
+              leadingIcon: const ProductivityIcon('clock'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ScheduledMessagesScreen(),
+                ),
+              ),
+              child: Text(l10n.inboxScheduledMessages),
+            ),
+            MenuItemButton(
+              leadingIcon: const ProductivityIcon('folder'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ChatFoldersScreen(),
+                ),
+              ),
+              child: Text(l10n.inboxFolders),
+            ),
             MenuItemButton(
               leadingIcon: const Icon(Icons.edit_rounded),
               onPressed: () => openComposeActions(context),

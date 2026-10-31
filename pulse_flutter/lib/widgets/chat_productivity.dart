@@ -65,7 +65,8 @@ Future<void> openSavedMessages(BuildContext context, WidgetRef ref) async {
 }
 
 class ChatProductivityBar extends ConsumerWidget {
-  const ChatProductivityBar({super.key});
+  const ChatProductivityBar({super.key, this.showShortcuts = true});
+  final bool showShortcuts;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final folders = ref.watch(chatFoldersProvider).value ?? [];
@@ -73,42 +74,43 @@ class ChatProductivityBar extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => openSavedMessages(context, ref),
-                  icon: const ProductivityIcon('bookmark'),
-                  label: Text(
-                    context.l10n.savedMessagesTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+        if (showShortcuts)
+          Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => openSavedMessages(context, ref),
+                    icon: const ProductivityIcon('bookmark'),
+                    label: Text(
+                      context.l10n.savedMessagesTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ),
-            ),
-            IconButton(
-              tooltip: 'Отложенные сообщения и напоминания',
-              icon: const ProductivityIcon('clock'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ScheduledMessagesScreen(),
+              IconButton(
+                tooltip: 'Отложенные сообщения и напоминания',
+                icon: const ProductivityIcon('clock'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ScheduledMessagesScreen(),
+                  ),
                 ),
               ),
-            ),
-            IconButton(
-              tooltip: 'Папки чатов',
-              icon: const ProductivityIcon('folder'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ChatFoldersScreen(),
+              IconButton(
+                tooltip: 'Папки чатов',
+                icon: const ProductivityIcon('folder'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ChatFoldersScreen(),
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         if (folders.isNotEmpty)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,

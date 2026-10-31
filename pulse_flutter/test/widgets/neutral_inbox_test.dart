@@ -24,7 +24,6 @@ import 'package:pulse_flutter/screens/chat_list_screen.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
 import 'package:pulse_flutter/widgets/chat/inbox_compose_button.dart';
-import 'package:pulse_flutter/widgets/chat/chat_search_field.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_footer.dart';
@@ -291,7 +290,9 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(
-          find.byTooltip(locale == 'ru' ? 'Ожидает отправки' : 'Waiting to send'),
+          find.byTooltip(
+            locale == 'ru' ? 'Ожидает отправки' : 'Waiting to send',
+          ),
           findsOneWidget,
         );
         expect(tester.takeException(), isNull);
@@ -441,7 +442,7 @@ void main() {
             }
 
             await captureStep('01-inbox');
-            expect(find.byType(FilterChip), findsNWidgets(3));
+            expect(find.byType(FilterChip), findsNWidgets(4));
             expect(find.text('never-display-ciphertext'), findsNothing);
             await tester.tap(find.byIcon(Icons.more_vert_rounded));
             await tester.pumpAndSettle();
@@ -475,18 +476,20 @@ void main() {
             expect(find.text('compose-person'), findsOneWidget);
             router.pop();
             await tester.pumpAndSettle();
-            final typeLabel = locale == 'ru' ? 'Тип чата' : 'Chat type';
+            final typeFilter = find.byKey(const ValueKey('chat-filter-type'));
             final groupsLabel = locale == 'ru' ? 'Группы' : 'Groups';
-            await tester.tap(find.widgetWithText(FilterChip, typeLabel));
-            await tester.pumpAndSettle();
-            await tester.tap(find.widgetWithText(MenuItemButton, groupsLabel));
+            await tester.ensureVisible(
+              find.widgetWithText(FilterChip, groupsLabel),
+            );
+            await tester.tap(find.widgetWithText(FilterChip, groupsLabel));
             await tester.pumpAndSettle();
             expect(find.byType(ChatTile), findsOneWidget);
             expect(
               find.text('Ирина: Обсуждаем планы на выходные'),
               findsOneWidget,
             );
-            await tester.tap(find.widgetWithText(FilterChip, groupsLabel));
+            await tester.ensureVisible(typeFilter);
+            await tester.tap(typeFilter);
             await tester.pumpAndSettle();
             await tester.tap(
               find.widgetWithText(
@@ -503,12 +506,8 @@ void main() {
               ),
               findsOneWidget,
             );
-            await tester.tap(
-              find.widgetWithText(
-                FilterChip,
-                locale == 'ru' ? 'Каналы' : 'Channels',
-              ),
-            );
+            await tester.ensureVisible(typeFilter);
+            await tester.tap(typeFilter);
             await tester.pumpAndSettle();
             // Resolve the existing localized label from the category menu.
             final directItem = find.byType(MenuItemButton).first;
@@ -526,6 +525,9 @@ void main() {
             );
             await captureStep('03-direct');
             final unreadLabel = locale == 'ru' ? 'Непрочитанные' : 'Unread';
+            await tester.ensureVisible(
+              find.widgetWithText(FilterChip, unreadLabel),
+            );
             await tester.tap(find.widgetWithText(FilterChip, unreadLabel));
             await tester.pumpAndSettle();
             expect(find.byType(ChatTile), findsNWidgets(2));
@@ -560,10 +562,7 @@ void main() {
             router.pop();
             await tester.pumpAndSettle();
             await tester.tap(
-              find.descendant(
-                of: find.byType(ChatSearchField),
-                matching: find.byType(IconButton),
-              ),
+              find.byKey(const ValueKey('inbox-profile-settings')),
             );
             await tester.pumpAndSettle();
             expect(find.text('settings-destination'), findsOneWidget);

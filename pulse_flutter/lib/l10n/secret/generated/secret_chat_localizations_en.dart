@@ -1499,4 +1499,10 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get mediaUnmute => 'Unmute';
+
+  @override
+  String get inboxScheduledMessages => 'Scheduled messages';
+
+  @override
+  String get inboxFolders => 'Chat folders';
 }

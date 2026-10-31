@@ -3,6 +3,8 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.dart';
 
 extension SecretChatL10n on AppLocalizations {
+  String get inboxScheduledMessages => _secret.inboxScheduledMessages;
+  String get inboxFolders => _secret.inboxFolders;
   String get mediaSendRecording => _secret.mediaSendRecording;
   String get mediaRecordStart => _secret.mediaRecordStart;
   String get mediaRecordStop => _secret.mediaRecordStop;
@@ -50,7 +52,8 @@ extension SecretChatL10n on AppLocalizations {
   String get niosgramReadMore => _secret.niosgramReadMore;
   String get niosgramReadLess => _secret.niosgramReadLess;
   String get niosgramPostStatusUnknown => _secret.niosgramPostStatusUnknown;
-  String get niosgramPublishedCleanupFailed => _secret.niosgramPublishedCleanupFailed;
+  String get niosgramPublishedCleanupFailed =>
+      _secret.niosgramPublishedCleanupFailed;
   String get niosgramVideoTitle => _secret.niosgramVideoTitle;
   String get niosgramVideoUnavailable => _secret.niosgramVideoUnavailable;
   String get niosgramPlayVideo => _secret.niosgramPlayVideo;

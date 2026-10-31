@@ -2872,6 +2872,18 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Unmute'**
   String get mediaUnmute;
+
+  /// No description provided for @inboxScheduledMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled messages'**
+  String get inboxScheduledMessages;
+
+  /// No description provided for @inboxFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat folders'**
+  String get inboxFolders;
 }
 
 class _SecretChatLocalizationsDelegate

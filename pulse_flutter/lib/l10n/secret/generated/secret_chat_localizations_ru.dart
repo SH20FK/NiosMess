@@ -1513,4 +1513,10 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get mediaUnmute => 'Включить звук';
+
+  @override
+  String get inboxScheduledMessages => 'Отложенные сообщения';
+
+  @override
+  String get inboxFolders => 'Папки чатов';
 }
