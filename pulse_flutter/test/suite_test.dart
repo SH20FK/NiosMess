@@ -259,11 +259,11 @@ void main() {
     unit_call_transport.main();
     unit_quic_transport_stub.main();
     unit_chat_creation_flow.main();
-    unit_chat_media_cache.main();
+    group('unit_chat_media_cache', unit_chat_media_cache.main);
     unit_chat_message_sorting.main();
     unit_device_hardware_recognition.main();
     unit_docx_parser.main();
-    unit_feed_and_stickers_cache.main();
+    group('unit_feed_and_stickers_cache', unit_feed_and_stickers_cache.main);
     unit_gallery_optimization_and_caching.main();
     unit_list_virtualization_memory.main();
     unit_oauth_service.main();

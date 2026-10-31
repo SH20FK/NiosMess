@@ -5,10 +5,10 @@ class BuildInfo {
   const BuildInfo._();
 
   /// Semantic version (e.g. "3.63.0").
-  static const String version = '3.123.0';
+  static const String version = '3.123.1';
 
   /// Build number (e.g. "147").
-  static const String buildNumber = '4276';
+  static const String buildNumber = '4277';
 
   /// Version with 'v' prefix (e.g. "v3.63.1").
   static const String versionWithPrefix = 'v$version';
