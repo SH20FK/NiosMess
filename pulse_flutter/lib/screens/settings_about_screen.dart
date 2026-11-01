@@ -161,7 +161,8 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
       children: <Widget>[
         // Block 0: Hero Card with Morphing Logo
         _buildHeroCard(context, scheme, textTheme)
-            .animate()
+            .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null,
+                autoPlay: !MediaQuery.disableAnimationsOf(context))
             .fadeIn(
               duration: M3Durations.medium2,
               curve: M3SpringCurves.expressiveDecel,
@@ -177,7 +178,10 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         // Block 1: Isolated OTA Update Card
         if (!kIsWeb)
           const _OtaUpdateCardWidget()
-              .animate(delay: const Duration(milliseconds: 50))
+              .animate(delay: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero : const Duration(milliseconds: 50),
+                  value: MediaQuery.disableAnimationsOf(context) ? 1 : null,
+                  autoPlay: !MediaQuery.disableAnimationsOf(context))
               .fadeIn(
                 duration: M3Durations.medium2,
                 curve: M3SpringCurves.expressiveDecel,
@@ -227,7 +231,10 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                 _buildFooter(context, scheme, textTheme),
               ],
             )
-            .animate(delay: const Duration(milliseconds: 100))
+            .animate(delay: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero : const Duration(milliseconds: 100),
+                value: MediaQuery.disableAnimationsOf(context) ? 1 : null,
+                autoPlay: !MediaQuery.disableAnimationsOf(context))
             .fadeIn(
               duration: M3Durations.medium2,
               curve: M3SpringCurves.expressiveDecel,
@@ -362,8 +369,9 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     TextTheme textTheme,
   ) {
     return AnimatedScale(
-      scale: _tabScale,
-      duration: M3Durations.short3,
+      scale: MediaQuery.disableAnimationsOf(context) ? 1 : _tabScale,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero : M3Durations.short3,
       curve: M3SpringCurves.spatial,
       child: SizedBox(
         width: double.infinity,
@@ -397,15 +405,18 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           selected: <int>{_selectedTabIndex},
           onSelectionChanged: (Set<int> newSelection) {
             HapticService.selection();
+            final bool reduced = MediaQuery.disableAnimationsOf(context);
             setState(() {
-              _tabScale = 0.97;
+              _tabScale = reduced ? 1.0 : 0.97;
               _selectedTabIndex = newSelection.first;
             });
-            Future<void>.delayed(M3Durations.short3, () {
-              if (mounted) {
-                setState(() => _tabScale = 1.0);
-              }
-            });
+            if (!reduced) {
+              Future<void>.delayed(M3Durations.short3, () {
+                if (mounted) {
+                  setState(() => _tabScale = 1.0);
+                }
+              });
+            }
           },
           showSelectedIcon: false,
         ),
@@ -421,6 +432,9 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     ColorScheme scheme,
     TextTheme textTheme,
   ) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return _tabWidgetForIndex(_selectedTabIndex, context, scheme, textTheme);
+    }
     return AnimatedSize(
       duration: M3Durations.medium2,
       curve: M3SpringCurves.expressiveDecel,

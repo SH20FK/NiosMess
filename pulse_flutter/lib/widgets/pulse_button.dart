@@ -56,8 +56,12 @@ class _PulseButtonState extends State<PulseButton> {
       button: true,
       enabled: !widget.isLoading && widget.onPressed != null,
       child: AnimatedScale(
-        scale: _isPressed ? AppMotion.scalePressed : 1.0,
-        duration: _isPressed ? AppMotion.durationPress : AppMotion.durationRelease,
+        scale: _isPressed && !MediaQuery.disableAnimationsOf(context)
+            ? AppMotion.scalePressed
+            : 1.0,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : _isPressed ? AppMotion.durationPress : AppMotion.durationRelease,
         curve: M3SpringCurves.spatial,
         child: FilledButton(
           statesController: _statesController,

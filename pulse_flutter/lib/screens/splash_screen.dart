@@ -94,7 +94,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             children: <Widget>[
               // Hero Brand Logo with unified tag and M3 spring motion
               Hero(tag: 'app_brand_logo', child: const AppLogoMark(size: 96))
-                  .animate()
+                  .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context))
                   .scale(
                     begin: const Offset(0.82, 0.82),
                     end: const Offset(1, 1),
@@ -110,7 +110,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                 ),
-              ).animate().fade(
+              ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
                 delay: const Duration(milliseconds: 80),
                 duration: const Duration(milliseconds: 280),
               ),
@@ -122,7 +122,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   color: scheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
-              ).animate().fade(
+              ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
                 delay: const Duration(milliseconds: 140),
                 duration: const Duration(milliseconds: 280),
               ),
@@ -184,12 +184,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                       ),
                     ],
                   ),
-                ).animate().fade(duration: const Duration(milliseconds: 250)),
+                ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(duration: const Duration(milliseconds: 250)),
               ] else if (_isRetrying) ...[
                 AppLoadingIndicator(
                   size: 28,
                   color: scheme.primary,
-                ).animate().fade(
+                ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
                   delay: const Duration(milliseconds: 500),
                   duration: const Duration(milliseconds: 300),
                 ),

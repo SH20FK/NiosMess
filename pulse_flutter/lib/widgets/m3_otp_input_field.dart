@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -147,7 +148,7 @@ class _M3OtpInputFieldState extends State<M3OtpInputField>
       animation: _shakeAnimation,
       builder: (context, child) {
         return Transform.translate(
-          offset: Offset(_shakeAnimation.value, 0),
+          offset: Offset(MediaQuery.disableAnimationsOf(context) ? 0 : _shakeAnimation.value, 0),
           child: child,
         );
       },
@@ -306,12 +307,12 @@ class _OtpBoxCell extends StatelessWidget {
         : null;
 
     return AnimatedScale(
-      scale: scale,
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutBack,
+      scale: MediaQuery.disableAnimationsOf(context) ? 1 : scale,
+      duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : M3Durations.short4,
+      curve: M3SpringCurves.snappy,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
+        duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : M3Durations.short4,
+        curve: M3SpringCurves.expressiveStandard,
         width: size,
         height: size + 6,
         decoration: BoxDecoration(

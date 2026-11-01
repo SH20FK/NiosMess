@@ -869,8 +869,9 @@ class _ThemeModeSelectorCard extends StatelessWidget {
           Row(
             children: <Widget>[
               AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: M3SpringCurves.spatial,
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero : M3Durations.medium2,
+                curve: M3SpringCurves.expressiveStandard,
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
@@ -1024,11 +1025,14 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
                 ),
               ),
               AnimatedScale(
-                scale: _isDragging ? 1.14 : 1.0,
-                duration: const Duration(milliseconds: 220),
-                curve: M3SpringCurves.bouncy,
+                scale: _isDragging && !MediaQuery.disableAnimationsOf(context)
+                    ? 1.08 : 1.0,
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero : M3Durations.short4,
+                curve: M3SpringCurves.snappy,
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero : M3Durations.short4,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 4,
@@ -1152,7 +1156,8 @@ class _FontScaleSliderTile extends StatelessWidget {
                 ),
               ),
               AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero : M3Durations.short4,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 4,
@@ -1264,7 +1269,8 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
                 ),
               ),
               AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero : M3Durations.short4,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 4,

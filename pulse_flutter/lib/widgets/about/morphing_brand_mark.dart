@@ -133,7 +133,11 @@ class _MorphingBrandMarkState extends State<MorphingBrandMark>
       _prev = _curr;
       _curr = (_curr + 1) % kBrandShapes.length;
     });
-    _ctrl.forward(from: 0);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _ctrl.value = 1;
+    } else {
+      _ctrl.forward(from: 0);
+    }
     _taps++;
     if (_taps >= 5) {
       _taps = 0;

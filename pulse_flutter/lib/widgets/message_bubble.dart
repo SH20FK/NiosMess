@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/media/media_hero.dart';
 import 'package:pulse_flutter/core/media/media_album.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/media_album_bubble.dart';
 import 'dart:async';
@@ -565,9 +566,13 @@ class MessageBubble extends ConsumerWidget {
                           key: ValueKey<String>(
                             'react_${item.key}_${item.value}',
                           ),
-                          tween: Tween<double>(begin: 0.65, end: 1.0),
-                          duration: M3Durations.medium1,
-                          curve: M3SpringCurves.bouncy,
+                          tween: Tween<double>(
+                            begin: MediaQuery.disableAnimationsOf(context) ? 1.0 : 0.90,
+                            end: 1.0,
+                          ),
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero : M3Durations.medium1,
+                          curve: M3SpringCurves.snappy,
                           builder:
                               (
                                 BuildContext context,
@@ -581,8 +586,8 @@ class MessageBubble extends ConsumerWidget {
                               },
                           child: TouchContainer(
                             borderRadius: AppRadii.fullRadius,
-                            scaleDown: 0.90,
-                            releaseCurve: M3SpringCurves.bouncy,
+                            scaleDown: 0.96,
+                            releaseCurve: M3SpringCurves.snappy,
                             onTap: onReactionTap != null
                                 ? () {
                                     TriSync.reaction(
@@ -1031,9 +1036,13 @@ class MessageBubble extends ConsumerWidget {
             onTap: onOpenMedia,
             onLongPress: onLongPressMedia,
             borderRadius: BorderRadius.circular(radius),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(radius),
-              child: Hero(tag: 'media_${urls.first}', child: imageWidget),
+            child: MediaHero(
+              tag: messageData != null && !isSending
+                  ? chatMediaHeroTag(chatId, messageData!.id) : null,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(radius),
+                child: imageWidget,
+              ),
             ),
           ),
           if (isSending || isFailed)

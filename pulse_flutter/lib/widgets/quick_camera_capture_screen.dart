@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +44,7 @@ class _QuickCameraCaptureScreenState extends State<QuickCameraCaptureScreen>
     );
     _flipAnim = CurvedAnimation(
       parent: _flipController,
-      curve: Curves.easeInOutCubic,
+      curve: M3SpringCurves.expressiveStandard,
     );
     _initCameras();
   }
@@ -89,7 +90,7 @@ class _QuickCameraCaptureScreenState extends State<QuickCameraCaptureScreen>
   Future<void> _switchCamera() async {
     if (_availableCameras.length < 2 || _isCapturing) return;
     HapticService.tap();
-    _flipController.forward(from: 0.0);
+    if (!MediaQuery.disableAnimationsOf(context)) _flipController.forward(from: 0.0);
     _currentCameraIndex = (_currentCameraIndex + 1) % _availableCameras.length;
     final CameraDescription nextCam = _availableCameras[_currentCameraIndex];
 

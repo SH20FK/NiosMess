@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
@@ -105,10 +106,10 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         const AppLogoMark(size: 64)
-                            .animate()
+                            .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context))
                             .scale(
                               begin: const Offset(0.8, 0.8),
-                              curve: Curves.easeOutBack,
+                              curve: M3SpringCurves.spatial,
                               duration: 500.ms,
                             ),
                         const SizedBox(width: 16),
@@ -164,7 +165,7 @@ class M3ResponsiveAuthLayout extends StatelessWidget {
                             color: scheme.primary,
                           ),
                         ),
-                      ).animate().fade(duration: 400.ms),
+                      ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(duration: 400.ms),
 
                     const SizedBox(height: 28),
 

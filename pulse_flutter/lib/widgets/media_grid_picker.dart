@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'dart:async';
 
@@ -669,8 +670,8 @@ class _MediaGridPickerState extends State<MediaGridPicker>
     final int number = index + 1;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutBack,
+      duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : M3Durations.short4,
+      curve: M3SpringCurves.expressiveStandard,
       width: 26,
       height: 26,
       decoration: BoxDecoration(

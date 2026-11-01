@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/media/media_hero.dart';
 import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
@@ -1818,6 +1819,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           playlist.add(
             MediaViewerItem(
               url: u,
+              heroTag: chatMediaHeroTag(msg.chatId, msg.id),
               mediaType: mIsImg ? MediaType.image : MediaType.video,
               title: (msg.mediaName ?? '').trim().isNotEmpty
                   ? msg.mediaName!.trim()
@@ -1834,6 +1836,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         '/media-viewer?url=${Uri.encodeComponent(mediaUrl)}'
         '&type=${isImg ? 'image' : 'video'}&title=${Uri.encodeComponent(fileName)}',
         extra: <String, dynamic>{
+          'heroTag': chatMediaHeroTag(message.chatId, message.id),
           'e2eeKey': message.e2eeFileKey,
           'playlist': playlist.isNotEmpty ? playlist : null,
           'initialIndex': initialIndex,

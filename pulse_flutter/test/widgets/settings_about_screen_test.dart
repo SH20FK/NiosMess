@@ -23,6 +23,23 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('SettingsAboutScreen 3-Tab Material 3 Expressive Tests', () {
+    testWidgets('reduced motion opens the selected tab immediately', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1000, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(_wrapWithApp(Builder(
+        builder: (context) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          child: const SettingsAboutScreen(isEmbedded: true),
+        ),
+      )));
+      await tester.pump();
+      await tester.tap(find.text('Документы').first);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Сторонние лицензии и библиотеки'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 200));
+    });
     testWidgets('Renders Hero header, 3 Pill tabs, and initial Whats New tab',
         (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1200));

@@ -71,6 +71,10 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     GlobalKey? buttonKey,
   }) async {
     if (_isAnimating) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      changeThemeCallback();
+      return;
+    }
 
     Offset offset = tapOffset ?? Offset.zero;
     if (buttonKey != null && buttonKey.currentContext != null) {

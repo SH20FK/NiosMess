@@ -621,9 +621,10 @@ class _InteractiveBrandBadgeState extends State<_InteractiveBrandBadge> {
       },
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
-        scale: _isPressed ? 0.90 : 1.0,
-        duration: const Duration(milliseconds: 200),
-        curve: M3SpringCurves.bouncy,
+        scale: _isPressed && !MediaQuery.disableAnimationsOf(context) ? 0.96 : 1.0,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero : M3Durations.short4,
+        curve: M3SpringCurves.snappy,
         child: M3Container(
           Shapes.c9_sided_cookie,
           width: 58,
@@ -684,13 +685,19 @@ class _AnimatedResourceMeterState extends State<_AnimatedResourceMeter>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: M3Durations.long2,
     );
     _progressAnim = CurvedAnimation(
       parent: _controller,
-      curve: M3SpringCurves.spatial,
+      curve: M3SpringCurves.expressiveDecel,
     );
     _controller.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) _controller.value = 1;
   }
 
   @override
@@ -818,9 +825,10 @@ class _InteractiveSpecTileState extends State<_InteractiveSpecTile> {
       onTap: _onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
-        scale: _isPressed ? 0.98 : 1.0,
-        duration: const Duration(milliseconds: 140),
-        curve: M3SpringCurves.bouncy,
+        scale: _isPressed && !MediaQuery.disableAnimationsOf(context) ? 0.98 : 1.0,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero : M3Durations.short3,
+        curve: M3SpringCurves.snappy,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(

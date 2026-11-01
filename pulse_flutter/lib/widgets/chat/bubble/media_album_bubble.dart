@@ -227,10 +227,14 @@ class _MediaAlbumBubbleState extends ConsumerState<MediaAlbumBubble> {
                   tooltip: context.l10n.chatAlbumPrevious,
                   onPressed: () {
                     if ((page.page ?? 0) > 0) {
-                      page.previousPage(
+                      if (MediaQuery.disableAnimationsOf(context)) {
+                        page.jumpToPage((page.page ?? 0).round() - 1);
+                      } else {
+                        page.previousPage(
                         duration: const Duration(milliseconds: 250),
                         curve: M3SpringCurves.gentle,
-                      );
+                        );
+                      }
                     }
                   },
                   icon: const Icon(Icons.chevron_left_rounded),
@@ -240,10 +244,14 @@ class _MediaAlbumBubbleState extends ConsumerState<MediaAlbumBubble> {
                   tooltip: context.l10n.chatAlbumNext,
                   onPressed: () {
                     if ((page.page ?? 0) < images.length - 1) {
-                      page.nextPage(
+                      if (MediaQuery.disableAnimationsOf(context)) {
+                        page.jumpToPage((page.page ?? 0).round() + 1);
+                      } else {
+                        page.nextPage(
                         duration: const Duration(milliseconds: 250),
                         curve: M3SpringCurves.gentle,
-                      );
+                        );
+                      }
                     }
                   },
                   icon: const Icon(Icons.chevron_right_rounded),

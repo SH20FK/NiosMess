@@ -515,6 +515,81 @@ void main() {
     expect(failure.toString(), isNot(contains('disposed')));
   });
 
+  testWidgets('incoming pulse is idle without a call and survives replacement', (
+    tester,
+  ) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: IncomingCallOverlay())),
+      ),
+    );
+    await tester.pump();
+    expect(tester.binding.transientCallbackCount, 0);
+
+    const first = IncomingCallData(
+      callId: 100, roomId: 'first', chatId: 42, isVideo: false,
+      initiatorId: 2, initiatorName: 'Two',
+    );
+    const second = IncomingCallData(
+      callId: 101, roomId: 'second', chatId: 42, isVideo: false,
+      initiatorId: 3, initiatorName: 'Three',
+    );
+    container.read(incomingCallProvider.notifier).set(first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Two'), findsOneWidget);
+    container.read(incomingCallProvider.notifier).set(null);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+    container.read(incomingCallProvider.notifier).set(second);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Three'), findsOneWidget);
+    expect(find.text('Two'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('reduced motion completes an in-progress call dismissal', (
+    tester,
+  ) async {
+    final reduced = ValueNotifier(false);
+    addTearDown(reduced.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: ValueListenableBuilder<bool>(
+            valueListenable: reduced,
+            builder: (context, value, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: value),
+              child: child!,
+            ),
+            child: const Scaffold(body: IncomingCallOverlay()),
+          ),
+        ),
+      ),
+    );
+    container.read(incomingCallProvider.notifier).set(
+      const IncomingCallData(
+        callId: 100, roomId: 'fixture-room', chatId: 42, isVideo: false,
+        initiatorId: 2, initiatorName: 'Two',
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Two'), findsOneWidget);
+    container.read(incomingCallProvider.notifier).set(null);
+    await tester.pump();
+    reduced.value = true;
+    await tester.pump();
+    expect(find.text('Two'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('incoming overlay stops ringing safely when removed', (
     tester,
   ) async {

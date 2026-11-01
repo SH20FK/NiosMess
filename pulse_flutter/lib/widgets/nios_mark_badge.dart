@@ -54,9 +54,11 @@ class _NiosMarkBadgeState extends ConsumerState<NiosMarkBadge>
     if (!widget.interactive) return;
 
     TriSync.pop(ref: ref);
-    _pulseController.forward().then((_) {
-      if (mounted) _pulseController.reverse();
-    });
+    if (!MediaQuery.disableAnimationsOf(context)) {
+      _pulseController.forward().then((_) {
+        if (mounted) _pulseController.reverse();
+      });
+    }
 
     _showMarkSheet(context, mark);
   }

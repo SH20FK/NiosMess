@@ -110,7 +110,8 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
               ),
               const SizedBox(height: 12),
               AnimatedContainer(
-                duration: const Duration(milliseconds: 350),
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero : M3Durations.medium3,
                 curve: M3SpringCurves.expressiveStandard,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -130,7 +131,8 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                     Row(
                       children: [
                         AnimatedContainer(
-                          duration: const Duration(milliseconds: 350),
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero : M3Durations.medium3,
                           width: 56,
                           height: 56,
                           decoration: BoxDecoration(
@@ -164,7 +166,8 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                           ])
                             Expanded(
                               child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 350),
+                                duration: MediaQuery.disableAnimationsOf(context)
+                                    ? Duration.zero : M3Durations.medium3,
                                 height: 32,
                                 margin: const EdgeInsets.symmetric(
                                   horizontal: 2,

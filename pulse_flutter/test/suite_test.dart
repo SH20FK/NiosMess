@@ -214,8 +214,18 @@ import 'widgets/tab_shared_axis_switcher_test.dart'
 import 'widgets/vector_illustrations_test.dart' as widgets_vector_illustrations;
 import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
+import 'widgets/media_hero_test.dart' as media_hero_motion;
+import 'widgets/swipe_reply_motion_test.dart' as swipe_reply_motion;
+import 'widgets/theme_reveal_motion_test.dart' as theme_reveal_motion;
+import 'widgets/touch_motion_test.dart' as touch_motion;
 
 void main() {
+  group('Motion regressions', () {
+    media_hero_motion.main();
+    swipe_reply_motion.main();
+    theme_reveal_motion.main();
+    touch_motion.main();
+  });
   feed_features.main();
   comment_threads.main();
   comment_items.main();

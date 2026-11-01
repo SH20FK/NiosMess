@@ -512,112 +512,126 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
               children: <Widget>[
                 // ── Edit panel ──
                 AnimatedSize(
-                    key: const ValueKey('edit-context-transition'),
-                    duration: MediaQuery.disableAnimationsOf(context)
-                        ? Duration.zero : M3Durations.short4,
-                    curve: M3SpringCurves.expressiveDecel,
-                    child: widget.editingMessageId != null ? Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: scheme.primaryContainer.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border(
-                          left: BorderSide(color: scheme.primary, width: 3),
-                        ),
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          Icon(
-                            Icons.edit_rounded,
-                            size: 16,
-                            color: scheme.primary,
+                  key: const ValueKey('edit-context-transition'),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : M3Durations.short4,
+                  curve: M3SpringCurves.expressiveDecel,
+                  child: widget.editingMessageId != null
+                      ? Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Text(
-                                  context.l10n.chatEditingMessage,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: scheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  (widget.editingOriginalText ?? '').length > 80
-                                      ? '${(widget.editingOriginalText ?? '').substring(0, 80)}...'
-                                      : (widget.editingOriginalText ?? ''),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer.withValues(
+                              alpha: 0.7,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border(
+                              left: BorderSide(color: scheme.primary, width: 3),
                             ),
                           ),
-                          IconButton(
-                            onPressed: widget.onCancelEdit,
-                            icon: const Icon(Icons.close_rounded),
-                            tooltip: context.l10n.chatEditCancel,
-                            iconSize: 18,
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                Icons.edit_rounded,
+                                size: 16,
+                                color: scheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Text(
+                                      context.l10n.chatEditingMessage,
+                                      style: textTheme.labelSmall?.copyWith(
+                                        color: scheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      (widget.editingOriginalText ?? '')
+                                                  .length >
+                                              80
+                                          ? '${(widget.editingOriginalText ?? '').substring(0, 80)}...'
+                                          : (widget.editingOriginalText ?? ''),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: widget.onCancelEdit,
+                                icon: const Icon(Icons.close_rounded),
+                                tooltip: context.l10n.chatEditCancel,
+                                iconSize: 18,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ) : const SizedBox.shrink(),
-                  ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
 
                 // ── Reply panel ──
                 AnimatedSize(
-                    key: const ValueKey('reply-context-transition'),
-                    duration: MediaQuery.disableAnimationsOf(context)
-                        ? Duration.zero : M3Durations.short4,
-                    curve: M3SpringCurves.expressiveDecel,
-                    child: widget.replyToMessageId != null ? Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border(
-                          left: BorderSide(color: scheme.secondary, width: 3),
-                        ),
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          Icon(
-                            Icons.reply_rounded,
-                            size: 16,
-                            color: scheme.secondary,
+                  key: const ValueKey('reply-context-transition'),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : M3Durations.short4,
+                  curve: M3SpringCurves.expressiveDecel,
+                  child: widget.replyToMessageId != null
+                      ? Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              widget.replyPreviewText ?? context.l10n.chatReply,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.bodySmall,
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border(
+                              left: BorderSide(
+                                color: scheme.secondary,
+                                width: 3,
+                              ),
                             ),
                           ),
-                          IconButton(
-                            onPressed: widget.onClearReply,
-                            icon: const Icon(Icons.close_rounded),
-                            tooltip: context.l10n.chatCancelReply,
-                            iconSize: 18,
+                          child: Row(
+                            children: <Widget>[
+                              Icon(
+                                Icons.reply_rounded,
+                                size: 16,
+                                color: scheme.secondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  widget.replyPreviewText ??
+                                      context.l10n.chatReply,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.bodySmall,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: widget.onClearReply,
+                                icon: const Icon(Icons.close_rounded),
+                                tooltip: context.l10n.chatCancelReply,
+                                iconSize: 18,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ) : const SizedBox.shrink(),
-                  ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
 
                 // ── Voice Recording Panel ──
                 if (_isRecording)
@@ -672,8 +686,10 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                             maxHeight: 140,
                           ),
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            curve: M3SpringCurves.spatial,
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : M3Durations.short4,
+                            curve: M3SpringCurves.expressiveStandard,
                             decoration: BoxDecoration(
                               color: _isFocused
                                   ? scheme.surfaceContainerHighest
@@ -715,20 +731,22 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                             )
                                             ? Duration.zero
                                             : M3Durations.medium1,
-                                        switchInCurve: M3SpringCurves.snappy,
-                                        switchOutCurve: M3SpringCurves.snappy,
+                                        switchInCurve:
+                                            M3SpringCurves.expressiveDecel,
+                                        switchOutCurve:
+                                            M3SpringCurves.expressiveAccel,
                                         transitionBuilder:
                                             (
                                               Widget child,
                                               Animation<double> anim,
                                             ) {
-                                              return RotationTransition(
-                                                turns: Tween<double>(
-                                                  begin: 0.88,
-                                                  end: 1.0,
-                                                ).animate(anim),
+                                              return FadeTransition(
+                                                opacity: anim,
                                                 child: ScaleTransition(
-                                                  scale: anim,
+                                                  scale: Tween<double>(
+                                                    begin: 0.85,
+                                                    end: 1,
+                                                  ).animate(anim),
                                                   child: child,
                                                 ),
                                               );
@@ -943,12 +961,23 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                       const SizedBox(width: 8),
                       // ── Mic/Video or Send button (Animated Morph) ──
                       AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        switchInCurve: M3SpringCurves.bouncy,
-                        switchOutCurve: M3SpringCurves.snappy,
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : M3Durations.short4,
+                        switchInCurve: M3SpringCurves.expressiveDecel,
+                        switchOutCurve: M3SpringCurves.expressiveAccel,
                         transitionBuilder:
                             (Widget child, Animation<double> anim) {
-                              return ScaleTransition(scale: anim, child: child);
+                              return FadeTransition(
+                                opacity: anim,
+                                child: ScaleTransition(
+                                  scale: Tween<double>(
+                                    begin: 0.8,
+                                    end: 1,
+                                  ).animate(anim),
+                                  child: child,
+                                ),
+                              );
                             },
                         child:
                             (_isInputEmpty && widget.editingMessageId == null)
@@ -1149,7 +1178,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           await _sendVoiceRecording();
         },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : M3Durations.short4,
           curve: M3SpringCurves.spatial,
           width: 48,
           height: 48,
@@ -1158,7 +1189,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             shape: BoxShape.circle,
           ),
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : M3Durations.short4,
             transitionBuilder: (Widget child, Animation<double> anim) {
               return ScaleTransition(scale: anim, child: child);
             },
@@ -1218,7 +1251,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   // ── Send / Commit edit button ──
   Widget _buildSendButton(ColorScheme scheme) {
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : M3Durations.short4,
       transitionBuilder: (Widget child, Animation<double> anim) =>
           ScaleTransition(scale: anim, child: child),
       child: TouchContainer(
@@ -1266,7 +1301,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             shape: BoxShape.circle,
           ),
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : M3Durations.short4,
             transitionBuilder: (Widget child, Animation<double> anim) =>
                 ScaleTransition(scale: anim, child: child),
             child: Icon(

@@ -230,6 +230,32 @@ void main() {
   // TIER 1: FEATURE COVERAGE (PostCard Rendering & Reactive Action Controls)
   // ══════════════════════════════════════════════════════════════════════════
   group('Tier 1: NiosGram PostCard & Feed Feature Coverage', () {
+    testWidgets('like spark is brief and respects reduced motion', (tester) async {
+      var taps = 0;
+      Widget screen(bool reduced) => _buildTestApp(
+        overrides: [authProvider.overrideWith(() => MockAuthNotifier())],
+        child: Builder(builder: (context) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: reduced),
+          child: PostCard(post: _createSamplePost(myReaction: null), onLike: () => taps++),
+        )),
+      );
+      final spark = find.byWidgetPredicate((widget) => widget is CustomPaint &&
+          widget.foregroundPainter?.runtimeType.toString() == '_LikeSparkPainter');
+      await tester.pumpWidget(screen(false));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.favorite_border_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 70));
+      expect(spark, findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(spark, findsNothing);
+      await tester.pumpWidget(screen(true));
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.favorite_border_rounded));
+      await tester.pump();
+      expect(spark, findsNothing);
+      expect(taps, 2);
+    });
     testWidgets('1.1 PostCard renders author display name, username, and relative time', (
       WidgetTester tester,
     ) async {

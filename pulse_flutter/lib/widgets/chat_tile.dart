@@ -416,7 +416,10 @@ class _ChatTileState extends State<ChatTile>
     );
 
     final separatedContent = content;
-    if (!widget.animateEntrance || _fadeAnim == null || _slideAnim == null) {
+    if (MediaQuery.disableAnimationsOf(context) ||
+        !widget.animateEntrance ||
+        _fadeAnim == null ||
+        _slideAnim == null) {
       return separatedContent;
     }
 

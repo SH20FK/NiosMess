@@ -38,7 +38,12 @@ class _CallOverlayState extends ConsumerState<CallOverlay>
     _snapController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 320),
-    );
+    )..addListener(() {
+        final animation = _snapAnimation;
+        if (mounted && animation != null) {
+          setState(() => _x = animation.value);
+        }
+      });
   }
 
   @override
@@ -53,13 +58,15 @@ class _CallOverlayState extends ConsumerState<CallOverlay>
     final double targetX =
         (startX + itemWidth / 2 < screenWidth / 2) ? 16.0 : (screenWidth - itemWidth - 16.0);
 
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _snapController.stop();
+      setState(() => _x = targetX);
+      return;
+    }
+
     _snapAnimation = Tween<double>(begin: startX, end: targetX).animate(
       CurvedAnimation(parent: _snapController, curve: M3SpringCurves.spatial),
-    )..addListener(() {
-        if (mounted && _snapAnimation != null) {
-          setState(() => _x = _snapAnimation!.value);
-        }
-      });
+    );
 
     _snapController.forward(from: 0.0);
   }
@@ -129,6 +136,7 @@ class _CallOverlayState extends ConsumerState<CallOverlay>
               left: _x,
               top: _y,
               child: GestureDetector(
+                onPanStart: (_) => _snapController.stop(),
                 onPanUpdate: (details) {
                   setState(() {
                     _x = (_x! + details.delta.dx).clamp(

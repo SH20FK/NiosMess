@@ -164,7 +164,7 @@ class AuthScaffold extends StatelessWidget {
                       if (header != null) ...[
                         header!,
                       ] else if (badgeIcon != null || title != null) ...[
-                        _buildDefaultHeader(scheme, textTheme),
+                        _buildDefaultHeader(context, scheme, textTheme),
                       ],
                       const SizedBox(height: 24),
 
@@ -185,13 +185,13 @@ class AuthScaffold extends StatelessWidget {
 
           // ── Loading Transition Overlay ─────────────────────────────
           if (isLoadingOverlay)
-            _buildLoadingOverlay(scheme, textTheme),
+            _buildLoadingOverlay(context, scheme, textTheme),
         ],
       ),
     );
   }
 
-  Widget _buildDefaultHeader(ColorScheme scheme, TextTheme textTheme) {
+  Widget _buildDefaultHeader(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -211,7 +211,7 @@ class AuthScaffold extends StatelessWidget {
               ),
             ),
           )
-              .animate()
+              .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context))
               .scale(
                 begin: const Offset(0.8, 0.8),
                 end: const Offset(1, 1),
@@ -231,7 +231,7 @@ class AuthScaffold extends StatelessWidget {
               letterSpacing: -0.5,
               color: scheme.onSurface,
             ),
-          ).animate().fadeIn(duration: const Duration(milliseconds: 300)),
+          ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fadeIn(duration: const Duration(milliseconds: 300)),
         if (subtitle != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -241,7 +241,7 @@ class AuthScaffold extends StatelessWidget {
               color: scheme.onSurfaceVariant,
               height: 1.4,
             ),
-          ).animate().fadeIn(
+          ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fadeIn(
                 delay: const Duration(milliseconds: 100),
                 duration: const Duration(milliseconds: 300),
               ),
@@ -250,7 +250,7 @@ class AuthScaffold extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadingOverlay(ColorScheme scheme, TextTheme textTheme) {
+  Widget _buildLoadingOverlay(BuildContext context, ColorScheme scheme, TextTheme textTheme) {
     return Container(
       color: scheme.surface.withValues(alpha: 0.65),
       child: Center(
@@ -282,6 +282,6 @@ class AuthScaffold extends StatelessWidget {
           ),
         ),
       ),
-    ).animate().fade(duration: const Duration(milliseconds: 200));
+    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(duration: const Duration(milliseconds: 200));
   }
 }

@@ -56,7 +56,10 @@ class EmptyFeedWidget extends StatelessWidget {
                     ),
                   ),
                 )
-                    .animate()
+                    .animate(
+                      value: MediaQuery.disableAnimationsOf(context) ? 1 : null,
+                      autoPlay: !MediaQuery.disableAnimationsOf(context),
+                    )
                     .scale(
                       begin: const Offset(0.92, 0.92),
                       end: const Offset(1.0, 1.0),

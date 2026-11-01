@@ -387,7 +387,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             tag: 'app_brand_logo',
             child: const AppLogoMark(size: 80),
           )
-              .animate()
+              .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context))
               .scale(
                 begin: const Offset(0.85, 0.85),
                 end: const Offset(1, 1),
@@ -409,7 +409,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             color: scheme.onSurface,
           ),
           textAlign: TextAlign.center,
-        ).animate().fade(duration: const Duration(milliseconds: 300)),
+        ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(duration: const Duration(milliseconds: 300)),
         const SizedBox(height: 8),
 
         // Slogan
@@ -423,7 +423,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             height: 1.4,
           ),
           textAlign: TextAlign.center,
-        ).animate().fade(
+        ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
               delay: const Duration(milliseconds: 80),
               duration: const Duration(milliseconds: 300),
             ),
@@ -463,7 +463,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       ),
-    ).animate().fade(duration: const Duration(milliseconds: 250));
+    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(duration: const Duration(milliseconds: 250));
   }
 
   Widget _buildPrimaryAction(ColorScheme scheme) {
@@ -472,7 +472,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       icon: Icons.all_inclusive_rounded,
       isLoading: _isStartingAuth,
       onPressed: (_isStartingAuth || _isExchanging) ? null : _startNiosIdAuth,
-    ).animate().fade(
+    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
           delay: const Duration(milliseconds: 120),
           duration: const Duration(milliseconds: 300),
         );
@@ -488,7 +488,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               HapticService.tap();
               OAuthNavigationHelper().openRegistration();
             },
-    ).animate().fade(
+    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
           delay: const Duration(milliseconds: 160),
           duration: const Duration(milliseconds: 300),
         );
@@ -594,7 +594,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ),
     ),
-  ).animate().fade(
+  ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
           delay: const Duration(milliseconds: 200),
           duration: const Duration(milliseconds: 300),
         );
@@ -928,7 +928,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       ),
-    ).animate().scale(
+    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).scale(
           begin: const Offset(0.96, 0.96),
           end: const Offset(1, 1),
           duration: const Duration(milliseconds: 300),
@@ -1005,7 +1005,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
         ),
       ],
-    ).animate().fade(
+    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
           delay: const Duration(milliseconds: 240),
           duration: const Duration(milliseconds: 300),
         );

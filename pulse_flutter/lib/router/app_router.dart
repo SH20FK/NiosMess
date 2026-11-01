@@ -74,6 +74,7 @@ Page<void> _m3eEntryPage(
     transitionDuration: const Duration(milliseconds: 280),
     reverseTransitionDuration: const Duration(milliseconds: 220),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      if (MediaQuery.disableAnimationsOf(context)) return child;
       final curvedAnimation = CurvedAnimation(
         parent: animation,
         curve: M3SpringCurves.expressiveDecel,
@@ -104,6 +105,7 @@ Page<void> _chatDetailPage(
     transitionDuration: const Duration(milliseconds: 240),
     reverseTransitionDuration: const Duration(milliseconds: 240),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      if (MediaQuery.disableAnimationsOf(context)) return child;
       final Animation<Offset> slideAnim =
           Tween<Offset>(
             begin: const Offset(0.03, 0.0), // ~12dp subtle translation
@@ -416,11 +418,13 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           List<MediaViewerItem>? playlist;
           int initialIndex = 0;
           String? e2eeKey;
+          String? heroTag;
 
           if (extra is String) {
             e2eeKey = extra;
           } else if (extra is Map<String, dynamic>) {
             e2eeKey = extra['e2eeKey'] as String?;
+            heroTag = extra['heroTag'] as String?;
             playlist = extra['playlist'] as List<MediaViewerItem>?;
             initialIndex = (extra['initialIndex'] as int?) ?? 0;
           }
@@ -433,6 +437,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             reverseTransitionDuration: const Duration(milliseconds: 200),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
+                  if (MediaQuery.disableAnimationsOf(context)) return child;
                   return FadeTransition(opacity: animation, child: child);
                 },
             child: MediaViewerScreen(
@@ -442,6 +447,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               ),
               mediaType: mediaType,
               e2eeFileKey: e2eeKey,
+              heroTag: heroTag,
               playlist: playlist,
               initialIndex: initialIndex,
             ),

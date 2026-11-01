@@ -183,8 +183,12 @@ class _TouchContainerState extends State<TouchContainer> {
       onSecondaryTap: widget.onLongPress,
       onDoubleTap: widget.onDoubleTap,
       child: AnimatedScale(
-        scale: _isPressed ? widget.scaleDown : 1.0,
-        duration: _isPressed
+        scale: _isPressed && !MediaQuery.disableAnimationsOf(context)
+            ? widget.scaleDown
+            : 1.0,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : _isPressed
             ? AppMotion.durationPress
             : AppMotion.durationRelease,
         curve: _isPressed

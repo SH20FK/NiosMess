@@ -113,7 +113,11 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     _controlsAutoHideTimer = Timer(CallTokens.controlsAutoHideDuration, () {
       if (mounted && _areControlsVisible) {
         setState(() => _areControlsVisible = false);
-        _controlsFadeController.reverse();
+        if (MediaQuery.disableAnimationsOf(context)) {
+          _controlsFadeController.value = 0;
+        } else {
+          _controlsFadeController.reverse();
+        }
       }
     });
   }
@@ -122,10 +126,18 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     setState(() {
       _areControlsVisible = !_areControlsVisible;
       if (_areControlsVisible) {
-        _controlsFadeController.forward();
+        if (MediaQuery.disableAnimationsOf(context)) {
+          _controlsFadeController.value = 1;
+        } else {
+          _controlsFadeController.forward();
+        }
         _resetControlsTimer();
       } else {
-        _controlsFadeController.reverse();
+        if (MediaQuery.disableAnimationsOf(context)) {
+          _controlsFadeController.value = 0;
+        } else {
+          _controlsFadeController.reverse();
+        }
       }
     });
   }

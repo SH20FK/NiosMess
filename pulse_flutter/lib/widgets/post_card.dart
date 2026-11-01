@@ -79,16 +79,16 @@ class _PostCardState extends ConsumerState<PostCard>
     _isBookmarked = widget.isBookmarked;
     _heartController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
     );
     _heartScale = TweenSequence<double>(
       <TweenSequenceItem<double>>[
         TweenSequenceItem<double>(
-          tween: Tween<double>(begin: 0.0, end: 1.4),
+          tween: Tween<double>(begin: 0.0, end: 1.15),
           weight: 25,
         ),
         TweenSequenceItem<double>(
-          tween: Tween<double>(begin: 1.4, end: 1.0),
+          tween: Tween<double>(begin: 1.15, end: 1.0),
           weight: 25,
         ),
         TweenSequenceItem<double>(
@@ -125,6 +125,7 @@ class _PostCardState extends ConsumerState<PostCard>
     if (settings.haptics) HapticService.reaction();
     _handleLike(triggerHaptic: false, ensureSelected: true);
     if (!mounted) return;
+    if (MediaQuery.disableAnimationsOf(context)) return;
     setState(() => _showHeart = true);
     _heartController.forward(from: 0.0).then((_) {
       if (mounted) setState(() => _showHeart = false);
@@ -630,6 +631,7 @@ class _PostCardState extends ConsumerState<PostCard>
                         count: post.likesCount,
                         active: post.myReaction == true,
                         activeColor: scheme.error,
+                        celebrateOnActivate: true,
                         onTap: _handleLike,
                         scheme: scheme,
                       ),
@@ -867,7 +869,9 @@ class _FullScreenImageState extends State<_FullScreenImage> {
                       child: Row(
                         children: [
                           IconButton(
-                            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).closeButtonTooltip,
                             icon: const Icon(Icons.close_rounded),
                             onPressed: () => Navigator.of(context).pop(),
                           ),
@@ -1055,7 +1059,10 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                           (int idx) {
                             final bool active = idx == _currentPage;
                             return AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : M3Durations.short4,
+                              curve: M3SpringCurves.expressiveStandard,
                               margin: const EdgeInsets.symmetric(
                                 horizontal: 2.5,
                               ),
@@ -1083,6 +1090,35 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
   }
 }
 
+class _LikeSparkPainter extends CustomPainter {
+  const _LikeSparkPainter(this.progress, this.color);
+
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double opacity = (1 - progress).clamp(0.0, 1.0);
+    final double distance = 9 + 9 * M3SpringCurves.expressiveDecel.transform(progress);
+    final Paint paint = Paint()
+      ..color = color.withValues(alpha: opacity * 0.8)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    final Offset center = size.center(Offset.zero);
+    for (final Offset direction in const <Offset>[
+      Offset(-0.7, -0.7), Offset(0, -1), Offset(0.7, -0.7),
+      Offset(-1, 0), Offset(1, 0),
+    ]) {
+      canvas.drawLine(center + direction * distance,
+          center + direction * (distance + 3 * opacity), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LikeSparkPainter old) =>
+      old.progress != progress || old.color != color;
+}
+
 // ── Refined action chip (X / Threads style) ──────────────────────────
 class _ActionChip extends StatefulWidget {
   const _ActionChip({
@@ -1094,6 +1130,7 @@ class _ActionChip extends StatefulWidget {
     required this.activeColor,
     required this.onTap,
     required this.scheme,
+    this.celebrateOnActivate = false,
   });
 
   final IconData icon;
@@ -1104,6 +1141,7 @@ class _ActionChip extends StatefulWidget {
   final Color activeColor;
   final VoidCallback onTap;
   final ColorScheme scheme;
+  final bool celebrateOnActivate;
 
   @override
   State<_ActionChip> createState() => _ActionChipState();
@@ -1113,27 +1151,28 @@ class _ActionChipState extends State<_ActionChip>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scale;
+  bool _celebrate = false;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 380),
-    );
+    _ctrl = AnimationController(vsync: this, duration: M3Durations.medium1);
+    _ctrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed) _celebrate = false;
+    });
     _scale = TweenSequence<double>(<TweenSequenceItem<double>>[
       TweenSequenceItem<double>(
         tween: Tween<double>(
           begin: 1.0,
-          end: 1.32,
+          end: 1.12,
         ).chain(CurveTween(curve: Curves.easeOutCubic)),
         weight: 35,
       ),
       TweenSequenceItem<double>(
         tween: Tween<double>(
-          begin: 1.32,
+          begin: 1.12,
           end: 1.0,
-        ).chain(CurveTween(curve: M3SpringCurves.bouncy)),
+        ).chain(CurveTween(curve: M3SpringCurves.snappy)),
         weight: 65,
       ),
     ]).animate(_ctrl);
@@ -1142,8 +1181,10 @@ class _ActionChipState extends State<_ActionChip>
   @override
   void didUpdateWidget(covariant _ActionChip oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.active && widget.active) {
-      _ctrl.forward(from: 0.0);
+    if (!oldWidget.active &&
+        widget.active &&
+        !MediaQuery.disableAnimationsOf(context)) {
+      if (!_ctrl.isAnimating) _ctrl.forward(from: 0.0);
     }
   }
 
@@ -1154,7 +1195,8 @@ class _ActionChipState extends State<_ActionChip>
   }
 
   void _handleTap() {
-    _ctrl.forward(from: 0.0);
+    _celebrate = widget.celebrateOnActivate && !widget.active;
+    if (!MediaQuery.disableAnimationsOf(context)) _ctrl.forward(from: 0.0);
     widget.onTap();
   }
 
@@ -1182,7 +1224,16 @@ class _ActionChipState extends State<_ActionChip>
                 AnimatedBuilder(
                   animation: _scale,
                   builder: (_, Widget? child) {
-                    return Transform.scale(scale: _scale.value, child: child);
+                    return CustomPaint(
+                      foregroundPainter: _celebrate && _ctrl.isAnimating &&
+                              !MediaQuery.disableAnimationsOf(context)
+                          ? _LikeSparkPainter(_ctrl.value, widget.activeColor)
+                          : null,
+                      child: Transform.scale(
+                        scale: MediaQuery.disableAnimationsOf(context) ? 1 : _scale.value,
+                        child: child,
+                      ),
+                    );
                   },
                   child: Icon(
                     widget.active ? widget.activeIcon : widget.icon,

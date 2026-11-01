@@ -1,10 +1,11 @@
+import 'package:pulse_flutter/widgets/media/media_hero.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show DeviceOrientation;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:video_player/video_player.dart';
@@ -35,6 +36,7 @@ class MediaViewerItem {
     required this.mediaType,
     this.title,
     this.e2eeFileKey,
+    this.heroTag,
     this.filePath,
     this.mediaName,
   });
@@ -43,6 +45,7 @@ class MediaViewerItem {
   final MediaType mediaType;
   final String? title;
   final String? e2eeFileKey;
+  final String? heroTag;
   final String? filePath;
   final String? mediaName;
 }
@@ -55,6 +58,7 @@ class MediaViewerScreen extends ConsumerStatefulWidget {
     this.filePath,
     this.mediaName,
     this.e2eeFileKey,
+    this.heroTag,
     this.playlist,
     this.initialIndex = 0,
     super.key,
@@ -67,6 +71,7 @@ class MediaViewerScreen extends ConsumerStatefulWidget {
 
   /// Base64 per-file AES key for E2EE media (secret chats).
   final String? e2eeFileKey;
+  final String? heroTag;
   final String? mediaName;
 
   /// Optional playlist for swipeable multi-media gallery
@@ -368,15 +373,16 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
 
           if (item.mediaType == MediaType.image) {
             return _FullScreenImage(
-              key: ValueKey('page_${item.url}'),
+              key: ValueKey('page_${item.heroTag ?? index}'),
               url: item.url,
+              heroTag: item.heroTag,
               e2eeFileKey: key,
               scheme: scheme,
               onTap: _toggleChrome,
             );
           } else if (item.mediaType == MediaType.video) {
             return _InlineVideoPlayer(
-              key: ValueKey('video_${item.url}'),
+              key: ValueKey('video_${item.heroTag ?? index}'),
               url: item.url,
               e2eeFileKey: key,
               isActive: _currentIndex == index,
@@ -407,6 +413,7 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
   Widget _buildImageViewer(ColorScheme scheme) {
     return _FullScreenImage(
       url: widget.url,
+      heroTag: widget.heroTag,
       e2eeFileKey: _fileKey(),
       scheme: scheme,
       onTap: _toggleChrome,
@@ -626,6 +633,7 @@ class _FullScreenImage extends ConsumerStatefulWidget {
     required this.url,
     required this.scheme,
     this.e2eeFileKey,
+    this.heroTag,
     this.onTap,
     super.key,
   });
@@ -633,6 +641,7 @@ class _FullScreenImage extends ConsumerStatefulWidget {
   final String url;
   final ColorScheme scheme;
   final Uint8List? e2eeFileKey;
+  final String? heroTag;
   final VoidCallback? onTap;
 
   @override
@@ -643,6 +652,7 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
   Uint8List? _bytes;
   Object? _error;
   bool _isLoading = true;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -663,7 +673,8 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
   void didUpdateWidget(covariant _FullScreenImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url ||
-        oldWidget.e2eeFileKey != widget.e2eeFileKey) {
+        !listEquals(oldWidget.e2eeFileKey, widget.e2eeFileKey)) {
+      _loadGeneration++;
       final Uint8List? cached = WsMediaFetcher.getMemoryCachedBytes(
         filePath: widget.url,
         e2eeFileKey: widget.e2eeFileKey,
@@ -681,6 +692,7 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     setState(() {
       _bytes = null;
       _isLoading = true;
@@ -692,14 +704,14 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
         wsClient: ref.read(webSocketClientProvider),
         e2eeFileKey: widget.e2eeFileKey,
       );
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         setState(() {
           _bytes = bytes;
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         setState(() {
           _error = e;
           _isLoading = false;
@@ -709,7 +721,19 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  void dispose() {
+    _loadGeneration++;
+    _bytes = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => MediaHero(
+    tag: widget.heroTag,
+    child: _buildContent(context),
+  );
+
+  Widget _buildContent(BuildContext context) {
     if (_isLoading) {
       return const Center(child: AppLoadingIndicator(size: 32));
     }
@@ -740,9 +764,7 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
       );
     }
 
-    return Hero(
-      tag: 'media_${widget.url}',
-      child: PhotoView(
+    return PhotoView(
         imageProvider: MemoryImage(_bytes!),
         minScale: PhotoViewComputedScale.contained,
         maxScale: PhotoViewComputedScale.covered * 2.5,
@@ -757,7 +779,6 @@ class _FullScreenImageState extends ConsumerState<_FullScreenImage> {
             color: widget.scheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
-      ),
     );
   }
 }

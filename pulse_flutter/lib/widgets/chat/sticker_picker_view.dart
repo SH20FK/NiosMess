@@ -370,7 +370,9 @@ class _StickerTileState extends State<_StickerTile> {
           : widget.sticker.emoji,
       child: AnimatedScale(
         scale: _pressed ? .94 : 1,
-        duration: M3Durations.short4,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : M3Durations.short4,
         curve: M3SpringCurves.snappy,
         child: Material(
           color: scheme.surfaceContainerHigh,

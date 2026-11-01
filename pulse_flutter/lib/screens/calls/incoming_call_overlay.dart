@@ -40,6 +40,9 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
 
   IncomingCallData? _lastIncoming;
   bool _reducedMotion = false;
+  bool _tickerEnabled = false;
+  bool _dismissing = false;
+  int _transitionGeneration = 0;
   late final SoundService _sound;
   late final ProviderSubscription<IncomingCallData?> _incomingSubscription;
 
@@ -94,10 +97,20 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     super.didChangeDependencies();
     _reducedMotion = MediaQuery.disableAnimationsOf(context);
     if (_reducedMotion) {
+      if (_dismissing) {
+        _transitionGeneration++;
+        _lastIncoming = null;
+        _dismissing = false;
+      }
       _slideController.value = _lastIncoming == null ? 0 : 1;
     }
-    final animate = !_reducedMotion &&
-        TickerMode.valuesOf(context).enabled;
+    _tickerEnabled = TickerMode.valuesOf(context).enabled;
+    _syncPulse();
+  }
+
+  void _syncPulse() {
+    final animate = !_reducedMotion && _tickerEnabled &&
+        _lastIncoming != null && !_dismissing;
     if (animate && !_pulseController.isAnimating) {
       _pulseController.repeat();
     } else if (!animate) {
@@ -108,8 +121,11 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
 
   void _onIncomingChanged(IncomingCallData? incoming) {
     if (incoming != null) {
-      final bool startRinging = _lastIncoming == null;
+      final bool startRinging = _lastIncoming == null || _dismissing;
+      _transitionGeneration++;
+      _dismissing = false;
       setState(() => _lastIncoming = incoming);
+      _syncPulse();
       if (startRinging) {
         if (_reducedMotion) {
           _slideController.value = 1;
@@ -120,13 +136,18 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         unawaited(_startNotificationRingtone(incoming));
       }
     } else if (_lastIncoming != null) {
+      final int generation = ++_transitionGeneration;
+      _dismissing = true;
+      _syncPulse();
       unawaited(_sound.stopLoop());
       if (_reducedMotion) {
         _slideController.value = 0;
         setState(() => _lastIncoming = null);
       } else {
         _slideController.reverse().then((_) {
-          if (mounted) setState(() => _lastIncoming = null);
+          if (mounted && generation == _transitionGeneration) {
+            setState(() => _lastIncoming = null);
+          }
         });
       }
     }

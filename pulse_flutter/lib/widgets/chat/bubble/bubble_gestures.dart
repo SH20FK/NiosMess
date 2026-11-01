@@ -26,6 +26,16 @@ class SwipeToReplyState extends State<SwipeToReply>
   static const double _maxDrag = 64;
   bool _triggered = false;
 
+  void _release() {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _dragNotifier.value = 0;
+    } else {
+      _releaseStart = _dragNotifier.value;
+      _controller.forward(from: 0);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -84,9 +94,9 @@ class SwipeToReplyState extends State<SwipeToReply>
         }
 
         // Snap back without overshooting past 0
-        _releaseStart = current;
-        _controller.forward(from: 0);
+        _release();
       },
+      onHorizontalDragCancel: _release,
       child: ValueListenableBuilder<double>(
         valueListenable: _dragNotifier,
         builder: (BuildContext context, double dragX, Widget? cachedChild) {

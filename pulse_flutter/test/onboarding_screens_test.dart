@@ -249,6 +249,12 @@ void main() {
 
         // Tap Skip on Slide 0
         await tester.tap(find.widgetWithText(TextButton, 'Skip'));
+        await tester.pump();
+        expect(
+          tester.widget<PageView>(find.byType(PageView)).controller!.page,
+          3,
+          reason: 'Reduced motion must move directly to the last page.',
+        );
         await _pumpFrames(tester, 8);
 
         expect(find.text('Choose your language'), findsOneWidget);

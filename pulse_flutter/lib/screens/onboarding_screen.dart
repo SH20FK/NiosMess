@@ -110,6 +110,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _handleSkip() {
     HapticService.selection();
     if (_index < 3) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _pageController.jumpToPage(3);
+        return;
+      }
       _pageController.animateToPage(
         3,
         duration: const Duration(milliseconds: 350),
@@ -123,6 +127,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _handleNext() {
     HapticService.selection();
     if (_index < 3) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _pageController.jumpToPage(_index + 1);
+        return;
+      }
       _pageController.nextPage(
         duration: const Duration(milliseconds: 350),
         curve: M3SpringCurves.spatial,
@@ -162,7 +170,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           tag: 'app_brand_logo',
                           child: const AppLogoMark(size: 72),
                         )
-                        .animate()
+                        .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context))
                         .scale(
                           begin: const Offset(0.85, 0.85),
                           end: const Offset(1, 1),
@@ -204,7 +212,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ),
                         ),
                       ],
-                    ).animate().fade(
+                    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
                       delay: const Duration(milliseconds: 150),
                       duration: const Duration(milliseconds: 300),
                     ),

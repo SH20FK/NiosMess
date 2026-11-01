@@ -345,9 +345,11 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           _buildHeader(context, scheme, textTheme),
           Flexible(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 240),
-              switchInCurve: M3SpringCurves.spatial,
-              switchOutCurve: Curves.easeInCubic,
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : M3Durations.medium1,
+              switchInCurve: M3SpringCurves.expressiveDecel,
+              switchOutCurve: M3SpringCurves.expressiveAccel,
               child: _step == 0
                   ? _buildStep1Info(context, scheme, textTheme)
                   : _buildStep2MembersAndPrivacy(context, scheme, textTheme),
