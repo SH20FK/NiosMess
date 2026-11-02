@@ -2884,6 +2884,96 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Chat folders'**
   String get inboxFolders;
+
+  /// No description provided for @niosgramNotInterested.
+  ///
+  /// In en, this message translates to:
+  /// **'Not interested'**
+  String get niosgramNotInterested;
+
+  /// No description provided for @niosgramPostHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Post hidden'**
+  String get niosgramPostHidden;
+
+  /// No description provided for @niosgramReactionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the reaction. Try again.'**
+  String get niosgramReactionFailed;
+
+  /// No description provided for @niosgramVoteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not confirm your vote. Your selection is kept — try again.'**
+  String get niosgramVoteFailed;
+
+  /// No description provided for @niosgramAnonymousNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voter names are not published'**
+  String get niosgramAnonymousNotice;
+
+  /// No description provided for @auditCommentActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment actions'**
+  String get auditCommentActions;
+
+  /// No description provided for @auditCommentQualityReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Report AI response quality'**
+  String get auditCommentQualityReport;
+
+  /// No description provided for @auditCommentLike.
+  ///
+  /// In en, this message translates to:
+  /// **'Like'**
+  String get auditCommentLike;
+
+  /// No description provided for @auditCommentLove.
+  ///
+  /// In en, this message translates to:
+  /// **'Love'**
+  String get auditCommentLove;
+
+  /// No description provided for @auditCommentLaugh.
+  ///
+  /// In en, this message translates to:
+  /// **'Funny'**
+  String get auditCommentLaugh;
+
+  /// No description provided for @auditCommentSurprise.
+  ///
+  /// In en, this message translates to:
+  /// **'Surprised'**
+  String get auditCommentSurprise;
+
+  /// No description provided for @auditCommentSad.
+  ///
+  /// In en, this message translates to:
+  /// **'Sad'**
+  String get auditCommentSad;
+
+  /// No description provided for @auditCommentShowReplies.
+  ///
+  /// In en, this message translates to:
+  /// **'Show replies ({count})'**
+  String auditCommentShowReplies(int count);
+
+  /// No description provided for @auditCommentHideReplies.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide replies ({count})'**
+  String auditCommentHideReplies(int count);
+
+  /// No description provided for @auditDeletedAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted account'**
+  String get auditDeletedAccount;
 }
 
 class _SecretChatLocalizationsDelegate

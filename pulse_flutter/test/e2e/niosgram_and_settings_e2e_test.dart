@@ -424,7 +424,9 @@ void main() {
       expect(niosgramNotifier.lastReactedIsLike, true);
 
       // 3. Bookmark post
-      final bookmarkFinder = find.byIcon(Icons.bookmark_outline_rounded).first;
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded).first);
+      await tester.pumpAndSettle();
+      final bookmarkFinder = find.widgetWithIcon(MenuItemButton, Icons.bookmark_outline_rounded);
       await tester.tap(bookmarkFinder);
       await tester.pumpAndSettle();
       String? saved;
@@ -437,7 +439,11 @@ void main() {
       expect(saved, contains('"id":1001'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded).first);
+      await tester.pumpAndSettle();
+      expect(find.widgetWithIcon(MenuItemButton, Icons.bookmark_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded).first);
+      await tester.pumpAndSettle();
 
       // 4. Tap comments chip
       final commentsFinder = find.byIcon(Icons.chat_bubble_outline_rounded).first;

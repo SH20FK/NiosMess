@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/widgets/comment_item.dart';
+import 'package:pulse_flutter/l10n/app_localizations.dart';
 
 ApiMessage fixture(
   int id,
@@ -28,6 +29,56 @@ ApiMessage fixture(
 });
 
 void main() {
+  for (final locale in ['ru', 'en']) {
+    for (final brightness in Brightness.values) {
+      testWidgets('comment menu supports $locale $brightness at 320dp/200%', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(320, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        var deleted = false;
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: Locale(locale),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: ThemeData(brightness: brightness, useMaterial3: true),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: CommentItem(
+                comment: fixture(1, 'Name', 'Text'),
+                isMine: true,
+                onReply: () {},
+                onAuthorTap: () {},
+                onReact: (_) {},
+                onEdit: () {},
+                onDelete: () => deleted = true,
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.byType(IconButton).last);
+        await tester.pumpAndSettle();
+        expect(find.byType(MenuItemButton), findsWidgets);
+        expect(find.byType(PopupMenuButton<String>), findsNothing);
+        expect(tester.takeException(), isNull);
+        final deleteLabel = locale == 'ru' ? 'Удалить' : 'Delete';
+        await tester.ensureVisible(
+          find.widgetWithText(MenuItemButton, deleteLabel),
+        );
+        await tester.tap(find.widgetWithText(MenuItemButton, deleteLabel));
+        await tester.pumpAndSettle();
+        expect(deleted, isTrue);
+      });
+    }
+  }
   for (final brightness in Brightness.values) {
     for (final scale in [1.0, 2.0]) {
       testWidgets('thread fits 320px with theme $brightness and text $scale', (

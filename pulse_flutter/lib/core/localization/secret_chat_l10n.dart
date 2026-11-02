@@ -3,6 +3,21 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/l10n/secret/generated/secret_chat_localizations.dart';
 
 extension SecretChatL10n on AppLocalizations {
+  String get auditDeletedAccount => _secret.auditDeletedAccount;
+  String get niosgramNotInterested => _secret.niosgramNotInterested;
+  String get niosgramPostHidden => _secret.niosgramPostHidden;
+  String get niosgramReactionFailed => _secret.niosgramReactionFailed;
+  String get niosgramVoteFailed => _secret.niosgramVoteFailed;
+  String get niosgramAnonymousNotice => _secret.niosgramAnonymousNotice;
+  String get auditCommentActions => _secret.auditCommentActions;
+  String get auditCommentQualityReport => _secret.auditCommentQualityReport;
+  String get auditCommentLike => _secret.auditCommentLike;
+  String get auditCommentLove => _secret.auditCommentLove;
+  String get auditCommentLaugh => _secret.auditCommentLaugh;
+  String get auditCommentSurprise => _secret.auditCommentSurprise;
+  String get auditCommentSad => _secret.auditCommentSad;
+  String auditCommentShowReplies(int count) => _secret.auditCommentShowReplies(count);
+  String auditCommentHideReplies(int count) => _secret.auditCommentHideReplies(count);
   String get inboxScheduledMessages => _secret.inboxScheduledMessages;
   String get inboxFolders => _secret.inboxFolders;
   String get mediaSendRecording => _secret.mediaSendRecording;

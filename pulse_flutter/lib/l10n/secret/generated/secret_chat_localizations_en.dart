@@ -1505,4 +1505,55 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get inboxFolders => 'Chat folders';
+
+  @override
+  String get niosgramNotInterested => 'Not interested';
+
+  @override
+  String get niosgramPostHidden => 'Post hidden';
+
+  @override
+  String get niosgramReactionFailed =>
+      'Could not save the reaction. Try again.';
+
+  @override
+  String get niosgramVoteFailed =>
+      'Could not confirm your vote. Your selection is kept — try again.';
+
+  @override
+  String get niosgramAnonymousNotice => 'Voter names are not published';
+
+  @override
+  String get auditCommentActions => 'Comment actions';
+
+  @override
+  String get auditCommentQualityReport => 'Report AI response quality';
+
+  @override
+  String get auditCommentLike => 'Like';
+
+  @override
+  String get auditCommentLove => 'Love';
+
+  @override
+  String get auditCommentLaugh => 'Funny';
+
+  @override
+  String get auditCommentSurprise => 'Surprised';
+
+  @override
+  String get auditCommentSad => 'Sad';
+
+  @override
+  String auditCommentShowReplies(int count) {
+    return 'Show replies ($count)';
+  }
+
+  @override
+  String auditCommentHideReplies(int count) {
+    return 'Hide replies ($count)';
+  }
+
+  @override
+  String get auditDeletedAccount => 'Deleted account';
 }

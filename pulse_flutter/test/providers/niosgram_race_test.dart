@@ -103,6 +103,124 @@ void main() {
       return container.read(niosgramProvider.notifier);
     }
 
+    testWidgets('undo hidden post cancels the pending server reaction', (
+      tester,
+    ) async {
+      final notifier = (await tester.runAsync(start))!;
+      var requests = 0;
+      socket.response = (_, _) async {
+        requests++;
+        return {'likes': 0, 'dislikes': 1, 'my_reaction': 'dislike'};
+      };
+      notifier.hidePost(container.read(niosgramProvider).value!.posts[2]);
+      expect(
+        container.read(niosgramProvider).value!.posts.any((p) => p.id == 18),
+        isFalse,
+      );
+      expect(notifier.undoHidePost(18), isTrue);
+      await tester.pump(const Duration(seconds: 6));
+      expect(requests, 0);
+      expect(container.read(niosgramProvider).value!.posts[2].id, 18);
+    });
+    testWidgets(
+      'failed delayed dismissal restores its row and reports failure',
+      (tester) async {
+        final notifier = (await tester.runAsync(start))!;
+        var requests = 0;
+        socket.response = (_, _) async {
+          requests++;
+          throw StateError('offline');
+        };
+        notifier.hidePost(container.read(niosgramProvider).value!.posts[2]);
+        await tester.pump(const Duration(seconds: 6));
+        expect(requests, 1);
+        expect(container.read(niosgramProvider).value!.posts[2].id, 18);
+        expect(
+          container.read(niosgramProvider).value!.reactionFailureSerial,
+          1,
+        );
+      },
+    );
+    test(
+      'invalid reaction confirmation rolls back instead of silently succeeding',
+      () async {
+        final notifier = await start();
+        socket.response = (_, _) async => {'status': 'ok'};
+        await notifier.reactPost(20, true);
+        expect(
+          container.read(niosgramProvider).value!.posts.first.myReaction,
+          isNull,
+        );
+        expect(
+          container.read(niosgramProvider).value!.reactionFailureSerial,
+          1,
+        );
+      },
+    );
+
+    test(
+      'reaction updates only its row selector and leaves viewport structure unchanged',
+      () async {
+        final notifier = await start();
+        var layoutChanges = 0, untouchedChanges = 0, targetChanges = 0;
+        final layout = container.listen(
+          niosgramProvider.select(
+            (value) => value.whenData(NiosgramFeedLayout.new),
+          ),
+          (_, _) => layoutChanges++,
+        );
+        final untouched = container.listen(
+          niosgramPostsByIdProvider.select((posts) => posts[19]),
+          (_, _) => untouchedChanges++,
+        );
+        final target = container.listen(
+          niosgramPostsByIdProvider.select((posts) => posts[20]),
+          (_, _) => targetChanges++,
+        );
+        addTearDown(layout.close);
+        addTearDown(untouched.close);
+        addTearDown(target.close);
+        socket.response = (_, _) async => {
+          'likes': 1,
+          'dislikes': 0,
+          'my_reaction': 'like',
+        };
+        await notifier.reactPost(20, true);
+        await container.pump();
+        expect(layoutChanges, 0);
+        expect(untouchedChanges, 0);
+        expect(targetChanges, greaterThan(0));
+      },
+    );
+    test(
+      'push received during cold feed request survives its stale page',
+      () async {
+        socket = _Socket();
+        cache = _Cache();
+        final pending = Completer<dynamic>();
+        socket.response = (_, _) => pending.future;
+        container = ProviderContainer(
+          overrides: [
+            authProvider.overrideWith(_Auth.new),
+            webSocketClientProvider.overrideWithValue(socket),
+            cacheServiceProvider.overrideWithValue(cache),
+          ],
+        );
+        addTearDown(container.dispose);
+        addTearDown(socket.disposeFixture);
+        final startup = container.read(niosgramProvider.future);
+        socket.push(30);
+        pending.complete({
+          'posts': [post(20)],
+        });
+        await startup;
+        expect(container.read(niosgramProvider).value!.posts.map((p) => p.id), [
+          30,
+          20,
+        ]);
+      },
+    );
+
     for (final malformed in [false, true]) {
       test(
         'authoritative empty feed replaces cache; invalid response preserves it: malformed=$malformed',

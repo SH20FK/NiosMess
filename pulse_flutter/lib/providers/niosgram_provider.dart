@@ -7,6 +7,7 @@ import 'package:pulse_flutter/providers/notifications_provider.dart';
 import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/providers/feed_poll_vote_provider.dart';
 
 class NiosgramState {
   const NiosgramState({
@@ -15,6 +16,7 @@ class NiosgramState {
     this.loadMoreFailed = false,
     this.hasMore = true,
     this.page = 1,
+    this.reactionFailureSerial = 0,
   });
 
   final List<NgPost> posts;
@@ -22,6 +24,7 @@ class NiosgramState {
   final bool loadMoreFailed;
   final bool hasMore;
   final int page;
+  final int reactionFailureSerial;
 
   NiosgramState copyWith({
     List<NgPost>? posts,
@@ -29,13 +32,53 @@ class NiosgramState {
     bool? loadMoreFailed,
     bool? hasMore,
     int? page,
+    int? reactionFailureSerial,
   }) => NiosgramState(
     posts: posts ?? this.posts,
     isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     loadMoreFailed: loadMoreFailed ?? this.loadMoreFailed,
     hasMore: hasMore ?? this.hasMore,
     page: page ?? this.page,
+    reactionFailureSerial: reactionFailureSerial ?? this.reactionFailureSerial,
   );
+}
+
+/// Equality excludes per-post content, so a reaction does not rebuild the viewport.
+class NiosgramFeedLayout {
+  NiosgramFeedLayout(NiosgramState state)
+    : ids = List.unmodifiable(state.posts.map((post) => post.id)),
+      isLoadingMore = state.isLoadingMore,
+      loadMoreFailed = state.loadMoreFailed,
+      hasMore = state.hasMore;
+  final List<int> ids;
+  final bool isLoadingMore, loadMoreFailed, hasMore;
+  @override
+  bool operator ==(Object other) =>
+      other is NiosgramFeedLayout &&
+      listEquals(ids, other.ids) &&
+      isLoadingMore == other.isLoadingMore &&
+      loadMoreFailed == other.loadMoreFailed &&
+      hasMore == other.hasMore;
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(ids), isLoadingMore, loadMoreFailed, hasMore);
+}
+
+final niosgramPostsByIdProvider = Provider<Map<int, NgPost>>(
+  (ref) => {
+    for (final post
+        in ref.watch(niosgramProvider.select((value) => value.value?.posts)) ??
+            const <NgPost>[])
+      post.id: post,
+  },
+);
+
+class _HiddenFeedPost {
+  _HiddenFeedPost(this.post, this.index);
+  final NgPost post;
+  final int index;
+  Timer? timer;
+  bool committing = false;
 }
 
 class _FeedPage {
@@ -44,16 +87,99 @@ class _FeedPage {
   final bool hasMore;
 }
 
+/// Error feedback can be observed from a shared post without loading the feed.
+class NiosgramReactionErrors extends Notifier<int> {
+  @override
+  int build() {
+    ref.watch(
+      authProvider.select((a) => (a.session?.userId, a.session?.accessToken)),
+    );
+    return 0;
+  }
+
+  void report() => state++;
+}
+
+final niosgramReactionErrorsProvider =
+    NotifierProvider<NiosgramReactionErrors, int>(NiosgramReactionErrors.new);
+
 class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
   int _epoch = 0, _pageRevision = 0;
   int? _account;
   bool _refreshing = false;
   final _deletedIds = <int>{};
+  final _startupPosts = <int, NgPost>{};
   final _mutations = <String, int>{};
+  final _hidden = <int, _HiddenFeedPost>{};
+  bool _hiddenDisposeRegistered = false;
   bool _current(int epoch) =>
       ref.mounted &&
       epoch == _epoch &&
       !ref.read(authProvider.notifier).isLoggingOut;
+  void _cancelHidden() {
+    for (final entry in _hidden.values) {
+      entry.timer?.cancel();
+    }
+    _hidden.clear();
+    _hiddenDisposeRegistered = false;
+  }
+
+  /// Hide immediately; the server reaction is sent only after the undo window.
+  void hidePost(NgPost post) {
+    if (!_current(_epoch)) return;
+    final live = state.value ?? const NiosgramState();
+    if (_hidden.containsKey(post.id) || _deletedIds.contains(post.id)) {
+      return;
+    }
+    final index = live.posts.indexWhere((item) => item.id == post.id);
+    if (!_hiddenDisposeRegistered) {
+      _hiddenDisposeRegistered = true;
+      ref.onDispose(_cancelHidden);
+    }
+    final entry = _HiddenFeedPost(
+      index >= 0 ? live.posts[index] : post,
+      index < 0 ? 0 : index,
+    );
+    _hidden[post.id] = entry;
+    final epoch = _epoch;
+    state = AsyncData(
+      live.copyWith(
+        posts: live.posts
+            .where((item) => item.id != post.id)
+            .toList(growable: false),
+      ),
+    );
+    entry.timer = Timer(const Duration(seconds: 5), () {
+      if (!_current(epoch) || !identical(_hidden[post.id], entry)) return;
+      entry.committing = true;
+      unawaited(
+        reactPost(post.id, false, ensureSelected: true).whenComplete(() {
+          if (identical(_hidden[post.id], entry)) _hidden.remove(post.id);
+        }),
+      );
+    });
+  }
+
+  bool undoHidePost(int id) {
+    final entry = _hidden[id];
+    if (entry == null ||
+        entry.committing ||
+        !_current(_epoch) ||
+        _deletedIds.contains(id)) {
+      return false;
+    }
+    entry.timer?.cancel();
+    _hidden.remove(id);
+    final live = state.value;
+    if (live == null) return false;
+    if (!live.posts.any((item) => item.id == id)) {
+      final posts = List<NgPost>.of(live.posts)
+        ..insert(entry.index.clamp(0, live.posts.length), entry.post);
+      state = AsyncData(live.copyWith(posts: posts));
+    }
+    return true;
+  }
+
   int _operationCounter = 0;
   int _mutation(String key) {
     final revision = _mutations[key] = ++_operationCounter;
@@ -112,8 +238,10 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final epoch = ++_epoch;
     _pageRevision++;
     _deletedIds.clear();
+    _startupPosts.clear();
     _mutations.clear();
     _refreshing = false;
+    _cancelHidden();
     final subscription = ref.read(webSocketClientProvider).pushStream.listen((
       event,
     ) {
@@ -140,10 +268,17 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
       if (revision != _pageRevision) {
         return state.value ?? const NiosgramState();
       }
-      final List<NgPost> reconciled = _reconcilePosts(
-        cached,
-        freshPosts,
-      ).where((item) => !_deletedIds.contains(item.id)).toList();
+      final List<NgPost> reconciled =
+          _preserveChanges(freshPosts, cached, [
+                ..._startupPosts.values,
+                ...state.value?.posts ?? cached,
+              ])
+              .where(
+                (item) =>
+                    !_deletedIds.contains(item.id) &&
+                    !_hidden.containsKey(item.id),
+              )
+              .toList();
       await cache.saveFeed(reconciled);
       if (!_current(epoch)) return const NiosgramState();
       return NiosgramState(posts: reconciled, page: 1, hasMore: page.hasMore);
@@ -161,13 +296,10 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     }
   }
 
-  List<NgPost> _reconcilePosts(List<NgPost> cached, List<NgPost> fresh) {
-    // Cached items are only an offline preview. Once page one is confirmed by
-    // the server, older unverified rows must be fetched again before display.
-    return fresh;
-  }
-
   Future<_FeedPage> _fetchPage(int page) async {
+    final epoch = _epoch;
+    final ballots = ref.read(feedPollVotesProvider.notifier);
+    final voteRevisions = ballots.revisions;
     final dynamic response = await ref
         .read(webSocketClientProvider)
         .request('get_feed', payload: <String, dynamic>{'page': page});
@@ -187,7 +319,13 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final limit = response is Map ? (response['limit'] as num?)?.toInt() : null;
     // The current server returns 15; use its declared size when present.
     final pageSize = limit != null && limit > 0 ? limit : 15;
-    return _FeedPage(items, posts.length >= pageSize);
+    if (_current(epoch)) ballots.reconcile(voteRevisions, items);
+    return _FeedPage(
+      items
+          .where((item) => !_hidden.containsKey(item.id))
+          .toList(growable: false),
+      posts.length >= pageSize,
+    );
   }
 
   void _handlePush(dynamic event) {
@@ -227,9 +365,15 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final NgPost post = NgPost.fromJson(
       data.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
     );
-    if (_deletedIds.contains(post.id)) return;
+    if (_deletedIds.contains(post.id) || _hidden.containsKey(post.id)) return;
     final AsyncData<NiosgramState>? current = state.asData;
-    if (current == null) return;
+    if (current == null) {
+      _startupPosts[post.id] = post;
+      if (_startupPosts.length > 256) {
+        _startupPosts.remove(_startupPosts.keys.first);
+      }
+      return;
+    }
     final List<NgPost> updated = <NgPost>[
       post,
       ...current.value.posts.where((NgPost p) => p.id != post.id),
@@ -339,9 +483,9 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final key = 'react:$postId';
     final current = state.asData ?? const AsyncData(NiosgramState());
 
-    final NgPost? target = current.value.posts
-        .where((NgPost p) => p.id == postId)
-        .firstOrNull;
+    final NgPost? target =
+        current.value.posts.where((NgPost p) => p.id == postId).firstOrNull ??
+        _hidden[postId]?.post;
     final bool? prev = target?.myReaction;
     if (ensureSelected && prev == isLike) return;
     final revision = _mutation(key);
@@ -386,59 +530,59 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
               'reaction': isLike ? 'like' : 'dislike',
               'is_like': isLike,
             },
+            maxRetries:
+                0, // Toggle operations cannot be replayed after a lost acknowledgement.
           );
       if (!_validMutation(epoch, key, revision) ||
           _deletedIds.contains(postId)) {
         return;
       }
-      if (response is Map && response['error'] != null) {
+      if (response is! Map || response['error'] != null) {
         throw StateError('reaction_failed');
       }
-      if (response is Map) {
-        final dynamic respPayload = response['payload'] ?? response;
-        if (respPayload is Map) {
-          final int? likes =
-              respPayload['likes'] as int? ??
-              respPayload['likes_count'] as int?;
-          final int? dislikes =
-              respPayload['dislikes'] as int? ??
-              respPayload['dislikes_count'] as int?;
-          final dynamic reactionRaw = respPayload['my_reaction'];
-          bool? serverReaction;
-          if (reactionRaw == 'like' || reactionRaw == true) {
-            serverReaction = true;
-          } else if (reactionRaw == 'dislike' || reactionRaw == false) {
-            serverReaction = false;
-          }
+      final dynamic respPayload = response['payload'] ?? response;
+      if (respPayload is! Map ||
+          respPayload['error'] != null ||
+          !respPayload.containsKey('my_reaction')) {
+        throw StateError('reaction_confirmation_invalid');
+      }
+      final int? likes =
+          respPayload['likes'] as int? ?? respPayload['likes_count'] as int?;
+      final int? dislikes =
+          respPayload['dislikes'] as int? ??
+          respPayload['dislikes_count'] as int?;
+      final dynamic reactionRaw = respPayload['my_reaction'];
+      bool? serverReaction;
+      if (reactionRaw == 'like' || reactionRaw == true) {
+        serverReaction = true;
+      } else if (reactionRaw == 'dislike' || reactionRaw == false) {
+        serverReaction = false;
+      }
 
-          final AsyncData<NiosgramState>? fresh = state.asData;
-          if (fresh != null) {
-            if (serverReaction == false) {
-              // Ensure post remains excluded from feed if server confirms dislike
-              final List<NgPost> withoutDisliked = fresh.value.posts
-                  .where((NgPost p) => p.id != postId)
-                  .toList(growable: false);
-              state = AsyncData<NiosgramState>(
-                fresh.value.copyWith(posts: withoutDisliked),
-              );
-              ref.read(cacheServiceProvider).saveFeed(withoutDisliked);
-            } else {
-              // Update only the post card in place
-              final List<NgPost> synced = fresh.value.posts
-                  .map((NgPost p) {
-                    if (p.id != postId) return p;
-                    return p.copyWith(
-                      likesCount: likes ?? p.likesCount,
-                      dislikesCount: dislikes ?? p.dislikesCount,
-                      myReaction: () => serverReaction,
-                    );
-                  })
-                  .toList(growable: false);
-              state = AsyncData<NiosgramState>(
-                fresh.value.copyWith(posts: synced),
-              );
-            }
-          }
+      final AsyncData<NiosgramState>? fresh = state.asData;
+      if (fresh != null) {
+        if (serverReaction == false) {
+          // Ensure post remains excluded from feed if server confirms dislike
+          final List<NgPost> withoutDisliked = fresh.value.posts
+              .where((NgPost p) => p.id != postId)
+              .toList(growable: false);
+          state = AsyncData<NiosgramState>(
+            fresh.value.copyWith(posts: withoutDisliked),
+          );
+          ref.read(cacheServiceProvider).saveFeed(withoutDisliked);
+        } else {
+          // Update only the post card in place
+          final List<NgPost> synced = fresh.value.posts
+              .map((NgPost p) {
+                if (p.id != postId) return p;
+                return p.copyWith(
+                  likesCount: likes ?? p.likesCount,
+                  dislikesCount: dislikes ?? p.dislikesCount,
+                  myReaction: () => serverReaction,
+                );
+              })
+              .toList(growable: false);
+          state = AsyncData<NiosgramState>(fresh.value.copyWith(posts: synced));
         }
       }
     } catch (e) {
@@ -453,9 +597,9 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
           final bool exists = fresh.value.posts.any(
             (NgPost p) => p.id == postId,
           );
-          final originalIndex = current.value.posts.indexWhere(
-            (p) => p.id == postId,
-          );
+          final originalIndex =
+              _hidden[postId]?.index ??
+              current.value.posts.indexWhere((p) => p.id == postId);
           final List<NgPost> restored = List<NgPost>.of(fresh.value.posts);
           if (!exists) {
             restored.insert(originalIndex.clamp(0, restored.length), target);
@@ -477,6 +621,15 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
             fresh.value.copyWith(posts: reverted),
           );
         }
+      }
+      final failed = state.value;
+      ref.read(niosgramReactionErrorsProvider.notifier).report();
+      if (failed != null) {
+        state = AsyncData(
+          failed.copyWith(
+            reactionFailureSerial: failed.reactionFailureSerial + 1,
+          ),
+        );
       }
     }
   }
@@ -509,7 +662,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     }
     final dynamic response = await ref
         .read(webSocketClientProvider)
-        .request('create_post', payload: payload);
+        .request('create_post', payload: payload, maxRetries: 0);
     if (!_current(epoch)) return;
     if (response is! Map) throw StateError('POST_CONFIRMATION_UNKNOWN');
     if (response['error'] != null) {
@@ -542,14 +695,16 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     }
 
     try {
+      final before = state.value?.posts ?? const <NgPost>[];
       final page = await _fetchPage(1);
       final freshPosts = page.posts;
       if (!_current(epoch)) return;
       final AsyncData<NiosgramState>? current = state.asData;
       if (current != null && freshPosts.isNotEmpty) {
-        final List<NgPost> reconciled = _reconcilePosts(
-          current.value.posts,
+        final List<NgPost> reconciled = _preserveChanges(
           freshPosts,
+          before,
+          current.value.posts,
         );
         state = AsyncData<NiosgramState>(
           (state.value ?? current.value).copyWith(

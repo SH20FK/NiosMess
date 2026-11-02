@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/noto_emoji.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
@@ -7,6 +8,7 @@ import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class CommentIcon extends StatelessWidget {
   const CommentIcon(this.kind, {super.key, this.size = 20, this.color});
@@ -105,7 +107,7 @@ class CommentItem extends StatelessWidget {
           children: [
             Semantics(
               button: true,
-              label: 'Профиль $name',
+              label: '${context.l10n.profileTitle}: $name',
               child: InkWell(
                 onTap: onAuthorTap,
                 borderRadius: BorderRadius.circular(20),
@@ -129,7 +131,9 @@ class CommentItem extends StatelessWidget {
                       InkWell(
                         onTap: onAuthorTap,
                         child: Text(
-                          name.isEmpty ? 'Удалённый аккаунт' : name,
+                          name.isEmpty
+                              ? context.l10n.auditDeletedAccount
+                              : name,
                           style: theme.textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -146,7 +150,7 @@ class CommentItem extends StatelessWidget {
                       ),
                       if (isPostAuthor)
                         Text(
-                          'Автор',
+                          context.l10n.auditCommentAuthor,
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: scheme.primary,
                           ),
@@ -169,7 +173,7 @@ class CommentItem extends StatelessWidget {
                       ),
                       if (comment.isEdited && !comment.isDeleted)
                         Text(
-                          'изменено',
+                          context.l10n.chatEdited,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),
@@ -180,7 +184,11 @@ class CommentItem extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 3),
                       child: Text(
-                        'В ответ ${parent!.senderDisplayName.isNotEmpty ? parent!.senderDisplayName : parent!.senderUsername}',
+                        context.l10n.auditCommentReply(
+                          parent!.senderDisplayName.isNotEmpty
+                              ? parent!.senderDisplayName
+                              : parent!.senderUsername,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -191,7 +199,7 @@ class CommentItem extends StatelessWidget {
                   const SizedBox(height: 5),
                   if (comment.isDeleted)
                     Text(
-                      'Комментарий удалён',
+                      context.l10n.commentsDeleted,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -213,10 +221,12 @@ class CommentItem extends StatelessWidget {
                       if (!comment.isDeleted) ...[
                         TextButton(
                           onPressed: onReply,
-                          child: const Text('Ответить'),
+                          child: Text(context.l10n.chatReply),
                         ),
                         TextButton.icon(
-                          onPressed: () => onReact('like'),
+                          onPressed: comment.isSending
+                              ? null
+                              : () => onReact('like'),
                           icon: const Text(
                             '👍',
                             style: TextStyle(
@@ -224,13 +234,20 @@ class CommentItem extends StatelessWidget {
                               fontSize: 18,
                             ),
                           ),
-                          label: Text(count > 0 ? '$count' : 'Нравится'),
+                          label: Text(
+                            count > 0
+                                ? '$count'
+                                : context.l10n.auditCommentLike,
+                          ),
                         ),
                         for (final entry in comment.reactions.entries)
                           if (entry.key != '👍' && entry.value > 0)
                             TextButton.icon(
-                              onPressed: () =>
-                                  onReact(reactionKinds[entry.key] ?? 'like'),
+                              onPressed: comment.isSending
+                                  ? null
+                                  : () => onReact(
+                                      reactionKinds[entry.key] ?? 'like',
+                                    ),
                               icon: Text(
                                 entry.key,
                                 style: const TextStyle(
@@ -240,74 +257,77 @@ class CommentItem extends StatelessWidget {
                               ),
                               label: Text('${entry.value}'),
                             ),
-                        PopupMenuButton<String>(
-                          tooltip: 'Действия с комментарием',
-                          icon: const CommentIcon('more'),
-                          onSelected: (action) {
-                            if (action == 'copy') {
-                              Clipboard.setData(
-                                ClipboardData(text: comment.content),
-                              );
-                            }
-                            if (action == 'quality') onQualityReport?.call();
-                            if (action == 'edit') onEdit?.call();
-                            if (action == 'delete') onDelete?.call();
-                            if (action.startsWith('reaction:')) {
-                              onReact(action.substring(9));
-                            }
-                          },
-                          itemBuilder: (_) => [
+                        if (comment.isSending)
+                          Tooltip(
+                            message: context.l10n.noticeSending,
+                            child: const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: AppLoadingIndicator(size: 18),
+                            ),
+                          ),
+                        MenuAnchor(
+                          builder: (context, controller, child) => IconButton(
+                            tooltip: context.l10n.auditCommentActions,
+                            icon: const CommentIcon('more'),
+                            onPressed: () => controller.isOpen
+                                ? controller.close()
+                                : controller.open(),
+                          ),
+                          menuChildren: [
                             if (onQualityReport != null || qualityReported)
-                              PopupMenuItem(
-                                value: 'quality',
-                                enabled: !qualityReported,
+                              MenuItemButton(
+                                onPressed: qualityReported
+                                    ? null
+                                    : onQualityReport,
                                 child: Text(
                                   qualityReported
-                                      ? 'Жалоба на качество отправлена'
-                                      : 'Пожаловаться на качество ответа модели',
+                                      ? context.l10n.auditCommentReported
+                                      : context.l10n.auditCommentQualityReport,
                                 ),
                               ),
-
-                            const PopupMenuItem(
-                              value: 'copy',
-                              child: Text('Копировать'),
+                            MenuItemButton(
+                              onPressed: () => Clipboard.setData(
+                                ClipboardData(text: comment.content),
+                              ),
+                              child: Text(context.l10n.chatCopyText),
                             ),
-                            for (final reaction in const {
-                              'heart': 'Люблю',
-                              'laugh': 'Смешно',
-                              'surprise': 'Удивительно',
-                              'sad': 'Грустно',
+                            for (final reaction in {
+                              'heart': context.l10n.auditCommentLove,
+                              'laugh': context.l10n.auditCommentLaugh,
+                              'surprise': context.l10n.auditCommentSurprise,
+                              'sad': context.l10n.auditCommentSad,
                             }.entries)
-                              PopupMenuItem(
-                                value: 'reaction:${reaction.key}',
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      const {
-                                        'heart': '❤️',
-                                        'laugh': '😂',
-                                        'surprise': '😮',
-                                        'sad': '😢',
-                                      }[reaction.key]!,
-                                      style: const TextStyle(
-                                        fontFamily: NotoEmoji.fontFamily,
-                                        fontSize: 20,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(reaction.value),
-                                  ],
+                              MenuItemButton(
+                                onPressed: comment.isSending
+                                    ? null
+                                    : () => onReact(reaction.key),
+                                leadingIcon: Text(
+                                  const {
+                                    'heart': '❤️',
+                                    'laugh': '😂',
+                                    'surprise': '😮',
+                                    'sad': '😢',
+                                  }[reaction.key]!,
+                                  style: const TextStyle(
+                                    fontFamily: NotoEmoji.fontFamily,
+                                    fontSize: 20,
+                                  ),
                                 ),
+                                child: Text(reaction.value),
                               ),
-                            if (isMine)
-                              const PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Редактировать'),
+                            if (isMine && onEdit != null)
+                              MenuItemButton(
+                                onPressed: onEdit,
+                                child: Text(context.l10n.chatEdit),
                               ),
-                            if (isMine)
-                              const PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Удалить'),
+                            if (isMine && onDelete != null)
+                              MenuItemButton(
+                                onPressed: onDelete,
+                                child: Text(
+                                  context.l10n.commonDelete,
+                                  style: TextStyle(color: scheme.error),
+                                ),
                               ),
                           ],
                         ),
@@ -320,7 +340,13 @@ class CommentItem extends StatelessWidget {
                             size: 16,
                           ),
                           label: Text(
-                            '${collapsed ? 'Показать' : 'Скрыть'} ответы ($replyCount)',
+                            collapsed
+                                ? context.l10n.auditCommentShowReplies(
+                                    replyCount,
+                                  )
+                                : context.l10n.auditCommentHideReplies(
+                                    replyCount,
+                                  ),
                           ),
                         ),
                     ],

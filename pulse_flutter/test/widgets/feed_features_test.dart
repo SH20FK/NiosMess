@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -21,6 +23,96 @@ class _Catalog extends CustomEmojiCatalog {
 }
 
 void main() {
+  testWidgets('failed poll vote keeps selection and can be retried', (
+    tester,
+  ) async {
+    var requests = 0;
+    const poll = {
+      'kind': 'poll',
+      'title': 'Question',
+      'items': ['First', 'Second'],
+      'my_choices': <int>[],
+      'counts': [0, 0],
+      'total_voters': 0,
+    };
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          customEmojiRequestProvider.overrideWithValue((action, payload) async {
+            requests++;
+            expect(payload['choices'], [0]);
+            if (requests == 1) throw StateError('offline');
+            return {
+              'poll': {
+                ...poll,
+                'my_choices': [0],
+                'counts': [1, 0],
+                'total_voters': 1,
+              },
+            };
+          }),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: FeedPollCard(postId: 1, poll: poll)),
+        ),
+      ),
+    );
+    await tester.tap(find.text('First'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Повторить'), findsOneWidget);
+    expect(find.text('100%'), findsNothing);
+    await tester.tap(find.text('Повторить'));
+    await tester.pumpAndSettle();
+    expect(requests, 2);
+    expect(find.text('100%'), findsOneWidget);
+  });
+  testWidgets(
+    'poll shows pending choice without revealing unconfirmed results',
+    (tester) async {
+      final response = Completer<Map<String, dynamic>>();
+      var requests = 0;
+      const poll = {
+        'kind': 'quiz',
+        'title': 'Question',
+        'items': ['First', 'Second'],
+        'my_choices': <int>[],
+        'counts': [0, 0],
+        'total_voters': 0,
+      };
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            customEmojiRequestProvider.overrideWithValue((action, payload) {
+              requests++;
+              return response.future;
+            }),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: FeedPollCard(postId: 1, poll: poll)),
+          ),
+        ),
+      );
+      await tester.tap(find.text('First'));
+      await tester.pump();
+      expect(find.text('Отправка…'), findsOneWidget);
+      expect(find.text('0%'), findsNothing);
+      await tester.tap(find.text('Second'), warnIfMissed: false);
+      expect(requests, 1);
+      response.complete({
+        'poll': {
+          ...poll,
+          'my_choices': [0],
+          'correct': 1,
+          'counts': [1, 0],
+          'total_voters': 1,
+        },
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('100%'), findsOneWidget);
+      expect(find.text('Отправка…'), findsNothing);
+    },
+  );
   test(
     'custom emoji count and length limit treat each token as one character',
     () {

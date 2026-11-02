@@ -1519,4 +1519,56 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get inboxFolders => 'Папки чатов';
+
+  @override
+  String get niosgramNotInterested => 'Не интересно';
+
+  @override
+  String get niosgramPostHidden => 'Публикация скрыта';
+
+  @override
+  String get niosgramReactionFailed =>
+      'Не удалось сохранить реакцию. Попробуй ещё раз.';
+
+  @override
+  String get niosgramVoteFailed =>
+      'Не удалось подтвердить голос. Выбор сохранён — попробуй ещё раз.';
+
+  @override
+  String get niosgramAnonymousNotice => 'Имена участников не публикуются';
+
+  @override
+  String get auditCommentActions => 'Действия с комментарием';
+
+  @override
+  String get auditCommentQualityReport =>
+      'Пожаловаться на качество ответа модели';
+
+  @override
+  String get auditCommentLike => 'Нравится';
+
+  @override
+  String get auditCommentLove => 'Люблю';
+
+  @override
+  String get auditCommentLaugh => 'Смешно';
+
+  @override
+  String get auditCommentSurprise => 'Удивительно';
+
+  @override
+  String get auditCommentSad => 'Грустно';
+
+  @override
+  String auditCommentShowReplies(int count) {
+    return 'Показать ответы ($count)';
+  }
+
+  @override
+  String auditCommentHideReplies(int count) {
+    return 'Скрыть ответы ($count)';
+  }
+
+  @override
+  String get auditDeletedAccount => 'Удалённый аккаунт';
 }

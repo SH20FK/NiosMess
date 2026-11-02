@@ -180,6 +180,9 @@ Widget _buildTestApp({
   required Widget child,
   List<dynamic> overrides = const [],
   GoRouter? router,
+  Brightness brightness = Brightness.light,
+  String locale = 'ru',
+  double textScale = 1,
 }) {
   final ThemeData theme = AppTheme.themed(
     const VisualThemeSettings(
@@ -188,7 +191,7 @@ Widget _buildTestApp({
       useSystemDynamic: false,
       predictiveBackEnabled: false,
     ),
-    Brightness.light,
+    brightness,
   );
 
   final List<dynamic> defaultOverrides = [
@@ -203,7 +206,7 @@ Widget _buildTestApp({
         routerConfig: router,
         debugShowCheckedModeBanner: false,
         theme: theme,
-        locale: const Locale('ru'),
+        locale: Locale(locale),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
       ),
@@ -215,9 +218,13 @@ Widget _buildTestApp({
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: theme,
-      locale: const Locale('ru'),
+      locale: Locale(locale),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, content) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: content!,
+      ),
       home: Scaffold(body: child),
     ),
   );
@@ -225,6 +232,37 @@ Widget _buildTestApp({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  for (final locale in ['ru', 'en']) {
+    for (final brightness in Brightness.values) {
+      testWidgets('post actions fit $locale $brightness at 320dp/200%', (tester) async {
+        tester.view.physicalSize = const Size(320, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        var bookmarked = false;
+        await tester.pumpWidget(_buildTestApp(
+          locale: locale, brightness: brightness, textScale: 2,
+          overrides: [authProvider.overrideWith(() => MockAuthNotifier())],
+          child: SingleChildScrollView(child: PostCard(
+            post: _createSamplePost(),
+            onBookmark: (value) => bookmarked = value,
+          )),
+        ));
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.sentiment_dissatisfied_outlined), findsNothing);
+        expect(find.byIcon(Icons.bookmark_outline_rounded), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+        await tester.pumpAndSettle();
+        expect(find.text(locale == 'ru' ? 'Не интересно' : 'Not interested'), findsOneWidget);
+        await tester.tap(find.byIcon(Icons.bookmark_outline_rounded));
+        await tester.pumpAndSettle();
+        expect(bookmarked, isTrue);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // TIER 1: FEATURE COVERAGE (PostCard Rendering & Reactive Action Controls)
@@ -389,7 +427,7 @@ void main() {
       expect(find.byIcon(Icons.more_horiz_rounded), findsOneWidget);
     });
 
-    testWidgets('1.6 Reactive action buttons: displays like, dislike, comment, and share', (
+    testWidgets('1.6 Primary actions show like, comments and share without secondary clutter', (
       WidgetTester tester,
     ) async {
       final post = _createSamplePost(
@@ -409,7 +447,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('42'), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
+      expect(find.text('3'), findsNothing);
+      expect(find.byIcon(Icons.sentiment_dissatisfied_outlined), findsNothing);
+      expect(find.byIcon(Icons.bookmark_outline_rounded), findsNothing);
       expect(find.text('7'), findsOneWidget);
       expect(find.byIcon(Icons.share_outlined), findsOneWidget);
     });
@@ -442,12 +482,15 @@ void main() {
       expect(mockNiosgram.lastReactedIsLike, true);
     });
 
-    testWidgets('1.8 Tapping dislike chip invokes reactPost with false', (
+    testWidgets('1.8 Not interested can be undone before its server reaction', (
       WidgetTester tester,
     ) async {
-      final post = _createSamplePost(id: 202, dislikesCount: 2, myReaction: null);
+      final post = _createSamplePost(
+        id: 202,
+        dislikesCount: 2,
+        myReaction: null,
+      );
       final mockNiosgram = MockNiosgramNotifier(NiosgramState(posts: [post]));
-
       await tester.pumpWidget(
         _buildTestApp(
           overrides: [
@@ -458,14 +501,24 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-
-      final dislikeFinder = find.byIcon(Icons.sentiment_dissatisfied_outlined);
-      expect(dislikeFinder, findsOneWidget);
-
-      await tester.tap(dislikeFinder);
-      await tester.pump(const Duration(milliseconds: 350));
+      final container = ProviderScope.containerOf(tester.element(find.byType(PostCard)));
+      await container.read(niosgramProvider.future);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
       await tester.pumpAndSettle();
-
+      await tester.tap(find.text('Не интересно'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(mockNiosgram.state.value!.posts, isEmpty);
+      expect(mockNiosgram.lastReactedPostId, isNull);
+      await tester.tap(find.text('Отменить'));
+      await tester.pump(const Duration(seconds: 6));
+      expect(mockNiosgram.state.value!.posts.single.id, 202);
+      expect(mockNiosgram.lastReactedPostId, isNull);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Не интересно'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 6));
       expect(mockNiosgram.lastReactedPostId, 202);
       expect(mockNiosgram.lastReactedIsLike, false);
     });
@@ -887,7 +940,7 @@ void main() {
   // TIER 4: M1 CALLBACKS, BOOKMARKING & SKELETONS
   // ══════════════════════════════════════════════════════════════════════════
   group('Tier 4: Milestone 1 Callbacks, Bookmark & Skeletons', () {
-    testWidgets('4.1 PostCard bookmark button toggles state and invokes onBookmark callback', (
+    testWidgets('4.1 Post menu bookmark toggles state and preserves its callback', (
       WidgetTester tester,
     ) async {
       final post = _createSamplePost(id: 801);
@@ -909,14 +962,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.byIcon(Icons.bookmark_outline_rounded), findsNothing);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
       final bookmarkFinder = find.byIcon(Icons.bookmark_outline_rounded);
       expect(bookmarkFinder, findsOneWidget);
-
       await tester.tap(bookmarkFinder);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
       expect(bookmarkState, isTrue);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
       expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
     });
 
@@ -959,8 +1016,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(likeCalled, isTrue);
 
-      // Tap dislike
-      await tester.tap(find.byIcon(Icons.sentiment_dissatisfied_outlined));
+      // The secondary action keeps the existing custom integration callback.
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Не интересно'));
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
       expect(dislikeCalled, isTrue);

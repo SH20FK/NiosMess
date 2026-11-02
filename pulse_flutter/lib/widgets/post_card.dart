@@ -155,13 +155,18 @@ class _PostCardState extends ConsumerState<PostCard>
     if (settings.haptics) HapticService.reaction();
     if (widget.onDislike != null) {
       widget.onDislike!();
-    } else {
-      ref.read(niosgramProvider.notifier).reactPost(widget.post.id, false).then(
-        (_) {
-          if (mounted) widget.onChanged?.call();
-        },
-      );
+      return;
     }
+    final notifier = ref.read(niosgramProvider.notifier);
+    final postId = widget.post.id;
+    AppToast.showAction(
+      context,
+      message: context.l10n.niosgramPostHidden,
+      actionLabel: context.l10n.chatAiUndo,
+      onAction: () => notifier.undoHidePost(postId),
+      duration: const Duration(seconds: 5),
+    );
+    notifier.hidePost(widget.post);
   }
 
   void _handleComment() {
@@ -588,6 +593,11 @@ class _PostCardState extends ConsumerState<PostCard>
                         isOwn: isOwn,
                         onChanged: widget.onChanged,
                         onDeleted: widget.onDeleted,
+                        isBookmarked: widget.onBookmark == null
+                            ? saved
+                            : _isBookmarked,
+                        onBookmark: _handleBookmark,
+                        onNotInterested: _handleDislike,
                       ),
                     ],
                   ),
@@ -636,16 +646,6 @@ class _PostCardState extends ConsumerState<PostCard>
                         scheme: scheme,
                       ),
                       _ActionChip(
-                        label: context.l10n.niosgramDislikeAction,
-                        icon: Icons.sentiment_dissatisfied_outlined,
-                        activeIcon: Icons.sentiment_dissatisfied_rounded,
-                        count: post.dislikesCount,
-                        active: post.myReaction == false,
-                        activeColor: scheme.error,
-                        onTap: _handleDislike,
-                        scheme: scheme,
-                      ),
-                      _ActionChip(
                         label: context.l10n.niosgramCommentAction,
                         icon: Icons.chat_bubble_outline_rounded,
                         activeIcon: Icons.chat_bubble_rounded,
@@ -663,18 +663,6 @@ class _PostCardState extends ConsumerState<PostCard>
                         active: false,
                         activeColor: scheme.onSurfaceVariant,
                         onTap: _handleShare,
-                        scheme: scheme,
-                      ),
-                      _ActionChip(
-                        label: context.l10n.niosgramSaveAction,
-                        icon: Icons.bookmark_outline_rounded,
-                        activeIcon: Icons.bookmark_rounded,
-                        count: 0,
-                        active: widget.onBookmark == null
-                            ? saved
-                            : _isBookmarked,
-                        activeColor: scheme.primary,
-                        onTap: _handleBookmark,
                         scheme: scheme,
                       ),
                     ],
@@ -1099,18 +1087,25 @@ class _LikeSparkPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final double opacity = (1 - progress).clamp(0.0, 1.0);
-    final double distance = 9 + 9 * M3SpringCurves.expressiveDecel.transform(progress);
+    final double distance =
+        9 + 9 * M3SpringCurves.expressiveDecel.transform(progress);
     final Paint paint = Paint()
       ..color = color.withValues(alpha: opacity * 0.8)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
     final Offset center = size.center(Offset.zero);
     for (final Offset direction in const <Offset>[
-      Offset(-0.7, -0.7), Offset(0, -1), Offset(0.7, -0.7),
-      Offset(-1, 0), Offset(1, 0),
+      Offset(-0.7, -0.7),
+      Offset(0, -1),
+      Offset(0.7, -0.7),
+      Offset(-1, 0),
+      Offset(1, 0),
     ]) {
-      canvas.drawLine(center + direction * distance,
-          center + direction * (distance + 3 * opacity), paint);
+      canvas.drawLine(
+        center + direction * distance,
+        center + direction * (distance + 3 * opacity),
+        paint,
+      );
     }
   }
 
@@ -1225,12 +1220,16 @@ class _ActionChipState extends State<_ActionChip>
                   animation: _scale,
                   builder: (_, Widget? child) {
                     return CustomPaint(
-                      foregroundPainter: _celebrate && _ctrl.isAnimating &&
+                      foregroundPainter:
+                          _celebrate &&
+                              _ctrl.isAnimating &&
                               !MediaQuery.disableAnimationsOf(context)
                           ? _LikeSparkPainter(_ctrl.value, widget.activeColor)
                           : null,
                       child: Transform.scale(
-                        scale: MediaQuery.disableAnimationsOf(context) ? 1 : _scale.value,
+                        scale: MediaQuery.disableAnimationsOf(context)
+                            ? 1
+                            : _scale.value,
                         child: child,
                       ),
                     );
@@ -1277,8 +1276,13 @@ class _PostMenu extends ConsumerWidget {
     required this.isOwn,
     this.onChanged,
     this.onDeleted,
+    required this.isBookmarked,
+    required this.onBookmark,
+    required this.onNotInterested,
   });
 
+  final bool isBookmarked;
+  final VoidCallback onBookmark, onNotInterested;
   final NgPost post;
 
   final bool isOwn;
@@ -1306,6 +1310,25 @@ class _PostMenu extends ConsumerWidget {
             );
           },
       menuChildren: <Widget>[
+        MenuItemButton(
+          leadingIcon: Icon(
+            isBookmarked
+                ? Icons.bookmark_rounded
+                : Icons.bookmark_outline_rounded,
+          ),
+          onPressed: onBookmark,
+          child: Text(
+            isBookmarked
+                ? context.l10n.niosgramRemoveSaved
+                : context.l10n.niosgramSaveAction,
+          ),
+        ),
+        if (!isOwn)
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.visibility_off_outlined),
+            onPressed: onNotInterested,
+            child: Text(context.l10n.niosgramNotInterested),
+          ),
         if (!isOwn)
           MenuItemButton(
             leadingIcon: Icon(

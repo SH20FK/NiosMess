@@ -28,6 +28,14 @@ class PostCommentsRepository {
             if (channelId > 0) 'channel_id': channelId,
             ...extra,
           },
+          // Comment creation and reaction toggles have no server operation ID.
+          // A lost response must never silently repeat a write.
+          maxRetries:
+              action == 'get_comments' ||
+                  action == 'get_post_comments' ||
+                  action == 'get_feed_post'
+              ? 2
+              : 0,
         );
     if (result is! Map) throw StateError('Не удалось получить комментарии');
     final map = result.map((dynamic k, dynamic v) => MapEntry(k.toString(), v));
@@ -77,7 +85,7 @@ class PostCommentsRepository {
     );
   }
 
-  Future<void> mutate(
+  Future<ApiMessage?> mutate(
     String action,
     int channelId,
     int postId,
@@ -85,11 +93,17 @@ class PostCommentsRepository {
     String? content,
     String? reaction,
   }) async {
-    await request(action, channelId, postId, <String, dynamic>{
+    final result = await request(action, channelId, postId, <String, dynamic>{
       'comment_id': commentId,
       'content': ?content,
       'reaction': ?reaction,
     });
+    // Current NiosGram handlers return the complete comment. Older channel
+    // handlers may only acknowledge; those still require a background refresh.
+    if (result['id'] is num && result['content'] is String) {
+      return ApiMessage.fromJson(result);
+    }
+    return null;
   }
 }
 

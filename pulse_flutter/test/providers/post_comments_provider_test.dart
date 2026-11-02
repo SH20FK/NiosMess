@@ -35,6 +35,10 @@ ApiMessage message(int id) =>
 class _Repository extends PostCommentsRepository {
   _Repository(super.ref);
   Completer<CommentsPage>? pending;
+  Completer<ApiMessage>? pendingSend;
+  Completer<ApiMessage?>? pendingMutation;
+  int sends = 0;
+  int mutations = 0;
   final cursors = <int>[];
   @override
   Future<CommentsPage> page(
@@ -59,9 +63,13 @@ class _Repository extends PostCommentsRepository {
     int postId,
     String content,
     int? replyToId,
-  ) async => message(100);
+  ) async {
+    sends++;
+    return pendingSend?.future ?? message(100);
+  }
+
   @override
-  Future<void> mutate(
+  Future<ApiMessage?> mutate(
     String action,
     int channelId,
     int postId,
@@ -69,11 +77,137 @@ class _Repository extends PostCommentsRepository {
     String? content,
     String? reaction,
   }) async {
+    mutations++;
+    if (pendingMutation != null) return pendingMutation!.future;
     throw StateError('Fixture server rejected action');
   }
 }
 
 void main() {
+  Future<(ProviderContainer, _Repository, WebSocketClient)> fixture() async {
+    final socket = WebSocketClient(
+      baseUrl: 'https://fixture.invalid',
+      readToken: () => null,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(_Auth.new),
+        webSocketClientProvider.overrideWithValue(socket),
+        postCommentsRepositoryProvider.overrideWith(_Repository.new),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(socket.close);
+    return (
+      container,
+      container.read(postCommentsRepositoryProvider) as _Repository,
+      socket,
+    );
+  }
+
+  test(
+    'repeated send shares one pending write and one returned comment',
+    () async {
+      final (container, repository, _) = await fixture();
+      final provider = postCommentsProvider(
+        const PostCommentsArgs(channelId: 0, postId: 1),
+      );
+      final sub = container.listen(provider, (_, _) {});
+      addTearDown(sub.close);
+      await container.read(provider.future);
+      repository.pendingSend = Completer<ApiMessage>();
+      final notifier = container.read(provider.notifier);
+      final first = notifier.send('same text', replyToId: 2);
+      final second = notifier.send('same text', replyToId: 2);
+      expect(repository.sends, 1);
+      repository.pendingSend!.complete(message(100));
+      await Future.wait([first, second]);
+      expect(
+        container.read(provider).requireValue.where((item) => item.id == 100),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'edit is immediate, rejects stale refresh, and rolls back on failure',
+    () async {
+      final (container, repository, _) = await fixture();
+      final provider = postCommentsProvider(
+        const PostCommentsArgs(channelId: 0, postId: 1),
+      );
+      final sub = container.listen(provider, (_, _) {});
+      addTearDown(sub.close);
+      await container.read(provider.future);
+      repository.pendingMutation = Completer<ApiMessage?>();
+      final notifier = container.read(provider.notifier);
+      final operation = notifier.editComment(1, 'edited');
+      expect(container.read(provider).requireValue.first.content, 'edited');
+      await notifier.refresh();
+      expect(container.read(provider).requireValue.first.content, 'edited');
+      repository.pendingMutation!.completeError(StateError('offline'));
+      await expectLater(operation, throwsStateError);
+      expect(container.read(provider).requireValue.first.content, 'Comment 1');
+    },
+  );
+
+  test(
+    'reaction result updates in place without a second page round trip',
+    () async {
+      final (container, repository, _) = await fixture();
+      final provider = postCommentsProvider(
+        const PostCommentsArgs(channelId: 0, postId: 1),
+      );
+      final sub = container.listen(provider, (_, _) {});
+      addTearDown(sub.close);
+      await container.read(provider.future);
+      repository.pendingMutation = Completer<ApiMessage?>();
+      final notifier = container.read(provider.notifier);
+      final first = notifier.react(1, 'like');
+      final second = notifier.react(1, 'like');
+      expect(repository.mutations, 1);
+      repository.pendingMutation!.complete(
+        message(1).copyWith(reactions: {'👍': 1}),
+      );
+      await Future.wait([first, second]);
+      expect(container.read(provider).requireValue.first.reactions, {'👍': 1});
+      expect(repository.cursors, [0]);
+    },
+  );
+
+  test('a different comment action waits for the first operation', () async {
+    final (container, repository, _) = await fixture();
+    final provider = postCommentsProvider(
+      const PostCommentsArgs(channelId: 0, postId: 1),
+    );
+    final sub = container.listen(provider, (_, _) {});
+    addTearDown(sub.close);
+    await container.read(provider.future);
+    final firstResponse = Completer<ApiMessage?>();
+    repository.pendingMutation = firstResponse;
+    final notifier = container.read(provider.notifier);
+    final first = notifier.react(1, 'like');
+    final edit = notifier.editComment(1, 'changed after reaction');
+    expect(repository.mutations, 1);
+    final editResponse = Completer<ApiMessage?>();
+    repository.pendingMutation = editResponse;
+    firstResponse.complete(message(1).copyWith(reactions: {'👍': 1}));
+    await first;
+    await Future<void>.delayed(Duration.zero);
+    expect(repository.mutations, 2);
+    expect(
+      container.read(provider).requireValue.first.content,
+      'changed after reaction',
+    );
+    editResponse.complete(
+      message(
+        1,
+      ).copyWith(content: 'changed after reaction', reactions: {'👍': 1}),
+    );
+    await edit;
+    expect(container.read(provider).requireValue.first.reactions, {'👍': 1});
+  });
+
   test(
     'sending after the first page never skips intervening comments',
     () async {

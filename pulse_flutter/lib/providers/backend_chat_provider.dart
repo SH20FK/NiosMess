@@ -3752,7 +3752,13 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
   bool _refreshAgain = false;
   int _revision = 0;
   int _accountEpoch = 0;
-  bool _current(int epoch) => ref.mounted && epoch == _accountEpoch;
+  final _pendingMutations = <int, Future<void>>{};
+  final _mutationIntents = <(int, String, String?, String?), Future<void>>{};
+  final _pendingSends = <(String, int?), Future<void>>{};
+  bool _current(int epoch) =>
+      ref.mounted &&
+      epoch == _accountEpoch &&
+      !ref.read(authProvider.notifier).isLoggingOut;
   int _cursor = 0;
   PostCommentsRepository get _repository =>
       ref.read(postCommentsRepositoryProvider);
@@ -3763,6 +3769,9 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
       authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
     );
     final epoch = ++_accountEpoch;
+    _pendingMutations.clear();
+    _mutationIntents.clear();
+    _pendingSends.clear();
     _revision++;
     _refreshing = false;
     _refreshAgain = false;
@@ -3770,7 +3779,9 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
     hasMore = false;
     totalCount = null;
     _cursor = 0;
-    state = const AsyncData([]);
+    // Do not resolve provider.future with a placeholder before page one loads.
+    // A fresh loading value also clears the previous account's comments.
+    state = const AsyncLoading();
     if (account.$1 == null || account.$2 == null || account.$2!.isEmpty) {
       return const <ApiMessage>[];
     }
@@ -3837,7 +3848,14 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
           (state.value ?? const <ApiMessage>[]).where((m) => m.id > _cursor),
         );
       }
-      state = AsyncData(items);
+      // A push/periodic refresh must not replace an in-flight local edit/delete.
+      final pending = {
+        for (final item in state.value ?? const <ApiMessage>[])
+          if (_pendingMutations.containsKey(item.id)) item.id: item,
+      };
+      state = AsyncData([
+        for (final item in items) pending[item.id] ?? item,
+      ]);
     } catch (error, trace) {
       if (!silent &&
           _current(epoch) &&
@@ -3872,7 +3890,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
         for (final item in state.value ?? current) item.id: item,
       };
       for (final item in page.messages) {
-        next[item.id] = item;
+        if (!_pendingMutations.containsKey(item.id)) next[item.id] = item;
       }
       hasMore = page.hasMore;
       totalCount = page.totalCount;
@@ -3889,9 +3907,22 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
     }
   }
 
-  Future<void> send(String content, {int? replyToId}) async {
-    if (content.trim().isEmpty) return;
+  Future<void> send(String content, {int? replyToId}) {
+    final text = content.trim();
+    if (text.isEmpty) return Future.value();
+    final key = (text, replyToId);
+    final pending = _pendingSends[key];
+    if (pending != null) return pending;
+    late final Future<void> operation;
+    operation = _send(text, replyToId: replyToId).whenComplete(() {
+      if (identical(_pendingSends[key], operation)) _pendingSends.remove(key);
+    });
+    return _pendingSends[key] = operation;
+  }
+
+  Future<void> _send(String content, {int? replyToId}) async {
     final epoch = _accountEpoch;
+    if (!_current(epoch)) throw StateError('COMMENT_ACCOUNT_CHANGED');
     final created = await _repository.send(
       _args.channelId,
       _args.postId,
@@ -3900,7 +3931,8 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
     );
     if (!_current(epoch)) throw StateError('COMMENT_ACCOUNT_CHANGED');
     _revision++;
-    if (totalCount != null) totalCount = totalCount! + 1;
+    final exists = state.value?.any((item) => item.id == created.id) ?? false;
+    if (totalCount != null && !exists) totalCount = totalCount! + 1;
     final next = <int, ApiMessage>{
       for (final item in state.value ?? const <ApiMessage>[]) item.id: item,
       created.id: created,
@@ -3919,21 +3951,89 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
     int id, {
     String? content,
     String? reaction,
+  }) {
+    final intent = (id, action, content, reaction);
+    final identicalIntent = _mutationIntents[intent];
+    if (identicalIntent != null) return identicalIntent;
+    final pending = _pendingMutations[id];
+    final epoch = _accountEpoch;
+    Future<void> perform() {
+      if (!_current(epoch)) throw StateError('COMMENT_ACCOUNT_CHANGED');
+      return _performMutation(action, id, content: content, reaction: reaction);
+    }
+    late final Future<void> operation;
+    final work = pending == null
+        ? perform()
+        : pending.then((_) {}, onError: (Object _, StackTrace _) {}).then((_) => perform());
+    operation = work.whenComplete(() {
+      if (identical(_mutationIntents[intent], operation)) {
+        _mutationIntents.remove(intent);
+      }
+      if (identical(_pendingMutations[id], operation)) {
+        _pendingMutations.remove(id);
+      }
+    });
+    _mutationIntents[intent] = operation;
+    return _pendingMutations[id] = operation;
+  }
+
+  Future<void> _performMutation(
+    String action,
+    int id, {
+    String? content,
+    String? reaction,
   }) async {
     final epoch = _accountEpoch;
-    await _repository.mutate(
-      action,
-      _args.channelId,
-      _args.postId,
-      id,
-      content: content,
-      reaction: reaction,
-    );
-    if (!_current(epoch)) throw StateError('COMMENT_ACCOUNT_CHANGED');
+    final before = state.value?.where((item) => item.id == id).firstOrNull;
+    if (before == null || !_current(epoch)) return;
+    final optimistic = action == 'edit_post_comment'
+        ? before.copyWith(content: content, editedAt: DateTime.now())
+        : action == 'delete_post_comment'
+        ? before.copyWith(content: '', isDeleted: true)
+        : before.copyWith(isSending: true);
     _revision++;
-    await refresh();
-    if (_args.channelId == 0 && action == 'delete_post_comment') {
-      ref.invalidate(niosgramProvider);
+    state = AsyncData([
+      for (final item in state.value ?? const <ApiMessage>[])
+        item.id == id ? optimistic : item,
+    ]);
+    try {
+      final confirmed = await _repository.mutate(
+        action,
+        _args.channelId,
+        _args.postId,
+        id,
+        content: content,
+        reaction: reaction,
+      );
+      if (!_current(epoch)) throw StateError('COMMENT_ACCOUNT_CHANGED');
+      _revision++;
+      if (confirmed != null && confirmed.id == id) {
+        state = AsyncData([
+          for (final item in state.value ?? const <ApiMessage>[])
+            item.id == id ? confirmed : item,
+        ]);
+      } else {
+        // Do not make the action wait for another full page round trip.
+        if (action == 'react_post_comment') {
+          state = AsyncData([
+            for (final item in state.value ?? const <ApiMessage>[])
+              item.id == id ? item.copyWith(isSending: false) : item,
+          ]);
+        }
+        unawaited(refresh(silent: true));
+      }
+      if (_args.channelId == 0 && action == 'delete_post_comment') {
+        ref.invalidate(niosgramProvider);
+      }
+    } catch (_) {
+      if (_current(epoch)) {
+        _revision++;
+        state = AsyncData([
+          for (final item in state.value ?? const <ApiMessage>[])
+            item.id == id ? before : item,
+        ]);
+      }
+      rethrow;
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'widgets/chat_productivity_test.dart' as chat_productivity;
+import 'providers/feed_poll_vote_test.dart' as feed_poll_vote;
 import 'services/encrypted_draft_sync_test.dart' as encrypted_draft_sync;
 import 'unit/encrypted_draft_codec_test.dart' as encrypted_draft_codec;
 import 'services/live_location_service_test.dart' as live_location;
@@ -227,6 +228,7 @@ void main() {
     touch_motion.main();
   });
   feed_features.main();
+  group('feed_poll_vote', feed_poll_vote.main);
   comment_threads.main();
   comment_items.main();
   comment_provider.main();

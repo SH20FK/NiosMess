@@ -13,6 +13,7 @@ import 'package:pulse_flutter/repositories/post_comments_repository.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
+import 'package:pulse_flutter/providers/feed_poll_vote_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/comment_item.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
@@ -23,13 +24,19 @@ final feedPostByIdProvider = FutureProvider.family<NgPost, int>((
   ref,
   id,
 ) async {
-  ref.watch(authProvider.select((a) => a.session?.userId));
+  ref.watch(
+    authProvider.select((a) => (a.session?.userId, a.session?.accessToken)),
+  );
+  final ballots = ref.read(feedPollVotesProvider.notifier);
+  final before = ballots.revisions;
   final data = await ref
       .read(postCommentsRepositoryProvider)
       .request('get_feed_post', 0, id, {});
   final posts = data['posts'] as List? ?? [];
   if (posts.isEmpty) throw StateError('POST_NOT_FOUND');
-  return NgPost.fromJson(Map<String, dynamic>.from(posts.first as Map));
+  final post = NgPost.fromJson(Map<String, dynamic>.from(posts.first as Map));
+  if (ref.mounted) ballots.reconcile(before, [post]);
+  return post;
 });
 
 class PostCommentsScreen extends ConsumerStatefulWidget {
@@ -597,6 +604,7 @@ class _PinnedPostHeader extends StatelessWidget {
                             child: FeedPollCard(
                               postId: data.postId,
                               poll: data.poll!,
+                              showTitle: false,
                             ),
                           ),
                         ),

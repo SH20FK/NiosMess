@@ -7,7 +7,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/smooth_scroll.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
-import 'package:pulse_flutter/models/api/post_model.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
 import 'package:pulse_flutter/providers/notifications_provider.dart';
@@ -54,7 +54,21 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AsyncValue<NiosgramState> feedAsync = ref.watch(niosgramProvider);
+    ref.listen(
+      niosgramProvider.select((value) => value.value?.reactionFailureSerial),
+      (previous, next) {
+        if (next != null &&
+            next > (previous ?? 0) &&
+            ModalRoute.of(context)?.isCurrent != false) {
+          AppToast.showError(context, context.l10n.niosgramReactionFailed);
+        }
+      },
+    );
+    final AsyncValue<NiosgramFeedLayout> feedAsync = ref.watch(
+      niosgramProvider.select(
+        (value) => value.whenData(NiosgramFeedLayout.new),
+      ),
+    );
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final double screenWidth = MediaQuery.sizeOf(context).width;
     final bool isWide = screenWidth >= Breakpoints.medium;
@@ -95,11 +109,17 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
               backgroundColor: scheme.surfaceContainerHigh,
               foregroundColor: scheme.onSurfaceVariant,
               elevation: 0,
-              onPressed: () => _scrollController.animateTo(
-                0,
-                duration: const Duration(milliseconds: 300),
-                curve: M3SpringCurves.expressiveDecel,
-              ),
+              onPressed: () {
+                if (MediaQuery.disableAnimationsOf(context)) {
+                  _scrollController.jumpTo(0);
+                } else {
+                  _scrollController.animateTo(
+                    0,
+                    duration: const Duration(milliseconds: 300),
+                    curve: M3SpringCurves.expressiveDecel,
+                  );
+                }
+              },
               child: const Icon(Icons.keyboard_arrow_up_rounded),
             )
           : null,
@@ -114,8 +134,8 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
               variant: AppErrorBannerVariant.centered,
               onRetry: () => ref.invalidate(niosgramProvider),
             ),
-            data: (NiosgramState feedState) {
-              if (feedState.posts.isEmpty) {
+            data: (NiosgramFeedLayout feedState) {
+              if (feedState.ids.isEmpty) {
                 return RefreshIndicator(
                   onRefresh: () =>
                       ref.read(niosgramProvider.notifier).refresh(),
@@ -138,15 +158,22 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
                   ),
                 );
               }
+              final idToIndex = <int, int>{
+                for (var i = 0; i < feedState.ids.length; i++)
+                  feedState.ids[i]: i + 1,
+              };
               return RefreshIndicator(
                 onRefresh: () => ref.read(niosgramProvider.notifier).refresh(),
                 child: ListView.builder(
                   controller: _scrollController,
+                  // PostCard already isolates its paint; keep one boundary per post.
                   addRepaintBoundaries: false,
+                  findChildIndexCallback: (key) =>
+                      key is ValueKey<int> ? idToIndex[key.value] : null,
                   padding: EdgeInsets.only(top: 4, bottom: isWide ? 84 : 96),
                   itemCount:
                       1 +
-                      feedState.posts.length +
+                      feedState.ids.length +
                       (feedState.isLoadingMore ? 1 : 0) +
                       (feedState.hasMore && !feedState.isLoadingMore ? 1 : 0),
                   itemBuilder: (BuildContext context, int index) {
@@ -160,7 +187,7 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
                       );
                     }
                     final int postIndex = index - 1;
-                    if (postIndex == feedState.posts.length) {
+                    if (postIndex == feedState.ids.length) {
                       if (feedState.isLoadingMore) {
                         return const Padding(
                           padding: EdgeInsets.all(16),
@@ -191,13 +218,14 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
                             ref.read(niosgramProvider.notifier).loadMore(),
                       );
                     }
-                    final NgPost post = feedState.posts[postIndex];
+                    final postId = feedState.ids[postIndex];
                     return Padding(
+                      key: ValueKey<int>(postId),
                       padding: EdgeInsets.symmetric(
                         horizontal: horizontalGutter,
                         vertical: isWide ? 8 : 6,
                       ),
-                      child: PostCard(key: ValueKey<int>(post.id), post: post),
+                      child: _FeedPostEntry(postId: postId),
                     );
                   },
                 ),
@@ -207,6 +235,20 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
         ),
       ),
     );
+  }
+}
+
+class _FeedPostEntry extends ConsumerWidget {
+  const _FeedPostEntry({required this.postId});
+  final int postId;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final post = ref.watch(
+      niosgramPostsByIdProvider.select((posts) => posts[postId]),
+    );
+    return post == null
+        ? const SizedBox.shrink()
+        : PostCard(key: ValueKey<int>(postId), post: post);
   }
 }
 
