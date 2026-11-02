@@ -62,6 +62,10 @@ class FeedPollVotes extends Notifier<Map<int, FeedPollVote>> {
   }
 
   void select(int id, Map<String, dynamic> source, Set<int> choices) {
+    if (ref.read(authProvider.notifier).isLoggingOut ||
+        ref.read(authProvider).session == null) {
+      return;
+    }
     final old = state[id];
     if (old?.pending == true) return;
     _revisions[id] = ++_serial;
@@ -98,6 +102,10 @@ class FeedPollVotes extends Notifier<Map<int, FeedPollVote>> {
     Map<String, dynamic> source,
     Set<int> choices,
   ) async {
+    if (ref.read(authProvider.notifier).isLoggingOut ||
+        ref.read(authProvider).session == null) {
+      return;
+    }
     if (state[id]?.pending == true || choices.isEmpty) return;
     final epoch = _epoch;
     final session = ref.read(authProvider).session;
@@ -145,6 +153,24 @@ class FeedPollVotes extends Notifier<Map<int, FeedPollVote>> {
       if (result['error'] != null ||
           confirmed is! Map ||
           confirmed['items'] is! List ||
+          (confirmed['items'] as List).any((item) => item is! String) ||
+          !listEquals(confirmed['items'] as List, items) ||
+          confirmed['kind'] != poll['kind'] ||
+          confirmed['counts'] is! List ||
+          (confirmed['counts'] as List).length != items.length ||
+          (confirmed['counts'] as List).any(
+            (count) => count is! num || !count.isFinite || count < 0,
+          ) ||
+          confirmed['total_voters'] is! num ||
+          !(confirmed['total_voters'] as num).isFinite ||
+          (confirmed['total_voters'] as num) < 0 ||
+          (confirmed['title'] != null && confirmed['title'] is! String) ||
+          (confirmed['explanation'] != null &&
+              confirmed['explanation'] is! String) ||
+          (confirmed['correct'] != null &&
+              (confirmed['correct'] is! int ||
+                  (confirmed['correct'] as int) < 0 ||
+                  (confirmed['correct'] as int) >= items.length)) ||
           confirmed['my_choices'] is! List ||
           (confirmed['my_choices'] as List).isEmpty ||
           (confirmed['my_choices'] as List).any(

@@ -82,8 +82,6 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
             true) {
           ref.read(chatMessagesProvider(widget.channelId).notifier).refresh();
         }
-      } else if (ref.read(niosgramProvider).value?.posts.isEmpty ?? true) {
-        ref.read(niosgramProvider.notifier).refresh();
       }
     });
   }
@@ -234,12 +232,25 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
         );
       }
     } else {
-      final NiosgramState? ngState = ref.watch(niosgramProvider).value;
+      // A deep link fetches its own post; it need not load the entire feed.
+      final feed =
+          ProviderScope.containerOf(
+            context,
+            listen: false,
+          ).exists(niosgramProvider)
+          ? ref.watch(niosgramProvider)
+          : null;
+      final NiosgramState? ngState = feed?.isLoading == true
+          ? null
+          : feed?.value;
       final NgPost? cachedPost = ngState?.posts
           .where((NgPost p) => p.id == widget.postId)
           .firstOrNull;
+      final detail = cachedPost == null
+          ? ref.watch(feedPostByIdProvider(widget.postId))
+          : null;
       final niosgramPost =
-          cachedPost ?? ref.watch(feedPostByIdProvider(widget.postId)).value;
+          cachedPost ?? (detail?.isLoading == true ? null : detail?.value);
       if (niosgramPost != null) {
         postAuthorId = niosgramPost.author.id;
         final String? mediaUrl = niosgramPost.mediaUrls.isNotEmpty

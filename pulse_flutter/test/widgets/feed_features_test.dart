@@ -11,6 +11,20 @@ import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';
 import 'package:pulse_flutter/widgets/feed_poll_card.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/models/api/auth_models.dart';
+
+class _PollAuth extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState.initial().copyWith(
+    session: const AuthSession(
+      accessToken: 'fixture-poll',
+      userId: 1,
+      username: 'fixture',
+      displayName: 'Fixture',
+    ),
+  );
+}
 
 class _Catalog extends CustomEmojiCatalog {
   final requested = <String>[];
@@ -38,6 +52,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          authProvider.overrideWith(_PollAuth.new),
           customEmojiRequestProvider.overrideWithValue((action, payload) async {
             requests++;
             expect(payload['choices'], [0]);
@@ -83,6 +98,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            authProvider.overrideWith(_PollAuth.new),
             customEmojiRequestProvider.overrideWithValue((action, payload) {
               requests++;
               return response.future;
@@ -310,6 +326,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              authProvider.overrideWith(_PollAuth.new),
               customEmojiRequestProvider.overrideWithValue((
                 action,
                 payload,
