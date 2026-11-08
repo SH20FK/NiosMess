@@ -35,7 +35,7 @@ import 'package:universal_io/io.dart';
 class _Settings extends UiSettingsNotifier {
   @override
   UiSettingsState build() => const UiSettingsState.defaults().copyWith(
-    navBarFloating: false,
+    navBarFloating: true,
     soundEffects: false,
     haptics: false,
   );

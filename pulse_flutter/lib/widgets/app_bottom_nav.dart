@@ -203,9 +203,6 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
     final int totalUnread = ref.watch(totalUnreadCountProvider);
     final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
     final bool animate = !MediaQuery.disableAnimationsOf(context);
-    final bool isFloating = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.navBarFloating),
-    );
     final scheme = Theme.of(context).colorScheme;
     final duration = animate
         ? Duration(milliseconds: tier.isTierC ? 200 : 280)
@@ -228,99 +225,6 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
         Icons.settings_rounded,
       ),
     ];
-
-    final navBarWidget = Theme(
-      data: Theme.of(context).copyWith(
-        navigationBarTheme: NavigationBarThemeData(
-          height: isFloating ? 62 : 66,
-          elevation: 0,
-          backgroundColor: isFloating ? Colors.transparent : scheme.surfaceContainer,
-          indicatorColor: scheme.primary.withValues(alpha: 0.16),
-          indicatorShape: const StadiumBorder(),
-          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
-            (states) => TextStyle(
-              fontFamily: AppFonts.ui,
-              fontSize: 11,
-              fontWeight: states.contains(WidgetState.selected)
-                  ? FontWeight.w700
-                  : FontWeight.w500,
-              color: states.contains(WidgetState.selected)
-                  ? scheme.primary
-                  : scheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-      child: NavigationBar(
-        key: const ValueKey('main-bottom-navigation'),
-        height: isFloating ? 62 : 66,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        backgroundColor: isFloating ? Colors.transparent : scheme.surfaceContainer,
-        animationDuration: duration,
-        maintainBottomViewPadding: !isFloating,
-        selectedIndex: widget.currentIndex,
-        onDestinationSelected: _handleTap,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: List<Widget>.generate(items.length, (index) {
-          final item = items[index];
-          final selected = index == widget.currentIndex;
-          final icon = TabMorphIcon(
-            outlineIcon: item.icon,
-            filledIcon: item.selectedIcon,
-            isSelected: selected,
-            color: selected ? scheme.primary : scheme.onSurfaceVariant,
-            animate: animate,
-            duration: duration,
-            size: 20,
-          );
-          return NavigationDestination(
-            label: item.label,
-            icon: item.badge > 0
-                ? Badge(
-                    backgroundColor: scheme.primary,
-                    textColor: scheme.onPrimary,
-                    label: Text(item.badge > 99 ? '99+' : '${item.badge}'),
-                    child: icon,
-                  )
-                : icon,
-          );
-        }),
-      ),
-    );
-
-    if (isFloating) {
-      return SafeArea(
-        top: false,
-        left: false,
-        right: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh.withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.35),
-                width: 1.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(32),
-              child: navBarWidget,
-            ),
-          ),
-        ),
-      );
-    }
-
     return DecoratedBox(
       decoration: BoxDecoration(
         color: scheme.surfaceContainer,
@@ -331,7 +235,64 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
           ),
         ),
       ),
-      child: navBarWidget,
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          navigationBarTheme: NavigationBarThemeData(
+            height: 66,
+            elevation: 0,
+            backgroundColor: scheme.surfaceContainer,
+            indicatorColor: scheme.primary.withValues(alpha: 0.16),
+            indicatorShape: const StadiumBorder(),
+            labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
+              (states) => TextStyle(
+                fontFamily: AppFonts.ui,
+                fontSize: 11,
+                fontWeight: states.contains(WidgetState.selected)
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+                color: states.contains(WidgetState.selected)
+                    ? scheme.primary
+                    : scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+        child: NavigationBar(
+          key: const ValueKey('main-bottom-navigation'),
+          height: 66,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          animationDuration: duration,
+          maintainBottomViewPadding: true,
+          selectedIndex: widget.currentIndex,
+          onDestinationSelected: _handleTap,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: List<Widget>.generate(items.length, (index) {
+            final item = items[index];
+            final selected = index == widget.currentIndex;
+            final icon = TabMorphIcon(
+              outlineIcon: item.icon,
+              filledIcon: item.selectedIcon,
+              isSelected: selected,
+              color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              animate: animate,
+              duration: duration,
+              size: 20,
+            );
+            return NavigationDestination(
+              label: item.label,
+              icon: item.badge > 0
+                  ? Badge(
+                      backgroundColor: scheme.primary,
+                      textColor: scheme.onPrimary,
+                      label: Text(item.badge > 99 ? '99+' : '${item.badge}'),
+                      child: icon,
+                    )
+                  : icon,
+            );
+          }),
+        ),
+      ),
     );
   }
 }

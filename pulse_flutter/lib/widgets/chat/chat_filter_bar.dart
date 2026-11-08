@@ -1,50 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/widgets/motion/m3_selection_motion.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
-import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/widgets/motion/m3_selection_motion.dart';
 
-/// Unified single-row Material 3 Expressive Morphing Tab Bar.
-///
-/// Features soft squircle pill capsules with spatial spring animation,
-/// full-width touch targets, and seamlessly integrated category menus.
+/// Common filters stay visible; less frequent categories live in one menu.
+/// Horizontal scrolling keeps targets readable with large accessibility fonts.
 class ChatFilterBar extends ConsumerWidget {
   const ChatFilterBar({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filter = ref.watch(chatFilterProvider);
-    final folders = ref.watch(chatFoldersProvider).value ?? [];
-    final selectedFolder = ref.watch(selectedChatFolderProvider);
     final l = context.l10n;
     final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
     final types = <ChatFilter, String>{
       ChatFilter.direct: l.chatListFilterDirect,
       ChatFilter.channels: l.chatListFilterChannels,
       ChatFilter.bots: l.chatListFilterBots,
     };
-
     void select(ChatFilter value) {
-      if (value == filter && selectedFolder == null) return;
+      if (value == filter) return;
       if (ref.read(uiSettingsProvider.select((s) => s.haptics))) {
-        HapticService.selection();
+        HapticService.tap();
       }
-      ref.read(selectedChatFolderProvider.notifier).select(null);
       ref.read(chatFilterProvider.notifier).updateFilter(value);
-    }
-
-    void selectFolder(String folderId) {
-      if (selectedFolder == folderId) return;
-      if (ref.read(uiSettingsProvider.select((s) => s.haptics))) {
-        HapticService.selection();
-      }
-      ref.read(chatFilterProvider.notifier).updateFilter(ChatFilter.all);
-      ref.read(selectedChatFolderProvider.notifier).select(folderId);
     }
 
     Widget animatedChip({
@@ -54,180 +37,95 @@ class ChatFilterBar extends ConsumerWidget {
     }) => M3SelectionMotion(
       key: key,
       selected: selected,
-      child: child,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          child,
+          AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : M3Durations.short4,
+            curve: M3SpringCurves.gentle,
+            width: selected ? 30 : 0,
+            height: 3,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        ],
+      ),
     );
 
-    Widget chip(ChatFilter value, String label) {
-      final isSelected = filter == value && selectedFolder == null;
-      return Padding(
-        padding: const EdgeInsets.only(right: 6),
-        child: animatedChip(
-          key: ValueKey('chat-filter-${value.name}'),
-          selected: isSelected,
-          child: FilterChip(
-            label: Text(label),
-            showCheckmark: false,
-            selected: isSelected,
-            onSelected: (_) => select(value),
-            color: WidgetStateProperty.resolveWith<Color?>((states) {
-              if (states.contains(WidgetState.selected)) {
-                return scheme.primaryContainer;
-              }
-              return scheme.surfaceContainerLow.withValues(alpha: 0.6);
-            }),
-            labelStyle: textTheme.labelLarge?.copyWith(
-              color: isSelected
-                  ? scheme.onPrimaryContainer
-                  : scheme.onSurfaceVariant,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            ),
-            side: BorderSide(
-              color: isSelected
-                  ? scheme.primary.withValues(alpha: 0.4)
-                  : scheme.outlineVariant.withValues(alpha: 0.25),
-              width: 1.0,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          ),
+    Widget chip(ChatFilter value, String label) => animatedChip(
+      key: ValueKey('chat-filter-${value.name}'),
+      selected: filter == value,
+      child: FilterChip(
+        label: Text(label),
+        color: const WidgetStatePropertyAll<Color>(Colors.transparent),
+        labelStyle: TextStyle(
+          color: filter == value ? scheme.primary : scheme.onSurfaceVariant,
+          fontWeight: filter == value ? FontWeight.w700 : FontWeight.w500,
         ),
-      );
-    }
-
-    final isTypeSelected = types.containsKey(filter);
+        side: BorderSide.none,
+        shape: const StadiumBorder(),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 5),
+        selected: filter == value,
+        showCheckmark: false,
+        onSelected: (_) => select(value),
+      ),
+    );
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
         children: [
           chip(ChatFilter.all, l.chatListFilterAll),
           chip(ChatFilter.unread, l.chatListFilterUnread),
           chip(ChatFilter.groups, l.chatListFilterGroups),
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: MenuAnchor(
-              menuChildren: [
-                for (final entry in types.entries)
-                  MenuItemButton(
-                    leadingIcon: Icon(
-                      filter == entry.key
-                          ? Icons.check_rounded
-                          : switch (entry.key) {
-                              ChatFilter.direct => Icons.person_outline_rounded,
-                              ChatFilter.groups => Icons.groups_outlined,
-                              ChatFilter.channels => Icons.campaign_outlined,
-                              _ => Icons.smart_toy_outlined,
-                            },
-                    ),
-                    onPressed: () => select(entry.key),
-                    child: Text(entry.value),
+          MenuAnchor(
+            menuChildren: [
+              for (final entry in types.entries)
+                MenuItemButton(
+                  leadingIcon: Icon(
+                    filter == entry.key
+                        ? Icons.check_rounded
+                        : switch (entry.key) {
+                            ChatFilter.direct => Icons.person_outline_rounded,
+                            ChatFilter.groups => Icons.groups_outlined,
+                            ChatFilter.channels => Icons.campaign_outlined,
+                            _ => Icons.smart_toy_outlined,
+                          },
                   ),
-              ],
-              builder: (context, controller, child) => animatedChip(
-                key: const ValueKey('chat-filter-type'),
-                selected: isTypeSelected,
-                child: FilterChip(
-                  tooltip: l.inboxChatType,
-                  showCheckmark: false,
-                  selected: isTypeSelected,
-                  onSelected: (_) {
-                    if (controller.isOpen) {
-                      controller.close();
-                    } else {
-                      controller.open();
-                    }
-                  },
-                  color: WidgetStateProperty.resolveWith<Color?>((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return scheme.primaryContainer;
-                    }
-                    return scheme.surfaceContainerLow.withValues(alpha: 0.6);
-                  }),
-                  labelStyle: textTheme.labelLarge?.copyWith(
-                    color: isTypeSelected
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurfaceVariant,
-                    fontWeight: isTypeSelected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                  side: BorderSide(
-                    color: isTypeSelected
-                        ? scheme.primary.withValues(alpha: 0.4)
-                        : scheme.outlineVariant.withValues(alpha: 0.25),
-                    width: 1.0,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        types[filter] ?? l.inboxChatType,
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_drop_down_rounded,
-                        size: 18,
-                        color: isTypeSelected
-                            ? scheme.onPrimaryContainer
-                            : scheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
+                  onPressed: () => select(entry.key),
+                  child: Text(entry.value),
                 ),
+            ],
+            builder: (context, controller, child) => animatedChip(
+              key: const ValueKey('chat-filter-type'),
+              selected: types.containsKey(filter),
+              child: FilterChip(
+                tooltip: l.inboxChatType,
+                color: const WidgetStatePropertyAll<Color>(Colors.transparent),
+                labelStyle: TextStyle(
+                  color: types.containsKey(filter)
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant,
+                ),
+                side: BorderSide.none,
+                shape: const StadiumBorder(),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 5),
+                label: types.containsKey(filter)
+                    ? Text(types[filter]!)
+                    : const Icon(Icons.tune_rounded, size: 20),
+                selected: types.containsKey(filter),
+                showCheckmark: false,
+                onSelected: (_) =>
+                    controller.isOpen ? controller.close() : controller.open(),
               ),
             ),
           ),
-
-          // User Folders seamlessly integrated in the same row
-          for (final folder in folders)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: animatedChip(
-                key: ValueKey('chat-filter-folder-${folder.id}'),
-                selected: selectedFolder == folder.id,
-                child: FilterChip(
-                  showCheckmark: false,
-                  selected: selectedFolder == folder.id,
-                  onSelected: (_) => selectFolder(folder.id),
-                  avatar: Icon(
-                    Icons.folder_rounded,
-                    size: 16,
-                    color: selectedFolder == folder.id
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurfaceVariant,
-                  ),
-                  color: WidgetStateProperty.resolveWith<Color?>((states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return scheme.primaryContainer;
-                    }
-                    return scheme.surfaceContainerLow.withValues(alpha: 0.6);
-                  }),
-                  labelStyle: textTheme.labelLarge?.copyWith(
-                    color: selectedFolder == folder.id
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurfaceVariant,
-                    fontWeight: selectedFolder == folder.id ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                  side: BorderSide(
-                    color: selectedFolder == folder.id
-                        ? scheme.primary.withValues(alpha: 0.4)
-                        : scheme.outlineVariant.withValues(alpha: 0.25),
-                    width: 1.0,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  label: Text(folder.title),
-                ),
-              ),
-            ),
         ],
       ),
     );

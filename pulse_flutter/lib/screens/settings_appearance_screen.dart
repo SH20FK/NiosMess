@@ -10,7 +10,6 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
-import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
 
@@ -86,9 +85,6 @@ class _AppearanceScreen extends ConsumerWidget {
         (UiSettingsState s) => s.predictiveBackStrength,
       ),
     );
-    final bool navBarFloating = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.navBarFloating),
-    );
 
     final Brightness brightness = Theme.of(context).brightness;
 
@@ -124,7 +120,6 @@ class _AppearanceScreen extends ConsumerWidget {
               useSystemDynamic: useSystemDynamic,
               predictiveBackEnabled: predictiveBackEnabled,
               predictiveBackStrength: predictiveBackStrength,
-              navBarFloating: navBarFloating,
             ),
           ),
         );
@@ -144,15 +139,7 @@ class _AppearanceScreen extends ConsumerWidget {
     required bool useSystemDynamic,
     required bool predictiveBackEnabled,
     required double predictiveBackStrength,
-    required bool navBarFloating,
   }) {
-    final Widget previewCard = _AppearanceChatPreviewCard(
-      scheme: scheme,
-      uiCornerRadius: uiCornerRadius,
-      fontScale: fontScale,
-      themeMode: themeMode,
-    );
-
     final Widget colorField = SettingsAnchor(
       id: 'appearance.color.source',
       child: NiosColorField(
@@ -242,16 +229,6 @@ class _AppearanceScreen extends ConsumerWidget {
       subtitle: context.l10n.appearanceInterfaceNavDesc,
       children: [
         SettingsSwitchTile(
-          icon: Icons.navigation_rounded,
-          title: 'Плавающая нижняя панель',
-          subtitle: 'Мягкая овальная форма с отступом от нижнего края экрана',
-          iconColor: scheme.primary,
-          value: navBarFloating,
-          onChanged: (bool v) {
-            ref.read(uiSettingsProvider.notifier).setNavBarFloating(v);
-          },
-        ),
-        SettingsSwitchTile(
           icon: Icons.swipe_left_rounded,
           title: context.l10n.appearancePredictiveBack,
           subtitle: context.l10n.appearancePredictiveBackDesc,
@@ -277,7 +254,6 @@ class _AppearanceScreen extends ConsumerWidget {
       title: context.l10n.settingsV2Appearance,
       isEmbedded: isEmbedded,
       children: [
-        if (!isEmbedded) previewCard,
         themeCard,
         colorField,
         geometrySection,
@@ -302,218 +278,6 @@ class _AppearanceScreen extends ConsumerWidget {
           },
         );
       },
-    );
-  }
-}
-
-/// Interactive live chat preview between real messenger contributors:
-/// incoming message from @sh20fk, outgoing reply from @sanlsan.
-class _AppearanceChatPreviewCard extends StatelessWidget {
-  const _AppearanceChatPreviewCard({
-    required this.scheme,
-    required this.uiCornerRadius,
-    required this.fontScale,
-    required this.themeMode,
-  });
-
-  final ColorScheme scheme;
-  final double uiCornerRadius;
-  final AppFontScale fontScale;
-  final ThemeMode themeMode;
-
-  @override
-  Widget build(BuildContext context) {
-    final double radius = uiCornerRadius.clamp(8.0, 28.0);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(radius + 4),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.35),
-            width: 1.0,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    size: 16,
-                    color: scheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Предпросмотр темы',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${radius.toInt()} dp',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, thickness: 0.7),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              color: scheme.surfaceContainerLowest,
-              child: Column(
-                children: [
-                  // Incoming message from @sh20fk
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const PulseAvatar(
-                        name: 'sh20fk',
-                        id: 'sh20fk',
-                        radius: 14,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 13,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(radius).copyWith(
-                              bottomLeft: const Radius.circular(4),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'SH20FK (@sh20fk)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: scheme.primary,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'привет, как те новое оформление?',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: scheme.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Align(
-                                alignment: Alignment.bottomRight,
-                                child: Text(
-                                  '12:40',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: scheme.onSurfaceVariant.withValues(
-                                      alpha: 0.75,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  // Outgoing message from @sanlsan
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 13,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.primary,
-                            borderRadius: BorderRadius.circular(radius).copyWith(
-                              bottomRight: const Radius.circular(4),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'нууу шота шота',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: scheme.onPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '12:41',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: scheme.onPrimary.withValues(alpha: 0.8),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.done_all_rounded,
-                                    size: 13,
-                                    color: scheme.onPrimary.withValues(alpha: 0.9),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const PulseAvatar(
-                        name: 'sanlsan',
-                        id: 'sanlsan',
-                        radius: 14,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -555,7 +319,7 @@ class NiosColorField extends StatelessWidget {
             child: SwitchListTile(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
-                vertical: 4,
+                vertical: 8,
               ),
               secondary: const Icon(Icons.wallpaper_rounded),
               title: Text(context.l10n.appearanceSystemColors),
@@ -565,7 +329,7 @@ class NiosColorField extends StatelessWidget {
             ),
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
           child: _PalettePager(
             scheme: scheme,
             children: [
@@ -698,27 +462,25 @@ class _PalettePagerState extends State<_PalettePager> {
                   ).tabLabel(tabIndex: page + 1, tabCount: _pageCount),
                   child: InkWell(
                     key: ValueKey('appearance-palette-page-$page'),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(24),
                     onTap: () => _goTo(page),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 10,
-                      ),
-                      child: AnimatedContainer(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : M3Durations.medium2,
-                        curve: M3SpringCurves.spatial,
-                        width: _page == page ? 22 : 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _page == page
-                              ? widget.scheme.primary
-                              : widget.scheme.outlineVariant.withValues(
-                                  alpha: 0.45,
-                                ),
-                          borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: AnimatedContainer(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : M3Durations.medium2,
+                          curve: M3SpringCurves.snappy,
+                          width: _page == page ? 20 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _page == page
+                                ? widget.scheme.primary
+                                : widget.scheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
@@ -743,7 +505,6 @@ class _PalettePagePhysics extends PageScrollPhysics {
       _PalettePagePhysics(parent: buildParent(ancestor));
 }
 
-/// Material 3 Expressive Tonal Squircle Color Swatch.
 class _PaletteChoice extends StatefulWidget {
   const _PaletteChoice({
     required this.scheme,
@@ -827,121 +588,113 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
           width: double.infinity,
           child: Column(
             children: [
-              AnimatedContainer(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero
-                    : M3Durations.short4,
-                curve: M3SpringCurves.spatial,
-                width: widget.diameter,
-                height: widget.diameter,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: selected
-                        ? preview.primary
-                        : scheme.outlineVariant.withValues(alpha: 0.35),
-                    width: selected ? 2.5 : 1.2,
+              Material(
+                color: selected
+                    ? scheme.secondaryContainer
+                    : scheme.surfaceContainerHigh,
+                shape: CircleBorder(
+                  side: BorderSide(
+                    color: selected ? scheme.primary : scheme.outlineVariant,
+                    width: selected ? 2 : 1,
                   ),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(selected ? 15.5 : 16.8),
-                  child: Stack(
-                    children: [
-                      // Dual-tonal Material 3 layered swatch
-                      if (!custom)
-                        Positioned.fill(
-                          child: Column(
-                            children: [
-                              Expanded(
-                                flex: 6,
-                                child: Container(color: preview.primary),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onTap,
+                  child: SizedBox(
+                    width: widget.diameter,
+                    height: widget.diameter,
+                    child: Padding(
+                      padding: const EdgeInsets.all(7),
+                      child: ClipOval(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: preview.primary,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: preview.tertiaryContainer,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: preview.secondaryContainer,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: ColoredBox(
+                                            color: preview.primaryContainer,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Expanded(
-                                flex: 4,
-                                child: Container(
-                                  color: preview.primaryContainer,
-                                  alignment: Alignment.center,
-                                  child: Container(
-                                    width: 14,
-                                    height: 5,
-                                    decoration: BoxDecoration(
-                                      color: preview.tertiaryContainer,
-                                      borderRadius: BorderRadius.circular(4),
+                            ),
+                            if (selected || custom)
+                              Center(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: preview.primary,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(5),
+                                    child: Icon(
+                                      selected
+                                          ? Icons.check_rounded
+                                          : Icons.add_rounded,
+                                      size: 20,
+                                      color: preview.onPrimary,
                                     ),
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                        )
-                      else
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  preview.primary,
-                                  preview.secondary,
-                                  preview.tertiary,
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      // Center action badge / checkmark
-                      Center(
-                        child: AnimatedContainer(
-                          duration: M3Durations.short3,
-                          curve: M3SpringCurves.snappy,
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? preview.primary
-                                : scheme.surface.withValues(alpha: 0.8),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            selected
-                                ? Icons.check_rounded
-                                : (custom
-                                      ? Icons.colorize_rounded
-                                      : Icons.circle),
-                            size: custom && !selected ? 16 : 14,
-                            color: selected
-                                ? preview.onPrimary
-                                : (custom
-                                      ? preview.primary
-                                      : Colors.transparent),
-                          ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              ExcludeSemantics(
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    height: 1.3,
-                    color: selected ? scheme.primary : scheme.onSurface,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ...[
+                const SizedBox(height: 8),
+                ExcludeSemantics(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      height: 1.4,
+                      color: selected
+                          ? scheme.onSecondaryContainer
+                          : scheme.onSurface,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -950,238 +703,58 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
   );
 }
 
-/// 3-Card Equal Width Theme Selector. Fits perfectly on one row without wrapping.
+/// Theme choices share the connected settings group instead of a nested card.
 class _ThemeModeSelectorCard extends StatelessWidget {
   const _ThemeModeSelectorCard({
     required this.currentMode,
     required this.onSelectMode,
   });
-
   final ThemeMode currentMode;
   final void Function(ThemeMode mode, Offset tapOffset) onSelectMode;
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final modes = [
-      (
-        ThemeMode.system,
-        l10n.commonSystem,
-        Icons.brightness_auto_rounded,
-      ),
-      (
-        ThemeMode.light,
-        l10n.appearanceLabelLight,
-        Icons.light_mode_rounded,
-      ),
-      (
-        ThemeMode.dark,
-        l10n.appearanceLabelDark,
-        Icons.dark_mode_rounded,
-      ),
-    ];
-
-    return SettingsSection(
-      title: l10n.appearanceThemeMode,
-      subtitle: switch (currentMode) {
-        ThemeMode.system => l10n.appearanceThemeModeSubtitle,
-        ThemeMode.light => l10n.appearanceThemeLightActive,
-        ThemeMode.dark => l10n.appearanceThemeDarkActive,
-      },
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
-          child: Row(
-            children: [
-              for (int i = 0; i < modes.length; i++) ...[
-                if (i > 0) const SizedBox(width: 10),
-                Expanded(
-                  child: _ThemeModeTile(
-                    mode: modes[i].$1,
-                    label: modes[i].$2,
-                    icon: modes[i].$3,
-                    isSelected: currentMode == modes[i].$1,
-                    onTap: (Offset tapOffset) {
-                      onSelectMode(modes[i].$1, tapOffset);
-                    },
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ThemeModeTile extends StatelessWidget {
-  const _ThemeModeTile({
-    required this.mode,
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final ThemeMode mode;
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final ValueChanged<Offset> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTapDown: (details) => onTap(details.globalPosition),
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : M3Durations.short4,
-          curve: M3SpringCurves.spatial,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? scheme.surfaceContainerHigh
-                : scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected
-                  ? scheme.primary
-                  : scheme.outlineVariant.withValues(alpha: 0.35),
-              width: isSelected ? 2.0 : 1.0,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Mini preview mockup
-              Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.25),
-                    width: 0.8,
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: switch (mode) {
-                  ThemeMode.light => Container(
-                    color: const Color(0xFFF9F9FB),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Container(height: 8, color: const Color(0xFF6750A4)),
-                        Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              width: 24,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE6E0E9),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ThemeMode.dark => Container(
-                    color: const Color(0xFF1C1B1F),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Container(height: 8, color: const Color(0xFF4F378B)),
-                        Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Container(
-                              width: 24,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF332D41),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ThemeMode.system => Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          color: const Color(0xFFF9F9FB),
-                          child: Center(
-                            child: Icon(
-                              Icons.light_mode_rounded,
-                              size: 14,
-                              color: scheme.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          color: const Color(0xFF1C1B1F),
-                          child: Center(
-                            child: Icon(
-                              Icons.dark_mode_rounded,
-                              size: 14,
-                              color: scheme.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                },
+  Widget build(BuildContext context) => SettingsSection(
+    title: context.l10n.appearanceThemeMode,
+    subtitle: switch (currentMode) {
+      ThemeMode.system => context.l10n.appearanceThemeModeSubtitle,
+      ThemeMode.light => context.l10n.appearanceThemeLightActive,
+      ThemeMode.dark => context.l10n.appearanceThemeDarkActive,
+    },
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Builder(
+          builder: (choiceContext) => SettingsChoiceButtons<ThemeMode>(
+            segments: [
+              ButtonSegment<ThemeMode>(
+                value: ThemeMode.system,
+                icon: const Icon(Icons.brightness_auto_rounded),
+                label: Text(context.l10n.commonSystem),
               ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    icon,
-                    size: 14,
-                    color: isSelected
-                        ? scheme.primary
-                        : scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 3),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected
-                            ? scheme.primary
-                            : scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
+              ButtonSegment<ThemeMode>(
+                value: ThemeMode.light,
+                icon: const Icon(Icons.light_mode_rounded),
+                label: Text(context.l10n.appearanceLabelLight),
+              ),
+              ButtonSegment<ThemeMode>(
+                value: ThemeMode.dark,
+                icon: const Icon(Icons.dark_mode_rounded),
+                label: Text(context.l10n.appearanceLabelDark),
               ),
             ],
+            selected: {currentMode},
+            onSelectionChanged: (selection) {
+              final box = choiceContext.findRenderObject() as RenderBox?;
+              final offset = box != null && box.hasSize
+                  ? box.localToGlobal(box.size.center(Offset.zero))
+                  : Offset.zero;
+              onSelectMode(selection.first, offset);
+            },
           ),
         ),
       ),
-    );
-  }
+    ],
+  );
 }
 
 class _SliderSettingTile extends StatefulWidget {
@@ -1348,16 +921,13 @@ class _PredictiveBackStrengthTile extends StatelessWidget {
   );
 }
 
-/// Palette Style Selector with clean Material icons, NO emoji!
 class _PaletteStyleSelectorTile extends StatelessWidget {
   const _PaletteStyleSelectorTile({
     required this.currentStyle,
     required this.onChanged,
   });
-
   final PaletteStyle currentStyle;
   final ValueChanged<PaletteStyle> onChanged;
-
   String _labelFor(BuildContext context, PaletteStyle style) => switch (style) {
     PaletteStyle.expressive => context.l10n.appearancePaletteExpressive,
     PaletteStyle.vibrant => context.l10n.appearancePaletteVibrant,
@@ -1365,85 +935,35 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
     PaletteStyle.calm => context.l10n.appearancePaletteCalm,
     PaletteStyle.mono => context.l10n.appearancePaletteMono,
   };
-
-  IconData _iconFor(PaletteStyle style) => switch (style) {
-    PaletteStyle.expressive => Icons.auto_awesome_rounded,
-    PaletteStyle.vibrant => Icons.bolt_rounded,
-    PaletteStyle.content => Icons.image_outlined,
-    PaletteStyle.calm => Icons.spa_rounded,
-    PaletteStyle.mono => Icons.contrast_rounded,
-  };
-
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Material(
-          type: MaterialType.transparency,
-          child: ListTile(
-            leading: const Icon(Icons.palette_outlined),
-            title: Text(context.l10n.appearancePaletteStyle),
-            subtitle: Text(context.l10n.appearanceContrastColorsDesc),
-          ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          leading: const Icon(Icons.palette_outlined),
+          title: Text(context.l10n.appearancePaletteStyle),
+          subtitle: Text(context.l10n.appearanceContrastColorsDesc),
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              for (final style in PaletteStyle.values)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    avatar: Icon(
-                      _iconFor(style),
-                      size: 16,
-                      color: currentStyle == style
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurfaceVariant,
-                    ),
-                    label: Text(_labelFor(context, style)),
-                    selected: currentStyle == style,
-                    showCheckmark: false,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    onSelected: (_) {
-                      HapticService.selection();
-                      onChanged(style);
-                    },
-                    color: WidgetStateProperty.resolveWith<Color?>((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return scheme.primaryContainer;
-                      }
-                      return scheme.surfaceContainerLow;
-                    }),
-                    labelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      fontWeight: currentStyle == style
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: currentStyle == style
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurfaceVariant,
-                    ),
-                    side: BorderSide(
-                      color: currentStyle == style
-                          ? scheme.primary
-                          : scheme.outlineVariant.withValues(alpha: 0.35),
-                      width: 1.0,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: SettingsChoiceButtons<PaletteStyle>(
+          segments: [
+            for (final style in PaletteStyle.values)
+              ButtonSegment<PaletteStyle>(
+                value: style,
+                label: Text(_labelFor(context, style)),
+              ),
+          ],
+          selected: {currentStyle},
+          onSelectionChanged: (selected) {
+            HapticService.selection();
+            onChanged(selected.first);
+          },
         ),
-        const SizedBox(height: 8),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }
