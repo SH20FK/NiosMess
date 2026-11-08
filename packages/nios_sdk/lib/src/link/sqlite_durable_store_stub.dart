@@ -28,7 +28,6 @@ final class DurableCheckpoint {
 /// Web / non-FFI in-memory stub for SQLite WAL store.
 final class SqliteWalDurableStore {
   final String path;
-  bool _closed = false;
 
   SqliteWalDurableStore._(this.path);
 
@@ -44,7 +43,7 @@ final class SqliteWalDurableStore {
     required int sequence,
     required String peerId,
     required String sessionId,
-    required OperationState state,
+    required String state,
     required Map<String, dynamic> payload,
     EncryptedEnvelope? envelope,
   }) {}
@@ -72,7 +71,5 @@ final class SqliteWalDurableStore {
 
   DurableCheckpoint? getLastCheckpoint() => null;
 
-  Future<void> close() async {
-    _closed = true;
-  }
+  Future<void> close() async {}
 }
