@@ -276,7 +276,7 @@ class _AppearanceScreen extends ConsumerWidget {
       title: context.l10n.settingsV2Appearance,
       isEmbedded: isEmbedded,
       children: [
-        previewCard,
+        if (!isEmbedded) previewCard,
         themeCard,
         colorField,
         geometrySection,
@@ -323,7 +323,6 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double radius = uiCornerRadius.clamp(8.0, 28.0);
-    final double scale = fontScale.scale;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
@@ -350,15 +349,19 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                     color: scheme.primary,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Предпросмотр темы',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
+                  Expanded(
+                    child: Text(
+                      'Предпросмотр темы',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
@@ -408,7 +411,7 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Flexible(
+                      Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 13,
@@ -426,7 +429,7 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                               Text(
                                 'SH20FK (@sh20fk)',
                                 style: TextStyle(
-                                  fontSize: 11 * scale,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: scheme.primary,
                                 ),
@@ -435,7 +438,7 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                               Text(
                                 'привет, как те новое оформление?',
                                 style: TextStyle(
-                                  fontSize: 13 * scale,
+                                  fontSize: 13,
                                   color: scheme.onSurface,
                                 ),
                               ),
@@ -445,7 +448,7 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                                 child: Text(
                                   '12:40',
                                   style: TextStyle(
-                                    fontSize: 10 * scale,
+                                    fontSize: 10,
                                     color: scheme.onSurfaceVariant.withValues(
                                       alpha: 0.75,
                                     ),
@@ -456,7 +459,7 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 24),
+                      const SizedBox(width: 16),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -465,8 +468,8 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.end,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const SizedBox(width: 24),
-                      Flexible(
+                      const SizedBox(width: 16),
+                      Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 13,
@@ -484,7 +487,7 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                               Text(
                                 'нууу шота шота',
                                 style: TextStyle(
-                                  fontSize: 13 * scale,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                   color: scheme.onPrimary,
                                 ),
@@ -496,14 +499,14 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                                   Text(
                                     '12:41',
                                     style: TextStyle(
-                                      fontSize: 10 * scale,
+                                      fontSize: 10,
                                       color: scheme.onPrimary.withValues(alpha: 0.8),
                                     ),
                                   ),
                                   const SizedBox(width: 4),
                                   Icon(
                                     Icons.done_all_rounded,
-                                    size: 13 * scale,
+                                    size: 13,
                                     color: scheme.onPrimary.withValues(alpha: 0.9),
                                   ),
                                 ],
@@ -1179,21 +1182,22 @@ class _ThemeModeTile extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     icon,
-                    size: 15,
+                    size: 14,
                     color: isSelected
                         ? scheme.primary
                         : scheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 3),
                   Flexible(
                     child: Text(
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                         color: isSelected
                             ? scheme.primary
@@ -1250,85 +1254,36 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            children: [
-              Icon(widget.icon, color: scheme.primary),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Live interactive morphing squircle badge
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 100),
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(
-                    _localValue.clamp(4.0, 14.0),
-                  ),
-                  border: Border.all(color: scheme.primary, width: 1.5),
-                ),
-                child: Center(
-                  child: Text(
-                    '${_localValue.toInt()}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      SettingsInfoTile(
+        icon: widget.icon,
+        title: widget.title,
+        subtitle: widget.subtitle,
+        value: '${_localValue.toInt()} dp',
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: SliderTheme(
+          data: SliderTheme.of(context).copyWith(trackHeight: 16),
+          child: Slider(
+            value: _localValue.clamp(widget.min, widget.max),
+            min: widget.min,
+            max: widget.max,
+            divisions: widget.divisions,
+            label: '${_localValue.toInt()} dp',
+            onChangeStart: (_) => setState(() => _isDragging = true),
+            onChangeEnd: (value) {
+              setState(() => _isDragging = false);
+              widget.onChanged(value);
+            },
+            onChanged: (value) => setState(() => _localValue = value),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(trackHeight: 14),
-            child: Slider(
-              value: _localValue.clamp(widget.min, widget.max),
-              min: widget.min,
-              max: widget.max,
-              divisions: widget.divisions,
-              label: '${_localValue.toInt()} dp',
-              onChangeStart: (_) => setState(() => _isDragging = true),
-              onChangeEnd: (value) {
-                setState(() => _isDragging = false);
-                widget.onChanged(value);
-              },
-              onChanged: (value) => setState(() => _localValue = value),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }
 
 class _FontScaleSliderTile extends StatelessWidget {
@@ -1338,110 +1293,35 @@ class _FontScaleSliderTile extends StatelessWidget {
   });
   final AppFontScale currentScale;
   final ValueChanged<AppFontScale> onChanged;
-
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SettingsInfoTile(
-          icon: Icons.format_size_rounded,
-          title: context.l10n.appearanceTextScale,
-          subtitle: context.l10n.appearanceTextScaleDesc,
-          value: '${(currentScale.scale * 100).round()}%',
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-          child: Row(
-            children: [
-              for (int i = 0; i < AppFontScale.values.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
-                Expanded(
-                  child: _ScaleSegmentTile(
-                    scale: AppFontScale.values[i],
-                    isSelected: currentScale == AppFontScale.values[i],
-                    onTap: () {
-                      HapticService.selection();
-                      onChanged(AppFontScale.values[i]);
-                    },
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ScaleSegmentTile extends StatelessWidget {
-  const _ScaleSegmentTile({
-    required this.scale,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final AppFontScale scale;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : M3Durations.short3,
-          curve: M3SpringCurves.spatial,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? scheme.primaryContainer
-                : scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isSelected
-                  ? scheme.primary
-                  : scheme.outlineVariant.withValues(alpha: 0.3),
-              width: 1.0,
-            ),
-          ),
-          child: Column(
-            children: [
-              Text(
-                'Аа',
-                style: TextStyle(
-                  fontSize: 12 * scale.scale,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected
-                      ? scheme.onPrimaryContainer
-                      : scheme.onSurfaceVariant,
-                ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      SettingsInfoTile(
+        icon: Icons.format_size_rounded,
+        title: context.l10n.appearanceTextScale,
+        subtitle: context.l10n.appearanceTextScaleDesc,
+        value: '${(currentScale.scale * 100).round()}%',
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: SettingsChoiceButtons<AppFontScale>(
+          segments: [
+            for (final scale in AppFontScale.values)
+              ButtonSegment<AppFontScale>(
+                value: scale,
+                label: Text('${(scale.scale * 100).round()}%'),
               ),
-              const SizedBox(height: 2),
-              Text(
-                '${(scale.scale * 100).round()}%',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontSize: 10,
-                  color: isSelected
-                      ? scheme.onPrimaryContainer
-                      : scheme.onSurfaceVariant,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+          ],
+          selected: {currentScale},
+          onSelectionChanged: (selected) {
+            HapticService.selection();
+            onChanged(selected.first);
+          },
         ),
       ),
-    );
-  }
+    ],
+  );
 }
 
 class _PredictiveBackStrengthTile extends StatelessWidget {
