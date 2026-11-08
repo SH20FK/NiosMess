@@ -75,16 +75,18 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
         ? Duration.zero
         : M3Durations.short3;
 
-    return AnimatedContainer(
-      duration: duration,
-      curve: M3SpringCurves.expressiveDecel,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: showCancel ? scheme.errorContainer : scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      child: Row(
-        children: [
+    return RepaintBoundary(
+      key: const ValueKey('voice-recording-repaint-boundary'),
+      child: AnimatedContainer(
+        duration: duration,
+        curve: M3SpringCurves.expressiveDecel,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: showCancel ? scheme.errorContainer : scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Row(
+          children: [
           AnimatedBuilder(
             animation: _pulseAnim,
             builder: (context, child) => Transform.scale(
@@ -157,8 +159,9 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _waveform(ColorScheme scheme) {
     const barCount = 24;
