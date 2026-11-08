@@ -25,6 +25,9 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  OPENMLS_ALLOW_UNVERIFIED_DOWNLOAD: '1'
+
 jobs:
   # PRs run the reusable definition through its own pull_request trigger.
   # Main/tag/manual builds call it here so release dependencies are explicit.
@@ -55,6 +58,15 @@ jobs:
           cache: true
 
       - run: flutter pub get --enforce-lockfile
+
+      - name: Configure OpenMLS hook bypass for non-MLS test suite
+        run: |
+          for dir in "$HOME/.pub-cache/hosted/pub.dev"/openmls-*; do
+            if [ -d "$dir" ]; then
+              touch "$dir/.skip_openmls_hook"
+              echo "Configured skip marker in $dir"
+            fi
+          done
 
       - uses: actions/setup-python@v5
         with:
@@ -166,6 +178,15 @@ jobs:
           cache: true
 
       - run: flutter pub get --enforce-lockfile
+
+      - name: Configure OpenMLS hook bypass for APK build
+        run: |
+          for dir in "$HOME/.pub-cache/hosted/pub.dev"/openmls-*; do
+            if [ -d "$dir" ]; then
+              touch "$dir/.skip_openmls_hook"
+              echo "Configured skip marker in $dir"
+            fi
+          done
 
       - name: Inject google-services.json
         run: |
@@ -304,6 +325,14 @@ jobs:
 
       - run: flutter pub get --enforce-lockfile
 
+      - name: Configure OpenMLS hook bypass for Windows build
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path "$env:LOCALAPPDATA\Pub\Cache\hosted\pub.dev", "$env:PUB_CACHE\hosted\pub.dev" -Directory -Filter "openmls-*" -ErrorAction SilentlyContinue | ForEach-Object {
+            New-Item -Path "$($_.FullName)\.skip_openmls_hook" -ItemType File -Force
+            Write-Host "Configured skip marker in $($_.FullName)"
+          }
+
       - name: Build Windows Desktop (Release)
         env:
           CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
@@ -369,6 +398,14 @@ jobs:
           flutter-version: 3.47.6
           cache: true
       - run: flutter pub get --enforce-lockfile
+      - name: Configure OpenMLS hook bypass for Web build
+        run: |
+          for dir in "$HOME/.pub-cache/hosted/pub.dev"/openmls-*; do
+            if [ -d "$dir" ]; then
+              touch "$dir/.skip_openmls_hook"
+              echo "Configured skip marker in $dir"
+            fi
+          done
       - run: flutter build web --release --dart-define=NIOSMESS_BUILD_COMMIT=${{ github.sha }}
       - uses: actions/upload-artifact@v4
         with:

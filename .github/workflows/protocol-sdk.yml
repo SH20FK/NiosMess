@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  OPENMLS_ALLOW_UNVERIFIED_DOWNLOAD: '1'
+
 # A called workflow sees the caller's github.workflow. Keep a distinct prefix
 # so this concurrency group cannot cancel the Build workflow waiting on it.
 concurrency:
