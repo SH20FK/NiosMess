@@ -964,69 +964,87 @@ class MessageBubble extends ConsumerWidget {
         );
       }
       final Widget imageWidget;
+      const double bubbleMaxHeight = 320.0;
+      const double bubbleMinHeight = 160.0;
       if (isSending &&
           uploadTask?.bytes != null &&
           uploadTask!.bytes!.isNotEmpty) {
-        imageWidget = Image.memory(
-          uploadTask!.bytes!,
-          width: double.infinity,
-          height: 180,
-          fit: BoxFit.cover,
+        imageWidget = ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: bubbleMinHeight,
+            maxHeight: bubbleMaxHeight,
+          ),
+          child: Image.memory(
+            uploadTask!.bytes!,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
         );
       } else if (isSending &&
           uploadTask?.filePath != null &&
           uploadTask!.filePath.isNotEmpty) {
         final File localFile = File(uploadTask!.filePath);
-        imageWidget = Image.file(
-          localFile,
-          width: double.infinity,
-          height: 180,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => WsCachedImage(
+        imageWidget = ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: bubbleMinHeight,
+            maxHeight: bubbleMaxHeight,
+          ),
+          child: Image.file(
+            localFile,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => WsCachedImage(
+              e2eeFileKey: e2eeFileKey,
+              mediaUrl: urls.first,
+              chatId: chatId,
+              isE2ee: isE2ee,
+              width: double.infinity,
+              height: bubbleMaxHeight,
+              fit: BoxFit.cover,
+            ),
+          ),
+        );
+      } else {
+        imageWidget = ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: bubbleMinHeight,
+            maxHeight: bubbleMaxHeight,
+          ),
+          child: WsCachedImage(
             e2eeFileKey: e2eeFileKey,
             mediaUrl: urls.first,
             chatId: chatId,
             isE2ee: isE2ee,
             width: double.infinity,
-            height: 180,
+            height: bubbleMaxHeight,
             fit: BoxFit.cover,
-          ),
-        );
-      } else {
-        imageWidget = WsCachedImage(
-          e2eeFileKey: e2eeFileKey,
-          mediaUrl: urls.first,
-          chatId: chatId,
-          isE2ee: isE2ee,
-          width: double.infinity,
-          height: 180,
-          fit: BoxFit.cover,
-          placeholder: (BuildContext context) => SizedBox(
-            width: double.infinity,
-            height: 180,
-            child: Center(
-              child: AppLoadingIndicator(
-                color: isMine ? scheme.onPrimary : scheme.primary,
-              ),
-            ),
-          ),
-          errorWidget: (BuildContext context, Object error) {
-            return Container(
+            placeholder: (BuildContext context) => SizedBox(
               width: double.infinity,
-              height: 180,
-              alignment: Alignment.center,
-              color: isMine
-                  ? scheme.onPrimary.withValues(alpha: 0.12)
-                  : scheme.surfaceContainerHigh,
-              child: Semantics(
-                label: context.l10n.chatImageUnavailable,
-                child: Text(
-                  context.l10n.chatImageUnavailable,
-                  style: textTheme.bodySmall?.copyWith(color: textColor),
+              height: bubbleMinHeight,
+              child: Center(
+                child: AppLoadingIndicator(
+                  color: isMine ? scheme.onPrimary : scheme.primary,
                 ),
               ),
-            );
-          },
+            ),
+            errorWidget: (BuildContext context, Object error) {
+              return Container(
+                width: double.infinity,
+                height: bubbleMinHeight,
+                alignment: Alignment.center,
+                color: isMine
+                    ? scheme.onPrimary.withValues(alpha: 0.12)
+                    : scheme.surfaceContainerHigh,
+                child: Semantics(
+                  label: context.l10n.chatImageUnavailable,
+                  child: Text(
+                    context.l10n.chatImageUnavailable,
+                    style: textTheme.bodySmall?.copyWith(color: textColor),
+                  ),
+                ),
+              );
+            },
+          ),
         );
       }
 
@@ -1183,6 +1201,7 @@ class MessageBubble extends ConsumerWidget {
                           uploadTask?.stage == UploadStage.sendingMessage)
                         AppLoadingIndicator(
                           size: 22,
+                          value: 1.0,
                           color: isMine ? textColor : scheme.primary,
                         )
                       else

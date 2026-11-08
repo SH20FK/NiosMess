@@ -1173,7 +1173,29 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
-    final List<M3FilePickerResult>? results = await showM3FilePicker(context);
+    final List<M3FilePickerResult>? results = await showM3FilePicker(
+      context,
+      onOpenInteractive: (kind) async {
+        final accountId = ref.read(authProvider).session?.userId;
+        final content = await showInteractiveComposer(context, kind);
+        if (!mounted ||
+            content == null ||
+            ref.read(authProvider).session?.userId != accountId) {
+          return;
+        }
+        try {
+          await ref
+              .read(chatMessagesProvider(chatId).notifier)
+              .send(content, requestAi: false);
+        } catch (error) {
+          if (!mounted) return;
+          AppToast.showError(
+            context,
+            context.l10n.interactiveSendFailed,
+          );
+        }
+      },
+    );
     if (results == null || results.isEmpty || !mounted) {
       return;
     }

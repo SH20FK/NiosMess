@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/feed_poll_vote_provider.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
@@ -128,20 +129,40 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
             child: Semantics(
               selected: highlighted.contains(index),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 48),
+                constraints: const BoxConstraints(minHeight: 52),
                 child: Material(
-                  color: highlighted.contains(index)
-                      ? scheme.secondaryContainer
-                      : scheme.surfaceContainerLow,
+                  color: quiz && voted
+                      ? (correct == index
+                          ? scheme.primaryContainer.withValues(alpha: 0.35)
+                          : (highlighted.contains(index)
+                              ? scheme.errorContainer.withValues(alpha: 0.3)
+                              : scheme.surfaceContainerLow))
+                      : (highlighted.contains(index)
+                          ? scheme.secondaryContainer.withValues(alpha: 0.7)
+                          : scheme.surfaceContainerLow),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: scheme.outlineVariant),
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: quiz && voted
+                          ? (correct == index
+                              ? scheme.primary.withValues(alpha: 0.7)
+                              : (highlighted.contains(index)
+                                  ? scheme.error.withValues(alpha: 0.7)
+                                  : scheme.outlineVariant.withValues(alpha: 0.35)))
+                          : (highlighted.contains(index)
+                              ? scheme.primary.withValues(alpha: 0.5)
+                              : scheme.outlineVariant.withValues(alpha: 0.35)),
+                      width: highlighted.contains(index) || (quiz && voted && correct == index)
+                          ? 1.4
+                          : 1.0,
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: busy || widget.preview || closed || (quiz && voted)
                         ? null
                         : () {
+                            HapticService.selection();
                             if (multiple) {
                               final next = {...highlighted};
                               next.contains(index)
@@ -164,8 +185,8 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
                                 duration:
                                     MediaQuery.disableAnimationsOf(context)
                                     ? Duration.zero
-                                    : M3Durations.medium1,
-                                curve: M3SpringCurves.expressiveDecel,
+                                    : const Duration(milliseconds: 400),
+                                curve: M3SpringCurves.spatial,
                                 tween: Tween(
                                   begin: 0,
                                   end:
@@ -181,47 +202,79 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
                                       child: child,
                                     ),
                                 child: ColoredBox(
-                                  color: scheme.primary.withValues(alpha: .12),
+                                  color: quiz && voted
+                                      ? (correct == index
+                                          ? scheme.primary.withValues(alpha: 0.25)
+                                          : (highlighted.contains(index)
+                                              ? scheme.error.withValues(alpha: 0.18)
+                                              : scheme.primary.withValues(alpha: 0.08)))
+                                      : scheme.primary.withValues(
+                                          alpha: highlighted.contains(index) ? 0.20 : 0.10,
+                                        ),
                                 ),
                               ),
                             ),
                           ),
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
+                            horizontal: 14,
+                            vertical: 13,
                           ),
                           child: Row(
                             children: [
                               if (multiple)
                                 Padding(
-                                  padding: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.only(right: 10),
                                   child: Icon(
                                     highlighted.contains(index)
-                                        ? Icons.check_box_outlined
-                                        : Icons.check_box_outline_blank,
-                                    size: 20,
+                                        ? Icons.check_box_rounded
+                                        : Icons.check_box_outline_blank_rounded,
+                                    color: highlighted.contains(index)
+                                        ? scheme.primary
+                                        : scheme.onSurfaceVariant,
+                                    size: 22,
+                                  ),
+                                ),
+                              if (quiz && voted)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 10),
+                                  child: Icon(
+                                    correct == index
+                                        ? Icons.check_circle_rounded
+                                        : (highlighted.contains(index)
+                                            ? Icons.cancel_rounded
+                                            : Icons.radio_button_unchecked_rounded),
+                                    color: correct == index
+                                        ? scheme.primary
+                                        : (highlighted.contains(index)
+                                            ? scheme.error
+                                            : scheme.outline),
+                                    size: 22,
                                   ),
                                 ),
                               Expanded(
                                 child: InteractiveMessageText(
                                   text: items[index],
-                                  baseStyle: theme.textTheme.bodyMedium!,
+                                  baseStyle: theme.textTheme.bodyMedium!.copyWith(
+                                    fontWeight: highlighted.contains(index)
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
                                   isMine: false,
                                   scheme: scheme,
                                 ),
                               ),
-                              if (quiz && voted && correct == index)
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 8),
-                                  child: Icon(Icons.check_rounded, size: 20),
-                                ),
                               if (showResults)
                                 Padding(
-                                  padding: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.only(left: 10),
                                   child: Text(
                                     '${total == 0 ? 0 : ((index < counts.length ? counts[index] : 0) * 100 / total).round()}%',
-                                    style: theme.textTheme.labelMedium,
+                                    style: theme.textTheme.labelLarge?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: highlighted.contains(index)
+                                          ? scheme.primary
+                                          : scheme.onSurface,
+                                    ),
                                   ),
                                 ),
                             ],
@@ -256,11 +309,34 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
             child: Text(context.l10n.interactiveVote),
           ),
         if (quiz && voted && (poll['explanation'] as String? ?? '').isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: CustomEmojiText(
-              poll['explanation'] as String,
-              style: theme.textTheme.bodySmall,
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.lightbulb_outline_rounded,
+                  size: 20,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: CustomEmojiText(
+                    poll['explanation'] as String,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         Text(

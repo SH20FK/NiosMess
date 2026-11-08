@@ -182,10 +182,11 @@ class UploadProgressOverlay extends StatelessWidget {
                               height: 40,
                               child: AppLoadingIndicator(
                                 size: 40,
-                                color: scheme.primary,
+                                value: 1.0,
                                 backgroundColor: scheme.onSurface.withValues(
                                   alpha: 0.2,
                                 ),
+                                color: scheme.primary,
                               ),
                             )
                           else

@@ -39,8 +39,11 @@ class M3FilePickerResult {
 }
 
 /// Opens the Telegram-style attachment bottom sheet with recent media grid,
-/// quick camera capture tile, full gallery album access, and document/audio pickers.
-Future<List<M3FilePickerResult>?> showM3FilePicker(BuildContext context) async {
+/// quick camera capture tile, full gallery album access, document/audio pickers, and polls.
+Future<List<M3FilePickerResult>?> showM3FilePicker(
+  BuildContext context, {
+  ValueChanged<String>? onOpenInteractive,
+}) async {
   if (kIsWeb) {
     try {
       // Browser selection supplies bytes; no filesystem path or gallery plugin.
@@ -72,12 +75,15 @@ Future<List<M3FilePickerResult>?> showM3FilePicker(BuildContext context) async {
   return AppBottomSheets.show<List<M3FilePickerResult>>(
     context: context,
     showDragHandle: true,
-    builder: (BuildContext ctx) => const M3AttachmentBottomSheet(),
+    builder: (BuildContext ctx) => M3AttachmentBottomSheet(
+      onOpenInteractive: onOpenInteractive,
+    ),
   );
 }
 
 class M3AttachmentBottomSheet extends StatefulWidget {
-  const M3AttachmentBottomSheet({super.key});
+  const M3AttachmentBottomSheet({this.onOpenInteractive, super.key});
+  final ValueChanged<String>? onOpenInteractive;
 
   @override
   State<M3AttachmentBottomSheet> createState() =>
@@ -430,6 +436,12 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
     Navigator.of(context).pop(<M3FilePickerResult>[result]);
   }
 
+  void _openPoll() {
+    HapticService.tap();
+    Navigator.of(context).pop();
+    widget.onOpenInteractive?.call('poll');
+  }
+
   Future<void> _openFullGallery() async {
     HapticService.tap();
     final bool isSupported =
@@ -654,6 +666,18 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                       ),
                     ),
                   ),
+                  if (widget.onOpenInteractive != null) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _CategoryActionPill(
+                        icon: Icons.poll_rounded,
+                        label: context.l10n.interactivePoll,
+                        color: scheme.surfaceContainerHighest,
+                        iconColor: scheme.primary,
+                        onTap: _openPoll,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

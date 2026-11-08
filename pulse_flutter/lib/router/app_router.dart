@@ -433,12 +433,30 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             key: state.pageKey,
             opaque: false,
             barrierColor: Colors.transparent,
-            transitionDuration: const Duration(milliseconds: 250),
-            reverseTransitionDuration: const Duration(milliseconds: 200),
+            transitionDuration: const Duration(milliseconds: 320),
+            reverseTransitionDuration: const Duration(milliseconds: 260),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
                   if (MediaQuery.disableAnimationsOf(context)) return child;
-                  return FadeTransition(opacity: animation, child: child);
+                  final scaleAnimation = Tween<double>(begin: 0.90, end: 1.0).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: M3SpringCurves.spatial,
+                      reverseCurve: M3SpringCurves.gentle,
+                    ),
+                  );
+                  final fadeAnimation = CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                    reverseCurve: Curves.easeInCubic,
+                  );
+                  return FadeTransition(
+                    opacity: fadeAnimation,
+                    child: ScaleTransition(
+                      scale: scaleAnimation,
+                      child: child,
+                    ),
+                  );
                 },
             child: MediaViewerScreen(
               url: url,
