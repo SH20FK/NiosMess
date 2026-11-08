@@ -68,14 +68,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   bool _retrying = false;
   final Set<int> _markingRead = {};
   final Set<int> _selectedChatIds = <int>{};
-  bool _isSearchOpen = false;
-  final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   void _togglePinSelected(List<ApiChatSummary> chats) {
     if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
@@ -212,12 +204,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () {
-          setState(() => _isSearchOpen = true);
-        },
-        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () {
-          setState(() => _isSearchOpen = true);
-        },
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
+            context.push('/chats/search'),
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
+            context.push('/chats/search'),
       },
       child: Focus(
         child: Scaffold(
