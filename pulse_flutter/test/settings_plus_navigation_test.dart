@@ -90,7 +90,7 @@ void main() {
           await tester.tap(find.text('Open Plus'));
           await tester.pumpAndSettle();
         }
-        expect(find.text('Назад'), findsOneWidget);
+        expect(find.byTooltip('Назад'), findsOneWidget);
         if (direct) {
           await tester.runAsync(() async {
             final image =
@@ -108,7 +108,7 @@ void main() {
         }
         await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Назад'));
+        await tester.tap(find.byTooltip('Назад'));
         await tester.pumpAndSettle();
         expect(
           router.routeInformationProvider.value.uri.path,

@@ -347,7 +347,7 @@ void main() {
       await tester.pumpWidget(card(const Color(0xFF984061), true));
       await tester.pump();
       expect(find.byType(RawImage), findsNothing);
-      expect(find.byType(AnimatedSwitcher), findsNothing);
+      expect(find.byType(ChoiceChip), findsWidgets);
       await tester.pumpAndSettle();
       expect(tester.binding.transientCallbackCount, 0);
       expect(tester.takeException(), isNull);

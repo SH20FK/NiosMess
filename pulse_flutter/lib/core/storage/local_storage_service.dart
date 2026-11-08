@@ -3,7 +3,7 @@ import 'package:universal_io/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
+import 'package:path/path.dart' as p;
 import 'package:pulse_flutter/features/storage/domain/storage_snapshot.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,12 +20,12 @@ class LocalStorageSnapshot {
   });
 
   const LocalStorageSnapshot.empty()
-      : documentsBytes = 0,
-        supportBytes = 0,
-        temporaryBytes = 0,
-        draftBytes = 0,
-        draftCount = 0,
-        categoryBytes = const <StorageCategory, int>{};
+    : documentsBytes = 0,
+      supportBytes = 0,
+      temporaryBytes = 0,
+      draftBytes = 0,
+      draftCount = 0,
+      categoryBytes = const <StorageCategory, int>{};
 
   final int documentsBytes;
   final int supportBytes;
@@ -55,7 +55,60 @@ class LocalStorageHealth {
 }
 
 class LocalStorageService {
-  const LocalStorageService();
+  const LocalStorageService({
+    this.temporaryDirectory,
+    this.documentsDirectory,
+    this.supportDirectory,
+    this.sandboxedDocuments,
+  });
+
+  /// Optional directory providers let isolated tests exercise actual filesystem
+  /// boundaries without redirecting application-wide platform paths.
+  final Future<Directory> Function()? temporaryDirectory;
+  final Future<Directory> Function()? documentsDirectory;
+  final Future<Directory> Function()? supportDirectory;
+  final bool? sandboxedDocuments;
+
+  bool get _hasSandboxedDocuments =>
+      sandboxedDocuments ?? (Platform.isAndroid || Platform.isIOS);
+  Future<Directory> _temporaryDirectory() =>
+      (temporaryDirectory ?? getTemporaryDirectory)();
+  Future<Directory> _documentsDirectory() =>
+      (documentsDirectory ?? getApplicationDocumentsDirectory)();
+  Future<Directory> _supportDirectory() =>
+      (supportDirectory ?? getApplicationSupportDirectory)();
+
+  // These exact directories contain downloaded/recreated media, never an
+  // outbox, a database, a recording awaiting upload or protected attachments.
+  static const _mediaCacheDirectories = <String>{
+    'nios_private_media_v1',
+    'secret_playback_v2',
+    'nios_media_staging_v2',
+  };
+
+  Future<List<Directory>> _ownedCacheDirectories() async {
+    if (kIsWeb) return const [];
+    final temporary = await _temporaryDirectory();
+    if (!await temporary.exists()) return const [];
+    final root = await temporary.resolveSymbolicLinks();
+    final names = <String>{
+      ..._mediaCacheDirectories,
+      // DefaultCacheManager has a shared name. It is owned by this app only
+      // inside Android/iOS's sandbox, not the user's system-wide desktop Temp.
+      if (_hasSandboxedDocuments) 'libCachedImageData',
+    };
+    final result = <Directory>[];
+    for (final name in names) {
+      final candidate = Directory(p.join(root, name));
+      if (await FileSystemEntity.type(candidate.path, followLinks: false) !=
+          FileSystemEntityType.directory) {
+        continue;
+      }
+      final resolved = await candidate.resolveSymbolicLinks();
+      if (p.equals(p.dirname(resolved), root)) result.add(Directory(resolved));
+    }
+    return result;
+  }
 
   static const int currentSchemaVersion = 1;
   static const String _schemaVersionKey = 'storage.schemaVersion';
@@ -114,18 +167,27 @@ class LocalStorageService {
     int temporaryBytes = 0;
 
     if (!kIsWeb) {
-      final Directory documents = await getApplicationDocumentsDirectory();
-      final Directory temporary = await getTemporaryDirectory();
-      final Directory? support = await _tryDirectory(
-        getApplicationSupportDirectory,
-      );
-
+      final Directory? support = await _tryDirectory(_supportDirectory);
       final Set<String> countedPaths = <String>{};
-      documentsBytes = await _scanDirectory(documents, countedPaths, categoryBytes);
+      // Desktop Documents is a user-wide folder, not NiosMess storage.
+      if (_hasSandboxedDocuments) {
+        final documents = await _documentsDirectory();
+        documentsBytes = await _scanDirectory(
+          documents,
+          countedPaths,
+          categoryBytes,
+        );
+      }
       supportBytes = support == null
           ? 0
           : await _scanDirectory(support, countedPaths, categoryBytes);
-      temporaryBytes = await _scanDirectory(temporary, countedPaths, categoryBytes);
+      for (final cache in await _ownedCacheDirectories()) {
+        temporaryBytes += await _scanDirectory(
+          cache,
+          countedPaths,
+          categoryBytes,
+        );
+      }
     }
 
     final LocalStorageSnapshot result = LocalStorageSnapshot(
@@ -164,8 +226,8 @@ class LocalStorageService {
 
     try {
       if (!kIsWeb) {
-        final Directory documents = await getApplicationDocumentsDirectory();
-        final Directory temporary = await getTemporaryDirectory();
+        final Directory documents = await _documentsDirectory();
+        final Directory temporary = await _temporaryDirectory();
         if (!await documents.exists()) {
           issues.add('Documents directory is not available.');
         }
@@ -179,7 +241,8 @@ class LocalStorageService {
 
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final List<String> draftKeys = prefs.getKeys()
+      final List<String> draftKeys = prefs
+          .getKeys()
           .where((String key) => key.startsWith(_draftPrefix))
           .toList();
       if (draftKeys.length > 100) {
@@ -199,29 +262,26 @@ class LocalStorageService {
 
   Future<int> clearTemporaryFiles() async {
     await ensureInitialized();
-    final Directory temporary = await getTemporaryDirectory();
-    final int deleted = await _clearDirectoryContents(temporary);
+    int deleted = 0;
+    for (final directory in await _ownedCacheDirectories()) {
+      deleted += await _clearCacheDirectory(directory);
+    }
     invalidateSnapshotCache();
     return deleted;
   }
 
+  /// Kept for callers that explicitly clear a media category. Classification
+  /// never grants ownership of files outside known recreatable cache roots.
   Future<int> clearCategoryFiles(StorageCategory category) async {
     await ensureInitialized();
-    if (category == StorageCategory.drafts) {
-      return clearDrafts();
-    }
-    if (category == StorageCategory.secretChatCache) {
-      await EncryptedMessageCache.clearAll();
-      invalidateSnapshotCache();
+    if (category == StorageCategory.drafts) return clearDrafts();
+    if (category == StorageCategory.secretChatCache ||
+        category == StorageCategory.other) {
       return 0;
     }
-
     int deleted = 0;
-    if (!kIsWeb) {
-      final Directory temporary = await getTemporaryDirectory();
-      deleted += await _deleteMatchingCategory(temporary, category);
-      final Directory documents = await getApplicationDocumentsDirectory();
-      deleted += await _deleteMatchingCategory(documents, category);
+    for (final directory in await _ownedCacheDirectories()) {
+      deleted += await _clearCacheDirectory(directory, category: category);
     }
     invalidateSnapshotCache();
     return deleted;
@@ -272,7 +332,9 @@ class LocalStorageService {
         try {
           final int length = await entity.length();
           total += length;
-          final StorageCategory cat = StorageCategory.detectFromFilePath(entity.path);
+          final StorageCategory cat = StorageCategory.detectFromFilePath(
+            entity.path,
+          );
           categoryBytes[cat] = (categoryBytes[cat] ?? 0) + length;
         } catch (e) {
           debugPrint('[local_storage_service.dart] Error reading length: $e');
@@ -282,47 +344,31 @@ class LocalStorageService {
     return total;
   }
 
-  Future<int> _deleteMatchingCategory(
-    Directory directory,
-    StorageCategory target,
-  ) async {
-    if (!await directory.exists()) return 0;
+  Future<int> _clearCacheDirectory(
+    Directory directory, {
+    StorageCategory? category,
+  }) async {
+    final root = await directory.resolveSymbolicLinks();
     int deleted = 0;
-    await for (final FileSystemEntity entity in directory.list(
+    await for (final entity in directory.list(
       recursive: true,
       followLinks: false,
     )) {
-      if (entity is File) {
-        if (StorageCategory.detectFromFilePath(entity.path) == target) {
-          try {
-            final int len = await entity.length();
-            await entity.delete();
-            deleted += len;
-          } catch (e) {
-            debugPrint('[local_storage_service.dart] Error deleting: $e');
-          }
-        }
+      // Leave directories, links/junctions and unknown ownership untouched.
+      if (entity is! File ||
+          await FileSystemEntity.type(entity.path, followLinks: false) !=
+              FileSystemEntityType.file) {
+        continue;
       }
-    }
-    return deleted;
-  }
-
-  Future<int> _clearDirectoryContents(Directory directory) async {
-    if (!await directory.exists()) return 0;
-    int deleted = 0;
-    await for (final FileSystemEntity entity in directory.list(
-      followLinks: false,
-    )) {
-      try {
-        if (entity is File) {
-          deleted += await entity.length();
-        } else if (entity is Directory) {
-          deleted += await _scanDirectory(entity, <String>{}, <StorageCategory, int>{});
-        }
-        await entity.delete(recursive: true);
-      } catch (e) {
-        debugPrint('[local_storage_service.dart] Error: $e');
+      final resolved = await entity.resolveSymbolicLinks();
+      if (!p.isWithin(root, resolved)) continue;
+      if (category != null &&
+          StorageCategory.detectFromFilePath(resolved) != category) {
+        continue;
       }
+      final bytes = await entity.length();
+      await entity.delete();
+      deleted += bytes;
     }
     return deleted;
   }
@@ -339,13 +385,16 @@ class StorageSnapshotNotifier extends AsyncNotifier<LocalStorageSnapshot> {
 
   Future<void> refresh({bool forceRefresh = true}) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() =>
-        ref.read(localStorageServiceProvider).snapshot(forceRefresh: forceRefresh));
+    state = await AsyncValue.guard(
+      () => ref
+          .read(localStorageServiceProvider)
+          .snapshot(forceRefresh: forceRefresh),
+    );
   }
 }
 
 final AsyncNotifierProvider<StorageSnapshotNotifier, LocalStorageSnapshot>
-    storageSnapshotProvider =
+storageSnapshotProvider =
     AsyncNotifierProvider<StorageSnapshotNotifier, LocalStorageSnapshot>(
-  StorageSnapshotNotifier.new,
-);
+      StorageSnapshotNotifier.new,
+    );

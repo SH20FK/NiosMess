@@ -123,6 +123,7 @@ Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
     ],
   );
 
+  addTearDown(router.dispose);
   return ProviderScope(
     overrides: [authProvider.overrideWith(() => _FakeAuthNotifier())],
     child: MaterialApp.router(
@@ -148,8 +149,11 @@ Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    final previous = UiSettingsNotifier.cachedPrefs;
+    UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+    addTearDown(() => UiSettingsNotifier.cachedPrefs = previous);
   });
 
   group('Tier 1: SettingsNavigationProvider Unit Tests', () {
@@ -180,7 +184,7 @@ void main() {
     });
   });
 
-  group('Tier 1: ProfileScreen Desktop Master-Detail Tests (>=760dp)', () {
+  group('Tier 1: ProfileScreen Desktop Master-Detail Tests (>=840dp)', () {
     const Size desktopSize = Size(1024, 800);
 
     testWidgets(
@@ -207,10 +211,16 @@ void main() {
 
         // Verify master list tiles exist
         expect(find.byType(SettingsSection), findsWidgets);
-        expect(find.byType(SettingsTile), findsWidgets);
+        expect(find.byType(SettingsListItem), findsWidgets);
 
-        // Verify VerticalDivider exists between panes
-        expect(find.byType(VerticalDivider), findsOneWidget);
+        // A persistent navigation pane and detail occupy adjacent regions.
+        final master = tester.getRect(
+          find.byKey(const ValueKey('settings-master-pane')),
+        );
+        final detail = tester.getRect(find.byType(SettingsAccountScreen));
+        expect(master.width, greaterThanOrEqualTo(300));
+        expect(master.right, closeTo(detail.left, .1));
+        expect(detail.width, greaterThan(0));
 
         // Default embedded detail pane is SettingsAccountScreen
         expect(find.byType(SettingsAccountScreen), findsOneWidget);
@@ -240,7 +250,7 @@ void main() {
 
         // Find and tap Appearance section in master pane
         final Finder appearanceTile = find.widgetWithText(
-          SettingsTile,
+          SettingsListItem,
           'Оформление',
         );
         expect(appearanceTile, findsWidgets);
@@ -272,21 +282,32 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Profile moved into the header; it still identifies the active account pane.
+      // The centered profile opens editing. Selection belongs to a real section.
+      final master = find.byKey(const ValueKey('settings-master-pane'));
+      final appearance = find.descendant(
+        of: master,
+        matching: find.widgetWithText(SettingsListItem, 'Оформление'),
+      );
+      expect(appearance, findsOneWidget);
+      await tester.tap(appearance);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.widget<SettingsListItem>(appearance).isSelected, isTrue);
       expect(
-        find.byWidgetPredicate(
-          (widget) => widget is SettingsTile && widget.isSelected,
+        find.descendant(
+          of: master,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is SettingsListItem && widget.isSelected,
+          ),
         ),
-        findsNothing,
+        findsOneWidget,
       );
-      final header = tester.widget<Semantics>(
-        find.byKey(const ValueKey('settings-profile-header')),
-      );
-      expect(header.properties.selected, isTrue);
+      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
+      expect(find.byType(SettingsAccountScreen), findsNothing);
     });
   });
 
-  group('Tier 1: ProfileScreen Mobile Fallback Tests (<760dp)', () {
+  group('Tier 1: ProfileScreen Mobile Fallback Tests (<840dp)', () {
     const Size mobileSize = Size(400, 800);
 
     testWidgets(
@@ -305,7 +326,10 @@ void main() {
 
         // Mobile view uses CustomScrollView
         expect(find.byType(CustomScrollView), findsOneWidget);
-        expect(find.byType(VerticalDivider), findsNothing);
+        expect(
+          find.byKey(const ValueKey('settings-master-pane')),
+          findsNothing,
+        );
 
         // User info present in mobile header
         expect(find.text('Alex Test'), findsWidgets);
@@ -368,10 +392,21 @@ void main() {
 
           expect(tester.takeException(), isNull);
           if (isWide) {
-            expect(find.byType(VerticalDivider), findsOneWidget);
+            final master = find.byKey(const ValueKey('settings-master-pane'));
+            expect(master, findsOneWidget);
             expect(find.byType(SettingsAccountScreen), findsOneWidget);
+            expect(
+              tester.getRect(master).right,
+              closeTo(
+                tester.getRect(find.byType(SettingsAccountScreen)).left,
+                .1,
+              ),
+            );
           } else {
-            expect(find.byType(VerticalDivider), findsNothing);
+            expect(
+              find.byKey(const ValueKey('settings-master-pane')),
+              findsNothing,
+            );
             expect(find.byType(CustomScrollView), findsOneWidget);
           }
         },

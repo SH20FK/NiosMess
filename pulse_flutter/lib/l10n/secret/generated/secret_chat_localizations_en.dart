@@ -1556,4 +1556,548 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get auditDeletedAccount => 'Deleted account';
+
+  @override
+  String get settingsProfileChangePhoto => 'Change photo';
+
+  @override
+  String get settingsProfilePhone => 'Phone number';
+
+  @override
+  String get settingsProfilePhoneInvalid =>
+      'Enter a phone number with 7 to 15 digits';
+
+  @override
+  String get settingsProfileBirthday => 'Birthday';
+
+  @override
+  String get settingsProfileClearBirthday => 'Remove birthday';
+
+  @override
+  String get settingsProfileNotSet => 'Not set';
+
+  @override
+  String get settingsProfileWorkingHours => 'Working hours';
+
+  @override
+  String get settingsProfileHoursConfigured => 'Configured';
+
+  @override
+  String get settingsProfileSaveFailed =>
+      'Could not save your profile. Your changes are still in the form.';
+
+  @override
+  String get settingsProfileSaved => 'Profile saved';
+
+  @override
+  String get settingsGroupPersonalization => 'Personalization';
+
+  @override
+  String get settingsGroupCommunication => 'Communication';
+
+  @override
+  String get settingsGroupSecurity => 'Account and security';
+
+  @override
+  String get settingsGroupApplication => 'Application';
+
+  @override
+  String get settingsProfileChoosePhoto => 'Choose photo';
+
+  @override
+  String get settingsProfilePhotoHint => 'PNG, JPG or WebP · up to 8 MB';
+
+  @override
+  String get settingsProfileChooseVideo => 'Choose video avatar';
+
+  @override
+  String get settingsProfileVideoHint => 'Video up to 5 seconds · up to 8 MB';
+
+  @override
+  String get settingsProfileVideoFormats => 'MP4, MOV and WebM are supported';
+
+  @override
+  String get settingsProfilePhotoFormats => 'PNG, JPG and WebP are supported';
+
+  @override
+  String get settingsProfileFileTooLarge => 'Choose a file up to 8 MB';
+
+  @override
+  String get settingsQrTitle => 'My QR code';
+
+  @override
+  String get settingsQrProfileTitle => 'Profile QR code';
+
+  @override
+  String get settingsQrHint => 'Scan this code to open the profile';
+
+  @override
+  String get settingsQrCopy => 'Copy link';
+
+  @override
+  String get settingsQrCopied => 'Link copied';
+
+  @override
+  String get settingsDeviceTitle => 'System and device';
+
+  @override
+  String get settingsDeviceError => 'Could not load device information';
+
+  @override
+  String get settingsDeviceErrorHint =>
+      'Try refreshing the information. Your app data will stay unchanged.';
+
+  @override
+  String get settingsDeviceMemory => 'Memory and storage';
+
+  @override
+  String get settingsDeviceRam => 'Memory';
+
+  @override
+  String get settingsDeviceStorage => 'Device storage';
+
+  @override
+  String get settingsDeviceSpecs => 'Specifications';
+
+  @override
+  String get settingsDeviceCopyHint =>
+      'Select a specification to copy its value';
+
+  @override
+  String get settingsDeviceProcessor => 'Processor';
+
+  @override
+  String get settingsDeviceDisplay => 'Display and graphics';
+
+  @override
+  String get settingsDeviceCameras => 'Cameras';
+
+  @override
+  String get settingsDeviceOs => 'Operating system';
+
+  @override
+  String get settingsDeviceSecurityPatch => 'Security update';
+
+  @override
+  String get settingsDeviceBuild => 'Build number';
+
+  @override
+  String get settingsDeviceModel => 'Model';
+
+  @override
+  String get settingsDeviceArchitecture => 'Architecture';
+
+  @override
+  String get settingsDeviceGb => 'GB';
+
+  @override
+  String get settingsDeviceMp => 'MP';
+
+  @override
+  String get settingsDeviceHz => 'Hz';
+
+  @override
+  String get settingsDeviceCores => 'cores';
+
+  @override
+  String get settingsDeviceFrontCamera => 'front';
+
+  @override
+  String get settingsDeviceAvailable => 'Available';
+
+  @override
+  String get settingsDeviceUnknown => 'Unavailable';
+
+  @override
+  String get settingsAboutSupport => 'Help and feedback';
+
+  @override
+  String get settingsAboutLinks => 'NiosMess online';
+
+  @override
+  String get settingsE2eeOrdinaryTitle => 'Personal chats · E2E preview';
+
+  @override
+  String get settingsE2eeEncrypt => 'Encrypt messages';
+
+  @override
+  String get settingsE2eeBluetoothRequired =>
+      'Bluetooth delivery requires E2E encryption';
+
+  @override
+  String get settingsE2eeModeDescription =>
+      'New messages and files are encrypted before sending. Unencrypted mode is available only when both participants turn E2E off.';
+
+  @override
+  String get settingsE2eeLockedDescription =>
+      'This device is not linked yet. Restore your keys or transfer them from another device.';
+
+  @override
+  String get settingsE2eeDeviceDescription =>
+      'Linked devices receive history independently. Older messages, groups and bots keep their existing mode. Explicit @ai requests send the request text to NiosAI, without history or file keys. A leaked long-term key can expose older encrypted history.';
+
+  @override
+  String get settingsE2eeActionFailed =>
+      'Could not complete the action. Check your connection, account and code. A reset requires a fresh NiosID sign-in within the last 15 minutes.';
+
+  @override
+  String get settingsE2eeReconnect => 'Retry connection';
+
+  @override
+  String get settingsE2eeResetTitle => 'Start with new keys?';
+
+  @override
+  String get settingsE2eeResetDescription =>
+      'Older encrypted history cannot be restored without the original keys. Other devices will be signed out. Your contacts will need to verify the new fingerprint.';
+
+  @override
+  String get settingsE2eeResetAction => 'Create new keys';
+
+  @override
+  String get settingsE2eeOfflineTitle => 'Without internet';
+
+  @override
+  String get settingsE2eeMeshTitle => 'Use Bluetooth when offline';
+
+  @override
+  String get settingsE2eeMeshDescription =>
+      'Relays encrypted text through nearby NiosMess devices. Bluetooth permission and running apps are required.';
+
+  @override
+  String get settingsE2eeBluetoothPermission => 'Allow Bluetooth';
+
+  @override
+  String get settingsE2eeRecoveryTitle => 'Recovery key';
+
+  @override
+  String get settingsE2eeRecoveryDescription =>
+      'Save this key in a password manager. It restores history if you lose every device. We cannot recover it for you.';
+
+  @override
+  String get settingsE2eeShowRecovery => 'Show recovery key';
+
+  @override
+  String get settingsE2eeHideRecovery => 'Hide recovery key';
+
+  @override
+  String get settingsE2eeBackupSaved => 'I saved the key';
+
+  @override
+  String get settingsE2eeOwnFingerprint => 'My fingerprint';
+
+  @override
+  String get settingsE2eeRestoreTitle => 'Restore on this device';
+
+  @override
+  String get settingsE2eeRestoreAction => 'Restore history';
+
+  @override
+  String get settingsE2eeLostKeys => 'All keys are lost — start again';
+
+  @override
+  String get settingsE2eeLinkTitle => 'Link another device';
+
+  @override
+  String get settingsE2eePairNewDescription =>
+      'Create a code here and enter it in this section on a linked device. The code lasts 10 minutes. Share it only between your own devices.';
+
+  @override
+  String get settingsE2eePairCodeCreate => 'Create linking code';
+
+  @override
+  String get settingsE2eePairCodeCopy => 'Copy linking code';
+
+  @override
+  String get settingsE2eePairCodeLabel => 'Linking code';
+
+  @override
+  String get settingsE2eePairApproveDescription =>
+      'Paste the code from your new device. This will transfer your chat keys to it.';
+
+  @override
+  String get settingsE2eePairApproveAction => 'Transfer keys';
+
+  @override
+  String get settingsE2eePairExpired =>
+      'The linking code expired. Create a new one.';
+
+  @override
+  String get settingsE2eeContactTitle => 'Verify a contact';
+
+  @override
+  String get settingsE2eeContactDescription =>
+      'The first contact key is remembered. To protect your first conversation against impersonation, compare fingerprints over another trusted channel.';
+
+  @override
+  String get settingsE2eeDirectChat => 'Personal chat';
+
+  @override
+  String get settingsE2eeAcceptFingerprint => 'Fingerprints match — trust key';
+
+  @override
+  String get settingsE2eeCopyToast => 'Copied';
+
+  @override
+  String get settingsSessionsLoadFailed =>
+      'Could not load devices. Check your connection and try again.';
+
+  @override
+  String get settingsSessionsOthers => 'Other devices';
+
+  @override
+  String get settingsSessionsEmptyDescription =>
+      'You are signed in only on this device.';
+
+  @override
+  String get settingsSessionsEndedOthers => 'All other sessions ended';
+
+  @override
+  String get settingsSessionsEndFailed =>
+      'Could not end the session. Try again.';
+
+  @override
+  String get settingsSessionsApp => 'App';
+
+  @override
+  String get settingsSessionsIp => 'IP address';
+
+  @override
+  String get settingsSessionsRegion => 'Location';
+
+  @override
+  String get settingsSessionsFirstSignIn => 'First sign-in';
+
+  @override
+  String get settingsSessionsLastActive => 'Last active';
+
+  @override
+  String get settingsSessionsEndThis => 'End this session';
+
+  @override
+  String get settingsSessionsCurrentDevice => 'This device';
+
+  @override
+  String get settingsSessionsNoOtherDevices => 'No other active sessions';
+
+  @override
+  String get settingsE2eeMeshSearching => 'Looking for nearby devices';
+
+  @override
+  String get settingsE2eeMeshDevices => 'Nearby devices';
+
+  @override
+  String get settingsE2eeMeshPermission => 'Bluetooth permission is required';
+
+  @override
+  String get settingsE2eeMeshOff => 'Bluetooth is turned off on this device';
+
+  @override
+  String get settingsE2eeMeshUnsupported =>
+      'This Bluetooth adapter does not support relaying';
+
+  @override
+  String get settingsE2eeMeshScanOnly =>
+      'This adapter can only scan for nearby devices';
+
+  @override
+  String get settingsE2eeMeshStarting => 'Connecting to Bluetooth';
+
+  @override
+  String get settingsE2eeMeshStopped => 'Bluetooth delivery is turned off';
+
+  @override
+  String get settingsE2eeMeshUnavailable =>
+      'Bluetooth is temporarily unavailable';
+
+  @override
+  String get settingsPlusActive => 'Subscription active';
+
+  @override
+  String settingsPlusActiveUntil(String date) {
+    return 'Active until $date';
+  }
+
+  @override
+  String get settingsPlusGrace =>
+      'Your subscription has ended. Channel, group and emoji settings are temporarily retained.';
+
+  @override
+  String settingsPlusGraceUntil(String date) {
+    return 'Channel, group and emoji settings are retained until $date';
+  }
+
+  @override
+  String get settingsPlusSummary =>
+      '300 Niosiki for NiosAI, Prime and SPrime, files up to 100 MB and higher messenger limits.';
+
+  @override
+  String get settingsPlusBenefits => 'Included';
+
+  @override
+  String get settingsPlusAiBudget => '300 Niosiki every 3 days';
+
+  @override
+  String get settingsPlusAiBudgetHint =>
+      'Up from 50 on Free. Shared across NiosMess, the bot and the main model group on NiosAI. Usage depends on the model and conversation length.';
+
+  @override
+  String get settingsPlusModelsHint =>
+      'Models for complex questions, detailed analysis and coding.';
+
+  @override
+  String get settingsPlusFiles => 'Files up to 100 MB';
+
+  @override
+  String get settingsPlusFilesHint => 'Up from 30 MB on Free.';
+
+  @override
+  String get settingsPlusCommunities => '220 public channels and 220 groups';
+
+  @override
+  String get settingsPlusCommunitiesHint =>
+      'Up from 110 channels and 110 groups on Free.';
+
+  @override
+  String get settingsPlusEmoji => '100 emoji packs';
+
+  @override
+  String get settingsPlusEmojiHint =>
+      'Up from 50 on Free. Set an emoji status next to your name.';
+
+  @override
+  String get settingsPlusGracePeriod => '5 days to renew';
+
+  @override
+  String get settingsPlusGracePeriodHint =>
+      'Channel, group and custom emoji settings are retained for 5 days after expiry. Items above the Free limit then become private. Data is not deleted.';
+
+  @override
+  String get settingsPlusTrial => 'Try free for 1 day';
+
+  @override
+  String get settingsPlusTrialPending => 'Activating…';
+
+  @override
+  String get settingsPlusTrialActivated => 'Your 1-day Nios+ trial is active';
+
+  @override
+  String get settingsPlusTrialFailed => 'Could not activate the trial';
+
+  @override
+  String get settingsPlusStatusFailed =>
+      'Could not check your subscription. Refresh its status before activating the trial.';
+
+  @override
+  String get settingsStorageSafeCleanup =>
+      'Clearing the cache removes downloaded media copies. Chats, keys and the sending queue are kept. Deleting drafts is a separate action.';
+
+  @override
+  String get settingsStorageEstimate =>
+      'Usage is calculated from available app folders. Your personal device folders are not scanned.';
+
+  @override
+  String get settingsProfileAccountChanged =>
+      'Your account has changed. Open the profile again.';
+
+  @override
+  String get settingsPrivacyLoadFailed => 'Could not refresh privacy settings';
+
+  @override
+  String get settingsPrivacySaveFailed =>
+      'Could not save this rule. The previous setting has been restored.';
+
+  @override
+  String get settingsProfileAvatarFailed =>
+      'Could not update your photo. Try again.';
+
+  @override
+  String get settingsAiUsageTitle => 'AI characters';
+
+  @override
+  String get settingsAiUsageUnavailable => 'No quota is configured';
+
+  @override
+  String settingsAiUsageRemaining(String remaining, String limit) {
+    return '$remaining of $limit characters';
+  }
+
+  @override
+  String settingsAiUsageReset(String date) {
+    return 'Quota resets: $date';
+  }
+
+  @override
+  String settingsAiUsagePercent(String percent) {
+    return '$percent% remaining';
+  }
+
+  @override
+  String get settingsBadgePickerTitle => 'Choose badges';
+
+  @override
+  String get settingsBadgePickerHint =>
+      'Choose up to two badges for your profile.';
+
+  @override
+  String get settingsBadgePickerLimit => 'You can select up to two badges';
+
+  @override
+  String get settingsBadgePickerEmpty =>
+      'You do not have any available badges yet';
+
+  @override
+  String get settingsBadgePickerLoadFailed => 'Could not load badges';
+
+  @override
+  String get settingsBadgePickerSaveFailed => 'Could not save badges';
+
+  @override
+  String get settingsBadgePickerSelected => 'Selected';
+
+  @override
+  String get settingsHoursAddInterval => 'Add interval';
+
+  @override
+  String get settingsHoursDeleteInterval => 'Delete interval';
+
+  @override
+  String get settingsHoursStart => 'Start time';
+
+  @override
+  String get settingsHoursEnd => 'End time';
+
+  @override
+  String get settingsHoursEndAfterStart =>
+      'End time must be later than start time';
+
+  @override
+  String get settingsHoursOverlap => 'Time intervals must not overlap';
+
+  @override
+  String get settingsHoursLimit => 'Up to four intervals per day';
+
+  @override
+  String get settingsHoursDayOff => 'Day off';
+
+  @override
+  String get settingsHoursDayOffHint =>
+      'Add a time interval or choose a preset.';
+
+  @override
+  String get settingsHoursPresets => 'Time presets';
+
+  @override
+  String get settingsHoursRepeat => 'Repeat schedule';
+
+  @override
+  String get settingsHoursCopyWeekdays => 'Copy to weekdays';
+
+  @override
+  String get settingsHoursCopyAll => 'Copy to all days';
+
+  @override
+  String get settingsHoursCopied => 'Schedule copied';
+
+  @override
+  String get settingsHoursTimezone => 'Time zone';
 }

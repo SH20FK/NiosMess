@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
-import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
@@ -18,7 +19,6 @@ class SettingsAccountScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AuthState auth = ref.watch(authProvider);
-    final ColorScheme scheme = Theme.of(context).colorScheme;
 
     final String displayName =
         auth.profile?.displayName ??
@@ -34,31 +34,28 @@ class SettingsAccountScreen extends ConsumerWidget {
       children: <Widget>[
         SettingsSection(
           children: <Widget>[
-            SettingsRow(
+            _copyableField(
+              context,
               anchor: SettingId.accountDisplayName.value,
-              leading: Icon(
-                Icons.person_outline_rounded,
-                color: scheme.primary,
-              ),
+              icon: Icons.person_outline_rounded,
               title: context.l10n.profileDisplayName,
-              control: ValueControl(displayName),
+              value: displayName,
             ),
             if (username.isNotEmpty)
-              SettingsRow(
+              _copyableField(
+                context,
                 anchor: SettingId.accountUsername.value,
-                leading: Icon(
-                  Icons.alternate_email_rounded,
-                  color: scheme.primary,
-                ),
+                icon: Icons.alternate_email_rounded,
                 title: context.l10n.profileUsername,
-                control: ValueControl('@$username'),
+                value: '@$username',
               ),
             if (niosId != null && niosId.isNotEmpty)
-              SettingsRow(
+              _copyableField(
+                context,
                 anchor: SettingId.accountNiosId.value,
-                leading: Icon(Icons.badge_outlined, color: scheme.primary),
+                icon: Icons.badge_outlined,
                 title: 'Nios ID',
-                control: ValueControl(niosId),
+                value: niosId,
               ),
           ],
         ),
@@ -85,4 +82,27 @@ class SettingsAccountScreen extends ConsumerWidget {
       ],
     );
   }
+
+  Widget _copyableField(
+    BuildContext context, {
+    required String anchor,
+    required IconData icon,
+    required String title,
+    required String value,
+  }) => SettingsAnchor(
+    id: anchor,
+    child: SettingsListItem(
+      icon: icon,
+      title: title,
+      value: value,
+      type: SettingsListItemType.value,
+      trailing: const Icon(Icons.copy_rounded, size: 20),
+      onTap: () async {
+        await Clipboard.setData(ClipboardData(text: value));
+        if (context.mounted) {
+          AppToast.showSuccess(context, context.l10n.settingsE2eeCopyToast);
+        }
+      },
+    ),
+  );
 }

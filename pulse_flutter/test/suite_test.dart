@@ -1,3 +1,16 @@
+import 'widgets/settings_redesign_system_profile_dialogs_test.dart'
+    as settings_redesign_system_profile_dialogs_test;
+import 'widgets/settings_redesign_test.dart' as settings_redesign_test;
+import 'widgets/settings_redesign_personalization_test.dart'
+    as settings_redesign_personalization_test;
+import 'widgets/settings_redesign_profile_editor_test.dart'
+    as settings_redesign_profile_editor_test;
+import 'widgets/settings_redesign_security_test.dart'
+    as settings_redesign_security_test;
+import 'widgets/settings_redesign_system_test.dart'
+    as settings_redesign_system_test;
+import 'widgets/settings_redesign_system_dialogs_test.dart'
+    as settings_redesign_system_dialogs_test;
 import 'widgets/chat_productivity_test.dart' as chat_productivity;
 import 'providers/feed_poll_vote_test.dart' as feed_poll_vote;
 import 'services/encrypted_draft_sync_test.dart' as encrypted_draft_sync;
@@ -391,6 +404,31 @@ void main() {
     group('chat_extras', chat_extras.main);
     group('file_request', file_request.main);
     group('media_local_path_security', media_local_path_security.main);
+
+    // Settings redesign: account safety, real filesystem cleanup and adaptive UI.
+    group('settings_redesign_test', settings_redesign_test.main);
+    group(
+      'settings_redesign_personalization_test',
+      settings_redesign_personalization_test.main,
+    );
+    group(
+      'settings_redesign_profile_editor_test',
+      settings_redesign_profile_editor_test.main,
+    );
+    group(
+      'settings_redesign_security_test',
+      settings_redesign_security_test.main,
+    );
+    group('settings_redesign_system_test', settings_redesign_system_test.main);
+    group(
+      'settings_redesign_system_dialogs_test',
+      settings_redesign_system_dialogs_test.main,
+    );
+
+    group(
+      'settings_redesign_system_profile_dialogs_test',
+      settings_redesign_system_profile_dialogs_test.main,
+    );
 
     // Widgets
     expression_picker.main();

@@ -2974,6 +2974,996 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Deleted account'**
   String get auditDeletedAccount;
+
+  /// No description provided for @settingsProfileChangePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Change photo'**
+  String get settingsProfileChangePhoto;
+
+  /// No description provided for @settingsProfilePhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number'**
+  String get settingsProfilePhone;
+
+  /// No description provided for @settingsProfilePhoneInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a phone number with 7 to 15 digits'**
+  String get settingsProfilePhoneInvalid;
+
+  /// No description provided for @settingsProfileBirthday.
+  ///
+  /// In en, this message translates to:
+  /// **'Birthday'**
+  String get settingsProfileBirthday;
+
+  /// No description provided for @settingsProfileClearBirthday.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove birthday'**
+  String get settingsProfileClearBirthday;
+
+  /// No description provided for @settingsProfileNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get settingsProfileNotSet;
+
+  /// No description provided for @settingsProfileWorkingHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Working hours'**
+  String get settingsProfileWorkingHours;
+
+  /// No description provided for @settingsProfileHoursConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured'**
+  String get settingsProfileHoursConfigured;
+
+  /// No description provided for @settingsProfileSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save your profile. Your changes are still in the form.'**
+  String get settingsProfileSaveFailed;
+
+  /// No description provided for @settingsProfileSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile saved'**
+  String get settingsProfileSaved;
+
+  /// No description provided for @settingsGroupPersonalization.
+  ///
+  /// In en, this message translates to:
+  /// **'Personalization'**
+  String get settingsGroupPersonalization;
+
+  /// No description provided for @settingsGroupCommunication.
+  ///
+  /// In en, this message translates to:
+  /// **'Communication'**
+  String get settingsGroupCommunication;
+
+  /// No description provided for @settingsGroupSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Account and security'**
+  String get settingsGroupSecurity;
+
+  /// No description provided for @settingsGroupApplication.
+  ///
+  /// In en, this message translates to:
+  /// **'Application'**
+  String get settingsGroupApplication;
+
+  /// No description provided for @settingsProfileChoosePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose photo'**
+  String get settingsProfileChoosePhoto;
+
+  /// No description provided for @settingsProfilePhotoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'PNG, JPG or WebP · up to 8 MB'**
+  String get settingsProfilePhotoHint;
+
+  /// No description provided for @settingsProfileChooseVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose video avatar'**
+  String get settingsProfileChooseVideo;
+
+  /// No description provided for @settingsProfileVideoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Video up to 5 seconds · up to 8 MB'**
+  String get settingsProfileVideoHint;
+
+  /// No description provided for @settingsProfileVideoFormats.
+  ///
+  /// In en, this message translates to:
+  /// **'MP4, MOV and WebM are supported'**
+  String get settingsProfileVideoFormats;
+
+  /// No description provided for @settingsProfilePhotoFormats.
+  ///
+  /// In en, this message translates to:
+  /// **'PNG, JPG and WebP are supported'**
+  String get settingsProfilePhotoFormats;
+
+  /// No description provided for @settingsProfileFileTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a file up to 8 MB'**
+  String get settingsProfileFileTooLarge;
+
+  /// No description provided for @settingsQrTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My QR code'**
+  String get settingsQrTitle;
+
+  /// No description provided for @settingsQrProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile QR code'**
+  String get settingsQrProfileTitle;
+
+  /// No description provided for @settingsQrHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan this code to open the profile'**
+  String get settingsQrHint;
+
+  /// No description provided for @settingsQrCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get settingsQrCopy;
+
+  /// No description provided for @settingsQrCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get settingsQrCopied;
+
+  /// No description provided for @settingsDeviceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'System and device'**
+  String get settingsDeviceTitle;
+
+  /// No description provided for @settingsDeviceError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load device information'**
+  String get settingsDeviceError;
+
+  /// No description provided for @settingsDeviceErrorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try refreshing the information. Your app data will stay unchanged.'**
+  String get settingsDeviceErrorHint;
+
+  /// No description provided for @settingsDeviceMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory and storage'**
+  String get settingsDeviceMemory;
+
+  /// No description provided for @settingsDeviceRam.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get settingsDeviceRam;
+
+  /// No description provided for @settingsDeviceStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Device storage'**
+  String get settingsDeviceStorage;
+
+  /// No description provided for @settingsDeviceSpecs.
+  ///
+  /// In en, this message translates to:
+  /// **'Specifications'**
+  String get settingsDeviceSpecs;
+
+  /// No description provided for @settingsDeviceCopyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a specification to copy its value'**
+  String get settingsDeviceCopyHint;
+
+  /// No description provided for @settingsDeviceProcessor.
+  ///
+  /// In en, this message translates to:
+  /// **'Processor'**
+  String get settingsDeviceProcessor;
+
+  /// No description provided for @settingsDeviceDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Display and graphics'**
+  String get settingsDeviceDisplay;
+
+  /// No description provided for @settingsDeviceCameras.
+  ///
+  /// In en, this message translates to:
+  /// **'Cameras'**
+  String get settingsDeviceCameras;
+
+  /// No description provided for @settingsDeviceOs.
+  ///
+  /// In en, this message translates to:
+  /// **'Operating system'**
+  String get settingsDeviceOs;
+
+  /// No description provided for @settingsDeviceSecurityPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Security update'**
+  String get settingsDeviceSecurityPatch;
+
+  /// No description provided for @settingsDeviceBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'Build number'**
+  String get settingsDeviceBuild;
+
+  /// No description provided for @settingsDeviceModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get settingsDeviceModel;
+
+  /// No description provided for @settingsDeviceArchitecture.
+  ///
+  /// In en, this message translates to:
+  /// **'Architecture'**
+  String get settingsDeviceArchitecture;
+
+  /// No description provided for @settingsDeviceGb.
+  ///
+  /// In en, this message translates to:
+  /// **'GB'**
+  String get settingsDeviceGb;
+
+  /// No description provided for @settingsDeviceMp.
+  ///
+  /// In en, this message translates to:
+  /// **'MP'**
+  String get settingsDeviceMp;
+
+  /// No description provided for @settingsDeviceHz.
+  ///
+  /// In en, this message translates to:
+  /// **'Hz'**
+  String get settingsDeviceHz;
+
+  /// No description provided for @settingsDeviceCores.
+  ///
+  /// In en, this message translates to:
+  /// **'cores'**
+  String get settingsDeviceCores;
+
+  /// No description provided for @settingsDeviceFrontCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'front'**
+  String get settingsDeviceFrontCamera;
+
+  /// No description provided for @settingsDeviceAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get settingsDeviceAvailable;
+
+  /// No description provided for @settingsDeviceUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get settingsDeviceUnknown;
+
+  /// No description provided for @settingsAboutSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Help and feedback'**
+  String get settingsAboutSupport;
+
+  /// No description provided for @settingsAboutLinks.
+  ///
+  /// In en, this message translates to:
+  /// **'NiosMess online'**
+  String get settingsAboutLinks;
+
+  /// No description provided for @settingsE2eeOrdinaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal chats · E2E preview'**
+  String get settingsE2eeOrdinaryTitle;
+
+  /// No description provided for @settingsE2eeEncrypt.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypt messages'**
+  String get settingsE2eeEncrypt;
+
+  /// No description provided for @settingsE2eeBluetoothRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth delivery requires E2E encryption'**
+  String get settingsE2eeBluetoothRequired;
+
+  /// No description provided for @settingsE2eeModeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'New messages and files are encrypted before sending. Unencrypted mode is available only when both participants turn E2E off.'**
+  String get settingsE2eeModeDescription;
+
+  /// No description provided for @settingsE2eeLockedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This device is not linked yet. Restore your keys or transfer them from another device.'**
+  String get settingsE2eeLockedDescription;
+
+  /// No description provided for @settingsE2eeDeviceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked devices receive history independently. Older messages, groups and bots keep their existing mode. Explicit @ai requests send the request text to NiosAI, without history or file keys. A leaked long-term key can expose older encrypted history.'**
+  String get settingsE2eeDeviceDescription;
+
+  /// No description provided for @settingsE2eeActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not complete the action. Check your connection, account and code. A reset requires a fresh NiosID sign-in within the last 15 minutes.'**
+  String get settingsE2eeActionFailed;
+
+  /// No description provided for @settingsE2eeReconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry connection'**
+  String get settingsE2eeReconnect;
+
+  /// No description provided for @settingsE2eeResetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start with new keys?'**
+  String get settingsE2eeResetTitle;
+
+  /// No description provided for @settingsE2eeResetDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Older encrypted history cannot be restored without the original keys. Other devices will be signed out. Your contacts will need to verify the new fingerprint.'**
+  String get settingsE2eeResetDescription;
+
+  /// No description provided for @settingsE2eeResetAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Create new keys'**
+  String get settingsE2eeResetAction;
+
+  /// No description provided for @settingsE2eeOfflineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Without internet'**
+  String get settingsE2eeOfflineTitle;
+
+  /// No description provided for @settingsE2eeMeshTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Bluetooth when offline'**
+  String get settingsE2eeMeshTitle;
+
+  /// No description provided for @settingsE2eeMeshDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Relays encrypted text through nearby NiosMess devices. Bluetooth permission and running apps are required.'**
+  String get settingsE2eeMeshDescription;
+
+  /// No description provided for @settingsE2eeBluetoothPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Bluetooth'**
+  String get settingsE2eeBluetoothPermission;
+
+  /// No description provided for @settingsE2eeRecoveryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery key'**
+  String get settingsE2eeRecoveryTitle;
+
+  /// No description provided for @settingsE2eeRecoveryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Save this key in a password manager. It restores history if you lose every device. We cannot recover it for you.'**
+  String get settingsE2eeRecoveryDescription;
+
+  /// No description provided for @settingsE2eeShowRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Show recovery key'**
+  String get settingsE2eeShowRecovery;
+
+  /// No description provided for @settingsE2eeHideRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide recovery key'**
+  String get settingsE2eeHideRecovery;
+
+  /// No description provided for @settingsE2eeBackupSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'I saved the key'**
+  String get settingsE2eeBackupSaved;
+
+  /// No description provided for @settingsE2eeOwnFingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'My fingerprint'**
+  String get settingsE2eeOwnFingerprint;
+
+  /// No description provided for @settingsE2eeRestoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore on this device'**
+  String get settingsE2eeRestoreTitle;
+
+  /// No description provided for @settingsE2eeRestoreAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore history'**
+  String get settingsE2eeRestoreAction;
+
+  /// No description provided for @settingsE2eeLostKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'All keys are lost — start again'**
+  String get settingsE2eeLostKeys;
+
+  /// No description provided for @settingsE2eeLinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Link another device'**
+  String get settingsE2eeLinkTitle;
+
+  /// No description provided for @settingsE2eePairNewDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a code here and enter it in this section on a linked device. The code lasts 10 minutes. Share it only between your own devices.'**
+  String get settingsE2eePairNewDescription;
+
+  /// No description provided for @settingsE2eePairCodeCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create linking code'**
+  String get settingsE2eePairCodeCreate;
+
+  /// No description provided for @settingsE2eePairCodeCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy linking code'**
+  String get settingsE2eePairCodeCopy;
+
+  /// No description provided for @settingsE2eePairCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Linking code'**
+  String get settingsE2eePairCodeLabel;
+
+  /// No description provided for @settingsE2eePairApproveDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the code from your new device. This will transfer your chat keys to it.'**
+  String get settingsE2eePairApproveDescription;
+
+  /// No description provided for @settingsE2eePairApproveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer keys'**
+  String get settingsE2eePairApproveAction;
+
+  /// No description provided for @settingsE2eePairExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'The linking code expired. Create a new one.'**
+  String get settingsE2eePairExpired;
+
+  /// No description provided for @settingsE2eeContactTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify a contact'**
+  String get settingsE2eeContactTitle;
+
+  /// No description provided for @settingsE2eeContactDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The first contact key is remembered. To protect your first conversation against impersonation, compare fingerprints over another trusted channel.'**
+  String get settingsE2eeContactDescription;
+
+  /// No description provided for @settingsE2eeDirectChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal chat'**
+  String get settingsE2eeDirectChat;
+
+  /// No description provided for @settingsE2eeAcceptFingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fingerprints match — trust key'**
+  String get settingsE2eeAcceptFingerprint;
+
+  /// No description provided for @settingsE2eeCopyToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get settingsE2eeCopyToast;
+
+  /// No description provided for @settingsSessionsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load devices. Check your connection and try again.'**
+  String get settingsSessionsLoadFailed;
+
+  /// No description provided for @settingsSessionsOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Other devices'**
+  String get settingsSessionsOthers;
+
+  /// No description provided for @settingsSessionsEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'You are signed in only on this device.'**
+  String get settingsSessionsEmptyDescription;
+
+  /// No description provided for @settingsSessionsEndedOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'All other sessions ended'**
+  String get settingsSessionsEndedOthers;
+
+  /// No description provided for @settingsSessionsEndFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not end the session. Try again.'**
+  String get settingsSessionsEndFailed;
+
+  /// No description provided for @settingsSessionsApp.
+  ///
+  /// In en, this message translates to:
+  /// **'App'**
+  String get settingsSessionsApp;
+
+  /// No description provided for @settingsSessionsIp.
+  ///
+  /// In en, this message translates to:
+  /// **'IP address'**
+  String get settingsSessionsIp;
+
+  /// No description provided for @settingsSessionsRegion.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get settingsSessionsRegion;
+
+  /// No description provided for @settingsSessionsFirstSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'First sign-in'**
+  String get settingsSessionsFirstSignIn;
+
+  /// No description provided for @settingsSessionsLastActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Last active'**
+  String get settingsSessionsLastActive;
+
+  /// No description provided for @settingsSessionsEndThis.
+  ///
+  /// In en, this message translates to:
+  /// **'End this session'**
+  String get settingsSessionsEndThis;
+
+  /// No description provided for @settingsSessionsCurrentDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get settingsSessionsCurrentDevice;
+
+  /// No description provided for @settingsSessionsNoOtherDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'No other active sessions'**
+  String get settingsSessionsNoOtherDevices;
+
+  /// No description provided for @settingsE2eeMeshSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for nearby devices'**
+  String get settingsE2eeMeshSearching;
+
+  /// No description provided for @settingsE2eeMeshDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearby devices'**
+  String get settingsE2eeMeshDevices;
+
+  /// No description provided for @settingsE2eeMeshPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth permission is required'**
+  String get settingsE2eeMeshPermission;
+
+  /// No description provided for @settingsE2eeMeshOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth is turned off on this device'**
+  String get settingsE2eeMeshOff;
+
+  /// No description provided for @settingsE2eeMeshUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This Bluetooth adapter does not support relaying'**
+  String get settingsE2eeMeshUnsupported;
+
+  /// No description provided for @settingsE2eeMeshScanOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This adapter can only scan for nearby devices'**
+  String get settingsE2eeMeshScanOnly;
+
+  /// No description provided for @settingsE2eeMeshStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to Bluetooth'**
+  String get settingsE2eeMeshStarting;
+
+  /// No description provided for @settingsE2eeMeshStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth delivery is turned off'**
+  String get settingsE2eeMeshStopped;
+
+  /// No description provided for @settingsE2eeMeshUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth is temporarily unavailable'**
+  String get settingsE2eeMeshUnavailable;
+
+  /// No description provided for @settingsPlusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription active'**
+  String get settingsPlusActive;
+
+  /// No description provided for @settingsPlusActiveUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Active until {date}'**
+  String settingsPlusActiveUntil(String date);
+
+  /// No description provided for @settingsPlusGrace.
+  ///
+  /// In en, this message translates to:
+  /// **'Your subscription has ended. Channel, group and emoji settings are temporarily retained.'**
+  String get settingsPlusGrace;
+
+  /// No description provided for @settingsPlusGraceUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel, group and emoji settings are retained until {date}'**
+  String settingsPlusGraceUntil(String date);
+
+  /// No description provided for @settingsPlusSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'300 Niosiki for NiosAI, Prime and SPrime, files up to 100 MB and higher messenger limits.'**
+  String get settingsPlusSummary;
+
+  /// No description provided for @settingsPlusBenefits.
+  ///
+  /// In en, this message translates to:
+  /// **'Included'**
+  String get settingsPlusBenefits;
+
+  /// No description provided for @settingsPlusAiBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'300 Niosiki every 3 days'**
+  String get settingsPlusAiBudget;
+
+  /// No description provided for @settingsPlusAiBudgetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Up from 50 on Free. Shared across NiosMess, the bot and the main model group on NiosAI. Usage depends on the model and conversation length.'**
+  String get settingsPlusAiBudgetHint;
+
+  /// No description provided for @settingsPlusModelsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Models for complex questions, detailed analysis and coding.'**
+  String get settingsPlusModelsHint;
+
+  /// No description provided for @settingsPlusFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files up to 100 MB'**
+  String get settingsPlusFiles;
+
+  /// No description provided for @settingsPlusFilesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Up from 30 MB on Free.'**
+  String get settingsPlusFilesHint;
+
+  /// No description provided for @settingsPlusCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'220 public channels and 220 groups'**
+  String get settingsPlusCommunities;
+
+  /// No description provided for @settingsPlusCommunitiesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Up from 110 channels and 110 groups on Free.'**
+  String get settingsPlusCommunitiesHint;
+
+  /// No description provided for @settingsPlusEmoji.
+  ///
+  /// In en, this message translates to:
+  /// **'100 emoji packs'**
+  String get settingsPlusEmoji;
+
+  /// No description provided for @settingsPlusEmojiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Up from 50 on Free. Set an emoji status next to your name.'**
+  String get settingsPlusEmojiHint;
+
+  /// No description provided for @settingsPlusGracePeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'5 days to renew'**
+  String get settingsPlusGracePeriod;
+
+  /// No description provided for @settingsPlusGracePeriodHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel, group and custom emoji settings are retained for 5 days after expiry. Items above the Free limit then become private. Data is not deleted.'**
+  String get settingsPlusGracePeriodHint;
+
+  /// No description provided for @settingsPlusTrial.
+  ///
+  /// In en, this message translates to:
+  /// **'Try free for 1 day'**
+  String get settingsPlusTrial;
+
+  /// No description provided for @settingsPlusTrialPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Activating…'**
+  String get settingsPlusTrialPending;
+
+  /// No description provided for @settingsPlusTrialActivated.
+  ///
+  /// In en, this message translates to:
+  /// **'Your 1-day Nios+ trial is active'**
+  String get settingsPlusTrialActivated;
+
+  /// No description provided for @settingsPlusTrialFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not activate the trial'**
+  String get settingsPlusTrialFailed;
+
+  /// No description provided for @settingsPlusStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check your subscription. Refresh its status before activating the trial.'**
+  String get settingsPlusStatusFailed;
+
+  /// No description provided for @settingsStorageSafeCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'Clearing the cache removes downloaded media copies. Chats, keys and the sending queue are kept. Deleting drafts is a separate action.'**
+  String get settingsStorageSafeCleanup;
+
+  /// No description provided for @settingsStorageEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage is calculated from available app folders. Your personal device folders are not scanned.'**
+  String get settingsStorageEstimate;
+
+  /// No description provided for @settingsProfileAccountChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has changed. Open the profile again.'**
+  String get settingsProfileAccountChanged;
+
+  /// No description provided for @settingsPrivacyLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not refresh privacy settings'**
+  String get settingsPrivacyLoadFailed;
+
+  /// No description provided for @settingsPrivacySaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save this rule. The previous setting has been restored.'**
+  String get settingsPrivacySaveFailed;
+
+  /// No description provided for @settingsProfileAvatarFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update your photo. Try again.'**
+  String get settingsProfileAvatarFailed;
+
+  /// No description provided for @settingsAiUsageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI characters'**
+  String get settingsAiUsageTitle;
+
+  /// No description provided for @settingsAiUsageUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No quota is configured'**
+  String get settingsAiUsageUnavailable;
+
+  /// No description provided for @settingsAiUsageRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{remaining} of {limit} characters'**
+  String settingsAiUsageRemaining(String remaining, String limit);
+
+  /// No description provided for @settingsAiUsageReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Quota resets: {date}'**
+  String settingsAiUsageReset(String date);
+
+  /// No description provided for @settingsAiUsagePercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% remaining'**
+  String settingsAiUsagePercent(String percent);
+
+  /// No description provided for @settingsBadgePickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose badges'**
+  String get settingsBadgePickerTitle;
+
+  /// No description provided for @settingsBadgePickerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose up to two badges for your profile.'**
+  String get settingsBadgePickerHint;
+
+  /// No description provided for @settingsBadgePickerLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'You can select up to two badges'**
+  String get settingsBadgePickerLimit;
+
+  /// No description provided for @settingsBadgePickerEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'You do not have any available badges yet'**
+  String get settingsBadgePickerEmpty;
+
+  /// No description provided for @settingsBadgePickerLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load badges'**
+  String get settingsBadgePickerLoadFailed;
+
+  /// No description provided for @settingsBadgePickerSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save badges'**
+  String get settingsBadgePickerSaveFailed;
+
+  /// No description provided for @settingsBadgePickerSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get settingsBadgePickerSelected;
+
+  /// No description provided for @settingsHoursAddInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Add interval'**
+  String get settingsHoursAddInterval;
+
+  /// No description provided for @settingsHoursDeleteInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete interval'**
+  String get settingsHoursDeleteInterval;
+
+  /// No description provided for @settingsHoursStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start time'**
+  String get settingsHoursStart;
+
+  /// No description provided for @settingsHoursEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'End time'**
+  String get settingsHoursEnd;
+
+  /// No description provided for @settingsHoursEndAfterStart.
+  ///
+  /// In en, this message translates to:
+  /// **'End time must be later than start time'**
+  String get settingsHoursEndAfterStart;
+
+  /// No description provided for @settingsHoursOverlap.
+  ///
+  /// In en, this message translates to:
+  /// **'Time intervals must not overlap'**
+  String get settingsHoursOverlap;
+
+  /// No description provided for @settingsHoursLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to four intervals per day'**
+  String get settingsHoursLimit;
+
+  /// No description provided for @settingsHoursDayOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Day off'**
+  String get settingsHoursDayOff;
+
+  /// No description provided for @settingsHoursDayOffHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a time interval or choose a preset.'**
+  String get settingsHoursDayOffHint;
+
+  /// No description provided for @settingsHoursPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Time presets'**
+  String get settingsHoursPresets;
+
+  /// No description provided for @settingsHoursRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat schedule'**
+  String get settingsHoursRepeat;
+
+  /// No description provided for @settingsHoursCopyWeekdays.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy to weekdays'**
+  String get settingsHoursCopyWeekdays;
+
+  /// No description provided for @settingsHoursCopyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy to all days'**
+  String get settingsHoursCopyAll;
+
+  /// No description provided for @settingsHoursCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule copied'**
+  String get settingsHoursCopied;
+
+  /// No description provided for @settingsHoursTimezone.
+  ///
+  /// In en, this message translates to:
+  /// **'Time zone'**
+  String get settingsHoursTimezone;
 }
 
 class _SecretChatLocalizationsDelegate

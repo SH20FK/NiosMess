@@ -294,7 +294,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // Switch to Appearance section in master pane
-      final appearanceTile = find.widgetWithText(SettingsTile, 'Оформление');
+      final appearanceTile = find.widgetWithText(SettingsListItem, 'Оформление');
       expect(appearanceTile, findsWidgets);
       await tester.tap(appearanceTile.first);
       await tester.pump();
@@ -498,7 +498,7 @@ void main() {
       expect(find.byType(SettingsAccountScreen), findsOneWidget);
 
       // 1. Switch to Appearance & adjust font scale
-      final appearanceTile = find.widgetWithText(SettingsTile, 'Оформление');
+      final appearanceTile = find.widgetWithText(SettingsListItem, 'Оформление');
       await tester.tap(appearanceTile.first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

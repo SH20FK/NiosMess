@@ -14,17 +14,21 @@ class SupportRepository {
   }) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
-        .request('create_support_ticket', payload: <String, dynamic>{
-      'ticket_type': ticketType,
-      'subject': subject,
-      'body': body,
-    });
+        .request(
+          'create_support_ticket',
+          payload: <String, dynamic>{
+            'ticket_type': ticketType,
+            'subject': subject,
+            'body': body,
+          },
+          // Creating a ticket has no idempotency key. A lost response must not
+          // silently create several copies of the user's report.
+          maxRetries: 0,
+        );
 
     if (response is Map) {
       return SupportTicket.fromJson(
-        response.map(
-          (dynamic k, dynamic v) => MapEntry(k.toString(), v),
-        ),
+        response.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
       );
     }
     return null;
@@ -39,9 +43,11 @@ class SupportRepository {
       final List list = response['tickets'] as List;
       return list
           .whereType<Map>()
-          .map((m) => SupportTicket.fromJson(
-                m.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
-              ))
+          .map(
+            (m) => SupportTicket.fromJson(
+              m.map((dynamic k, dynamic v) => MapEntry(k.toString(), v)),
+            ),
+          )
           .toList(growable: false);
     }
     return const <SupportTicket>[];
@@ -50,5 +56,5 @@ class SupportRepository {
 
 final Provider<SupportRepository> supportRepositoryProvider =
     Provider<SupportRepository>((Ref ref) {
-  return SupportRepository(ref);
-});
+      return SupportRepository(ref);
+    });

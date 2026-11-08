@@ -162,6 +162,7 @@ void main() {
 
   group('UI Widgets: Privacy Screens', () {
     testWidgets('PrivacyRuleDetailScreen renders radio options', (WidgetTester tester) async {
+      final semantics = tester.ensureSemantics();
       final _FakeWebSocketClient fakeWs = _FakeWebSocketClient();
 
       await tester.pumpWidget(
@@ -180,14 +181,16 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Звонки'), findsOneWidget);
+      expect(find.bySemanticsLabel('Звонки'), findsOneWidget);
       expect(find.text('Все'), findsOneWidget);
       expect(find.text('Мои контакты'), findsOneWidget);
       expect(find.text('Никто'), findsOneWidget);
       expect(find.text('Исключения'), findsOneWidget);
+      semantics.dispose();
     });
 
     testWidgets('BlockedUsersScreen renders search bar and empty state', (WidgetTester tester) async {
+      final semantics = tester.ensureSemantics();
       final _FakeWebSocketClient fakeWs = _FakeWebSocketClient();
       fakeWs.nextResponse = <String, dynamic>{'blocked_users': <dynamic>[]};
 
@@ -207,8 +210,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Заблокированные пользователи'), findsOneWidget);
+      expect(find.bySemanticsLabel('Заблокированные пользователи'), findsOneWidget);
       expect(find.text('Вы еще никого не заблокировали'), findsOneWidget);
+      semantics.dispose();
     });
   });
 }

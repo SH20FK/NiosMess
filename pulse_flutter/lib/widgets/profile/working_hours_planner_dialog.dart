@@ -1,10 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/models/api/working_hours_model.dart';
-import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:intl/intl.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/core/modal/app_modal_content.dart';
 import 'package:pulse_flutter/core/modal/app_time_picker.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/models/api/working_hours_model.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class WorkingHoursPlannerDialog extends StatefulWidget {
   const WorkingHoursPlannerDialog({
@@ -12,7 +18,6 @@ class WorkingHoursPlannerDialog extends StatefulWidget {
     this.isDialog = false,
     super.key,
   });
-
   final WorkingHours? initialWorkingHours;
   final bool isDialog;
 
@@ -20,26 +25,22 @@ class WorkingHoursPlannerDialog extends StatefulWidget {
     BuildContext context, {
     WorkingHours? initialWorkingHours,
   }) {
-    final bool isWide = MediaQuery.sizeOf(context).width >= Breakpoints.medium;
-    if (isWide) {
-      return AppModal.showDialog<WorkingHours>(
-        context: context,
-        maxWidth: 580,
-        builder: (BuildContext context) => WorkingHoursPlannerDialog(
-          initialWorkingHours: initialWorkingHours,
-          isDialog: true,
-        ),
-      );
-    }
-    return AppModal.showSheet<WorkingHours>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (BuildContext context) => WorkingHoursPlannerDialog(
-        initialWorkingHours: initialWorkingHours,
-        isDialog: false,
-      ),
-    );
+    Widget builder(BuildContext context) =>
+        WorkingHoursPlannerDialog(initialWorkingHours: initialWorkingHours);
+    return MediaQuery.sizeOf(context).width >= Breakpoints.medium
+        ? AppModal.showDialog<WorkingHours>(
+            context: context,
+            maxWidth: 580,
+            builder: builder,
+            isDismissible: false,
+          )
+        : AppModal.showSheet<WorkingHours>(
+            context: context,
+            builder: builder,
+            isDismissible: false,
+            enableDrag: false,
+            showDragHandle: false,
+          );
   }
 
   @override
@@ -48,882 +49,336 @@ class WorkingHoursPlannerDialog extends StatefulWidget {
 }
 
 class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
-  int _selectedDay = DateTime.monday;
-  late Map<int, List<TimeInterval>> _schedule;
-  late String _timezone;
+  int _day = DateTime.monday;
+  late final Map<int, List<TimeInterval>> _schedule;
+  late final String _timezone;
+  bool _picking = false;
+  bool _allowPop = false;
 
   @override
   void initState() {
     super.initState();
-    final WorkingHours? initial = widget.initialWorkingHours;
-    _timezone = initial?.timezone ?? 'Europe/Moscow';
-    _schedule = <int, List<TimeInterval>>{
-      DateTime.monday:
-          List<TimeInterval>.from(initial?.mon ?? const <TimeInterval>[]),
-      DateTime.tuesday:
-          List<TimeInterval>.from(initial?.tue ?? const <TimeInterval>[]),
-      DateTime.wednesday:
-          List<TimeInterval>.from(initial?.wed ?? const <TimeInterval>[]),
-      DateTime.thursday:
-          List<TimeInterval>.from(initial?.thu ?? const <TimeInterval>[]),
-      DateTime.friday:
-          List<TimeInterval>.from(initial?.fri ?? const <TimeInterval>[]),
-      DateTime.saturday:
-          List<TimeInterval>.from(initial?.sat ?? const <TimeInterval>[]),
-      DateTime.sunday:
-          List<TimeInterval>.from(initial?.sun ?? const <TimeInterval>[]),
+    _timezone = widget.initialWorkingHours?.timezone ?? 'Europe/Moscow';
+    _schedule = {
+      for (var day = 1; day <= 7; day++)
+        day: List.of(
+          widget.initialWorkingHours?.intervalsForDay(day) ??
+              const <TimeInterval>[],
+        ),
     };
   }
 
-  static const List<Map<String, dynamic>> _days = <Map<String, dynamic>>[
-    <String, dynamic>{'day': DateTime.monday, 'name': 'Пн', 'full': 'Понедельник'},
-    <String, dynamic>{'day': DateTime.tuesday, 'name': 'Вт', 'full': 'Вторник'},
-    <String, dynamic>{'day': DateTime.wednesday, 'name': 'Ср', 'full': 'Среда'},
-    <String, dynamic>{'day': DateTime.thursday, 'name': 'Чт', 'full': 'Четверг'},
-    <String, dynamic>{'day': DateTime.friday, 'name': 'Пт', 'full': 'Пятница'},
-    <String, dynamic>{'day': DateTime.saturday, 'name': 'Сб', 'full': 'Суббота'},
-    <String, dynamic>{'day': DateTime.sunday, 'name': 'Вс', 'full': 'Воскресенье'},
-  ];
+  bool get _dirty => List.generate(7, (index) => index + 1).any(
+    (day) => !listEquals(
+      _schedule[day],
+      widget.initialWorkingHours?.intervalsForDay(day) ??
+          const <TimeInterval>[],
+    ),
+  );
 
-  Future<void> _addInterval() async {
-    HapticService.tap();
-    final List<TimeInterval> current = _schedule[_selectedDay]!;
-    if (current.length >= 4) {
-      AppToast.showError(context, 'Максимум 4 интервала в день');
-      return;
+  Future<void> _cancel() async {
+    if (_picking) return;
+    if (_dirty) {
+      final discard = await showAppConfirmDialog(
+        context: context,
+        title: context.l10n.commonDiscardChanges,
+        subtitle: context.l10n.commonDiscardChangesDesc,
+        confirmLabel: context.l10n.commonDiscardChangesConfirm,
+        cancelLabel: context.l10n.commonCancel,
+        destructive: true,
+      );
+      if (discard != true || !mounted) return;
     }
+    setState(() => _allowPop = true);
+    Navigator.of(context).pop();
+  }
 
-    // Default start time: after last interval end or 09:00
-    TimeOfDay defaultStart = const TimeOfDay(hour: 9, minute: 0);
-    if (current.isNotEmpty) {
-      final TimeInterval last = current.last;
-      final int? lastEnd = last.endMinutes;
-      if (lastEnd != null && lastEnd + 60 <= 23 * 60 + 59) {
-        final int nextHour = (lastEnd ~/ 60);
-        final int nextMin = lastEnd % 60;
-        defaultStart = TimeOfDay(hour: nextHour, minute: nextMin);
+  String _dayName(int day, {bool full = false}) {
+    final value = DateFormat(
+      full ? 'EEEE' : 'E',
+      context.l10n.localeName,
+    ).format(DateTime(2024, 1, day));
+    return value[0].toUpperCase() + value.substring(1);
+  }
+
+  bool _overlaps(
+    List<TimeInterval> intervals,
+    int start,
+    int end,
+    int? ignore,
+  ) {
+    for (var i = 0; i < intervals.length; i++) {
+      if (i == ignore) continue;
+      final oldStart = intervals[i].startMinutes;
+      final oldEnd = intervals[i].endMinutes;
+      if (oldStart != null &&
+          oldEnd != null &&
+          start < oldEnd &&
+          end > oldStart) {
+        return true;
       }
     }
+    return false;
+  }
 
-    final TimeOfDay? start = await AppTimePicker.show(
-      context: context,
-      initialTime: defaultStart,
-      helpText: 'Начало работы',
-    );
-    if (start == null || !mounted) return;
+  Future<void> _pickInterval({int? index}) async {
+    if (_picking) return;
+    final day = _day;
+    final intervals = _schedule[day]!;
+    if (index == null && intervals.length >= 4) {
+      AppToast.showError(context, context.l10n.settingsHoursLimit);
+      return;
+    }
+    final target = index == null ? null : intervals[index];
+    final defaultStart =
+        target?.startMinutes ??
+        (intervals.isEmpty ? 9 * 60 : intervals.last.endMinutes ?? 9 * 60);
+    setState(() => _picking = true);
+    try {
+      final start = await AppTimePicker.show(
+        context: context,
+        initialTime: TimeOfDay(
+          hour: defaultStart ~/ 60,
+          minute: defaultStart % 60,
+        ),
+        helpText: context.l10n.settingsHoursStart,
+      );
+      if (start == null || !mounted) return;
+      final startMinute = start.hour * 60 + start.minute;
+      final endMinute =
+          target?.endMinutes ?? (startMinute + 9 * 60).clamp(0, 23 * 60 + 59);
+      final end = await AppTimePicker.show(
+        context: context,
+        initialTime: TimeOfDay(hour: endMinute ~/ 60, minute: endMinute % 60),
+        helpText: context.l10n.settingsHoursEnd,
+      );
+      if (end == null || !mounted) return;
+      final endMinutes = end.hour * 60 + end.minute;
+      if (endMinutes <= startMinute) {
+        AppToast.showError(context, context.l10n.settingsHoursEndAfterStart);
+        return;
+      }
+      if (_overlaps(intervals, startMinute, endMinutes, index)) {
+        AppToast.showError(context, context.l10n.settingsHoursOverlap);
+        return;
+      }
+      String format(TimeOfDay value) =>
+          '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+      final interval = TimeInterval(start: format(start), end: format(end));
+      setState(() {
+        if (index == null) {
+          intervals.add(interval);
+        } else {
+          intervals[index] = interval;
+        }
+        intervals.sort(
+          (a, b) => (a.startMinutes ?? 0).compareTo(b.startMinutes ?? 0),
+        );
+      });
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
 
-    final TimeOfDay? end = await AppTimePicker.show(
-      context: context,
-      initialTime: TimeOfDay(
-        hour: (start.hour + 9) % 24,
-        minute: start.minute,
+  void _preset(TimeInterval interval) =>
+      setState(() => _schedule[_day] = [interval]);
+  void _copy({required bool weekdays}) {
+    final original = List<TimeInterval>.of(_schedule[_day]!);
+    setState(() {
+      for (var day = 1; day <= (weekdays ? 5 : 7); day++) {
+        _schedule[day] = List.of(original);
+      }
+    });
+    AppToast.showSuccess(context, context.l10n.settingsHoursCopied);
+  }
+
+  void _save() {
+    if (_picking) return;
+    for (final intervals in _schedule.values) {
+      for (var i = 0; i < intervals.length; i++) {
+        final interval = intervals[i];
+        if (!interval.isValid ||
+            _overlaps(
+              intervals,
+              interval.startMinutes ?? 0,
+              interval.endMinutes ?? 0,
+              i,
+            )) {
+          AppToast.showError(context, context.l10n.settingsHoursOverlap);
+          return;
+        }
+      }
+    }
+    setState(() => _allowPop = true);
+    Navigator.of(context).pop(
+      WorkingHours(
+        timezone: _timezone,
+        mon: List.unmodifiable(_schedule[1]!),
+        tue: List.unmodifiable(_schedule[2]!),
+        wed: List.unmodifiable(_schedule[3]!),
+        thu: List.unmodifiable(_schedule[4]!),
+        fri: List.unmodifiable(_schedule[5]!),
+        sat: List.unmodifiable(_schedule[6]!),
+        sun: List.unmodifiable(_schedule[7]!),
       ),
-      helpText: 'Конец работы',
-    );
-    if (end == null || !mounted) return;
-
-    final int startMinutes = start.hour * 60 + start.minute;
-    final int endMinutes = end.hour * 60 + end.minute;
-    if (endMinutes <= startMinutes) {
-      if (!mounted) return;
-      AppToast.showError(context, 'Конец интервала должен быть позже начала');
-      return;
-    }
-
-    for (int i = 0; i < current.length; i++) {
-      final TimeInterval existing = current[i];
-      final int? exStart = existing.startMinutes;
-      final int? exEnd = existing.endMinutes;
-      if (exStart != null && exEnd != null) {
-        if (startMinutes < exEnd && endMinutes > exStart) {
-          if (current.length == 1) {
-            // Automatically replace single overlapping interval with new interval
-            final String startStr =
-                '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
-            final String endStr =
-                '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
-            setState(() {
-              _schedule[_selectedDay] = <TimeInterval>[
-                TimeInterval(start: startStr, end: endStr),
-              ];
-            });
-            return;
-          }
-          if (!mounted) return;
-          AppToast.showError(context, 'Интервалы не должны пересекаться');
-          return;
-        }
-      }
-    }
-
-    final String startStr =
-        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
-    final String endStr =
-        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
-
-    setState(() {
-      _schedule[_selectedDay]!.add(TimeInterval(start: startStr, end: endStr));
-      _schedule[_selectedDay]!.sort((TimeInterval a, TimeInterval b) {
-        final int aM = a.startMinutes ?? 0;
-        final int bM = b.startMinutes ?? 0;
-        return aM.compareTo(bM);
-      });
-    });
-  }
-
-  Future<void> _editInterval(int index) async {
-    HapticService.tap();
-    final List<TimeInterval> current = _schedule[_selectedDay]!;
-    if (index < 0 || index >= current.length) return;
-    final TimeInterval target = current[index];
-
-    final int? curStartMin = target.startMinutes;
-    final int? curEndMin = target.endMinutes;
-    final TimeOfDay initialStart = curStartMin != null
-        ? TimeOfDay(hour: curStartMin ~/ 60, minute: curStartMin % 60)
-        : const TimeOfDay(hour: 9, minute: 0);
-    final TimeOfDay initialEnd = curEndMin != null
-        ? TimeOfDay(hour: curEndMin ~/ 60, minute: curEndMin % 60)
-        : const TimeOfDay(hour: 18, minute: 0);
-
-    final TimeOfDay? start = await AppTimePicker.show(
-      context: context,
-      initialTime: initialStart,
-      helpText: 'Начало работы',
-    );
-    if (start == null || !mounted) return;
-
-    final TimeOfDay? end = await AppTimePicker.show(
-      context: context,
-      initialTime: initialEnd,
-      helpText: 'Конец работы',
-    );
-    if (end == null || !mounted) return;
-
-    final int startMinutes = start.hour * 60 + start.minute;
-    final int endMinutes = end.hour * 60 + end.minute;
-    if (endMinutes <= startMinutes) {
-      if (!mounted) return;
-      AppToast.showError(context, 'Конец интервала должен быть позже начала');
-      return;
-    }
-
-    for (int i = 0; i < current.length; i++) {
-      if (i == index) continue;
-      final TimeInterval existing = current[i];
-      final int? exStart = existing.startMinutes;
-      final int? exEnd = existing.endMinutes;
-      if (exStart != null && exEnd != null) {
-        if (startMinutes < exEnd && endMinutes > exStart) {
-          if (!mounted) return;
-          AppToast.showError(context, 'Интервалы не должны пересекаться');
-          return;
-        }
-      }
-    }
-
-    final String startStr =
-        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
-    final String endStr =
-        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
-
-    setState(() {
-      current[index] = TimeInterval(start: startStr, end: endStr);
-      current.sort((TimeInterval a, TimeInterval b) {
-        final int aM = a.startMinutes ?? 0;
-        final int bM = b.startMinutes ?? 0;
-        return aM.compareTo(bM);
-      });
-    });
-  }
-
-  void _applyPreset(String start, String end) {
-    HapticService.tap();
-    setState(() {
-      _schedule[_selectedDay] = <TimeInterval>[
-        TimeInterval(start: start, end: end),
-      ];
-    });
-  }
-
-  void _removeInterval(int index) {
-    HapticService.tap();
-    setState(() {
-      _schedule[_selectedDay]!.removeAt(index);
-    });
-  }
-
-  void _copyToWeekdays() {
-    HapticService.confirm();
-    final List<TimeInterval> source =
-        List<TimeInterval>.from(_schedule[_selectedDay]!);
-    setState(() {
-      for (final int day in <int>[
-        DateTime.monday,
-        DateTime.tuesday,
-        DateTime.wednesday,
-        DateTime.thursday,
-        DateTime.friday,
-      ]) {
-        _schedule[day] = List<TimeInterval>.from(source);
-      }
-    });
-    AppToast.showSuccess(
-      context,
-      'Расписание скопировано на будни (Пн–Пт)',
     );
   }
 
-  void _copyToAllDays() {
-    HapticService.confirm();
-    final List<TimeInterval> source =
-        List<TimeInterval>.from(_schedule[_selectedDay]!);
-    setState(() {
-      for (final int day in <int>[
-        DateTime.monday,
-        DateTime.tuesday,
-        DateTime.wednesday,
-        DateTime.thursday,
-        DateTime.friday,
-        DateTime.saturday,
-        DateTime.sunday,
-      ]) {
-        _schedule[day] = List<TimeInterval>.from(source);
-      }
-    });
-    AppToast.showSuccess(
-      context,
-      'Расписание скопировано на всю неделю (Пн–Вс)',
-    );
-  }
-
-  void _clearDay() {
-    HapticService.tap();
-    setState(() {
-      _schedule[_selectedDay]!.clear();
-    });
-  }
-
-  String _formatDuration(TimeInterval interval) {
-    final int? s = interval.startMinutes;
-    final int? e = interval.endMinutes;
-    if (s == null || e == null || e <= s) return '';
-    final int diff = e - s;
-    final int hours = diff ~/ 60;
-    final int mins = diff % 60;
-    if (mins == 0) return '$hours ч';
-    if (hours == 0) return '$mins мин';
-    return '$hours ч $mins мин';
-  }
-
-  WorkingHours _buildWorkingHours() {
-    return WorkingHours(
-      timezone: _timezone,
-      mon: _schedule[DateTime.monday]!,
-      tue: _schedule[DateTime.tuesday]!,
-      wed: _schedule[DateTime.wednesday]!,
-      thu: _schedule[DateTime.thursday]!,
-      fri: _schedule[DateTime.friday]!,
-      sat: _schedule[DateTime.saturday]!,
-      sun: _schedule[DateTime.sunday]!,
+  Widget _daySection(BuildContext context, List<TimeInterval> intervals) {
+    final l = context.l10n;
+    return SettingsSection(
+      title: _dayName(_day, full: true),
+      children: [
+        if (intervals.isEmpty)
+          SettingsListItem.value(
+            icon: Icons.bedtime_outlined,
+            title: l.settingsHoursDayOff,
+            subtitle: l.settingsHoursDayOffHint,
+          ),
+        for (var index = 0; index < intervals.length; index++)
+          SettingsListItem(
+            icon: Icons.schedule_outlined,
+            title: '${intervals[index].start} — ${intervals[index].end}',
+            enabled: !_picking,
+            onTap: () => _pickInterval(index: index),
+            trailing: IconButton(
+              tooltip: l.settingsHoursDeleteInterval,
+              onPressed: _picking
+                  ? null
+                  : () => setState(() => _schedule[_day]!.removeAt(index)),
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ),
+        if (intervals.length < 4)
+          SettingsListItem.nav(
+            icon: Icons.add_rounded,
+            title: l.settingsHoursAddInterval,
+            enabled: !_picking,
+            onTap: _pickInterval,
+          ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-
-    final Widget bodyContent = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        // Mobile Drag Handle
-        if (!widget.isDialog) ...<Widget>[
-          const SizedBox(height: 10),
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+    final l = context.l10n;
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    final intervals = _schedule[_day]!;
+    const presets = [
+      TimeInterval(start: '09:00', end: '18:00'),
+      TimeInterval(start: '10:00', end: '19:00'),
+      TimeInterval(start: '08:00', end: '17:00'),
+      TimeInterval(start: '10:00', end: '22:00'),
+      TimeInterval(start: '00:00', end: '23:59'),
+    ];
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (popped, _) {
+        if (!popped) _cancel();
+      },
+      child: AppModalContent(
+        title: l.settingsProfileWorkingHours,
+        icon: Icons.schedule_rounded,
+        actions: [
+          AppDialogAction(
+            label: l.commonCancel,
+            onPressed: _picking ? null : _cancel,
+          ),
+          AppDialogAction(
+            label: l.appearanceApply,
+            isPrimary: true,
+            onPressed: _picking ? null : _save,
           ),
         ],
-
-        // Header Top Bar
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-          child: Row(
-            children: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  foregroundColor: scheme.onSurfaceVariant,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                ),
-                child: const Text(
-                  'Отмена',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                ),
-              ),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Icon(
-                      Icons.schedule_rounded,
-                      size: 20,
-                      color: scheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'График работы',
-                      textAlign: TextAlign.center,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  minimumSize: const Size(60, 36),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SettingsChoiceButtons<int>(
+              segments: [
+                for (var day = 1; day <= 7; day++)
+                  ButtonSegment(
+                    value: day,
+                    label: Text(_dayName(day)),
+                    tooltip: _dayName(day, full: true),
+                    enabled: !_picking,
                   ),
-                ),
-                onPressed: () {
-                  HapticService.confirm();
-                  Navigator.of(context).pop(_buildWorkingHours());
-                },
-                child: const Text(
-                  'Применить',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                ),
+              ],
+              selected: {_day},
+              showSelectedIcon: false,
+              onSelectionChanged: _picking
+                  ? null
+                  : (value) => setState(() => _day = value.first),
+            ),
+            const SizedBox(height: 16),
+            if (reduced)
+              _daySection(context, intervals)
+            else
+              AnimatedSize(
+                duration: M3Durations.medium2,
+                curve: M3SpringCurves.expressiveDecel,
+                alignment: Alignment.topCenter,
+                child: _daySection(context, intervals),
               ),
-            ],
-          ),
-        ),
-        Divider(
-          height: 1,
-          color: scheme.outlineVariant.withValues(alpha: 0.15),
-        ),
-
-        // Content
-        Flexible(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 20 + bottomInset),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                // 1. 7-Day Pill Selector (Equal width, fits mobile perfectly)
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? scheme.surfaceContainerHighest.withValues(alpha: 0.3)
-                        : scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: _days.map((Map<String, dynamic> d) {
-                      final int dayInt = d['day'] as int;
-                      final bool isSelected = _selectedDay == dayInt;
-                      final bool hasHours = _schedule[dayInt]!.isNotEmpty;
-
-                      return Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: InkWell(
-                            onTap: () {
-                              HapticService.tap();
-                              setState(() => _selectedDay = dayInt);
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? scheme.primary
-                                    : (hasHours
-                                        ? scheme.primaryContainer
-                                            .withValues(alpha: 0.3)
-                                        : Colors.transparent),
-                                borderRadius: BorderRadius.circular(12),
-                                border: isSelected
-                                    ? null
-                                    : Border.all(
-                                        color: scheme.outlineVariant
-                                            .withValues(alpha: 0.1),
-                                        width: 1,
-                                      ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: <Widget>[
-                                  Text(
-                                    d['name'] as String,
-                                    style: TextStyle(
-                                      fontWeight: isSelected
-                                          ? FontWeight.w800
-                                          : FontWeight.w600,
-                                      fontSize: 13,
-                                      color: isSelected
-                                          ? scheme.onPrimary
-                                          : (hasHours
-                                              ? scheme.primary
-                                              : scheme.onSurfaceVariant),
-                                    ),
-                                  ),
-                                  if (hasHours && !isSelected) ...<Widget>[
-                                    const SizedBox(height: 2),
-                                    Container(
-                                      width: 4,
-                                      height: 4,
-                                      decoration: BoxDecoration(
-                                        color: scheme.primary,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
+            SettingsSection(
+              title: l.settingsHoursPresets,
+              isCard: false,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final interval in presets)
+                        ChoiceChip(
+                          label: Text('${interval.start}–${interval.end}'),
+                          selected:
+                              intervals.length == 1 &&
+                              intervals.first == interval,
+                          onSelected: _picking
+                              ? null
+                              : (_) => _preset(interval),
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // 2. Active Day Card
-                _buildActiveDayCard(scheme, textTheme, isDark),
-                const SizedBox(height: 14),
-
-                // 3. Quick Actions
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(40),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          side: BorderSide(
-                            color: scheme.outlineVariant.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        icon: const Icon(Icons.copy_rounded, size: 15),
-                        label: const Text(
-                          'Будни (Пн–Пт)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        onPressed: _copyToWeekdays,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(40),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          side: BorderSide(
-                            color: scheme.outlineVariant.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        icon: const Icon(Icons.all_inclusive_rounded, size: 15),
-                        label: const Text(
-                          'Все дни',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        onPressed: _copyToAllDays,
-                      ),
-                    ),
-                    if (_schedule[_selectedDay]!.isNotEmpty) ...<Widget>[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: scheme.error,
-                            minimumSize: const Size.fromHeight(40),
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            side: BorderSide(
-                              color: scheme.error.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          icon: const Icon(Icons.event_busy_rounded, size: 15),
-                          label: const Text(
-                            'Выходной',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          onPressed: _clearDay,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // 4. Timezone Footer Note
-                Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(
-                        Icons.public_rounded,
-                        size: 14,
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Часовой пояс: $_timezone',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                          fontSize: 12,
-                        ),
-                      ),
                     ],
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-      ],
-    );
-
-    // AppModal owns the surface and safe area; this editor supplies content.
-    return widget.isDialog
-        ? ConstrainedBox(constraints: const BoxConstraints(maxHeight: 660), child: bodyContent)
-        : bodyContent;
-  }
-
-  Widget _buildActiveDayCard(
-    ColorScheme scheme,
-    TextTheme textTheme,
-    bool isDark,
-  ) {
-    final List<TimeInterval> intervals = _schedule[_selectedDay]!;
-    final String dayFull = _days.firstWhere(
-      (Map<String, dynamic> d) => d['day'] == _selectedDay,
-    )['full'] as String;
-    final bool hasHours = intervals.isNotEmpty;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark
-            ? scheme.surfaceContainerHighest.withValues(alpha: 0.35)
-            : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.12 : 0.18),
-          width: 1,
-        ),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // Header of Active Day
-          Row(
-            children: <Widget>[
-              Text(
-                dayFull,
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
+            SettingsSection(
+              title: l.settingsHoursRepeat,
+              children: [
+                SettingsListItem.nav(
+                  icon: Icons.content_copy_rounded,
+                  title: l.settingsHoursCopyWeekdays,
+                  enabled: !_picking,
+                  onTap: () => _copy(weekdays: true),
                 ),
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: hasHours
-                      ? scheme.primary.withValues(alpha: 0.12)
-                      : scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(20),
+                SettingsListItem.nav(
+                  icon: Icons.date_range_rounded,
+                  title: l.settingsHoursCopyAll,
+                  enabled: !_picking,
+                  onTap: () => _copy(weekdays: false),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: hasHours
-                            ? scheme.primary
-                            : scheme.onSurfaceVariant.withValues(alpha: 0.6),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      hasHours ? 'Рабочий день' : 'Выходной',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: hasHours
-                            ? scheme.primary
-                            : scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Quick Preset Chips
-          _buildPresetChips(scheme),
-          const SizedBox(height: 12),
-
-          // Body: Intervals or Empty
-          if (intervals.isEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Icons.bedtime_outlined,
-                    size: 36,
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                if (intervals.isNotEmpty)
+                  SettingsListItem(
+                    icon: Icons.event_busy_outlined,
+                    title: l.settingsHoursDayOff,
+                    enabled: !_picking,
+                    onTap: () => setState(() => _schedule[_day]!.clear()),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Выходной день',
-                    style: textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Выберите быстрый шаблон выше или задайте своё время',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  FilledButton.tonalIcon(
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: _addInterval,
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text(
-                      'Добавить интервал',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else ...<Widget>[
-            ...intervals.asMap().entries.map((MapEntry<int, TimeInterval> entry) {
-              final int index = entry.key;
-              final TimeInterval interval = entry.value;
-              final String durationStr = _formatDuration(interval);
-
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => _editInterval(index),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? scheme.surfaceContainerLow
-                          : scheme.surface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: scheme.outlineVariant
-                            .withValues(alpha: isDark ? 0.1 : 0.15),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        Icon(
-                          Icons.schedule_rounded,
-                          size: 18,
-                          color: scheme.primary,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          '${interval.start} — ${interval.end}',
-                          style: textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                        if (durationStr.isNotEmpty) ...<Widget>[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.primaryContainer.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              durationStr,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: scheme.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                        const Spacer(),
-                        IconButton(
-                          icon: Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: scheme.primary,
-                          ),
-                          onPressed: () => _editInterval(index),
-                          tooltip: 'Изменить время',
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.close_rounded,
-                            size: 18,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          onPressed: () => _removeInterval(index),
-                          tooltip: 'Удалить интервал',
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-            if (intervals.length < 4) ...<Widget>[
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: _addInterval,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text(
-                    'Добавить еще интервал',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPresetChips(ColorScheme scheme) {
-    final List<Map<String, String>> presets = const <Map<String, String>>[
-      <String, String>{'label': '09:00–18:00', 'start': '09:00', 'end': '18:00'},
-      <String, String>{'label': '10:00–19:00', 'start': '10:00', 'end': '19:00'},
-      <String, String>{'label': '08:00–17:00', 'start': '08:00', 'end': '17:00'},
-      <String, String>{'label': '10:00–22:00', 'start': '10:00', 'end': '22:00'},
-      <String, String>{'label': '24/7', 'start': '00:00', 'end': '23:59'},
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: presets.map((Map<String, String> p) {
-          final bool isActive = _schedule[_selectedDay]!.length == 1 &&
-              _schedule[_selectedDay]!.first.start == p['start'] &&
-              _schedule[_selectedDay]!.first.end == p['end'];
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: ActionChip(
-              avatar: Icon(
-                Icons.bolt_rounded,
-                size: 14,
-                color: isActive ? scheme.onPrimary : scheme.primary,
-              ),
-              label: Text(
-                p['label']!,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                  color: isActive ? scheme.onPrimary : scheme.onSurface,
-                ),
-              ),
-              backgroundColor: isActive
-                  ? scheme.primary
-                  : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              side: BorderSide(
-                color: isActive
-                    ? scheme.primary
-                    : scheme.outlineVariant.withValues(alpha: 0.2),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-              visualDensity: VisualDensity.compact,
-              onPressed: () => _applyPreset(p['start']!, p['end']!),
+              ],
             ),
-          );
-        }).toList(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Text(
+                '${l.settingsHoursTimezone}: $_timezone',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

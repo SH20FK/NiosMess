@@ -53,8 +53,9 @@ class M3Reveal extends StatefulWidget {
 class _M3RevealState extends State<M3Reveal>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _spatialAnimation;
+  late CurvedAnimation _fadeAnimation;
+  late CurvedAnimation _spatialAnimation;
+  bool _motionDisabled = false;
 
   @override
   void initState() {
@@ -82,13 +83,32 @@ class _M3RevealState extends State<M3Reveal>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disabled =
+        (MediaQuery.maybeOf(context)?.disableAnimations ?? false) ||
+        !TickerMode.valuesOf(context).enabled;
+    if (disabled != _motionDisabled) {
+      _motionDisabled = disabled;
+      _controller.value = widget.revealed ? 1 : 0;
+    }
+  }
+
+  @override
   void didUpdateWidget(covariant M3Reveal oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.duration != widget.duration) {
       _controller.duration = widget.duration;
     }
+    if (oldWidget.curve != widget.curve) {
+      _fadeAnimation.dispose();
+      _spatialAnimation.dispose();
+      _buildAnimations();
+    }
     if (oldWidget.revealed != widget.revealed) {
-      if (widget.revealed) {
+      if (_motionDisabled) {
+        _controller.value = widget.revealed ? 1 : 0;
+      } else if (widget.revealed) {
         _controller.forward();
       } else {
         _controller.reverse();
@@ -98,6 +118,8 @@ class _M3RevealState extends State<M3Reveal>
 
   @override
   void dispose() {
+    _fadeAnimation.dispose();
+    _spatialAnimation.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -124,27 +146,24 @@ class _M3RevealState extends State<M3Reveal>
               sizeFactor: _spatialAnimation,
               axis: Axis.vertical,
               alignment: Alignment.topCenter,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: child,
-              ),
+              child: FadeTransition(opacity: _fadeAnimation, child: child),
             );
 
           case M3RevealType.fadeScale:
             return FadeTransition(
               opacity: _fadeAnimation,
               child: ScaleTransition(
-                scale: Tween<double>(begin: 0.85, end: 1.0).animate(_spatialAnimation),
+                scale: Tween<double>(
+                  begin: 0.85,
+                  end: 1.0,
+                ).animate(_spatialAnimation),
                 alignment: widget.alignment,
                 child: child,
               ),
             );
 
           case M3RevealType.fade:
-            return FadeTransition(
-              opacity: _fadeAnimation,
-              child: child,
-            );
+            return FadeTransition(opacity: _fadeAnimation, child: child);
         }
       },
       child: widget.child,

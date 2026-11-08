@@ -12,6 +12,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class SettingsPrivacyScreen extends ConsumerWidget {
   const SettingsPrivacyScreen({this.isEmbedded = false, super.key});
@@ -32,17 +33,38 @@ class SettingsPrivacyScreen extends ConsumerWidget {
     final AuthState auth = ref.watch(authProvider);
     final bool spamBlock = auth.profile?.spamBlock ?? false;
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final available = !privacy.isLoading && privacy.rules.isNotEmpty;
+    final pending =
+        privacy.pendingRules.isNotEmpty || privacy.pendingUsers.isNotEmpty;
 
     return SettingsShell(
       title: context.l10n.settingsV2Privacy,
       isEmbedded: isEmbedded,
+      onRefresh: () => ref.read(privacyProvider.notifier).refresh(),
       children: <Widget>[
+        if (privacy.isLoading && privacy.rules.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: AppLoadingIndicator(size: 28)),
+          ),
+        if (privacy.error != null)
+          SettingsSection(
+            children: [
+              SettingsListItem(
+                icon: Icons.cloud_off_rounded,
+                title: context.l10n.settingsPrivacyLoadFailed,
+                value: context.l10n.commonRetry,
+                type: SettingsListItemType.action,
+                onTap: () => ref.read(privacyProvider.notifier).refresh(),
+              ),
+            ],
+          ),
         // 1. Связь & Сообщения
         SettingsSection(
           title: context.l10n.privacyCategoryCommunication,
-          subtitle: context.l10n.privacyCategoryCommunicationDesc,
           children: <Widget>[
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyCalls.value,
               leading: Icon(Icons.call_rounded, color: scheme.primary),
               title: context.l10n.privacyRuleCalls,
@@ -52,6 +74,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'calls'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyMessages.value,
               leading: Icon(
                 Icons.chat_bubble_outline_rounded,
@@ -64,6 +87,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'messages'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyVoiceMessages.value,
               leading: Icon(Icons.mic_none_rounded, color: scheme.primary),
               title: context.l10n.privacyRuleVoiceMessages,
@@ -75,12 +99,14 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'voice_messages'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyReadReceipts.value,
               leading: Icon(Icons.done_all_rounded, color: scheme.primary),
               title: context.l10n.settingsV2ReadReceipts,
               subtitle: context.l10n.settingsV2ReadReceiptsHint,
               control: ToggleControl(
                 value: privacy.readReceiptsEnabled,
+                pending: privacy.pendingRules.contains('read_receipts'),
                 onChanged: (bool value) async {
                   try {
                     await ref
@@ -98,12 +124,14 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               ),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyTypingIndicators.value,
               leading: Icon(Icons.keyboard_outlined, color: scheme.primary),
               title: context.l10n.settingsV2Typing,
               subtitle: context.l10n.settingsV2TypingHint,
               control: ToggleControl(
                 value: privacy.typingIndicatorsEnabled,
+                pending: privacy.pendingRules.contains('typing_indicators'),
                 onChanged: (bool value) async {
                   try {
                     await ref
@@ -126,9 +154,9 @@ class SettingsPrivacyScreen extends ConsumerWidget {
         // 2. Личные данные
         SettingsSection(
           title: context.l10n.privacyCategoryPersonalData,
-          subtitle: context.l10n.privacyCategoryPersonalDataDesc,
           children: <Widget>[
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyPhone.value,
               leading: Icon(Icons.phone_rounded, color: scheme.secondary),
               title: context.l10n.privacyRulePhone,
@@ -138,6 +166,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'phone'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyBirthday.value,
               leading: Icon(Icons.cake_rounded, color: scheme.secondary),
               title: context.l10n.privacyRuleBirthDate,
@@ -147,6 +176,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'birthday'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyAvatar.value,
               leading: Icon(
                 Icons.account_circle_outlined,
@@ -161,6 +191,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'profile_photos'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyBio.value,
               leading: Icon(Icons.notes_rounded, color: scheme.secondary),
               title: context.l10n.privacyRuleBio,
@@ -170,6 +201,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'bio'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyGifts.value,
               leading: Icon(
                 Icons.card_giftcard_rounded,
@@ -182,6 +214,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'gifts'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyMusic.value,
               leading: Icon(Icons.music_note_rounded, color: scheme.secondary),
               title: context.l10n.privacyRuleMusic,
@@ -196,9 +229,9 @@ class SettingsPrivacyScreen extends ConsumerWidget {
         // 3. Активность
         SettingsSection(
           title: context.l10n.privacyCategoryActivity,
-          subtitle: context.l10n.privacyCategoryActivityDesc,
           children: <Widget>[
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyLastSeen.value,
               leading: Icon(Icons.access_time_rounded, color: scheme.tertiary),
               title: context.l10n.privacyRuleLastSeen,
@@ -208,6 +241,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'last_seen'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyForwards.value,
               leading: Icon(Icons.forward_rounded, color: scheme.tertiary),
               title: context.l10n.privacyRuleForwards,
@@ -217,6 +251,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               onTap: () => _openRule(context, 'forwards'),
             ),
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyInvites.value,
               leading: Icon(Icons.group_add_rounded, color: scheme.tertiary),
               title: context.l10n.privacyRuleInvites,
@@ -235,6 +270,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           title: context.l10n.privacyCategorySecurity,
           children: <Widget>[
             SettingsRow(
+              enabled: available && !pending,
               anchor: SettingId.privacyBlockedUsers.value,
               leading: Icon(Icons.block_rounded, color: scheme.error),
               title: context.l10n.privacyBlacklist,

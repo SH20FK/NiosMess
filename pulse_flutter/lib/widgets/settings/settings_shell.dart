@@ -80,8 +80,12 @@ class SettingsShell extends ConsumerWidget {
 
         final List<Widget> slivers = <Widget>[
           ...?sliversBefore,
-          if (!isEmbedded)
+          if (!isEmbedded && title.isNotEmpty)
             SliverAppBar.large(
+              expandedHeight:
+                  140 + (MediaQuery.textScalerOf(context).scale(28) - 28) * 2,
+              toolbarHeight: (MediaQuery.textScalerOf(context).scale(20) + 24)
+                  .clamp(64, 104),
               title: Text(
                 title,
                 style: textTheme.headlineMedium?.copyWith(
@@ -92,8 +96,7 @@ class SettingsShell extends ConsumerWidget {
               centerTitle: false,
               pinned: true,
               backgroundColor: scheme.surface,
-              surfaceTintColor: scheme.surfaceTint,
-              scrolledUnderElevation: 2.5,
+              scrolledUnderElevation: 0,
               actions: actions,
               leading:
                   leading ??
@@ -113,7 +116,9 @@ class SettingsShell extends ConsumerWidget {
                         )
                       : null),
             )
-          else if (SettingsHeadingScope.showHeading(context))
+          else if (isEmbedded &&
+              title.isNotEmpty &&
+              SettingsHeadingScope.showHeading(context))
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(

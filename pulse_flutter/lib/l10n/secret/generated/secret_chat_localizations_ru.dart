@@ -1571,4 +1571,550 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get auditDeletedAccount => 'Удалённый аккаунт';
+
+  @override
+  String get settingsProfileChangePhoto => 'Изменить фото';
+
+  @override
+  String get settingsProfilePhone => 'Номер телефона';
+
+  @override
+  String get settingsProfilePhoneInvalid => 'Введите от 7 до 15 цифр номера';
+
+  @override
+  String get settingsProfileBirthday => 'Дата рождения';
+
+  @override
+  String get settingsProfileClearBirthday => 'Убрать дату рождения';
+
+  @override
+  String get settingsProfileNotSet => 'Не указано';
+
+  @override
+  String get settingsProfileWorkingHours => 'График работы';
+
+  @override
+  String get settingsProfileHoursConfigured => 'Настроен';
+
+  @override
+  String get settingsProfileSaveFailed =>
+      'Не удалось сохранить профиль. Изменения остались в форме.';
+
+  @override
+  String get settingsProfileSaved => 'Профиль сохранён';
+
+  @override
+  String get settingsGroupPersonalization => 'Оформление';
+
+  @override
+  String get settingsGroupCommunication => 'Общение';
+
+  @override
+  String get settingsGroupSecurity => 'Аккаунт и защита';
+
+  @override
+  String get settingsGroupApplication => 'Приложение';
+
+  @override
+  String get settingsProfileChoosePhoto => 'Выбрать фото';
+
+  @override
+  String get settingsProfilePhotoHint => 'PNG, JPG или WebP · до 8 МБ';
+
+  @override
+  String get settingsProfileChooseVideo => 'Выбрать видеоаватар';
+
+  @override
+  String get settingsProfileVideoHint => 'Видео до 5 секунд · до 8 МБ';
+
+  @override
+  String get settingsProfileVideoFormats => 'Поддерживаются MP4, MOV и WebM';
+
+  @override
+  String get settingsProfilePhotoFormats => 'Поддерживаются PNG, JPG и WebP';
+
+  @override
+  String get settingsProfileFileTooLarge => 'Выберите файл размером до 8 МБ';
+
+  @override
+  String get settingsQrTitle => 'Мой QR-код';
+
+  @override
+  String get settingsQrProfileTitle => 'QR-код профиля';
+
+  @override
+  String get settingsQrHint => 'Отсканируйте код, чтобы открыть профиль';
+
+  @override
+  String get settingsQrCopy => 'Копировать ссылку';
+
+  @override
+  String get settingsQrCopied => 'Ссылка скопирована';
+
+  @override
+  String get settingsDeviceTitle => 'Система и устройство';
+
+  @override
+  String get settingsDeviceError => 'Не удалось получить параметры устройства';
+
+  @override
+  String get settingsDeviceErrorHint =>
+      'Попробуйте обновить сведения. Данные приложения не изменятся.';
+
+  @override
+  String get settingsDeviceMemory => 'Память и накопитель';
+
+  @override
+  String get settingsDeviceRam => 'Оперативная память';
+
+  @override
+  String get settingsDeviceStorage => 'Внутренний накопитель';
+
+  @override
+  String get settingsDeviceSpecs => 'Характеристики';
+
+  @override
+  String get settingsDeviceCopyHint =>
+      'Нажмите на параметр, чтобы скопировать его значение';
+
+  @override
+  String get settingsDeviceProcessor => 'Процессор';
+
+  @override
+  String get settingsDeviceDisplay => 'Дисплей и графика';
+
+  @override
+  String get settingsDeviceCameras => 'Оптика и камеры';
+
+  @override
+  String get settingsDeviceOs => 'Операционная система';
+
+  @override
+  String get settingsDeviceSecurityPatch => 'Обновление безопасности';
+
+  @override
+  String get settingsDeviceBuild => 'Номер сборки';
+
+  @override
+  String get settingsDeviceModel => 'Модель';
+
+  @override
+  String get settingsDeviceArchitecture => 'Архитектура';
+
+  @override
+  String get settingsDeviceGb => 'ГБ';
+
+  @override
+  String get settingsDeviceMp => 'МП';
+
+  @override
+  String get settingsDeviceHz => 'Гц';
+
+  @override
+  String get settingsDeviceCores => 'ядер';
+
+  @override
+  String get settingsDeviceFrontCamera => 'фронтальная';
+
+  @override
+  String get settingsDeviceAvailable => 'Доступно';
+
+  @override
+  String get settingsDeviceUnknown => 'Недоступно';
+
+  @override
+  String get settingsAboutSupport => 'Помощь и обратная связь';
+
+  @override
+  String get settingsAboutLinks => 'NiosMess в интернете';
+
+  @override
+  String get settingsE2eeOrdinaryTitle => 'Личные чаты · тестирование E2E';
+
+  @override
+  String get settingsE2eeEncrypt => 'Шифровать';
+
+  @override
+  String get settingsE2eeBluetoothRequired =>
+      'Для передачи по Bluetooth нужно E2E';
+
+  @override
+  String get settingsE2eeModeDescription =>
+      'Новые сообщения и файлы шифруются до отправки. Открытый режим возможен, только если оба собеседника отключили E2E.';
+
+  @override
+  String get settingsE2eeLockedDescription =>
+      'Это устройство ещё не подключено. Восстановите ключи или передайте их с другого устройства.';
+
+  @override
+  String get settingsE2eeDeviceDescription =>
+      'Подключённые устройства получают историю независимо друг от друга. Старые сообщения, группы и боты сохраняют прежний режим. При явном вызове @ai текст запроса передаётся NiosAI; история и ключи файлов не передаются. При утечке постоянного ключа может стать доступна старая зашифрованная история.';
+
+  @override
+  String get settingsE2eeActionFailed =>
+      'Не удалось выполнить действие. Проверьте подключение, аккаунт и введённый код. Для сброса нужен новый вход в NiosID не старше 15 минут.';
+
+  @override
+  String get settingsE2eeReconnect => 'Повторить подключение';
+
+  @override
+  String get settingsE2eeResetTitle => 'Начать с новыми ключами?';
+
+  @override
+  String get settingsE2eeResetDescription =>
+      'Старая зашифрованная история не восстановится без прежних ключей. Другие устройства будут отключены от аккаунта. Собеседникам понадобится проверить новый отпечаток.';
+
+  @override
+  String get settingsE2eeResetAction => 'Создать новые ключи';
+
+  @override
+  String get settingsE2eeOfflineTitle => 'Без интернета';
+
+  @override
+  String get settingsE2eeMeshTitle => 'Если нет интернета использовать блютуз';
+
+  @override
+  String get settingsE2eeMeshDescription =>
+      'Передаёт зашифрованный текст через устройства NiosMess рядом. Нужны разрешение Bluetooth и работающие приложения.';
+
+  @override
+  String get settingsE2eeBluetoothPermission => 'Разрешить Bluetooth';
+
+  @override
+  String get settingsE2eeRecoveryTitle => 'Ключ восстановления';
+
+  @override
+  String get settingsE2eeRecoveryDescription =>
+      'Сохраните ключ в менеджере паролей. Он восстановит историю после потери всех устройств. Мы не сможем восстановить его за вас.';
+
+  @override
+  String get settingsE2eeShowRecovery => 'Показать ключ';
+
+  @override
+  String get settingsE2eeHideRecovery => 'Скрыть ключ';
+
+  @override
+  String get settingsE2eeBackupSaved => 'Я сохранил ключ';
+
+  @override
+  String get settingsE2eeOwnFingerprint => 'Мой отпечаток';
+
+  @override
+  String get settingsE2eeRestoreTitle => 'Восстановить на этом устройстве';
+
+  @override
+  String get settingsE2eeRestoreAction => 'Восстановить историю';
+
+  @override
+  String get settingsE2eeLostKeys => 'Все ключи потеряны — начать заново';
+
+  @override
+  String get settingsE2eeLinkTitle => 'Подключить другое устройство';
+
+  @override
+  String get settingsE2eePairNewDescription =>
+      'Создайте код здесь, затем передайте его в этот же раздел на уже подключённом устройстве. Код действует 10 минут; передавайте его только между своими устройствами.';
+
+  @override
+  String get settingsE2eePairCodeCreate => 'Создать код подключения';
+
+  @override
+  String get settingsE2eePairCodeCopy => 'Копировать код подключения';
+
+  @override
+  String get settingsE2eePairCodeLabel => 'Код подключения';
+
+  @override
+  String get settingsE2eePairApproveDescription =>
+      'Вставьте код с нового устройства. Это передаст ему ключи вашей переписки.';
+
+  @override
+  String get settingsE2eePairApproveAction => 'Передать ключи';
+
+  @override
+  String get settingsE2eePairExpired =>
+      'Код подключения истёк. Создайте новый.';
+
+  @override
+  String get settingsE2eeContactTitle => 'Проверить собеседника';
+
+  @override
+  String get settingsE2eeContactDescription =>
+      'При первом контакте ключ запоминается. Для защиты от подмены при первом знакомстве сравните отпечаток с собеседником по другому доверенному каналу.';
+
+  @override
+  String get settingsE2eeDirectChat => 'Личный чат';
+
+  @override
+  String get settingsE2eeAcceptFingerprint =>
+      'Отпечаток совпадает — доверять ключу';
+
+  @override
+  String get settingsE2eeCopyToast => 'Скопировано';
+
+  @override
+  String get settingsSessionsLoadFailed =>
+      'Не удалось загрузить устройства. Проверьте подключение и попробуйте ещё раз.';
+
+  @override
+  String get settingsSessionsOthers => 'Другие устройства';
+
+  @override
+  String get settingsSessionsEmptyDescription =>
+      'Вы вошли в аккаунт только с этого устройства.';
+
+  @override
+  String get settingsSessionsEndedOthers => 'Все остальные сессии завершены';
+
+  @override
+  String get settingsSessionsEndFailed =>
+      'Не удалось завершить сессию. Попробуйте ещё раз.';
+
+  @override
+  String get settingsSessionsApp => 'Приложение';
+
+  @override
+  String get settingsSessionsIp => 'IP-адрес';
+
+  @override
+  String get settingsSessionsRegion => 'Местоположение';
+
+  @override
+  String get settingsSessionsFirstSignIn => 'Первый вход';
+
+  @override
+  String get settingsSessionsLastActive => 'Последняя активность';
+
+  @override
+  String get settingsSessionsEndThis => 'Завершить эту сессию';
+
+  @override
+  String get settingsSessionsCurrentDevice => 'Текущее устройство';
+
+  @override
+  String get settingsSessionsNoOtherDevices => 'Нет других активных сессий';
+
+  @override
+  String get settingsE2eeMeshSearching => 'Ищем устройства рядом';
+
+  @override
+  String get settingsE2eeMeshDevices => 'Устройств рядом';
+
+  @override
+  String get settingsE2eeMeshPermission =>
+      'Нужно разрешение на доступ к Bluetooth';
+
+  @override
+  String get settingsE2eeMeshOff => 'Bluetooth выключен на устройстве';
+
+  @override
+  String get settingsE2eeMeshUnsupported =>
+      'Этот Bluetooth-адаптер не поддерживает передачу';
+
+  @override
+  String get settingsE2eeMeshScanOnly =>
+      'Адаптер поддерживает только поиск соседних устройств';
+
+  @override
+  String get settingsE2eeMeshStarting => 'Подключаем Bluetooth';
+
+  @override
+  String get settingsE2eeMeshStopped => 'Передача по Bluetooth отключена';
+
+  @override
+  String get settingsE2eeMeshUnavailable => 'Bluetooth временно недоступен';
+
+  @override
+  String get settingsPlusActive => 'Подписка активна';
+
+  @override
+  String settingsPlusActiveUntil(String date) {
+    return 'Действует до $date';
+  }
+
+  @override
+  String get settingsPlusGrace =>
+      'Подписка закончилась. Настройки каналов, групп и эмодзи пока сохранены.';
+
+  @override
+  String settingsPlusGraceUntil(String date) {
+    return 'Настройки каналов, групп и эмодзи сохраняются до $date';
+  }
+
+  @override
+  String get settingsPlusSummary =>
+      '300 Ниосиков для NiosAI, Prime и SPrime, файлы до 100 МБ и расширенные возможности мессенджера.';
+
+  @override
+  String get settingsPlusBenefits => 'В подписке';
+
+  @override
+  String get settingsPlusAiBudget => '300 Ниосиков за 3 дня';
+
+  @override
+  String get settingsPlusAiBudgetHint =>
+      'Вместо 50 на Free. Общий бюджет NiosMess, бота и основной группы моделей на сайте NiosAI. Расход зависит от модели и длины диалога.';
+
+  @override
+  String get settingsPlusModelsHint =>
+      'Модели для сложных вопросов, подробного анализа и работы с кодом.';
+
+  @override
+  String get settingsPlusFiles => 'Файлы до 100 МБ';
+
+  @override
+  String get settingsPlusFilesHint => 'Вместо 30 МБ на Free.';
+
+  @override
+  String get settingsPlusCommunities => '220 публичных каналов и 220 групп';
+
+  @override
+  String get settingsPlusCommunitiesHint =>
+      'Вместо 110 каналов и 110 групп на Free.';
+
+  @override
+  String get settingsPlusEmoji => '100 наборов эмодзи';
+
+  @override
+  String get settingsPlusEmojiHint =>
+      'Вместо 50 на Free. Можно установить статус-эмодзи рядом с именем.';
+
+  @override
+  String get settingsPlusGracePeriod => '5 дней на продление';
+
+  @override
+  String get settingsPlusGracePeriodHint =>
+      'После окончания подписки настройки каналов, групп и собственных наборов эмодзи сохраняются ещё 5 дней. Затем превышающие Free-лимит станут приватными. Данные не удаляются.';
+
+  @override
+  String get settingsPlusTrial => 'Попробовать бесплатно на 1 день';
+
+  @override
+  String get settingsPlusTrialPending => 'Активация…';
+
+  @override
+  String get settingsPlusTrialActivated =>
+      'Пробный период Nios+ на 1 день активирован';
+
+  @override
+  String get settingsPlusTrialFailed =>
+      'Не удалось активировать пробный период';
+
+  @override
+  String get settingsPlusStatusFailed =>
+      'Не удалось проверить подписку. Обновите статус перед активацией пробного периода.';
+
+  @override
+  String get settingsStorageSafeCleanup =>
+      'Очистка кэша удаляет загруженные копии медиа. Переписки, ключи и очередь отправки сохраняются. Удаление черновиков — отдельное действие.';
+
+  @override
+  String get settingsStorageEstimate =>
+      'Размер рассчитан для доступных каталогов приложения. Личные папки устройства не сканируются.';
+
+  @override
+  String get settingsProfileAccountChanged =>
+      'Аккаунт изменился. Откройте профиль заново.';
+
+  @override
+  String get settingsPrivacyLoadFailed =>
+      'Не удалось обновить настройки приватности';
+
+  @override
+  String get settingsPrivacySaveFailed =>
+      'Не удалось сохранить правило. Прежнее значение восстановлено.';
+
+  @override
+  String get settingsProfileAvatarFailed =>
+      'Не удалось обновить фото. Попробуйте ещё раз.';
+
+  @override
+  String get settingsAiUsageTitle => 'AI-символы';
+
+  @override
+  String get settingsAiUsageUnavailable => 'Лимит не установлен';
+
+  @override
+  String settingsAiUsageRemaining(String remaining, String limit) {
+    return '$remaining из $limit символов';
+  }
+
+  @override
+  String settingsAiUsageReset(String date) {
+    return 'Обновление лимита: $date';
+  }
+
+  @override
+  String settingsAiUsagePercent(String percent) {
+    return 'Осталось $percent%';
+  }
+
+  @override
+  String get settingsBadgePickerTitle => 'Выбор бейджей';
+
+  @override
+  String get settingsBadgePickerHint =>
+      'Выберите до двух бейджей для своего профиля.';
+
+  @override
+  String get settingsBadgePickerLimit => 'Можно выбрать не более двух бейджей';
+
+  @override
+  String get settingsBadgePickerEmpty => 'У вас пока нет доступных бейджей';
+
+  @override
+  String get settingsBadgePickerLoadFailed => 'Не удалось загрузить бейджи';
+
+  @override
+  String get settingsBadgePickerSaveFailed => 'Не удалось сохранить бейджи';
+
+  @override
+  String get settingsBadgePickerSelected => 'Выбрано';
+
+  @override
+  String get settingsHoursAddInterval => 'Добавить интервал';
+
+  @override
+  String get settingsHoursDeleteInterval => 'Удалить интервал';
+
+  @override
+  String get settingsHoursStart => 'Начало работы';
+
+  @override
+  String get settingsHoursEnd => 'Конец работы';
+
+  @override
+  String get settingsHoursEndAfterStart =>
+      'Конец интервала должен быть позже начала';
+
+  @override
+  String get settingsHoursOverlap => 'Интервалы не должны пересекаться';
+
+  @override
+  String get settingsHoursLimit => 'Максимум четыре интервала в день';
+
+  @override
+  String get settingsHoursDayOff => 'Выходной';
+
+  @override
+  String get settingsHoursDayOffHint =>
+      'Добавьте время или выберите готовый интервал.';
+
+  @override
+  String get settingsHoursPresets => 'Готовые интервалы';
+
+  @override
+  String get settingsHoursRepeat => 'Повторить расписание';
+
+  @override
+  String get settingsHoursCopyWeekdays => 'Скопировать на будни';
+
+  @override
+  String get settingsHoursCopyAll => 'Скопировать на всю неделю';
+
+  @override
+  String get settingsHoursCopied => 'Расписание скопировано';
+
+  @override
+  String get settingsHoursTimezone => 'Часовой пояс';
 }

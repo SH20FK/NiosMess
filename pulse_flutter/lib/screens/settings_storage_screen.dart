@@ -2,13 +2,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/storage/cache_service.dart';
-import 'package:pulse_flutter/core/storage/encrypted_message_cache.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
-import 'package:pulse_flutter/features/settings/presentation/settings_responsive_shell.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -28,9 +25,11 @@ class SettingsStorageScreen extends ConsumerStatefulWidget {
 class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
   bool _busy = false;
 
-  void _refresh() {
-    if (_busy) return;
-    ref.read(storageSnapshotProvider.notifier).refresh(forceRefresh: true);
+  Future<void> _refresh() async {
+    if (!mounted || _busy) return;
+    await ref
+        .read(storageSnapshotProvider.notifier)
+        .refresh(forceRefresh: true);
   }
 
   Future<void> _clearTemporaryFiles() async {
@@ -43,7 +42,6 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
       final int deleted = await ref
           .read(localStorageServiceProvider)
           .clearTemporaryFiles();
-      await ref.read(cacheServiceProvider).clearAll();
       return deleted;
     });
   }
@@ -59,40 +57,20 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     });
   }
 
-  Future<void> _clearCategory(StorageCategory category) async {
-    final bool confirmed = await _confirm(
-      title: context.l10n.settingsV2ClearCategory,
-      body: context.l10n.settingsV2ClearCategoryHint,
-    );
-    if (!confirmed) return;
-    await _runStorageAction(() async {
-      return ref.read(localStorageServiceProvider).clearCategoryFiles(category);
-    });
-  }
-
-  Future<void> _clearE2eeCache() async {
-    final bool confirmed = await _confirm(
-      title: context.l10n.settingsV2ClearSecretCache,
-      body: context.l10n.settingsV2SecretCacheConfirm,
-    );
-    if (!confirmed) return;
-    await _runStorageAction(() async {
-      await EncryptedMessageCache.clearAll();
-      return null;
-    });
-  }
-
   Future<void> _runStorageAction(Future<int?> Function() action) async {
-    if (_busy) return;
+    if (!mounted || _busy) return;
     setState(() => _busy = true);
     try {
-      final int? deleted = await action();
+      await action();
       if (!mounted) return;
-      ref.read(storageSnapshotProvider.notifier).refresh(forceRefresh: true);
-      if (deleted != null && deleted > 0) {
-        AppToast.showSuccess(context, context.l10n.settingsStorageCleared);
-      } else {
-        AppToast.showSuccess(context, context.l10n.settingsStorageCleared);
+      await ref
+          .read(storageSnapshotProvider.notifier)
+          .refresh(forceRefresh: true);
+      if (!mounted) return;
+      AppToast.showSuccess(context, context.l10n.settingsStorageCleared);
+    } catch (_) {
+      if (mounted) {
+        AppToast.showError(context, context.l10n.settingsV2StorageError);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -108,7 +86,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
       cancelLabel: context.l10n.commonCancel,
       destructive: true,
     );
-    return result == true;
+    return mounted && result == true;
   }
 
   @override
@@ -161,26 +139,41 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
       );
     }
 
-    return SettingsResponsiveShell(
+    return SettingsShell(
       title: context.l10n.settingsV2Storage,
       isEmbedded: widget.isEmbedded,
-      child: snapshotAsync.when(
-        data: (LocalStorageSnapshot data) =>
-            _buildContent(context, scheme, textTheme, data),
-        loading: () => const Padding(
-          padding: EdgeInsets.symmetric(vertical: 60),
-          child: Center(child: AppLoadingIndicator()),
-        ),
-        error: (Object err, _) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40),
-          child: Center(
-            child: Text(
-              context.l10n.settingsV2StorageError,
-              style: TextStyle(color: scheme.error),
-            ),
+      onRefresh: _refresh,
+      children: [
+        snapshotAsync.when(
+          data: (data) => _buildContent(context, scheme, textTheme, data),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(child: AppLoadingIndicator()),
+          ),
+          error: (_, _) => SettingsSection(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      context.l10n.settingsV2StorageError,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.tonalIcon(
+                      onPressed: _busy ? null : _refresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: Text(context.l10n.commonRetry),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -195,18 +188,15 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     final int draftBytes = data.draftBytes;
     final int totalBytes = data.totalBytes;
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.only(bottom: 16),
           child: Container(
             decoration: BoxDecoration(
               color: scheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.14),
-              ),
+              borderRadius: BorderRadius.circular(26),
             ),
             padding: const EdgeInsets.all(18),
             child: Column(
@@ -246,6 +236,13 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                Text(
+                  context.l10n.settingsStorageEstimate,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Semantics(
                   label:
@@ -281,8 +278,8 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
         SettingsSection(
+          subtitle: context.l10n.settingsStorageSafeCleanup,
           children: [
             SettingsRow(
               leading: const Icon(Icons.folder_rounded),
@@ -308,9 +305,8 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
 
-        // Категории файлов в хранилище
+        // Categories are a breakdown, not permission to delete documents.
         SettingsSection(
           title: context.l10n.settingsV2StorageDetails,
           subtitle: context.l10n.settingsV2StorageDetailsHint,
@@ -333,7 +329,6 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                 leading: Icon(icon, color: scheme.primary),
                 title: _categoryLabel(context, cat),
                 control: ValueControl(_format(bytes)),
-                onTap: bytes > 0 && !_busy ? () => _clearCategory(cat) : null,
               );
             }),
           ],
@@ -382,22 +377,6 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                   },
                 ),
               ),
-          ],
-        ),
-
-        // 4. Secret chats and encryption (E2EE)
-        SettingsSection(
-          title: context.l10n.settingsV2SecretCache,
-          subtitle: context.l10n.settingsV2SecretCacheHint,
-          children: <Widget>[
-            SettingsRow(
-              leading: Icon(Icons.lock_reset_rounded, color: scheme.error),
-              title: context.l10n.settingsV2ClearSecretCache,
-              subtitle: context.l10n.settingsV2SecretCacheHint,
-              control: const ActionControl(destructive: true),
-              enabled: !_busy,
-              onTap: _clearE2eeCache,
-            ),
           ],
         ),
       ],

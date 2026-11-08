@@ -1,48 +1,43 @@
-import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
-import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
+import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
+import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 
 class SettingsLanguageRegionScreen extends ConsumerWidget {
   const SettingsLanguageRegionScreen({this.isEmbedded = false, super.key});
-
   final bool isEmbedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final String manualZone = settings.timeZoneId ?? 'Europe/Moscow';
-    final String currentZoneLabel =
-        settings.timeZoneMode == AppTimeZoneMode.auto
+    final settings = ref.watch(uiSettingsProvider);
+    final manualZone = settings.timeZoneId ?? 'Europe/Moscow';
+    final currentZoneLabel = settings.timeZoneMode == AppTimeZoneMode.auto
         ? _offsetLabel(DateTime.now().timeZoneOffset)
         : _manualZoneLabel(manualZone);
-    final String? selectedLocale = settings.localeCode;
-
     return SettingsShell(
       title: context.l10n.settingsV2Language,
       isEmbedded: isEmbedded,
-      children: <Widget>[
+      children: [
         SettingsSection(
           title: context.l10n.languageRegionAppLanguage,
           subtitle: context.l10n.settingsLanguageBannerDesc,
-          children: <Widget>[
+          children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.all(16),
               child: SettingsChoiceButtons<String?>(
-                showSelectedIcon: false,
-                segments: <ButtonSegment<String?>>[
+                segments: [
                   ButtonSegment<String?>(
                     value: null,
                     label: Text(context.l10n.commonAutomatic),
-                    icon: const Icon(Icons.auto_awesome_rounded),
+                    icon: const Icon(Icons.language_rounded),
                   ),
                   ButtonSegment<String?>(
                     value: 'ru',
@@ -53,10 +48,10 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                     label: Text(context.l10n.languageEnglish),
                   ),
                 ],
-                selected: <String?>{selectedLocale},
-                onSelectionChanged: (Set<String?> s) => ref
+                selected: {settings.localeCode},
+                onSelectionChanged: (selected) => ref
                     .read(uiSettingsProvider.notifier)
-                    .setLocaleCode(s.first),
+                    .setLocaleCode(selected.first),
               ),
             ),
           ],
@@ -64,12 +59,11 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.languageRegionTimeZone,
           subtitle: context.l10n.settingsLanguageTzDesc,
-          children: <Widget>[
+          children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.all(16),
               child: SettingsChoiceButtons<AppTimeZoneMode>(
-                showSelectedIcon: false,
-                segments: <ButtonSegment<AppTimeZoneMode>>[
+                segments: [
                   ButtonSegment<AppTimeZoneMode>(
                     value: AppTimeZoneMode.auto,
                     label: Text(context.l10n.commonAutomatic),
@@ -81,12 +75,14 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
                     icon: const Icon(Icons.tune_rounded),
                   ),
                 ],
-                selected: <AppTimeZoneMode>{settings.timeZoneMode},
-                onSelectionChanged: (Set<AppTimeZoneMode> s) {
-                  final AppTimeZoneMode mode = s.first;
-                  ref.read(uiSettingsProvider.notifier).setTimeZoneMode(mode);
-                  if (mode == AppTimeZoneMode.manual) {
+                selected: {settings.timeZoneMode},
+                onSelectionChanged: (selected) {
+                  if (selected.first == AppTimeZoneMode.manual) {
                     _showTimeZonePicker(context, ref, manualZone);
+                  } else {
+                    ref
+                        .read(uiSettingsProvider.notifier)
+                        .setTimeZoneMode(AppTimeZoneMode.auto);
                   }
                 },
               ),
@@ -109,23 +105,9 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.languageRegionCurrentTime,
           subtitle: context.l10n.settingsLanguageTimePreview,
-          children: <Widget>[
-            StreamBuilder<DateTime>(
-              stream: Stream<DateTime>.periodic(
-                const Duration(seconds: 1),
-                (_) => AppTimeSettings.now(),
-              ),
-              initialData: AppTimeSettings.now(),
-              builder:
-                  (BuildContext context, AsyncSnapshot<DateTime> snapshot) {
-                    final DateTime now = snapshot.data ?? AppTimeSettings.now();
-                    return SettingsInfoTile(
-                      icon: Icons.access_time_rounded,
-                      title: context.l10n.settingsLanguageLocalTime,
-                      subtitle: formatFullDateTime(now),
-                      iconColor: scheme.secondary,
-                    );
-                  },
+          children: [
+            _LocalTimePreview(
+              key: ValueKey('${settings.timeZoneMode}-${settings.timeZoneId}'),
             ),
           ],
         ),
@@ -138,104 +120,16 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
     WidgetRef ref,
     String selectedId,
   ) async {
-    final TextEditingController controller = TextEditingController();
-    String query = '';
-
-    await AppBottomSheets.show<void>(
+    final selected = await AppModal.showSheet<String>(
       context: context,
-      isScrollControlled: true,
-
-      builder: (BuildContext context) {
-        final ColorScheme scheme = Theme.of(context).colorScheme;
-        final TextTheme textTheme = Theme.of(context).textTheme;
-
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            final List<AppTimeZoneOption> items = appTimeZoneOptions
-                .where((AppTimeZoneOption option) {
-                  final String hay = '${option.label} ${option.id}'
-                      .toLowerCase();
-                  return hay.contains(query.toLowerCase());
-                })
-                .toList(growable: false);
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 8,
-                bottom: 16 + MediaQuery.viewInsetsOf(context).bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  TextField(
-                    controller: controller,
-                    decoration: InputDecoration(
-                      hintText: context.l10n.languageRegionSearchTimeZones,
-                      prefixIcon: const Icon(Icons.search_rounded),
-                    ),
-                    onChanged: (String value) {
-                      setModalState(() => query = value);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 420),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: items.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (BuildContext context, int index) {
-                        final AppTimeZoneOption option = items[index];
-                        final bool selected = option.id == selectedId;
-                        return ListTile(
-                          title: Text(
-                            option.label,
-                            style: textTheme.bodyMedium?.copyWith(
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w400,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${option.id} · ${option.currentOffsetLabel()}',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                          trailing: selected
-                              ? Icon(Icons.check_rounded, color: scheme.primary)
-                              : null,
-                          selected: selected,
-                          selectedTileColor: scheme.primaryContainer.withValues(
-                            alpha: 0.3,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          onTap: () {
-                            ref
-                                .read(uiSettingsProvider.notifier)
-                                .useManualTimeZone(option.id);
-                            Navigator.of(context).pop();
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      builder: (_) => _TimeZonePicker(selectedId: selectedId),
     );
-    controller.dispose();
+    if (selected == null || !context.mounted) return;
+    ref.read(uiSettingsProvider.notifier).useManualTimeZone(selected);
   }
 
   String _manualZoneLabel(String zoneId) {
-    for (final AppTimeZoneOption option in appTimeZoneOptions) {
+    for (final option in appTimeZoneOptions) {
       if (option.id == zoneId) {
         return '${option.label} (${option.currentOffsetLabel()})';
       }
@@ -244,9 +138,162 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
   }
 
   String _offsetLabel(Duration offset) {
-    final String sign = offset.isNegative ? '-' : '+';
-    final int hours = offset.inHours.abs();
-    final int minutes = offset.inMinutes.abs() % 60;
-    return 'UTC$sign${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+    final sign = offset.isNegative ? '-' : '+';
+    return 'UTC$sign${offset.inHours.abs().toString().padLeft(2, '0')}:'
+        '${(offset.inMinutes.abs() % 60).toString().padLeft(2, '0')}';
+  }
+}
+
+class _LocalTimePreview extends StatefulWidget {
+  const _LocalTimePreview({super.key});
+  @override
+  State<_LocalTimePreview> createState() => _LocalTimePreviewState();
+}
+
+class _LocalTimePreviewState extends State<_LocalTimePreview> {
+  Timer? _timer;
+
+  void _scheduleMinute() {
+    _timer?.cancel();
+    final now = DateTime.now();
+    final nextMinute = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute + 1,
+    );
+    _timer = Timer(nextMinute.difference(now), () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleMinute();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (TickerMode.valuesOf(context).enabled) {
+      _scheduleMinute();
+    } else {
+      _timer?.cancel();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SettingsInfoTile(
+    icon: Icons.access_time_rounded,
+    title: context.l10n.settingsLanguageLocalTime,
+    subtitle: formatFullDateTime(AppTimeSettings.now()),
+  );
+}
+
+class _TimeZonePicker extends StatefulWidget {
+  const _TimeZonePicker({required this.selectedId});
+  final String selectedId;
+  @override
+  State<_TimeZonePicker> createState() => _TimeZonePickerState();
+}
+
+class _TimeZonePickerState extends State<_TimeZonePicker> {
+  final _search = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = appTimeZoneOptions
+        .where(
+          (option) =>
+              '${option.label} ${option.id}'.toLowerCase().contains(_query),
+        )
+        .toList(growable: false);
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        height: math.min(600, constraints.maxHeight),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      context.l10n.languageRegionTimeZone,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).closeButtonTooltip,
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('settings-time-zone-search'),
+                controller: _search,
+                decoration: InputDecoration(
+                  hintText: context.l10n.languageRegionSearchTimeZones,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).deleteButtonTooltip,
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () {
+                            _search.clear();
+                            setState(() => _query = '');
+                          },
+                        ),
+                ),
+                onChanged: (query) =>
+                    setState(() => _query = query.trim().toLowerCase()),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: items.isEmpty
+                    ? Center(child: Text(context.l10n.settingsV2SearchNone))
+                    : ListView.builder(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final option = items[index];
+                          return SettingsListItem(
+                            icon: Icons.public_rounded,
+                            title: option.label,
+                            subtitle:
+                                '${option.id} · ${option.currentOffsetLabel()}',
+                            isSelected: option.id == widget.selectedId,
+                            trailing: option.id == widget.selectedId
+                                ? const Icon(Icons.check_rounded)
+                                : null,
+                            onTap: () => Navigator.of(context).pop(option.id),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

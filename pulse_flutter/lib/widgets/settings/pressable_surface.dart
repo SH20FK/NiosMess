@@ -45,6 +45,12 @@ class _PressableSurfaceState extends ConsumerState<PressableSurface> {
   bool _isPressed = false;
   bool _focused = false;
 
+  @override
+  void didUpdateWidget(PressableSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.enabled || widget.onTap == null) _isPressed = false;
+  }
+
   void _handleTapDown(TapDownDetails _) {
     if (!widget.enabled || widget.onTap == null) return;
     setState(() => _isPressed = true);
@@ -76,7 +82,11 @@ class _PressableSurfaceState extends ConsumerState<PressableSurface> {
     final BorderRadius effectiveRadius =
         widget.borderRadius ?? AppRadii.mdRadius;
 
-    final Widget body = Container(
+    final Widget body = AnimatedContainer(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : M3Durations.short4,
+      curve: M3SpringCurves.expressiveStandard,
       margin: widget.margin,
       padding: widget.padding,
       decoration: BoxDecoration(
@@ -126,7 +136,8 @@ class _PressableSurfaceState extends ConsumerState<PressableSurface> {
         behavior: HitTestBehavior.opaque,
         child: AnimatedScale(
           scale: _isPressed && !MediaQuery.disableAnimationsOf(context)
-              ? 0.98 : 1.0,
+              ? 0.98
+              : 1.0,
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
               : Duration(

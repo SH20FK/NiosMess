@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/constants/app_constants.dart';
-import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/settings/settings_list_item.dart';
+import 'package:pulse_flutter/widgets/settings/settings_group_scope.dart';
+import 'package:pulse_flutter/widgets/settings/settings_shell.dart';
 
 export 'package:pulse_flutter/widgets/vector_illustrations.dart';
 export 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
@@ -13,6 +12,7 @@ export 'package:pulse_flutter/widgets/settings/settings_list_item.dart';
 export 'package:pulse_flutter/widgets/settings/settings_shell.dart';
 export 'package:pulse_flutter/widgets/settings/settings_choice_buttons.dart';
 
+/// Compatibility entry point; all settings pages share the same scroll shell.
 class SettingsScaffold extends ConsumerWidget {
   const SettingsScaffold({
     this.title,
@@ -23,7 +23,6 @@ class SettingsScaffold extends ConsumerWidget {
     this.adaptiveColumns = false,
     super.key,
   });
-
   final String? title;
   final List<Widget> children;
   final Future<void> Function()? onRefresh;
@@ -32,171 +31,44 @@ class SettingsScaffold extends ConsumerWidget {
   final bool adaptiveColumns;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final double topPadding = isEmbedded
-        ? 24.0
-        : (MediaQuery.paddingOf(context).top + kToolbarHeight + 8.0);
-
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isWide = constraints.maxWidth >= 840;
-        final double horizontalPadding = isEmbedded
-            ? (isWide ? 36.0 : 20.0)
-            : (isWide ? 36.0 : AppConstants.screenHorizontalPadding);
-
-        final bool hasNavBanner =
-            children.isNotEmpty && children.first is SettingsNavBanner;
-
-        Widget? header;
-        List<Widget> contentChildren;
-
-        if (hasNavBanner) {
-          header = children.first;
-          contentChildren = children.sublist(1);
-        } else {
-          header = null;
-          contentChildren = children;
-        }
-
-        final bool canSplit =
-            isWide &&
-            adaptiveColumns &&
-            contentChildren.length >= 2 &&
-            !contentChildren.any((Widget w) => w is Row);
-
-        final List<Widget> listItems = <Widget>[];
-
-        if (!hasNavBanner && title != null) {
-          listItems.add(
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16, left: 4),
-              child: Text(
-                title!,
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: scheme.onSurface,
-                ),
-              ),
-            ),
-          );
-        }
-
-        if (header != null) {
-          listItems.add(header);
-          listItems.add(const SizedBox(height: 16));
-        }
-
-        if (canSplit) {
-          final int half = (contentChildren.length + 1) ~/ 2;
-          final List<Widget> leftCol = contentChildren.sublist(0, half);
-          final List<Widget> rightCol = contentChildren.sublist(half);
-
-          listItems.add(
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: leftCol,
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: rightCol,
-                  ),
-                ),
-              ],
-            ),
-          );
-        } else {
-          listItems.addAll(contentChildren);
-        }
-
-        final Widget rawScrollView = CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: <Widget>[
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                topPadding,
-                horizontalPadding,
-                32,
-              ),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (BuildContext context, int index) => listItems[index],
-                  childCount: listItems.length,
-                ),
-              ),
-            ),
-          ],
-        );
-
-        final Widget bodyContent = onRefresh != null
-            ? RefreshIndicator(onRefresh: onRefresh!, child: rawScrollView)
-            : rawScrollView;
-
-        if (isEmbedded) {
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              child: bodyContent,
-            ),
-          );
-        }
-
-        return Scaffold(
-          extendBodyBehindAppBar: true,
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            leading: Navigator.canPop(context)
-                ? Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Material(
-                      color: scheme.surface.withValues(alpha: 0.85),
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        iconSize: 20,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () {
-                          if (Navigator.canPop(context)) {
-                            Navigator.of(context).pop();
-                          } else {
-                            try {
-                              context.go('/main/profile');
-                            } catch (_) {}
-                          }
-                        },
+  Widget build(BuildContext context, WidgetRef ref) => LayoutBuilder(
+    builder: (context, constraints) {
+      final split =
+          adaptiveColumns &&
+          constraints.maxWidth >= 840 &&
+          children.length >= 2 &&
+          !children.any((child) => child is Row);
+      final half = (children.length + 1) ~/ 2;
+      return SettingsShell(
+        title: title ?? '',
+        isEmbedded: isEmbedded,
+        onRefresh: onRefresh,
+        maxWidth: maxWidth,
+        children: split
+            ? [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: children.take(half).toList(),
                       ),
                     ),
-                  )
-                : null,
-          ),
-          body: PulseScaffoldBody(
-            animatedBackdrop: false,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: bodyContent,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: children.skip(half).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ]
+            : children,
+      );
+    },
+  );
 }
 
 class SettingsNavBanner extends StatelessWidget {
@@ -283,6 +155,8 @@ class SettingsNavBanner extends StatelessWidget {
   }
 }
 
+/// Connected tonal surfaces: generous outer corners, quiet inner corners.
+/// Rows retain their own hit area and focus outline without a clipped card layer.
 class SettingsSection extends StatelessWidget {
   const SettingsSection({
     required this.children,
@@ -291,7 +165,6 @@ class SettingsSection extends StatelessWidget {
     this.isCard = true,
     super.key,
   });
-
   final String? title;
   final String? subtitle;
   final List<Widget> children;
@@ -299,120 +172,74 @@ class SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final items = children.where((child) => child is! Divider).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    final outer = AppRadii.of(context).lg.clamp(24.0, 32.0);
     return Padding(
-      padding: EdgeInsets.only(bottom: isCard ? 18 : 12),
+      padding: const EdgeInsets.only(bottom: 20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          if (title != null)
-            Semantics(
-              header: true,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  isCard ? 12 : 8,
-                  isCard ? 8 : 0,
-                  4,
-                  isCard ? 8 : 6,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            title!,
-                            style: isCard
-                                ? textTheme.labelLarge?.copyWith(
-                                    color: scheme.onSurfaceVariant.withValues(
-                                      alpha: 0.90,
-                                    ),
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.1,
-                                  )
-                                : textTheme.labelSmall?.copyWith(
-                                    color: scheme.primary,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
-                                  ),
-                          ),
-                          if (subtitle != null) ...<Widget>[
-                            const SizedBox(height: 2),
-                            Text(
-                              subtitle!,
-                              style: textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
-                        ],
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (title?.isNotEmpty == true || subtitle?.isNotEmpty == true)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (title?.isNotEmpty == true)
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        title!,
+                        style: text.labelLarge?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  if (subtitle?.isNotEmpty == true) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle!,
+                      style: text.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
             ),
-          if (isCard)
+          for (var index = 0; index < items.length; index++) ...[
+            if (index != 0) const SizedBox(height: 2),
             Builder(
-              builder: (BuildContext ctx) {
-                final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
-                final BorderRadius dynamicRadius = AppRadii.of(ctx).lgRadius;
-                return Container(
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerLow,
-                    borderRadius: dynamicRadius,
-                    border: Border.all(
-                      color: scheme.outlineVariant.withValues(
-                        alpha: isDark ? 0.15 : 0.20,
-                      ),
-                      width: 1,
-                    ),
+              builder: (context) {
+                final radius = BorderRadius.vertical(
+                  top: Radius.circular(index == 0 ? outer : 4),
+                  bottom: Radius.circular(
+                    index == items.length - 1 ? outer : 4,
                   ),
-                  child: ClipRRect(
-                    clipBehavior: Clip.hardEdge,
-                    borderRadius: dynamicRadius,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: _buildSeparatedChildren(scheme, children),
-                      ),
-                    ),
+                );
+                final color = isCard
+                    ? scheme.surfaceContainerLow
+                    : scheme.surface;
+                return SettingsGroupScope(
+                  borderRadius: radius,
+                  color: color,
+                  child: Material(
+                    color: color,
+                    borderRadius: radius,
+                    clipBehavior: Clip.none,
+                    child: items[index],
                   ),
                 );
               },
-            )
-          else
-            Column(mainAxisSize: MainAxisSize.min, children: children),
+            ),
+          ],
         ],
       ),
     );
-  }
-
-  List<Widget> _buildSeparatedChildren(ColorScheme scheme, List<Widget> items) {
-    if (items.isEmpty) return items;
-    final List<Widget> result = <Widget>[];
-    for (int i = 0; i < items.length; i++) {
-      result.add(items[i]);
-      if (i < items.length - 1) {
-        if (items[i] is! Divider && items[i + 1] is! Divider) {
-          result.add(
-            Divider(
-              height: 1,
-              indent: SettingsListItem.dividerIndent,
-              endIndent: 16,
-              color: scheme.outlineVariant.withValues(alpha: 0.10),
-            ),
-          );
-        }
-      }
-    }
-    return result;
   }
 }
 

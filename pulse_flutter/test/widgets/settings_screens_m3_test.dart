@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/settings/settings_group_scope.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -191,7 +192,7 @@ void main() {
     );
 
     testWidgets(
-      '1.3 SettingsSection renders grouped card with surfaceContainerLow and 20dp border radius',
+      '1.3 SettingsSection renders a connected tonal surface with generous outer corners',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           _wrapWithApp(
@@ -210,14 +211,18 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        final Finder containerFinder = find.byWidgetPredicate((Widget w) {
-          if (w is Container && w.decoration is BoxDecoration) {
-            final BoxDecoration dec = w.decoration! as BoxDecoration;
-            return dec.borderRadius == BorderRadius.circular(20);
-          }
-          return false;
-        });
-        expect(containerFinder, findsWidgets);
+        final group = tester.widget<SettingsGroupScope>(
+          find.byType(SettingsGroupScope),
+        );
+        expect(
+          group.color,
+          Theme.of(
+            tester.element(find.byType(SettingsSection)),
+          ).colorScheme.surfaceContainerLow,
+        );
+        expect(group.borderRadius.topLeft.x, greaterThanOrEqualTo(24));
+        expect(group.borderRadius.bottomLeft, group.borderRadius.topLeft);
+        expect(find.text('Tile 1'), findsOneWidget);
       },
     );
 

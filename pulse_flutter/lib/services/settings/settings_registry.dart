@@ -222,8 +222,8 @@ class SettingsRegistry {
     // 8. System & Device (Native platforms only)
     SettingsNavNode(
       id: 'system_device',
-      title: (AppLocalizations l) => 'Система и устройство',
-      subtitle: (AppLocalizations l) => 'Аппаратные ресурсы, экран и датчики',
+      title: (AppLocalizations l) => l.settingsDeviceTitle,
+      subtitle: (AppLocalizations l) => l.settingsDeviceSpecs,
       icon: Icons.memory_rounded,
       group: SettingsGroup.about,
       route: '/settings/system-device',
@@ -273,9 +273,8 @@ class SettingsRegistry {
     // 10. Nios Plus & AI
     SettingsNavNode(
       id: 'plus',
-      title: (AppLocalizations l) => 'Nios Plus & AI',
-      subtitle: (AppLocalizations l) =>
-          'Подписка, расширенные лимиты ИИ и файлы до 100 МБ',
+      title: (AppLocalizations l) => 'Nios+ · NiosAI',
+      subtitle: (AppLocalizations l) => l.settingsPlusSummary,
       icon: Icons.stars_rounded,
       group: SettingsGroup.plus,
       route: '/settings/plus',

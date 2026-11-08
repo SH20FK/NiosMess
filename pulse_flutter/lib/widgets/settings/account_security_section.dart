@@ -15,74 +15,81 @@ import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
-class AccountSecuritySection extends ConsumerWidget {
+class AccountSecuritySection extends ConsumerStatefulWidget {
   const AccountSecuritySection({this.isEmbedded = false, super.key});
   final bool isEmbedded;
+
+  @override
+  ConsumerState<AccountSecuritySection> createState() =>
+      _AccountSecuritySectionState();
+}
+
+class _AccountSecuritySectionState
+    extends ConsumerState<AccountSecuritySection> {
+  bool _changingLock = false;
+
   Future<void> _openNiosIdSecurity(BuildContext context) async {
     await AppUrlLauncher.openUrl(context, 'https://ni-os.ru/id/account');
   }
 
-  void _showTimeoutPicker(
-    BuildContext context,
-    WidgetRef ref,
-    AppLockTimeout currentTimeout,
-  ) {
-    AppBottomSheets.show<void>(
+  Future<void> _showTimeoutPicker(AppLockTimeout currentTimeout) async {
+    final selected = await AppBottomSheets.show<AppLockTimeout>(
       context: context,
-      builder: (BuildContext sheetContext) {
-        final ThemeData theme = Theme.of(sheetContext);
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 8.0,
-                  ),
-                  child: Text(
-                    context.l10n.settingsV2LockTimeout,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+        child: SettingsSection(
+          title: sheetContext.l10n.settingsV2LockTimeout,
+          children: [
+            for (final timeout in AppLockTimeout.values)
+              Semantics(
+                checked: timeout == currentTimeout,
+                inMutuallyExclusiveGroup: true,
+                child: SettingsListItem(
+                  icon: timeout == currentTimeout
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
+                  title: sheetContext.l10n.localeName.startsWith('ru')
+                      ? timeout.labelRu
+                      : timeout.labelEn,
+                  type: SettingsListItemType.action,
+                  isSelected: timeout == currentTimeout,
+                  onTap: () => Navigator.of(sheetContext).pop(timeout),
                 ),
-                const SizedBox(height: 8),
-                ...AppLockTimeout.values.map((AppLockTimeout timeout) {
-                  final bool isSelected = timeout == currentTimeout;
-                  return ListTile(
-                    leading: Icon(
-                      isSelected
-                          ? Icons.radio_button_checked_rounded
-                          : Icons.radio_button_off_rounded,
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                    title: Text(
-                      context.l10n.localeName.startsWith('ru')
-                          ? timeout.labelRu
-                          : timeout.labelEn,
-                    ),
-                    onTap: () {
-                      ref.read(appLockProvider.notifier).setTimeout(timeout);
-                      Navigator.of(sheetContext).pop();
-                    },
-                  );
-                }),
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+          ],
+        ),
+      ),
     );
+    if (!mounted || selected == null) return;
+    try {
+      await ref.read(appLockProvider.notifier).setTimeout(selected);
+    } catch (_) {
+      if (mounted) AppToast.showError(context, context.l10n.commonError);
+    }
+  }
+
+  Future<void> _changeLock(bool next) async {
+    if (_changingLock) return;
+    setState(() => _changingLock = true);
+    try {
+      final success = await ref
+          .read(appLockProvider.notifier)
+          .setEnabled(next, authReason: context.l10n.biometricAuthReason);
+      if (!mounted) return;
+      if (!success) {
+        AppToast.showError(context, context.l10n.settingsV2BiometricFailure);
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.showError(context, context.l10n.settingsV2BiometricFailure);
+      }
+    } finally {
+      if (mounted) setState(() => _changingLock = false);
+    }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final isBrowser = ref.watch(clientCapabilitiesProvider).isWeb;
     final appLock = isBrowser
         ? const AppLockState()
@@ -93,7 +100,6 @@ class AccountSecuritySection extends ConsumerWidget {
       children: [
         SettingsSection(
           title: context.l10n.settingsAccountAccessTitle,
-          subtitle: context.l10n.settingsAccountAccessDesc,
           children: <Widget>[
             SettingsRow(
               anchor: SettingId.securitySessionsActive.value,
@@ -104,7 +110,7 @@ class AccountSecuritySection extends ConsumerWidget {
               onTap: () {
                 if (kIsWeb) {
                   context.go('/main/settings?section=sessions');
-                } else if (isEmbedded) {
+                } else if (widget.isEmbedded) {
                   ref
                       .read(desktopSelectedSettingsSectionProvider.notifier)
                       .setSelectedSection(SettingsSectionId.sessions);
@@ -117,7 +123,6 @@ class AccountSecuritySection extends ConsumerWidget {
         ),
         SettingsSection(
           title: context.l10n.settingsProtectionTitle,
-          subtitle: context.l10n.settingsProtectionSubtitle,
           children: <Widget>[
             if (!isBrowser && appLock.isSupported) ...<Widget>[
               SettingsRow(
@@ -136,26 +141,13 @@ class AccountSecuritySection extends ConsumerWidget {
                     : context.l10n.biometricDisabled,
                 control: ToggleControl(
                   value: appLock.isEnabled,
-                  onChanged: (bool next) async {
-                    try {
-                      final bool success = await ref
-                          .read(appLockProvider.notifier)
-                          .setEnabled(
-                            next,
-                            authReason: context.l10n.biometricAuthReason,
-                          );
-                      if (!success && context.mounted) {
-                        AppToast.showError(
-                          context,
-                          context.l10n.settingsV2BiometricFailure,
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        AppToast.showError(context, e);
-                      }
-                    }
-                  },
+                  pending: _changingLock,
+                  onChanged:
+                      _changingLock ||
+                          appLock.isInitializing ||
+                          appLock.hasInitializationError
+                      ? null
+                      : _changeLock,
                 ),
               ),
               if (appLock.isEnabled)
@@ -169,8 +161,7 @@ class AccountSecuritySection extends ConsumerWidget {
                         ? appLock.timeout.labelRu
                         : appLock.timeout.labelEn,
                   ),
-                  onTap: () =>
-                      _showTimeoutPicker(context, ref, appLock.timeout),
+                  onTap: () => _showTimeoutPicker(appLock.timeout),
                 ),
             ],
             SettingsRow(

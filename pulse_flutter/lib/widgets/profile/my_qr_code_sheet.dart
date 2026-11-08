@@ -3,21 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:pulse_flutter/core/identity/nios_weave.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
-import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/widgets/nios_mark_badge.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
-import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_painter.dart';
 
-/// Material 3 Expressive bottom sheet displaying the current user's profile QR code
+/// A readable contact code; its light surface preserves scanner contrast in
+/// either app theme. Profile decoration never becomes a chat wallpaper action.
 class MyQrCodeSheet extends ConsumerWidget {
   const MyQrCodeSheet({
     this.username,
@@ -25,7 +18,6 @@ class MyQrCodeSheet extends ConsumerWidget {
     this.avatarUrl,
     super.key,
   });
-
   final String? username;
   final String? displayName;
   final String? avatarUrl;
@@ -35,269 +27,139 @@ class MyQrCodeSheet extends ConsumerWidget {
     String? username,
     String? displayName,
     String? avatarUrl,
-  }) {
-    return AppBottomSheets.show<void>(
-      context: context,
-      builder: (BuildContext ctx) => MyQrCodeSheet(
-        username: username,
-        displayName: displayName,
-        avatarUrl: avatarUrl,
-      ),
-    );
-  }
+  }) => AppBottomSheets.show<void>(
+    context: context,
+    builder: (_) => MyQrCodeSheet(
+      username: username,
+      displayName: displayName,
+      avatarUrl: avatarUrl,
+    ),
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final AuthState auth = ref.watch(authProvider);
-
-    final bool isSelf = (username == null || username!.isEmpty)
-        ? true
-        : (username == auth.session?.username || username == auth.profile?.username);
-
-    final String resolvedUsername = (username != null && username!.isNotEmpty)
+    final scheme = Theme.of(context).colorScheme;
+    final auth = ref.watch(authProvider);
+    final ownUsername = auth.profile?.username ?? auth.session?.username ?? '';
+    final resolvedUsername = username?.isNotEmpty == true
         ? username!
-        : (auth.session?.username ?? auth.profile?.username ?? '');
-    final String resolvedDisplayName = (displayName != null && displayName!.isNotEmpty)
+        : ownUsername;
+    final isSelf = resolvedUsername == ownUsername;
+    final name = displayName?.isNotEmpty == true
         ? displayName!
-        : (isSelf
-            ? (auth.session?.displayName ??
-                auth.profile?.displayName ??
-                (resolvedUsername.isNotEmpty ? resolvedUsername : 'User'))
-            : (resolvedUsername.isNotEmpty ? resolvedUsername : 'User'));
-    final String? resolvedAvatar = avatarUrl ?? (isSelf ? auth.profile?.avatarUrl : null);
-
-    final String profileUrl = 'https://ni-os.ru/u/$resolvedUsername';
-    final String qrData =
-        resolvedUsername.isNotEmpty ? profileUrl : 'https://ni-os.ru';
-
-    final ChatWallpaperConfig signatureConfig = NiosWeave.deriveUserSignature(
-      resolvedUsername.isNotEmpty ? resolvedUsername : resolvedDisplayName,
+        : isSelf
+        ? auth.profile?.displayName ??
+              auth.session?.displayName ??
+              resolvedUsername
+        : resolvedUsername;
+    final avatar = avatarUrl ?? (isSelf ? auth.profile?.avatarUrl : null);
+    final url = resolvedUsername.isEmpty
+        ? 'https://ni-os.ru'
+        : Uri.https('ni-os.ru', '/u/$resolvedUsername').toString();
+    final qrScheme = ColorScheme.fromSeed(
+      seedColor: scheme.primary,
+      brightness: Brightness.light,
     );
+
+    Future<void> copy() async {
+      await Clipboard.setData(ClipboardData(text: url));
+      if (context.mounted) {
+        AppToast.showSuccess(context, context.l10n.settingsQrCopied);
+      }
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
+        children: [
           Text(
-            isSelf ? 'Мой QR-код' : 'QR-код профиля',
-            style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
-              color: scheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Отсканируйте код для быстрого перехода в профиль',
+            isSelf
+                ? context.l10n.settingsQrTitle
+                : context.l10n.settingsQrProfileTitle,
             textAlign: TextAlign.center,
-            style: textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.settingsQrHint,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 24),
-
-          // QR Card Container with Weave Identity Signature pattern
-          ClipRRect(
-            borderRadius: BorderRadius.circular(28),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 272),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
+                color: qrScheme.surface,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.2),
-                ),
               ),
-              child: Stack(
-                children: <Widget>[
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: 0.55,
-                      child: CustomPaint(
-                        painter: ChatWallpaperPainter(
-                          config: signatureConfig,
-                          scheme: scheme,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Semantics(
+                  image: true,
+                  label: url,
+                  child: ExcludeSemantics(
+                    child: RepaintBoundary(
+                      child: QrImageView(
+                        data: url,
+                        backgroundColor: qrScheme.surface,
+                        eyeStyle: QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: qrScheme.onSurface,
                         ),
+                        dataModuleStyle: QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: qrScheme.onSurface,
+                        ),
+                        padding: EdgeInsets.zero,
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: <Widget>[
-                        // QR Code Viewport: pure white background ensures scannability in all themes/lighting
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFFFFF),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: SizedBox(
-                            width: 200,
-                            height: 200,
-                            child: QrImageView(
-                              data: qrData,
-                              version: QrVersions.auto,
-                              eyeStyle: const QrEyeStyle(
-                                eyeShape: QrEyeShape.square,
-                                color: Color(0xFF000000),
-                              ),
-                              dataModuleStyle: const QrDataModuleStyle(
-                                dataModuleShape: QrDataModuleShape.circle,
-                                color: Color(0xFF000000),
-                              ),
-                              padding: EdgeInsets.zero,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // User Info inside QR card (with tonal chip surface for crisp legibility)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerLowest.withValues(alpha: 0.90),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              PulseAvatar(
-                                radius: 20,
-                                name: resolvedDisplayName,
-                                avatarUrl: resolvedAvatar,
-                              ),
-                              const SizedBox(width: 12),
-                              Flexible(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text(
-                                      resolvedDisplayName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: scheme.onSurface,
-                                      ),
-                                    ),
-                                    if (resolvedUsername.isNotEmpty)
-                                      Text(
-                                        '@$resolvedUsername',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: textTheme.bodySmall?.copyWith(
-                                          color: scheme.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              NiosMarkBadge(
-                                id: resolvedUsername.isNotEmpty ? resolvedUsername : resolvedDisplayName,
-                                name: resolvedDisplayName,
-                                size: 38,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-
-          const SizedBox(height: 24),
-
-          // Action Buttons
-          Row(
-            children: <Widget>[
-              // Share button
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  onPressed: () async {
-                    if (ref.read(uiSettingsProvider).haptics) {
-                      HapticService.tap();
-                    }
-                    await SharePlus.instance.share(
-                      ShareParams(
-                        text: isSelf
-                            ? 'Мой профиль в NiosMess: $profileUrl'
-                            : 'Профиль $resolvedDisplayName в NiosMess: $profileUrl',
-                        subject: 'NiosMess контакт',
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.share_rounded, size: 20),
-                  label: Text(context.l10n.groupProfileShare),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Copy link button
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () async {
-                    if (ref.read(uiSettingsProvider).haptics) {
-                      HapticService.tap();
-                    }
-                    await Clipboard.setData(ClipboardData(text: profileUrl));
-                    if (!context.mounted) return;
-                    AppToast.showSuccess(
-                      context,
-                      context.l10n.filePreviewLinkCopied,
-                    );
-                  },
-                  icon: const Icon(Icons.copy_rounded, size: 20),
-                  label: Text(context.l10n.botCopied),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 20),
+          PulseAvatar(
+            name: name,
+            avatarUrl: avatar,
+            radius: 24,
+            fallbackColor: scheme.primaryContainer,
+            textColor: scheme.onPrimaryContainer,
           ),
-
-          const SizedBox(height: 12),
-
-          // Install signature as wallpaper button
-          FilledButton.tonalIcon(
-            onPressed: () {
-              TriSync.pop(ref: ref);
-              ref.read(chatWallpaperProvider.notifier).updateGlobalConfig(signatureConfig);
-              AppToast.showSuccess(
+          const SizedBox(height: 8),
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          if (resolvedUsername.isNotEmpty)
+            Text(
+              '@$resolvedUsername',
+              textAlign: TextAlign.center,
+              style: Theme.of(
                 context,
-                isSelf
-                    ? 'Ваш персональный узор установлен как обои!'
-                    : 'Фирменный узор установлен как ваши обои!',
-              );
-            },
-            icon: const Icon(Icons.wallpaper_rounded, size: 20),
-            label: Text(
-              isSelf ? 'Установить как мои обои' : 'Установить этот узор как обои',
+              ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: copy,
+              icon: const Icon(Icons.link_rounded),
+              label: Text(context.l10n.settingsQrCopy),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => SharePlus.instance.share(ShareParams(text: url)),
+              icon: const Icon(Icons.share_outlined),
+              label: Text(context.l10n.groupProfileShare),
             ),
           ),
         ],

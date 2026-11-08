@@ -5,10 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
-import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
-import 'package:pulse_flutter/core/theme/app_typography.dart';
-import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -80,12 +77,6 @@ class _AppearanceScreen extends ConsumerWidget {
     final PaletteStyle paletteStyle = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.paletteStyle),
     );
-    final bool pureBlackOled = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.pureBlackOled),
-    );
-    final bool navBarFloating = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.navBarFloating),
-    );
     final bool predictiveBackEnabled = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.predictiveBackEnabled),
     );
@@ -94,17 +85,7 @@ class _AppearanceScreen extends ConsumerWidget {
         (UiSettingsState s) => s.predictiveBackStrength,
       ),
     );
-    final bool optimizeForWeakDevices = ref.watch(
-      uiSettingsProvider.select(
-        (UiSettingsState s) => s.optimizeForWeakDevices,
-      ),
-    );
 
-    final PerformanceTier tier = ref.watch(
-      adaptivePerformanceProvider.select(
-        (AdaptivePerformanceState s) => s.tier,
-      ),
-    );
     final Brightness brightness = Theme.of(context).brightness;
 
     return DynamicColorBuilder(
@@ -124,25 +105,21 @@ class _AppearanceScreen extends ConsumerWidget {
           data: targetTheme,
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
-              : const Duration(milliseconds: 500),
+              : M3Durations.long2,
           curve: M3SpringCurves.expressiveStandard,
           child: Builder(
             builder: (animatedContext) => _buildContent(
               animatedContext,
               ref,
               Theme.of(animatedContext).colorScheme,
-              tier,
               themeMode: themeMode,
               seedColor: seedColor,
               uiCornerRadius: uiCornerRadius,
               fontScale: fontScale,
               paletteStyle: paletteStyle,
-              pureBlackOled: pureBlackOled,
               useSystemDynamic: useSystemDynamic,
-              navBarFloating: navBarFloating,
               predictiveBackEnabled: predictiveBackEnabled,
               predictiveBackStrength: predictiveBackStrength,
-              optimizeForWeakDevices: optimizeForWeakDevices,
             ),
           ),
         );
@@ -153,19 +130,15 @@ class _AppearanceScreen extends ConsumerWidget {
   Widget _buildContent(
     BuildContext context,
     WidgetRef ref,
-    ColorScheme scheme,
-    PerformanceTier tier, {
+    ColorScheme scheme, {
     required ThemeMode themeMode,
     required Color seedColor,
     required double uiCornerRadius,
     required AppFontScale fontScale,
     required PaletteStyle paletteStyle,
-    required bool pureBlackOled,
     required bool useSystemDynamic,
-    required bool navBarFloating,
     required bool predictiveBackEnabled,
     required double predictiveBackStrength,
-    required bool optimizeForWeakDevices,
   }) {
     final Widget colorField = SettingsAnchor(
       id: 'appearance.color.source',
@@ -183,7 +156,6 @@ class _AppearanceScreen extends ConsumerWidget {
         onToggleDynamic: (bool val) {
           ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(val);
         },
-        animateMesh: !optimizeForWeakDevices && !tier.isTierC,
         onSelectPaletteStyle: (PaletteStyle style) {
           ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
         },
@@ -192,7 +164,6 @@ class _AppearanceScreen extends ConsumerWidget {
 
     final Widget themeCard = _ThemeModeSelectorCard(
       currentMode: themeMode,
-      scheme: scheme,
       onSelectMode: (ThemeMode newMode, Offset tapOffset) {
         if (newMode == themeMode) return;
         final switcher = CircularThemeSwitcher.maybeOf(context);
@@ -215,7 +186,6 @@ class _AppearanceScreen extends ConsumerWidget {
           id: 'appearance.font.scale',
           child: _FontScaleSliderTile(
             currentScale: fontScale,
-            scheme: scheme,
             onChanged: (AppFontScale scale) {
               ref.read(uiSettingsProvider.notifier).setFontScale(scale);
             },
@@ -241,31 +211,15 @@ class _AppearanceScreen extends ConsumerWidget {
               icon: Icons.rounded_corner_rounded,
               title: context.l10n.appearanceUiRounding,
               subtitle: context.l10n.appearanceUiRoundingDesc,
-              badgeText: '${uiCornerRadius.toInt()} dp',
               value: uiCornerRadius,
               min: 8.0,
               max: 28.0,
               divisions: 20,
-              scheme: scheme,
               onChanged: (double val) {
                 ref.read(uiSettingsProvider.notifier).setUiCornerRadius(val);
               },
             ),
           ],
-        ),
-      ],
-    );
-
-    final Widget contrastSection = SettingsSection(
-      title: context.l10n.appearanceContrastColors,
-      subtitle: context.l10n.appearanceContrastColorsDesc,
-      children: [
-        _PaletteStyleSelectorTile(
-          currentStyle: paletteStyle,
-          scheme: scheme,
-          onChanged: (PaletteStyle style) {
-            ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
-          },
         ),
       ],
     );
@@ -287,7 +241,6 @@ class _AppearanceScreen extends ConsumerWidget {
         if (predictiveBackEnabled)
           _PredictiveBackStrengthTile(
             strength: predictiveBackStrength,
-            scheme: scheme,
             onChanged: (double val) {
               ref
                   .read(uiSettingsProvider.notifier)
@@ -297,74 +250,15 @@ class _AppearanceScreen extends ConsumerWidget {
       ],
     );
 
-    return Container(
-      color: scheme.surface,
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool isWide = constraints.maxWidth >= 840;
-
-          if (isWide) {
-            return SettingsShell(
-              title: context.l10n.settingsV2Appearance,
-              isEmbedded: isEmbedded,
-              maxWidth: 1120,
-              children: [
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 5,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          colorField,
-                          const SizedBox(height: 16),
-                          themeCard,
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      flex: 6,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          geometrySection,
-                          const SizedBox(height: 16),
-                          contrastSection,
-                          const SizedBox(height: 16),
-                          if (!kIsWeb) navSection,
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-              ],
-            );
-          }
-
-          return SettingsShell(
-            title: context.l10n.settingsV2Appearance,
-            isEmbedded: isEmbedded,
-            maxWidth: 860,
-            children: [
-              const SizedBox(height: 12),
-              colorField,
-              const SizedBox(height: 14),
-              themeCard,
-              const SizedBox(height: 16),
-              geometrySection,
-              const SizedBox(height: 16),
-              contrastSection,
-              const SizedBox(height: 16),
-              if (!kIsWeb) navSection,
-              const SizedBox(height: 32),
-            ],
-          );
-        },
-      ),
+    return SettingsShell(
+      title: context.l10n.settingsV2Appearance,
+      isEmbedded: isEmbedded,
+      children: [
+        themeCard,
+        colorField,
+        geometrySection,
+        if (!kIsWeb) navSection,
+      ],
     );
   }
 
@@ -379,6 +273,7 @@ class _AppearanceScreen extends ConsumerWidget {
         return CustomColorPickerSheet(
           initialColor: initialColor,
           onApplyColor: (Color color) {
+            if (!context.mounted) return;
             ref.read(uiSettingsProvider.notifier).setSeedColor(color);
           },
         );
@@ -397,7 +292,6 @@ class NiosColorField extends StatelessWidget {
     required this.onCustomColorTap,
     required this.onToggleDynamic,
     required this.onSelectPaletteStyle,
-    this.animateMesh = false,
     super.key,
   });
 
@@ -405,7 +299,6 @@ class NiosColorField extends StatelessWidget {
   final Color seedColor;
   final bool useSystemDynamic;
   final PaletteStyle paletteStyle;
-  final bool animateMesh;
   final ValueChanged<Color> onColorSelected;
   final VoidCallback onCustomColorTap;
   final ValueChanged<bool> onToggleDynamic;
@@ -413,73 +306,65 @@ class NiosColorField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final customSelected =
         !useSystemDynamic &&
         !_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32());
-    return Material(
-      color: scheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(28),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              context.l10n.appearancePaletteTitle,
-              style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
+    return SettingsSection(
+      title: context.l10n.appearancePaletteTitle,
+      subtitle: context.l10n.appearancePaletteSubtitle,
+      children: [
+        if (!kIsWeb)
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
               ),
+              secondary: const Icon(Icons.wallpaper_rounded),
+              title: Text(context.l10n.appearanceSystemColors),
+              subtitle: Text(context.l10n.appearanceSystemColorsSubtitle),
+              value: useSystemDynamic,
+              onChanged: onToggleDynamic,
             ),
-            const SizedBox(height: 4),
-            Text(
-              context.l10n.appearancePaletteSubtitle,
-              style: textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (!kIsWeb)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.appearanceSystemColors),
-                subtitle: Text(context.l10n.appearanceSystemColorsSubtitle),
-                value: useSystemDynamic,
-                onChanged: onToggleDynamic,
-              ),
-            const SizedBox(height: 16),
-            _PalettePager(
-              scheme: scheme,
-              children: [
-                for (final entry in _palettes)
-                  _PaletteChoice(
-                    scheme: scheme,
-                    seedColor: entry.color,
-                    paletteStyle: paletteStyle,
-                    label: entry.getName(context.l10n),
-                    selected:
-                        !useSystemDynamic &&
-                        seedColor.toARGB32() == entry.color.toARGB32(),
-                    onTap: () {
-                      HapticService.tap();
-                      onColorSelected(entry.color);
-                      onToggleDynamic(false);
-                    },
-                  ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+          child: _PalettePager(
+            scheme: scheme,
+            children: [
+              for (final entry in _palettes)
                 _PaletteChoice(
                   scheme: scheme,
-                  seedColor: seedColor,
+                  seedColor: entry.color,
                   paletteStyle: paletteStyle,
-                  label: context.l10n.appearanceCustomColor,
-                  selected: customSelected,
-                  custom: true,
-                  onTap: onCustomColorTap,
+                  label: entry.getName(context.l10n),
+                  selected:
+                      !useSystemDynamic &&
+                      seedColor.toARGB32() == entry.color.toARGB32(),
+                  onTap: () {
+                    HapticService.selection();
+                    onColorSelected(entry.color);
+                    onToggleDynamic(false);
+                  },
                 ),
-              ],
-            ),
-          ],
+              _PaletteChoice(
+                scheme: scheme,
+                seedColor: seedColor,
+                paletteStyle: paletteStyle,
+                label: context.l10n.appearanceCustomColor,
+                selected: customSelected,
+                custom: true,
+                onTap: onCustomColorTap,
+              ),
+            ],
+          ),
         ),
-      ),
+        _PaletteStyleSelectorTile(
+          currentStyle: paletteStyle,
+          onChanged: onSelectPaletteStyle,
+        ),
+      ],
     );
   }
 }
@@ -818,156 +703,79 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
   );
 }
 
-/// Material 3 Expressive Theme Selector Card supporting System, Light, and Dark modes
+/// Theme choices share the connected settings group instead of a nested card.
 class _ThemeModeSelectorCard extends StatelessWidget {
   const _ThemeModeSelectorCard({
     required this.currentMode,
-    required this.scheme,
     required this.onSelectMode,
   });
-
   final ThemeMode currentMode;
-  final ColorScheme scheme;
   final void Function(ThemeMode mode, Offset tapOffset) onSelectMode;
 
   @override
-  Widget build(BuildContext context) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final IconData modeIcon;
-    final String modeDesc;
-
-    switch (currentMode) {
-      case ThemeMode.system:
-        modeIcon = Icons.brightness_auto_rounded;
-        modeDesc = context.l10n.appearanceThemeModeSubtitle;
-        break;
-      case ThemeMode.light:
-        modeIcon = Icons.light_mode_rounded;
-        modeDesc = context.l10n.appearanceThemeLightActive;
-        break;
-      case ThemeMode.dark:
-        modeIcon = Icons.dark_mode_rounded;
-        modeDesc = context.l10n.appearanceThemeDarkActive;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: AppRadii.of(context).lgRadius,
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.15 : 0.20),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              AnimatedContainer(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero : M3Durations.medium2,
-                curve: M3SpringCurves.expressiveStandard,
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(modeIcon, color: scheme.onSurfaceVariant, size: 22),
+  Widget build(BuildContext context) => SettingsSection(
+    title: context.l10n.appearanceThemeMode,
+    subtitle: switch (currentMode) {
+      ThemeMode.system => context.l10n.appearanceThemeModeSubtitle,
+      ThemeMode.light => context.l10n.appearanceThemeLightActive,
+      ThemeMode.dark => context.l10n.appearanceThemeDarkActive,
+    },
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Builder(
+          builder: (choiceContext) => SettingsChoiceButtons<ThemeMode>(
+            segments: [
+              ButtonSegment<ThemeMode>(
+                value: ThemeMode.system,
+                icon: const Icon(Icons.brightness_auto_rounded),
+                label: Text(context.l10n.commonSystem),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      context.l10n.appearanceThemeMode,
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      modeDesc,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+              ButtonSegment<ThemeMode>(
+                value: ThemeMode.light,
+                icon: const Icon(Icons.light_mode_rounded),
+                label: Text(context.l10n.appearanceLabelLight),
+              ),
+              ButtonSegment<ThemeMode>(
+                value: ThemeMode.dark,
+                icon: const Icon(Icons.dark_mode_rounded),
+                label: Text(context.l10n.appearanceLabelDark),
               ),
             ],
-          ),
-          const SizedBox(height: 14),
-          Builder(
-            builder: (BuildContext segContext) {
-              return SettingsChoiceButtons<ThemeMode>(
-                segments: <ButtonSegment<ThemeMode>>[
-                  ButtonSegment<ThemeMode>(
-                    value: ThemeMode.system,
-                    icon: const Icon(Icons.brightness_auto_rounded, size: 18),
-                    label: Text(context.l10n.commonSystem),
-                  ),
-                  ButtonSegment<ThemeMode>(
-                    value: ThemeMode.light,
-                    icon: const Icon(Icons.light_mode_rounded, size: 18),
-                    label: Text(context.l10n.appearanceLabelLight),
-                  ),
-                  ButtonSegment<ThemeMode>(
-                    value: ThemeMode.dark,
-                    icon: const Icon(Icons.dark_mode_rounded, size: 18),
-                    label: Text(context.l10n.appearanceLabelDark),
-                  ),
-                ],
-                selected: <ThemeMode>{currentMode},
-                onSelectionChanged: (Set<ThemeMode> selection) {
-                  final RenderBox? box =
-                      segContext.findRenderObject() as RenderBox?;
-                  final Offset offset = box != null && box.hasSize
-                      ? box.localToGlobal(box.size.center(Offset.zero))
-                      : Offset.zero;
-                  onSelectMode(selection.first, offset);
-                },
-              );
+            selected: {currentMode},
+            onSelectionChanged: (selection) {
+              final box = choiceContext.findRenderObject() as RenderBox?;
+              final offset = box != null && box.hasSize
+                  ? box.localToGlobal(box.size.center(Offset.zero))
+                  : Offset.zero;
+              onSelectMode(selection.first, offset);
             },
           ),
-        ],
+        ),
       ),
-    );
-  }
+    ],
+  );
 }
 
-/// Generic M3 Slider Setting Tile with leading icon, title, subtitle, live badge and spring drag bounce
 class _SliderSettingTile extends StatefulWidget {
   const _SliderSettingTile({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.badgeText,
     required this.value,
     required this.min,
     required this.max,
     required this.divisions,
-    required this.scheme,
     required this.onChanged,
   });
-
   final IconData icon;
   final String title;
   final String subtitle;
-  final String badgeText;
   final double value;
   final double min;
   final double max;
   final int divisions;
-  final ColorScheme scheme;
   final ValueChanged<double> onChanged;
-
   @override
   State<_SliderSettingTile> createState() => _SliderSettingTileState();
 }
@@ -975,7 +783,6 @@ class _SliderSettingTile extends StatefulWidget {
 class _SliderSettingTileState extends State<_SliderSettingTile> {
   bool _isDragging = false;
   late double _localValue;
-
   @override
   void initState() {
     super.initState();
@@ -985,437 +792,178 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
   @override
   void didUpdateWidget(covariant _SliderSettingTile oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_isDragging && oldWidget.value != widget.value) {
-      _localValue = widget.value;
-    }
+    if (!_isDragging) _localValue = widget.value;
   }
 
   @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final scheme = widget.scheme;
-    final String currentBadgeText = '${_localValue.toInt()} dp';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(widget.icon, color: scheme.onSurfaceVariant, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      widget.subtitle,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              AnimatedScale(
-                scale: _isDragging && !MediaQuery.disableAnimationsOf(context)
-                    ? 1.08 : 1.0,
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero : M3Durations.short4,
-                curve: M3SpringCurves.snappy,
-                child: AnimatedContainer(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero : M3Durations.short4,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _isDragging
-                        ? scheme.primary.withValues(alpha: 0.22)
-                        : scheme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _isDragging
-                          ? scheme.primary.withValues(alpha: 0.35)
-                          : scheme.primary.withValues(alpha: 0.15),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    currentBadgeText,
-                    style: textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: scheme.primary,
-              inactiveTrackColor: scheme.surfaceContainerHighest,
-              thumbColor: scheme.primary,
-              overlayColor: scheme.primary.withValues(alpha: 0.12),
-              trackHeight: 4,
-            ),
-            child: Slider(
-              value: _localValue.clamp(widget.min, widget.max),
-              min: widget.min,
-              max: widget.max,
-              divisions: widget.divisions,
-              onChangeStart: (double v) {
-                setState(() {
-                  _isDragging = true;
-                  _localValue = v;
-                });
-                HapticService.selection();
-              },
-              onChangeEnd: (double v) {
-                setState(() {
-                  _isDragging = false;
-                  _localValue = v;
-                });
-                widget.onChanged(v);
-              },
-              onChanged: (double v) {
-                final double step =
-                    (widget.max - widget.min) / widget.divisions;
-                if ((v - _localValue).abs() >= step * 0.9) {
-                  HapticService.selection();
-                }
-                setState(() {
-                  _localValue = v;
-                });
-              },
-            ),
-          ),
-        ],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      SettingsInfoTile(
+        icon: widget.icon,
+        title: widget.title,
+        subtitle: widget.subtitle,
+        value: '${_localValue.toInt()} dp',
       ),
-    );
-  }
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: SliderTheme(
+          data: SliderTheme.of(context).copyWith(trackHeight: 16),
+          child: Slider(
+            value: _localValue.clamp(widget.min, widget.max),
+            min: widget.min,
+            max: widget.max,
+            divisions: widget.divisions,
+            label: '${_localValue.toInt()} dp',
+            onChangeStart: (_) => setState(() => _isDragging = true),
+            onChangeEnd: (value) {
+              setState(() => _isDragging = false);
+              widget.onChanged(value);
+            },
+            onChanged: (value) => setState(() => _localValue = value),
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
-/// Font Scale Tile with M3 Expressive SegmentedButton and spring badge bounce
 class _FontScaleSliderTile extends StatelessWidget {
   const _FontScaleSliderTile({
     required this.currentScale,
-    required this.scheme,
     required this.onChanged,
   });
-
   final AppFontScale currentScale;
-  final ColorScheme scheme;
   final ValueChanged<AppFontScale> onChanged;
-
   @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final int percent = (currentScale.scale * 100).toInt();
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.format_size_rounded,
-                color: scheme.onSurfaceVariant,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.l10n.appearanceTextScale,
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      context.l10n.appearanceTextScaleDesc,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              AnimatedContainer(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero : M3Durations.short4,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$percent%',
-                  style: textTheme.labelMedium?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SettingsChoiceButtons<AppFontScale>(
-            segments: const <ButtonSegment<AppFontScale>>[
-              ButtonSegment<AppFontScale>(
-                value: AppFontScale.small,
-                label: Text('85%', style: TextStyle(fontSize: 12)),
-              ),
-              ButtonSegment<AppFontScale>(
-                value: AppFontScale.normal,
-                label: Text('100%', style: TextStyle(fontSize: 12)),
-              ),
-              ButtonSegment<AppFontScale>(
-                value: AppFontScale.large,
-                label: Text('115%', style: TextStyle(fontSize: 12)),
-              ),
-              ButtonSegment<AppFontScale>(
-                value: AppFontScale.extraLarge,
-                label: Text('130%', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-            selected: <AppFontScale>{currentScale},
-            onSelectionChanged: (Set<AppFontScale> val) {
-              HapticService.selection();
-              onChanged(val.first);
-            },
-          ),
-        ],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      SettingsInfoTile(
+        icon: Icons.format_size_rounded,
+        title: context.l10n.appearanceTextScale,
+        subtitle: context.l10n.appearanceTextScaleDesc,
+        value: '${(currentScale.scale * 100).round()}%',
       ),
-    );
-  }
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: SettingsChoiceButtons<AppFontScale>(
+          segments: [
+            for (final scale in AppFontScale.values)
+              ButtonSegment<AppFontScale>(
+                value: scale,
+                label: Text('${(scale.scale * 100).round()}%'),
+              ),
+          ],
+          selected: {currentScale},
+          onSelectionChanged: (selected) {
+            HapticService.selection();
+            onChanged(selected.first);
+          },
+        ),
+      ),
+    ],
+  );
 }
 
-/// Predictive Back Gesture Strength Selector Tile
 class _PredictiveBackStrengthTile extends StatelessWidget {
   const _PredictiveBackStrengthTile({
     required this.strength,
-    required this.scheme,
     required this.onChanged,
   });
-
   final double strength;
-  final ColorScheme scheme;
   final ValueChanged<double> onChanged;
-
-  String _descriptionFor(BuildContext context, double val) {
-    if (val <= 0.6) {
-      return context.l10n.appearancePredictiveBackSoft;
-    } else if (val >= 1.4) {
-      return context.l10n.appearancePredictiveBackDeep;
-    }
-    return context.l10n.appearancePredictiveBackStandard;
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final double normalized = strength <= 0.75
-        ? 0.5
-        : (strength >= 1.25 ? 1.5 : 1.0);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.tune_rounded,
-                color: scheme.onSurfaceVariant,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.l10n.appearancePredictiveBackStrength,
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      _descriptionFor(context, strength),
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              AnimatedContainer(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero : M3Durations.short4,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: scheme.secondary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${strength.toStringAsFixed(1)}x',
-                  style: textTheme.labelMedium?.copyWith(
-                    color: scheme.secondary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SettingsChoiceButtons<double>(
-            segments: <ButtonSegment<double>>[
-              ButtonSegment<double>(
-                value: 0.5,
-                label: Text(
-                  context.l10n.appearancePredictiveBackSoftLabel,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-              ButtonSegment<double>(
-                value: 1.0,
-                label: Text(
-                  context.l10n.appearancePredictiveBackStandardLabel,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-              ButtonSegment<double>(
-                value: 1.5,
-                label: Text(
-                  context.l10n.appearancePredictiveBackDeepLabel,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-            ],
-            selected: <double>{normalized},
-            onSelectionChanged: (Set<double> selected) {
-              HapticService.selection();
-              onChanged(selected.first);
-            },
-          ),
-        ],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      SettingsInfoTile(
+        icon: Icons.tune_rounded,
+        title: context.l10n.appearancePredictiveBackStrength,
+        subtitle: strength <= .6
+            ? context.l10n.appearancePredictiveBackSoft
+            : strength >= 1.4
+            ? context.l10n.appearancePredictiveBackDeep
+            : context.l10n.appearancePredictiveBackStandard,
+        value: '${strength.toStringAsFixed(1)}×',
       ),
-    );
-  }
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: SettingsChoiceButtons<double>(
+          segments: [
+            ButtonSegment<double>(
+              value: .5,
+              label: Text(context.l10n.appearancePredictiveBackSoftLabel),
+            ),
+            ButtonSegment<double>(
+              value: 1,
+              label: Text(context.l10n.appearancePredictiveBackStandardLabel),
+            ),
+            ButtonSegment<double>(
+              value: 1.5,
+              label: Text(context.l10n.appearancePredictiveBackDeepLabel),
+            ),
+          ],
+          selected: {
+            strength <= .75
+                ? .5
+                : strength >= 1.25
+                ? 1.5
+                : 1.0,
+          },
+          onSelectionChanged: (selected) {
+            HapticService.selection();
+            onChanged(selected.first);
+          },
+        ),
+      ),
+    ],
+  );
 }
 
 class _PaletteStyleSelectorTile extends StatelessWidget {
   const _PaletteStyleSelectorTile({
     required this.currentStyle,
-    required this.scheme,
     required this.onChanged,
   });
-
   final PaletteStyle currentStyle;
-  final ColorScheme scheme;
   final ValueChanged<PaletteStyle> onChanged;
-
-  String _labelFor(BuildContext context, PaletteStyle style) {
-    return switch (style) {
-      PaletteStyle.expressive => context.l10n.appearancePaletteExpressive,
-      PaletteStyle.vibrant => context.l10n.appearancePaletteVibrant,
-      PaletteStyle.content => context.l10n.appearancePaletteContent,
-      PaletteStyle.calm => context.l10n.appearancePaletteCalm,
-      PaletteStyle.mono => context.l10n.appearancePaletteMono,
-    };
-  }
-
+  String _labelFor(BuildContext context, PaletteStyle style) => switch (style) {
+    PaletteStyle.expressive => context.l10n.appearancePaletteExpressive,
+    PaletteStyle.vibrant => context.l10n.appearancePaletteVibrant,
+    PaletteStyle.content => context.l10n.appearancePaletteContent,
+    PaletteStyle.calm => context.l10n.appearancePaletteCalm,
+    PaletteStyle.mono => context.l10n.appearancePaletteMono,
+  };
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.palette_outlined,
-                size: 20,
-                color: scheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  context.l10n.appearancePaletteStyle,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: PaletteStyle.values.map((PaletteStyle style) {
-                final bool isSelected = style == currentStyle;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    selected: isSelected,
-                    label: Text(_labelFor(context, style)),
-                    showCheckmark: false,
-                    selectedColor: scheme.primaryContainer,
-                    labelStyle: TextStyle(
-                      fontFamily: AppFonts.ui,
-                      fontSize: 13,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: isSelected
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurfaceVariant,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: isSelected
-                            ? scheme.primary
-                            : scheme.outlineVariant.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    onSelected: (_) {
-                      HapticService.selection();
-                      onChanged(style);
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          leading: const Icon(Icons.palette_outlined),
+          title: Text(context.l10n.appearancePaletteStyle),
+          subtitle: Text(context.l10n.appearanceContrastColorsDesc),
+        ),
       ),
-    );
-  }
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: SettingsChoiceButtons<PaletteStyle>(
+          segments: [
+            for (final style in PaletteStyle.values)
+              ButtonSegment<PaletteStyle>(
+                value: style,
+                label: Text(_labelFor(context, style)),
+              ),
+          ],
+          selected: {currentStyle},
+          onSelectionChanged: (selected) {
+            HapticService.selection();
+            onChanged(selected.first);
+          },
+        ),
+      ),
+    ],
+  );
 }

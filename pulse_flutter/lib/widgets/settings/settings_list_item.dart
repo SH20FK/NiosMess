@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
+import 'package:pulse_flutter/widgets/settings/settings_group_scope.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 enum SettingsListItemType { nav, toggle, value, action, danger }
@@ -144,6 +145,7 @@ class SettingsListItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final group = SettingsGroupScope.maybeOf(context);
     final textTheme = Theme.of(context).textTheme;
     final danger = type == SettingsListItemType.danger;
     final interactive = enabled && !pending;
@@ -158,13 +160,18 @@ class SettingsListItem extends ConsumerWidget {
         ? scheme.error
         : isSelected
         ? scheme.onSecondaryContainer
-        : isSection
-        ? scheme.onPrimaryContainer
-        : scheme.onSurfaceVariant;
+        : iconColor ??
+              (isSection ? scheme.onPrimaryContainer : scheme.onSurfaceVariant);
     final iconWidget = leading is Icon
         ? Icon((leading as Icon).icon, size: 22, color: iconForeground)
         : leading ?? Icon(icon, size: 22, color: iconForeground);
     final toggle = type == SettingsListItemType.toggle;
+    final inlineValue =
+        type == SettingsListItemType.nav &&
+        value?.trim().isNotEmpty == true &&
+        value!.length <= 18 &&
+        subtitle?.trim().isNotEmpty != true &&
+        MediaQuery.textScalerOf(context).scale(14) <= 18;
     void change(bool next) {
       if (!interactive || onChanged == null) return;
       ref
@@ -178,7 +185,7 @@ class SettingsListItem extends ConsumerWidget {
         : toggle
         ? (onChanged == null ? null : () => change(!(boolValue ?? false)))
         : onTap;
-    final Widget? action = pending
+    Widget? action = pending
         ? const SizedBox(
             width: 52,
             height: 48,
@@ -199,6 +206,27 @@ class SettingsListItem extends ConsumerWidget {
                 ),
                 _ => null,
               };
+    if (inlineValue) {
+      action = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 88),
+            child: Text(
+              value!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          ?action,
+        ],
+      );
+    }
     final content = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 64),
       child: Padding(
@@ -214,7 +242,7 @@ class SettingsListItem extends ConsumerWidget {
                           color: isSelected
                               ? scheme.secondaryContainer
                               : scheme.primaryContainer,
-                          borderRadius: AppRadii.smRadius,
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: Center(child: iconWidget),
                       )
@@ -248,7 +276,8 @@ class SettingsListItem extends ConsumerWidget {
                     ),
                   ],
                   if (value?.trim().isNotEmpty == true &&
-                      value != subtitle) ...[
+                      value != subtitle &&
+                      !inlineValue) ...[
                     const SizedBox(height: 3),
                     Text(
                       value!,
@@ -278,8 +307,8 @@ class SettingsListItem extends ConsumerWidget {
         enabled: interactive && (tap != null || onLongPress != null),
         playFeedback: !toggle,
         keyboardFocusable: !toggle,
-        borderRadius: AppRadii.mdRadius,
-        color: isSelected ? scheme.secondaryContainer : Colors.transparent,
+        borderRadius: group?.borderRadius ?? AppRadii.mdRadius,
+        color: isSelected ? scheme.secondaryContainer : group?.color,
         child: content,
       ),
     );

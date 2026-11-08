@@ -1,21 +1,23 @@
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/network/api_exception.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/plus_purchase_options.dart';
+import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
+import 'package:pulse_flutter/widgets/profile/ai_usage_card.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class SettingsPlusScreen extends ConsumerStatefulWidget {
   const SettingsPlusScreen({this.isEmbedded = false, super.key});
-
   final bool isEmbedded;
-
   @override
   ConsumerState<SettingsPlusScreen> createState() => _SettingsPlusScreenState();
 }
@@ -23,60 +25,115 @@ class SettingsPlusScreen extends ConsumerStatefulWidget {
 class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
   bool _claimingTrial = false;
   bool _loadingStatus = true;
+  bool _statusFailed = false;
   Map<String, dynamic>? _status;
+  int _generation = 0;
+  int _statusRequest = 0;
+  ProviderSubscription<(int?, String?)>? _accountSubscription;
+
+  (int?, String?) get _account {
+    final session = ref.read(authProvider).session;
+    return (session?.userId, session?.accessToken);
+  }
+
+  bool _isCurrent(int generation, (int?, String?) account) =>
+      mounted &&
+      generation == _generation &&
+      account == _account &&
+      !ref.read(authProvider.notifier).isLoggingOut;
 
   @override
   void initState() {
     super.initState();
-    _loadStatus();
+    _accountSubscription = ref.listenManual(
+      authProvider.select(
+        (auth) => (auth.session?.userId, auth.session?.accessToken),
+      ),
+      (previous, next) {
+        if (previous == next) return;
+        _generation++;
+        setState(() {
+          _status = null;
+          _claimingTrial = false;
+        });
+        unawaited(_loadStatus());
+      },
+    );
+    unawaited(_loadStatus());
+  }
+
+  @override
+  void dispose() {
+    _generation++;
+    _accountSubscription?.close();
+    super.dispose();
   }
 
   Future<void> _loadStatus() async {
+    final account = _account;
+    final generation = _generation;
+    final request = ++_statusRequest;
+    setState(() {
+      _loadingStatus = true;
+      _statusFailed = false;
+    });
     try {
-      final dynamic res = await ref
+      if (account.$1 == null || (account.$2 ?? '').isEmpty) {
+        throw StateError('unauthenticated');
+      }
+      final response = await ref
           .read(webSocketClientProvider)
           .request('get_my_limits', payload: <String, dynamic>{});
-      if (mounted) {
-        setState(() {
-          _status = res is Map ? Map<String, dynamic>.from(res) : null;
-          _loadingStatus = false;
-        });
+      if (!_isCurrent(generation, account) || request != _statusRequest) return;
+      if (response is! Map) throw const FormatException('invalid_limits');
+      final status = Map<String, dynamic>.from(response);
+      if (status['is_nios_plus'] is! bool) {
+        throw const FormatException('invalid_limits');
       }
+      setState(() => _status = status);
     } catch (_) {
-      if (mounted) {
+      if (_isCurrent(generation, account) && request == _statusRequest) {
+        setState(() => _statusFailed = true);
+      }
+    } finally {
+      if (_isCurrent(generation, account) && request == _statusRequest) {
         setState(() => _loadingStatus = false);
       }
     }
   }
 
   Future<void> _claimTrial() async {
-    if (_claimingTrial) return;
+    if (_claimingTrial || _loadingStatus || _statusFailed || _status == null) {
+      return;
+    }
+    final account = _account;
+    final generation = _generation;
+    if (!_isCurrent(generation, account) || account.$1 == null) return;
     setState(() => _claimingTrial = true);
     HapticService.selection();
-
     try {
       await ref
           .read(webSocketClientProvider)
-          .request('claim_nios_plus_trial', payload: <String, dynamic>{});
+          .request(
+            'claim_nios_plus_trial',
+            payload: <String, dynamic>{},
+            maxRetries: 0,
+          );
+      if (!_isCurrent(generation, account)) return;
       await ref.read(authProvider.notifier).refreshProfile();
+      if (!_isCurrent(generation, account)) return;
       await _loadStatus();
-      if (mounted) {
-        AppToast.showSuccess(
-          context,
-          'Пробный период Nios+ на 1 день активирован',
-        );
+      if (mounted && _isCurrent(generation, account)) {
+        AppToast.showSuccess(context, context.l10n.settingsPlusTrialActivated);
       }
-    } on ApiException catch (e) {
+    } catch (_) {
+      if (!_isCurrent(generation, account)) return;
       await _loadStatus();
-      if (mounted) {
-        AppToast.showInfo(context, e.message);
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.showError(context, 'Не удалось активировать пробный период');
+      if (mounted && _isCurrent(generation, account)) {
+        AppToast.showError(context, context.l10n.settingsPlusTrialFailed);
       }
     } finally {
-      if (mounted) {
+      if (_isCurrent(generation, account)) {
         setState(() => _claimingTrial = false);
       }
     }
@@ -95,113 +152,135 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AuthState auth = ref.watch(authProvider);
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    final Map<String, dynamic>? status = _status;
-    final bool isPlus = status != null
-        ? status['is_nios_plus'] == true
-        : (auth.profile?.isNiosPlus ?? false);
-    final bool trialUsed = status != null
-        ? status['nios_plus_trial_used'] == true
-        : (auth.profile?.niosPlusTrialUsed ?? false);
-    final bool inGrace = status?['in_grace_period'] == true;
-    final DateTime? expiresAt = _parseDate(status?['nios_plus_expires_at']);
-    final DateTime? graceUntil = _parseDate(status?['grace_until']);
-
+    final auth = ref.watch(authProvider);
+    final status = _status;
+    final isPlus =
+        status?['is_nios_plus'] == true ||
+        (status == null && (auth.profile?.isNiosPlus ?? false));
+    final trialUsed =
+        status?['nios_plus_trial_used'] == true ||
+        (status == null && (auth.profile?.niosPlusTrialUsed ?? false));
+    final inGrace = status?['in_grace_period'] == true;
+    final expiresAt = _parseDate(status?['nios_plus_expires_at']);
+    final graceUntil = _parseDate(status?['grace_until']);
+    final subtitle = isPlus
+        ? expiresAt == null
+              ? context.l10n.settingsPlusActive
+              : context.l10n.settingsPlusActiveUntil(
+                  formatFullDateTime(expiresAt),
+                )
+        : inGrace
+        ? graceUntil == null
+              ? context.l10n.settingsPlusGrace
+              : context.l10n.settingsPlusGraceUntil(
+                  formatFullDateTime(graceUntil),
+                )
+        : context.l10n.settingsPlusSummary;
     return SettingsShell(
-      title: 'NiosPlus',
+      title: 'Nios+',
       isEmbedded: widget.isEmbedded,
+      onRefresh: _loadStatus,
       leading: widget.isEmbedded
           ? null
-          : TextButton(
+          : IconButton(
+              tooltip: context.l10n.groupBack,
+              icon: const Icon(Icons.arrow_back_rounded),
               onPressed: _close,
-              style: TextButton.styleFrom(padding: EdgeInsets.zero),
-              child: const Text('Назад'),
             ),
-      children: <Widget>[
-        if (_loadingStatus)
-          const AppLoadingIndicator(size: 24)
-        else if (isPlus)
-          Text(
-            expiresAt == null
-                ? 'Подписка активна'
-                : 'Действует до ${formatFullDateTime(expiresAt)}',
-          )
-        else if (inGrace)
-          Text(
-            graceUntil == null
-                ? 'Подписка закончилась. Настройки каналов, групп и эмодзи пока сохранены.'
-                : 'Настройки каналов, групп и эмодзи сохраняются до ${formatFullDateTime(graceUntil)}',
-          )
-        else
-          const Text(
-            '300 Ниосиков для NiosAI, доступ к Prime и SPrime, файлы до 100 МБ и расширенные возможности мессенджера.',
-          ),
-        const SizedBox(height: 28),
-        PlusPurchaseOptions(onChanged: _loadStatus),
-        const SizedBox(height: 32),
-        Text('В подписке', style: textTheme.titleMedium),
-        const SizedBox(height: 12),
-        for (final row in <(String, String)>[
-          (
-            '300 Ниосиков за 3 дня',
-            'Вместо 50 на Free. Общий бюджет NiosMess, бота и основной группы моделей на сайте NiosAI. Расход зависит от модели и длины диалога.',
-          ),
-          (
-            'NiosAI Prime и SPrime',
-            'Доступ к моделям для сложных вопросов, подробного анализа и работы с кодом.',
-          ),
-          ('Файлы до 100 МБ', 'Вместо 30 МБ на Free.'),
-          (
-            '220 публичных каналов и 220 групп',
-            'Вместо 110 каналов и 110 групп на Free.',
-          ),
-          (
-            '100 наборов эмодзи',
-            'Вместо 50 на Free. Можно установить статус-эмодзи рядом с именем.',
-          ),
-          (
-            '5 дней на продление',
-            'После окончания подписки настройки каналов, групп и собственных наборов эмодзи сохраняются ещё 5 дней. Затем превышающие Free-лимит станут приватными. Данные не удаляются.',
-          ),
-        ])
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  row.$1,
-                  style: textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  row.$2,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+      children: [
+        SettingsSection(
+          children: [
+            SettingsListItem(
+              type: SettingsListItemType.value,
+              icon: Icons.workspace_premium_rounded,
+              title: _loadingStatus ? context.l10n.commonLoading : 'Nios+',
+              subtitle: _statusFailed
+                  ? context.l10n.settingsPlusStatusFailed
+                  : subtitle,
+              pending: _loadingStatus,
             ),
-          ),
-        if (!_loadingStatus && !isPlus && !trialUsed) ...[
-          const SizedBox(height: 24),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: _claimingTrial ? null : _claimTrial,
-              child: Text(
-                _claimingTrial
-                    ? 'Активация…'
-                    : 'Попробовать бесплатно на 1 день',
+            if (_statusFailed)
+              SettingsListItem(
+                type: SettingsListItemType.action,
+                icon: Icons.refresh_rounded,
+                title: context.l10n.commonRetry,
+                onTap: _loadStatus,
+              ),
+          ],
+        ),
+        if (auth.profile?.aiUsage != null) ...[
+          AiUsageIndicatorCard(usage: auth.profile!.aiUsage!),
+          const SizedBox(height: 16),
+        ],
+        SettingsSection(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: PlusPurchaseOptions(
+                key: ValueKey(_account),
+                onChanged: _loadStatus,
               ),
             ),
+          ],
+        ),
+        SettingsSection(
+          title: context.l10n.settingsPlusBenefits,
+          children: [
+            for (final row in <(IconData, String, String)>[
+              (
+                Icons.auto_awesome_rounded,
+                context.l10n.settingsPlusAiBudget,
+                context.l10n.settingsPlusAiBudgetHint,
+              ),
+              (
+                Icons.psychology_alt_rounded,
+                'NiosAI Prime · SPrime',
+                context.l10n.settingsPlusModelsHint,
+              ),
+              (
+                Icons.attach_file_rounded,
+                context.l10n.settingsPlusFiles,
+                context.l10n.settingsPlusFilesHint,
+              ),
+              (
+                Icons.forum_rounded,
+                context.l10n.settingsPlusCommunities,
+                context.l10n.settingsPlusCommunitiesHint,
+              ),
+              (
+                Icons.emoji_emotions_outlined,
+                context.l10n.settingsPlusEmoji,
+                context.l10n.settingsPlusEmojiHint,
+              ),
+              (
+                Icons.event_repeat_rounded,
+                context.l10n.settingsPlusGracePeriod,
+                context.l10n.settingsPlusGracePeriodHint,
+              ),
+            ])
+              SettingsInfoTile(icon: row.$1, title: row.$2, subtitle: row.$3),
+          ],
+        ),
+        M3Reveal(
+          duration: M3Durations.medium2,
+          revealed:
+              !_loadingStatus &&
+              !_statusFailed &&
+              status != null &&
+              !isPlus &&
+              !trialUsed,
+          child: FilledButton.icon(
+            onPressed: _claimingTrial ? null : _claimTrial,
+            icon: _claimingTrial
+                ? const AppLoadingIndicator(size: 20)
+                : const Icon(Icons.auto_awesome_rounded),
+            label: Text(
+              _claimingTrial
+                  ? context.l10n.settingsPlusTrialPending
+                  : context.l10n.settingsPlusTrial,
+            ),
           ),
-        ],
+        ),
       ],
     );
   }

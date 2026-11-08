@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
@@ -10,6 +11,7 @@ import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/motion/m3_spring_switcher.dart';
 
 class SettingsEnergySavingScreen extends ConsumerWidget {
   const SettingsEnergySavingScreen({this.isEmbedded = false, super.key});
@@ -70,7 +72,6 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
             ),
           ],
         ),
-        // 6. Фоновая работа
         if (!kIsWeb)
           SettingsSection(
             title: context.l10n.settingsBackgroundTitle,
@@ -118,18 +119,24 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
                         },
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        switch (settings.backgroundMode) {
-                          BackgroundMode.off =>
-                            context.l10n.settingsV2BackgroundOff,
-                          BackgroundMode.economy =>
-                            context.l10n.settingsBackgroundEconomyDesc,
-                          BackgroundMode.reliable =>
-                            context.l10n.settingsBackgroundReliableDesc,
-                        },
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          height: 1.35,
+                      M3SpringSwitcher(
+                        type: M3SwitcherType.fade,
+                        duration: M3Durations.short4,
+                        child: Text(
+                          key: ValueKey(settings.backgroundMode),
+                          switch (settings.backgroundMode) {
+                            BackgroundMode.off =>
+                              context.l10n.settingsV2BackgroundOff,
+                            BackgroundMode.economy =>
+                              context.l10n.settingsBackgroundEconomyDesc,
+                            BackgroundMode.reliable =>
+                              context.l10n.settingsBackgroundReliableDesc,
+                          },
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                height: 1.35,
+                              ),
                         ),
                       ),
                       if (settings.backgroundMode ==
@@ -155,7 +162,6 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
                             ),
                             label: Text(
                               context.l10n.privacyBatteryOptimization,
-                              style: const TextStyle(fontSize: 12),
                             ),
                           ),
                         ),
