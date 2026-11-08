@@ -9,6 +9,7 @@ import 'package:universal_io/io.dart';
 
 import 'cancellation.dart';
 import 'crypto_executor.dart';
+import 'bao_tree.dart';
 import 'manifest.dart';
 import 'source.dart';
 
@@ -32,12 +33,15 @@ final class PreparedStreamObject {
 /// each object; the last 32 nonce bits are the segment index. Applications must
 /// carry [PreparedStreamObject.key] and its manifest hash in a trusted channel.
 abstract final class NiosStream {
-  static final _cipher = AesGcm.with256bits();
+  static final _aesCipher = AesGcm.with256bits();
+  static final _chachaCipher = Chacha20.poly1305Aead();
 
   static Future<PreparedStreamObject> prepareFile({
     required String inputPath,
     required String outputDirectory,
     int segmentSize = NiosStreamManifest.maximumSegmentSize,
+    String algorithm = NiosStreamAlgorithms.a256Gcm,
+    bool enableBaoTree = false,
     StreamCancellation? cancellation,
     StreamCryptoExecutor cryptoExecutor = executeStreamCrypto,
   }) async {
@@ -60,8 +64,12 @@ abstract final class NiosStream {
       final random = Random.secure();
       final objectId = _randomHex(random, 16);
       final prefix = List<int>.generate(8, (_) => random.nextInt(256));
-      final key = await _cipher.newSecretKey();
+      final Cipher cipher = algorithm == NiosStreamAlgorithms.chacha20Poly1305
+          ? _chachaCipher
+          : _aesCipher;
+      final key = await cipher.newSecretKey();
       final provisional = NiosStreamManifest(
+        algorithm: algorithm,
         objectId: objectId,
         plaintextLength: length,
         segmentSize: segmentSize,
@@ -91,6 +99,7 @@ abstract final class NiosStream {
                 key: cryptoKey,
                 nonce: provisional.segmentNonce(index),
                 associatedData: provisional.segmentAssociatedData(index),
+                algorithm: algorithm,
               ),
             );
           } finally {
@@ -112,12 +121,26 @@ abstract final class NiosStream {
       await output.flush();
       await output.close();
       output = null;
+      String? baoRoot;
+      if (enableBaoTree) {
+        final segmentByteHashes = hashes.map((hex) {
+          final list = <int>[];
+          for (var i = 0; i < hex.length; i += 2) {
+            list.add(int.parse(hex.substring(i, i + 2), radix: 16));
+          }
+          return Uint8List.fromList(list);
+        }).toList();
+        final baoTree = BaoTree.build(segmentByteHashes);
+        baoRoot = baoTree.rootHashHex;
+      }
       final manifest = NiosStreamManifest(
+        algorithm: algorithm,
         objectId: objectId,
         plaintextLength: length,
         segmentSize: segmentSize,
         noncePrefix: prefix,
         segmentHashes: hashes,
+        baoRoot: baoRoot,
       );
       await _atomicWrite(
         p.join(stage.path, 'manifest.json'),
@@ -162,6 +185,7 @@ abstract final class NiosStream {
           nonce: manifest.segmentNonce(index),
           associatedData: manifest.segmentAssociatedData(index),
           expectedHash: manifest.segmentHashes[index],
+          algorithm: manifest.algorithm,
         ),
       )).bytes;
     } finally {

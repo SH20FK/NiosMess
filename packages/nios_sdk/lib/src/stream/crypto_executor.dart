@@ -5,8 +5,14 @@ import 'package:cryptography/cryptography.dart';
 
 enum StreamCryptoOperation { encrypt, decrypt, hash }
 
+/// Supported NiosStream encryption algorithms.
+abstract final class NiosStreamAlgorithms {
+  static const String a256Gcm = 'A256GCM';
+  static const String chacha20Poly1305 = 'CHACHA20_POLY1305';
+}
+
 /// Only primitive owned buffers cross an executor boundary. Executors must
-/// preserve this standard AES-GCM/container format and must not retain keys.
+/// preserve this standard AEAD/container format and must not retain keys.
 final class StreamCryptoRequest {
   StreamCryptoRequest({
     required this.operation,
@@ -15,6 +21,7 @@ final class StreamCryptoRequest {
     this.nonce,
     this.associatedData,
     this.expectedHash,
+    this.algorithm = NiosStreamAlgorithms.a256Gcm,
   });
   final StreamCryptoOperation operation;
   final Uint8List bytes;
@@ -22,6 +29,7 @@ final class StreamCryptoRequest {
   final Uint8List? nonce;
   final Uint8List? associatedData;
   final String? expectedHash;
+  final String algorithm;
 }
 
 final class StreamCryptoResult {
@@ -56,7 +64,14 @@ Future<StreamCryptoResult> executeStreamCrypto(
         request.associatedData!.length > 4096) {
       throw const FormatException('Invalid stream crypto job');
     }
-    final cipher = AesGcm.with256bits();
+    final Cipher cipher;
+    if (request.algorithm == NiosStreamAlgorithms.chacha20Poly1305) {
+      cipher = Chacha20.poly1305Aead();
+    } else if (request.algorithm == NiosStreamAlgorithms.a256Gcm) {
+      cipher = AesGcm.with256bits();
+    } else {
+      throw FormatException('Unsupported algorithm: ${request.algorithm}');
+    }
     if (request.operation == StreamCryptoOperation.encrypt) {
       if (request.bytes.length > 1024 * 1024) {
         throw RangeError('Oversized plaintext segment');

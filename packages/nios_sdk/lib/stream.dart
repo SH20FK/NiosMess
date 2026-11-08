@@ -1,6 +1,7 @@
 /// Segmented authenticated encryption and resumable ciphertext transfer.
 library;
 
+export 'src/stream/bao_tree.dart';
 export 'src/stream/cancellation.dart';
 export 'src/stream/crypto_executor.dart';
 export 'src/stream/http_blob_store.dart';

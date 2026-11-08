@@ -6,3 +6,4 @@ export 'package:iroh_quic/iroh_quic.dart'
 export 'src/identity.dart';
 export 'src/transport.dart';
 export 'src/rendezvous.dart';
+export 'src/mesh_router.dart';

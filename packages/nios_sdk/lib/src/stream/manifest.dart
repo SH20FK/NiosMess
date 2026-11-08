@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as digest;
+import 'bao_tree.dart';
 
 /// Public metadata. The hash and encryption key must arrive over a trusted
 /// channel. Neither an untrusted manifest nor its self-reported hash is a trust
@@ -14,11 +15,13 @@ final class NiosStreamManifest {
   static const int maximumPlaintextLength = 1 << 40;
 
   final int version;
+  final String algorithm;
   final String objectId;
   final int plaintextLength;
   final int segmentSize;
   final Uint8List _noncePrefix;
   final List<String> segmentHashes;
+  final String? baoRoot;
   late final Uint8List _canonicalBytes = Uint8List.fromList(
     utf8.encode(jsonEncode(toJson())),
   );
@@ -26,14 +29,17 @@ final class NiosStreamManifest {
 
   NiosStreamManifest({
     this.version = currentVersion,
+    this.algorithm = 'A256GCM',
     required this.objectId,
     required this.plaintextLength,
     required this.segmentSize,
     required List<int> noncePrefix,
     required List<String> segmentHashes,
+    this.baoRoot,
   }) : _noncePrefix = Uint8List.fromList(noncePrefix),
        segmentHashes = List.unmodifiable(segmentHashes) {
     if (version != currentVersion ||
+        (algorithm != 'A256GCM' && algorithm != 'CHACHA20_POLY1305') ||
         !RegExp(r'^[a-f0-9]{32}$').hasMatch(objectId) ||
         plaintextLength < 0 ||
         plaintextLength > maximumPlaintextLength ||
@@ -45,7 +51,8 @@ final class NiosStreamManifest {
         this.segmentHashes.length != segmentCount ||
         this.segmentHashes.any(
           (value) => !RegExp(r'^[a-f0-9]{64}$').hasMatch(value),
-        )) {
+        ) ||
+        (baoRoot != null && !RegExp(r'^[a-f0-9]{64}$').hasMatch(baoRoot!))) {
       throw const FormatException('Invalid NiosStream manifest');
     }
   }
@@ -54,15 +61,20 @@ final class NiosStreamManifest {
     Map<String, Object?> json, {
     required String expectedHash,
   }) {
-    if (json.length != 7 ||
+    final count = json.length;
+    final hasBao = json.containsKey('baoRoot');
+    if ((hasBao ? count != 8 : count != 7) ||
         json['version'] is! int ||
         json['objectId'] is! String ||
         json['plaintextLength'] is! int ||
         json['segmentSize'] is! int ||
         json['noncePrefix'] is! String ||
-        json['segmentHashes'] is! List ||
-        json['algorithm'] != 'A256GCM') {
+        json['segmentHashes'] is! List) {
       throw const FormatException('Invalid NiosStream manifest fields');
+    }
+    final alg = json['algorithm'];
+    if (alg != 'A256GCM' && alg != 'CHACHA20_POLY1305') {
+      throw const FormatException('Unsupported NiosStream algorithm');
     }
     final rawHashes = json['segmentHashes']! as List;
     if (rawHashes.length > maximumSegmentCount ||
@@ -71,11 +83,13 @@ final class NiosStreamManifest {
     }
     final manifest = NiosStreamManifest(
       version: json['version']! as int,
+      algorithm: alg as String,
       objectId: json['objectId']! as String,
       plaintextLength: json['plaintextLength']! as int,
       segmentSize: json['segmentSize']! as int,
       noncePrefix: base64Decode(json['noncePrefix']! as String),
       segmentHashes: rawHashes.cast<String>(),
+      baoRoot: json['baoRoot'] as String?,
     );
     if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(expectedHash) ||
         manifest.hash != expectedHash) {
@@ -88,15 +102,33 @@ final class NiosStreamManifest {
   int get ciphertextLength => plaintextLength + segmentCount * tagLength;
   Uint8List get noncePrefix => Uint8List.fromList(_noncePrefix);
 
-  Map<String, Object?> toJson() => {
-    'version': version,
-    'algorithm': 'A256GCM',
-    'objectId': objectId,
-    'plaintextLength': plaintextLength,
-    'segmentSize': segmentSize,
-    'noncePrefix': base64Encode(_noncePrefix),
-    'segmentHashes': segmentHashes,
-  };
+  /// Builds a verifiable hierarchical Bao Merkle tree from segment hashes.
+  BaoTree toBaoTree() {
+    final hashes = segmentHashes.map((hex) {
+      final list = <int>[];
+      for (var i = 0; i < hex.length; i += 2) {
+        list.add(int.parse(hex.substring(i, i + 2), radix: 16));
+      }
+      return Uint8List.fromList(list);
+    }).toList();
+    return BaoTree.build(hashes);
+  }
+
+  Map<String, Object?> toJson() {
+    final map = <String, Object?>{
+      'version': version,
+      'algorithm': algorithm,
+      'objectId': objectId,
+      'plaintextLength': plaintextLength,
+      'segmentSize': segmentSize,
+      'noncePrefix': base64Encode(_noncePrefix),
+      'segmentHashes': segmentHashes,
+    };
+    if (baoRoot != null) {
+      map['baoRoot'] = baoRoot;
+    }
+    return map;
+  }
 
   /// Fixed field order and JSON integer/string encodings are part of version 1.
   Uint8List get canonicalBytes => Uint8List.fromList(_canonicalBytes);

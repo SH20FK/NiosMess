@@ -124,13 +124,29 @@ final class NiosMlsClient {
     this._box,
     this._state,
     this.authorizeDevice,
-    this.faultHook,
-  );
-  static const _suite = MlsCiphersuite.mls128DhkemX25519Aes128GcmSha256Ed25519;
+    this.faultHook, {
+    this.ciphersuite = defaultCiphersuite,
+  });
+
+  static const defaultCiphersuite =
+      MlsCiphersuite.mls128DhkemX25519Aes128GcmSha256Ed25519;
+  static const postQuantumHybridXWing =
+      MlsCiphersuite.mls256XwingChacha20Poly1305Sha256Ed25519;
+  static const postQuantumHybridMlKem768 =
+      MlsCiphersuite.mls128Mlkem768X25519Aes128GcmSha256Ed25519;
+
+  static const supportedCiphersuites = <MlsCiphersuite>[
+    MlsCiphersuite.mls128DhkemX25519Aes128GcmSha256Ed25519,
+    MlsCiphersuite.mls256XwingChacha20Poly1305Sha256Ed25519,
+    MlsCiphersuite.mls128Mlkem768X25519Aes128GcmSha256Ed25519,
+    MlsCiphersuite.mls128Mlkem768X25519Aes256GcmSha384Ed25519,
+  ];
+
   static final Set<String> _openPaths = {};
   final Directory _directory;
   final String accountId;
   final String deviceId;
+  final MlsCiphersuite ciphersuite;
   final Uint8List _sqlKey;
   final Box<String> _box;
   Map<String, dynamic> _state;
@@ -149,6 +165,7 @@ final class NiosMlsClient {
     required String deviceId,
     required MlsDeviceAuthorizer authorizeDevice,
     MlsFaultHook? faultHook,
+    MlsCiphersuite ciphersuite = defaultCiphersuite,
   }) async {
     final directory = await Directory(path).absolute.create(recursive: true);
     final resolved = await directory.resolveSymbolicLinks();
@@ -164,6 +181,7 @@ final class NiosMlsClient {
         deviceId: deviceId,
         authorizeDevice: authorizeDevice,
         faultHook: faultHook,
+        ciphersuite: ciphersuite,
       );
     } catch (_) {
       _openPaths.remove(reservation);
@@ -178,6 +196,7 @@ final class NiosMlsClient {
     required String deviceId,
     required MlsDeviceAuthorizer authorizeDevice,
     MlsFaultHook? faultHook,
+    MlsCiphersuite ciphersuite = defaultCiphersuite,
   }) async {
     _id(accountId);
     _id(deviceId);
@@ -212,10 +231,10 @@ final class NiosMlsClient {
       final encoded = box.get('state');
       Map<String, dynamic> state;
       if (encoded == null) {
-        final pair = MlsSignatureKeyPair.generate(ciphersuite: _suite);
+        final pair = MlsSignatureKeyPair.generate(ciphersuite: defaultCiphersuite);
         final private = pair.privateKey();
         final signer = serializeSigner(
-          ciphersuite: _suite,
+          ciphersuite: defaultCiphersuite,
           privateKey: private,
           publicKey: pair.publicKey(),
         );
@@ -258,6 +277,7 @@ final class NiosMlsClient {
         state,
         authorizeDevice,
         faultHook,
+        ciphersuite: ciphersuite,
       );
       await result._cleanupOrphans();
       return result;
@@ -345,10 +365,10 @@ final class NiosMlsClient {
   );
   Uint8List _signer(Map<String, dynamic> state) =>
       base64Decode(state['signer'] as String);
-  MlsGroupConfig get _config {
-    final defaults = MlsGroupConfig.defaultConfig(ciphersuite: _suite);
+  MlsGroupConfig _groupConfig(MlsCiphersuite suite) {
+    final defaults = MlsGroupConfig.defaultConfig(ciphersuite: suite);
     return MlsGroupConfig(
-      ciphersuite: _suite,
+      ciphersuite: suite,
       wireFormatPolicy: defaults.wireFormatPolicy,
       useRatchetTreeExtension: true,
       maxPastEpochs: 2,
@@ -361,7 +381,7 @@ final class NiosMlsClient {
 
   MlsCapabilities get _capabilities => MlsCapabilities(
     versions: Uint16List.fromList([1]),
-    ciphersuites: Uint16List.fromList([1]),
+    ciphersuites: Uint16List.fromList([1, 0x004D, 0x004E, 0x004F]),
     extensions: Uint16List(0),
     proposals: Uint16List(0),
     credentials: Uint16List.fromList([1]),
@@ -479,7 +499,8 @@ final class NiosMlsClient {
     List<int> groupId, {
     bool requireAuthorization = true,
   }) async {
-    if (await engine.groupCiphersuite(groupIdBytes: groupId) != _suite) {
+    final groupSuite = await engine.groupCiphersuite(groupIdBytes: groupId);
+    if (!supportedCiphersuites.contains(groupSuite)) {
       throw const NiosMlsException('unsupported_ciphersuite');
     }
     final result = <NiosMlsDevice>[];
@@ -518,12 +539,13 @@ final class NiosMlsClient {
     return result;
   }
 
-  Future<Uint8List> createKeyPackage() => _serial(
+  Future<Uint8List> createKeyPackage({MlsCiphersuite? ciphersuite}) => _serial(
     () => _transaction((engine, state) async {
       final signer = _signer(state);
+      final suite = ciphersuite ?? this.ciphersuite;
       try {
         final result = await engine.createKeyPackageWithOptions(
-          ciphersuite: _suite,
+          ciphersuite: suite,
           signerBytes: signer,
           credentialIdentity: _credential,
           signerPublicKey: signingPublicKey,
@@ -540,7 +562,10 @@ final class NiosMlsClient {
     }),
   );
 
-  Future<Uint8List> createGroup({required List<int> groupId}) => _serial(
+  Future<Uint8List> createGroup({
+    required List<int> groupId,
+    MlsCiphersuite? ciphersuite,
+  }) => _serial(
     () => _transaction((engine, state) async {
       if (groupId.isEmpty || groupId.length > 128) {
         throw ArgumentError('Invalid group ID');
@@ -548,9 +573,10 @@ final class NiosMlsClient {
       final encoded = base64Encode(groupId);
       if ((state['groups'] as Map).containsKey(encoded)) return _copy(groupId);
       final signer = _signer(state);
+      final suite = ciphersuite ?? this.ciphersuite;
       try {
         final result = await engine.createGroupWithBuilder(
-          config: _config,
+          config: _groupConfig(suite),
           signerBytes: signer,
           credentialIdentity: _credential,
           signerPublicKey: signingPublicKey,
@@ -593,11 +619,23 @@ final class NiosMlsClient {
       return _transaction((engine, state) async {
         final signer = _signer(state);
         try {
-          final result = await engine.joinGroupFromWelcome(
-            config: _config,
-            welcomeBytes: stableWelcome,
-            signerBytes: signer,
-          );
+          JoinGroupResult? result;
+          Object? lastError;
+          for (final suite in supportedCiphersuites) {
+            try {
+              result = await engine.joinGroupFromWelcome(
+                config: _groupConfig(suite),
+                welcomeBytes: stableWelcome,
+                signerBytes: signer,
+              );
+              break;
+            } catch (e) {
+              lastError = e;
+            }
+          }
+          if (result == null) {
+            throw lastError ?? const NiosMlsException('welcome_join_failed');
+          }
           await _verifyMembers(engine, result.groupId);
           final epoch = await engine.groupEpoch(groupIdBytes: result.groupId);
           if ((expectedGroup != null &&

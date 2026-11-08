@@ -4,3 +4,4 @@ library;
 
 export 'src/trust/merkle.dart';
 export 'src/trust/transparency.dart';
+export 'src/trust/vrf.dart';
