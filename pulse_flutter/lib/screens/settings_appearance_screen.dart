@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
+import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
 
@@ -389,26 +390,10 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(13),
-                        child: Image.asset(
-                          'assets/developers/SH20FK_clean.png',
-                          width: 26,
-                          height: 26,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => CircleAvatar(
-                            radius: 13,
-                            backgroundColor: scheme.secondaryContainer,
-                            child: Text(
-                              'S',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: scheme.onSecondaryContainer,
-                              ),
-                            ),
-                          ),
-                        ),
+                      const PulseAvatar(
+                        name: 'sh20fk',
+                        id: 'sh20fk',
+                        radius: 14,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -516,26 +501,10 @@ class _AppearanceChatPreviewCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(13),
-                        child: Image.asset(
-                          'assets/developers/Sanlsan_clean.png',
-                          width: 26,
-                          height: 26,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => CircleAvatar(
-                            radius: 13,
-                            backgroundColor: scheme.tertiaryContainer,
-                            child: Text(
-                              's',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: scheme.onTertiaryContainer,
-                              ),
-                            ),
-                          ),
-                        ),
+                      const PulseAvatar(
+                        name: 'sanlsan',
+                        id: 'sanlsan',
+                        radius: 14,
                       ),
                     ],
                   ),
