@@ -13,6 +13,7 @@ class InboxComposeButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bool isVisible = ref.watch(chatListFabVisibleProvider);
+    final bool isExtended = ref.watch(chatListFabExpandedProvider);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final bool reducedMotion = MediaQuery.disableAnimationsOf(context);
@@ -32,18 +33,27 @@ class InboxComposeButton extends ConsumerWidget {
           excluding: !isVisible,
           child: IgnorePointer(
             ignoring: !isVisible,
-            child: FloatingActionButton(
+            child: FloatingActionButton.extended(
               heroTag: 'compose_chat_fab',
               elevation: 0,
               highlightElevation: 0,
               focusElevation: 0,
               hoverElevation: 1,
+              isExtended: isExtended,
               backgroundColor: scheme.primaryContainer,
               foregroundColor: scheme.onPrimaryContainer,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(isExtended ? 20 : 18),
               ),
               tooltip: context.l10n.inboxCreateMenu,
+              icon: const Icon(Icons.edit_rounded),
+              label: Text(
+                context.l10n.inboxCreateMenu.replaceAll('…', ''),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
               onPressed: () {
                 final bool haptics = ref.read(
                   uiSettingsProvider.select((s) => s.haptics),
@@ -53,7 +63,6 @@ class InboxComposeButton extends ConsumerWidget {
                 }
                 openComposeActions(context);
               },
-              child: const Icon(Icons.edit_rounded),
             ),
           ),
         ),

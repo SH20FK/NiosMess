@@ -67,6 +67,58 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   final _previewFormatter = MessagePreviewFormatter();
   bool _retrying = false;
   final Set<int> _markingRead = {};
+  final Set<int> _selectedChatIds = <int>{};
+  bool _isSearchOpen = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _togglePinSelected(List<ApiChatSummary> chats) {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
+    setState(() => _selectedChatIds.clear());
+  }
+
+  void _toggleMuteSelected() {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
+    for (final id in _selectedChatIds) {
+      ref.read(chatMutedProvider(id).notifier).toggle();
+    }
+    setState(() => _selectedChatIds.clear());
+  }
+
+  void _markReadSelected(List<ApiChatSummary> chats) {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
+    for (final chat in chats.where((c) => _selectedChatIds.contains(c.id))) {
+      _markRead(chat);
+    }
+    setState(() => _selectedChatIds.clear());
+  }
+
+  Future<void> _deleteSelected(List<ApiChatSummary> chats) async {
+    final count = _selectedChatIds.length;
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: context.l10n.commonDelete,
+      subtitle: 'Удалить $count ${count == 1 ? 'выбранный чат' : 'выбранных чатов'}?',
+      confirmLabel: context.l10n.commonDelete,
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
+    );
+    if (confirmed == true && mounted) {
+      if (ref.read(uiSettingsProvider).haptics) HapticService.destructive();
+      for (final id in _selectedChatIds) {
+        try {
+          await ref.read(chatRepositoryProvider).leaveChat(id);
+        } catch (_) {}
+      }
+      ref.read(chatsProvider.notifier).refresh();
+      setState(() => _selectedChatIds.clear());
+    }
+  }
 
   Future<void> _retryChats() async {
     if (_retrying) return;
@@ -160,14 +212,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
-            context.push('/chats/search'),
-        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
-            context.push('/chats/search'),
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () {
+          setState(() => _isSearchOpen = true);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () {
+          setState(() => _isSearchOpen = true);
+        },
       },
       child: Focus(
         child: Scaffold(
-          appBar: const ChatListHeader(),
           backgroundColor: Colors.transparent,
           body: RefreshIndicator(
             onRefresh: () async {
@@ -183,16 +236,28 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: <Widget>[
-                  SliverToBoxAdapter(
+                  SliverChatListHeader(
+                    isSelectionMode: _selectedChatIds.isNotEmpty,
+                    selectedCount: _selectedChatIds.length,
+                    onCloseSelection: () =>
+                        setState(() => _selectedChatIds.clear()),
+                    onPinSelected: () =>
+                        _togglePinSelected(chatsAsync.value ?? []),
+                    onMuteSelected: _toggleMuteSelected,
+                    onMarkReadSelected: () =>
+                        _markReadSelected(chatsAsync.value ?? []),
+                    onDeleteSelected: () =>
+                        _deleteSelected(chatsAsync.value ?? []),
+                  ),
+                  const SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: EdgeInsets.symmetric(horizontal: 4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const <Widget>[
-                          SizedBox(height: 4),
+                        children: <Widget>[
+                          SizedBox(height: 2),
                           RepaintBoundary(child: ChatListFilterBar()),
-                          ChatProductivityBar(showShortcuts: false),
-                          SizedBox(height: 12),
+                          SizedBox(height: 8),
                         ],
                       ),
                     ),
@@ -210,7 +275,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                   ),
                   SliverPadding(
                     padding: EdgeInsets.only(
-                      bottom: 88 + MediaQuery.viewPaddingOf(context).bottom,
+                      bottom: 110 + MediaQuery.viewPaddingOf(context).bottom,
                     ),
                   ),
                 ],
@@ -226,26 +291,29 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
   static const double _kScrollHysteresis = 28.0;
 
   bool _handleScrollNotification(ScrollNotification notification) {
-    if (notification.metrics.pixels <= 0) {
+    if (notification.metrics.pixels <= 10) {
       ref.read(chatListFabVisibleProvider.notifier).show();
+      ref.read(chatListFabExpandedProvider.notifier).expand();
       _scrollDistance = 0.0;
       return false;
     }
     if (notification is ScrollUpdateNotification) {
       final double delta = notification.scrollDelta ?? 0.0;
       if (delta > 0) {
-        // Scrolling downwards: hide FAB after exceeding threshold
+        // Scrolling downwards: collapse to compact FAB first, then hide if scrolling fast
+        ref.read(chatListFabExpandedProvider.notifier).collapse();
         if (_scrollDistance < 0) _scrollDistance = 0;
         _scrollDistance += delta;
-        if (_scrollDistance > _kScrollHysteresis) {
+        if (_scrollDistance > _kScrollHysteresis * 2.2) {
           ref.read(chatListFabVisibleProvider.notifier).hide();
         }
       } else if (delta < 0) {
-        // Scrolling upwards: reveal FAB smoothly after threshold
+        // Scrolling upwards: reveal FAB smoothly and expand if near top
+        ref.read(chatListFabVisibleProvider.notifier).show();
         if (_scrollDistance > 0) _scrollDistance = 0;
         _scrollDistance += delta;
-        if (_scrollDistance < -_kScrollHysteresis) {
-          ref.read(chatListFabVisibleProvider.notifier).show();
+        if (notification.metrics.pixels < 100) {
+          ref.read(chatListFabExpandedProvider.notifier).expand();
         }
       }
     } else if (notification is ScrollEndNotification) {
@@ -535,8 +603,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                                     : null
                               : null,
                           chatId: chat.id,
-                          isSelected: desktopChatId == chat.id,
+                          isSelected: _selectedChatIds.contains(chat.id) ||
+                              desktopChatId == chat.id,
                           onTap: () {
+                            if (_selectedChatIds.isNotEmpty) {
+                              if (ref.read(uiSettingsProvider).haptics) {
+                                HapticService.selection();
+                              }
+                              setState(() {
+                                if (_selectedChatIds.contains(chat.id)) {
+                                  _selectedChatIds.remove(chat.id);
+                                } else {
+                                  _selectedChatIds.add(chat.id);
+                                }
+                              });
+                              return;
+                            }
                             if (ref
                                 .read(clientCapabilitiesProvider)
                                 .browserWorkspace) {
@@ -550,8 +632,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                               context.push('/chat/${chat.id}');
                             }
                           },
-                          onLongPress: () =>
-                              _showChatContextMenu(context, chat),
+                          onLongPress: () {
+                            if (ref.read(uiSettingsProvider).haptics) {
+                              HapticService.selection();
+                            }
+                            setState(() {
+                              _selectedChatIds.add(chat.id);
+                            });
+                            _showChatContextMenu(context, chat).then((_) {
+                              if (mounted &&
+                                  _selectedChatIds.contains(chat.id)) {
+                                setState(
+                                  () => _selectedChatIds.remove(chat.id),
+                                );
+                              }
+                            });
+                          },
                         );
                       },
                     ),

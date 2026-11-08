@@ -187,6 +187,12 @@ class _ChatTileState extends State<ChatTile>
                   decoration: BoxDecoration(
                     color: tileBg,
                     borderRadius: BorderRadius.circular(16),
+                    border: widget.isSelected
+                        ? Border.all(
+                            color: scheme.primary.withValues(alpha: 0.6),
+                            width: 1.5,
+                          )
+                        : null,
                   ),
                   child: child,
                 );

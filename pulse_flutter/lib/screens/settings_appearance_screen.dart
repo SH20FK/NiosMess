@@ -85,6 +85,9 @@ class _AppearanceScreen extends ConsumerWidget {
         (UiSettingsState s) => s.predictiveBackStrength,
       ),
     );
+    final bool navBarFloating = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.navBarFloating),
+    );
 
     final Brightness brightness = Theme.of(context).brightness;
 
@@ -120,6 +123,7 @@ class _AppearanceScreen extends ConsumerWidget {
               useSystemDynamic: useSystemDynamic,
               predictiveBackEnabled: predictiveBackEnabled,
               predictiveBackStrength: predictiveBackStrength,
+              navBarFloating: navBarFloating,
             ),
           ),
         );
@@ -139,6 +143,7 @@ class _AppearanceScreen extends ConsumerWidget {
     required bool useSystemDynamic,
     required bool predictiveBackEnabled,
     required double predictiveBackStrength,
+    required bool navBarFloating,
   }) {
     final Widget colorField = SettingsAnchor(
       id: 'appearance.color.source',
@@ -228,6 +233,16 @@ class _AppearanceScreen extends ConsumerWidget {
       title: context.l10n.appearanceInterfaceNav,
       subtitle: context.l10n.appearanceInterfaceNavDesc,
       children: [
+        SettingsSwitchTile(
+          icon: Icons.navigation_rounded,
+          title: 'Плавающая нижняя панель',
+          subtitle: 'Мягкая овальная форма с отступом от нижнего края экрана',
+          iconColor: scheme.primary,
+          value: navBarFloating,
+          onChanged: (bool v) {
+            ref.read(uiSettingsProvider.notifier).setNavBarFloating(v);
+          },
+        ),
         SettingsSwitchTile(
           icon: Icons.swipe_left_rounded,
           title: context.l10n.appearancePredictiveBack,

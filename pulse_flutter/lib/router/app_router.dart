@@ -295,7 +295,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/chats/search',
         pageBuilder: (context, state) =>
-            _page(state, const InboxSearchScreen()),
+            _m3eEntryPage(state, const InboxSearchScreen()),
       ),
       GoRoute(
         path: '/new-message',

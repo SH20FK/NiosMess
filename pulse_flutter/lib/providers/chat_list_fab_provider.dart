@@ -17,6 +17,24 @@ class ChatListFabVisibleNotifier extends Notifier<bool> {
   }
 }
 
+class ChatListFabExpandedNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void expand() {
+    if (!state) state = true;
+  }
+
+  void collapse() {
+    if (state) state = false;
+  }
+}
+
+final chatListFabExpandedProvider =
+    NotifierProvider<ChatListFabExpandedNotifier, bool>(
+  ChatListFabExpandedNotifier.new,
+);
+
 final chatListFabVisibleProvider =
     NotifierProvider<ChatListFabVisibleNotifier, bool>(
   ChatListFabVisibleNotifier.new,
