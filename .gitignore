@@ -21,6 +21,7 @@ out/
 mock_quic/
 jobs.json
 Output/
+output/
 *.exe
 *.msi
 *.pfx
@@ -53,6 +54,8 @@ server_core/
 
 # === Agent / Tool artifacts ===
 .agents/
+AGENTS.md
+brand/
 .antigravitycli/
 .codegraph/
 .cursor/
@@ -64,6 +67,7 @@ postman/
 referens/
 
 # === Misc ===
+pulse_flutter/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*/
 nul
 *.log
 *.ogg
