@@ -2100,4 +2100,10 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsHoursTimezone => 'Time zone';
+
+  @override
+  String get settingsProfileExtraDetails => 'Additional details';
+
+  @override
+  String get settingsProfileLinksActions => 'Links and account';
 }

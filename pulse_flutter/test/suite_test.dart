@@ -1,5 +1,6 @@
 import 'widgets/settings_redesign_system_profile_dialogs_test.dart'
     as settings_redesign_system_profile_dialogs_test;
+import 'widgets/profile_polish_test.dart' as profile_polish;
 import 'widgets/settings_redesign_test.dart' as settings_redesign_test;
 import 'widgets/settings_redesign_personalization_test.dart'
     as settings_redesign_personalization_test;
@@ -415,6 +416,7 @@ void main() {
       'settings_redesign_profile_editor_test',
       settings_redesign_profile_editor_test.main,
     );
+    group('profile modal and presence polish', profile_polish.main);
     group(
       'settings_redesign_security_test',
       settings_redesign_security_test.main,

@@ -2692,7 +2692,10 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
           chat?.chatType == 'bot' ||
           BotDetector.isBot(chat?.username) ||
           BotDetector.isBot(directUsername),
-      isOnline: chat?.chatType == 'direct' && chat?.isOnline == true,
+      isOnline:
+          chat?.isSaved != true &&
+          chat?.chatType == 'direct' &&
+          chat?.isOnline == true,
       onBack: onBack,
       onVoiceCall: onVoiceCall,
       onVideoCall: onVideoCall,

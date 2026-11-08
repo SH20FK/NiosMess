@@ -724,6 +724,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       initialBirthday: auth.profile?.birthday,
       initialWorkingHours: auth.profile?.workingHours,
       onUploadAvatar: _uploadAvatar,
+      onEditBadges: () => _openBadgeSelector(auth),
       actions: [
         SettingsListItem.nav(
           icon: Icons.qr_code_rounded,
@@ -734,11 +735,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           icon: Icons.share_outlined,
           title: context.l10n.settingsV2Share,
           onTap: () => _shareProfile(usernameForProfile(auth)),
-        ),
-        SettingsListItem.nav(
-          icon: Icons.verified_outlined,
-          title: context.l10n.settingsBadgesTitle,
-          onTap: () => _openBadgeSelector(auth),
         ),
         SettingsListItem.value(
           icon: Icons.fingerprint_rounded,

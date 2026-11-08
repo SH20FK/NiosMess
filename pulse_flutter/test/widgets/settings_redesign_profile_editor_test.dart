@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
-import 'package:pulse_flutter/l10n/app_localizations.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -16,7 +16,7 @@ class _Sound extends SoundService {
 }
 
 class _Auth extends AuthNotifier {
-  final writes = <({int? account, String? name, String? bio})>[];
+  final writes = <({int? account, String? name, String? bio, String? phone})>[];
   final responses = <Completer<AuthActionResult>>[];
   @override
   AuthState build() => const AuthState.initial().copyWith(
@@ -47,7 +47,12 @@ class _Auth extends AuthNotifier {
     bool clearBirthday = false,
     bool clearWorkingHours = false,
   }) {
-    writes.add((account: state.session?.userId, name: displayName, bio: bio));
+    writes.add((
+      account: state.session?.userId,
+      name: displayName,
+      bio: bio,
+      phone: phoneNumber,
+    ));
     final response = Completer<AuthActionResult>();
     responses.add(response);
     return response.future;
@@ -150,6 +155,10 @@ void main() {
             findsOneWidget,
           );
           final extraAction = find.byKey(const ValueKey('editor-extra-action'));
+          final more = find.text(l10n.settingsProfileLinksActions);
+          await tester.ensureVisible(more);
+          await tester.tap(more);
+          await tester.pumpAndSettle();
           await tester.ensureVisible(extraAction);
           await tester.pumpAndSettle();
           await tester.tap(extraAction);
@@ -246,5 +255,90 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 5));
+  });
+  testWidgets(
+    'additional fields validate, release hidden focus and retain draft across collapse and failure',
+    (tester) async {
+      final container = _container();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_app(container));
+      await tester.tap(find.text('Open profile'));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(EditProfileSheet)),
+      )!;
+      final extra = find.text(l.settingsProfileExtraDetails);
+      expect(_field(l.settingsProfilePhone), findsNothing);
+      await tester.ensureVisible(extra);
+      await tester.tap(extra);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(_field(l.settingsProfilePhone));
+      await tester.enterText(_field(l.settingsProfilePhone), '12');
+      await tester.tap(find.widgetWithText(FilledButton, l.commonSave));
+      await tester.pumpAndSettle();
+      final auth = container.read(authProvider.notifier) as _Auth;
+      expect(auth.writes, isEmpty);
+      expect(find.text(l.settingsProfilePhoneInvalid), findsOneWidget);
+      await tester.enterText(_field(l.settingsProfilePhone), '79990000000');
+      final phoneFocus = tester
+          .widget<EditableText>(
+            find.descendant(
+              of: _field(l.settingsProfilePhone),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .focusNode;
+      await tester.ensureVisible(extra);
+      await tester.tap(extra);
+      await tester.pumpAndSettle();
+      expect(_field(l.settingsProfilePhone), findsNothing);
+      expect(phoneFocus.hasFocus, isFalse);
+      await tester.tap(find.widgetWithText(FilledButton, l.commonSave));
+      await tester.pump();
+      expect(auth.writes, hasLength(1));
+      expect(auth.writes.single.phone, '+79990000000');
+      auth.responses.single.complete(
+        const AuthActionResult(success: false, message: 'Isolated failure'),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(extra);
+      await tester.tap(extra);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(_field(l.settingsProfilePhone))
+            .controller!
+            .text,
+        '79990000000',
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 5));
+    },
+  );
+
+  testWidgets('disposed editor callbacks cannot save or upload', (
+    tester,
+  ) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    var uploads = 0;
+    await tester.pumpWidget(_app(container, avatar: () => uploads++));
+    await tester.tap(find.text('Open profile'));
+    await tester.pumpAndSettle();
+    final save = tester
+        .widget<FilledButton>(find.widgetWithText(FilledButton, 'Save'))
+        .onPressed!;
+    final avatar = tester
+        .widget<TextButton>(find.widgetWithText(TextButton, 'Change photo'))
+        .onPressed!;
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    save();
+    avatar();
+    await tester.pump();
+    expect((container.read(authProvider.notifier) as _Auth).writes, isEmpty);
+    expect(uploads, 0);
+    expect(tester.takeException(), isNull);
   });
 }

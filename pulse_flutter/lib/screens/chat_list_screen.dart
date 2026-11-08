@@ -513,7 +513,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                               ? Icons.edit_note_rounded
                               : _chatPreviewIcon(chat),
                           compact: compact,
-                          isOnline: chat.chatType == 'direct' && chat.isOnline,
+                          isOnline:
+                              !chat.isSaved &&
+                              chat.chatType == 'direct' &&
+                              chat.isOnline,
                           isSecret: chat.isSecret,
                           isSaved: chat.isSaved,
                           isPinned: chat.isSaved,

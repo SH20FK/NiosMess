@@ -143,7 +143,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                             ),
                     ),
                   ),
-                  if (isOnline && !isGroup && !isChannel)
+                  if (!isSaved && isOnline && !isGroup && !isChannel)
                     Positioned(
                       right: -1,
                       bottom: -1,
@@ -157,7 +157,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ),
                       ),
                     )
-                  else
+                  else if (!isSaved)
                     Positioned(
                       right: -2,
                       bottom: -2,

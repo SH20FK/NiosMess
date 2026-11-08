@@ -26,7 +26,9 @@ class SettingsChoiceButtons<T> extends StatelessWidget {
             avatar: segment.icon,
             tooltip: segment.tooltip,
             selected: selected.contains(segment.value),
-            showCheckmark: showSelectedIcon,
+            // Chip checkmarks paint in the avatar slot. Preserve semantic icons
+            // (language/location/etc.); their selected tonal fill is sufficient.
+            showCheckmark: showSelectedIcon && segment.icon == null,
             materialTapTargetSize: MaterialTapTargetSize.padded,
             onSelected: !segment.enabled || onSelectionChanged == null
                 ? null

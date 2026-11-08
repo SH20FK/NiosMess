@@ -512,6 +512,8 @@ extension SecretChatL10n on AppLocalizations {
   String get chatAlbumNext => _secret.chatAlbumNext;
   String get callDeviceMissing => _secret.callDeviceMissing;
   String get settingsProfileChangePhoto => _secret.settingsProfileChangePhoto;
+  String get settingsProfileExtraDetails => _secret.settingsProfileExtraDetails;
+  String get settingsProfileLinksActions => _secret.settingsProfileLinksActions;
   String get settingsProfilePhone => _secret.settingsProfilePhone;
   String get settingsProfilePhoneInvalid => _secret.settingsProfilePhoneInvalid;
   String get settingsProfileBirthday => _secret.settingsProfileBirthday;

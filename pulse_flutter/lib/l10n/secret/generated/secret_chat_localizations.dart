@@ -3964,6 +3964,18 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Time zone'**
   String get settingsHoursTimezone;
+
+  /// No description provided for @settingsProfileExtraDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional details'**
+  String get settingsProfileExtraDetails;
+
+  /// No description provided for @settingsProfileLinksActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Links and account'**
+  String get settingsProfileLinksActions;
 }
 
 class _SecretChatLocalizationsDelegate

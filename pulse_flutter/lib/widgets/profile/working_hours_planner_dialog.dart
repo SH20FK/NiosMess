@@ -1,46 +1,32 @@
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/modal/app_modal.dart';
-import 'package:pulse_flutter/core/modal/app_modal_content.dart';
 import 'package:pulse_flutter/core/modal/app_time_picker.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
-import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/profile/profile_sheet_layout.dart';
 
 class WorkingHoursPlannerDialog extends StatefulWidget {
   const WorkingHoursPlannerDialog({
     this.initialWorkingHours,
-    this.isDialog = false,
     super.key,
   });
   final WorkingHours? initialWorkingHours;
-  final bool isDialog;
 
   static Future<WorkingHours?> show(
     BuildContext context, {
     WorkingHours? initialWorkingHours,
   }) {
-    Widget builder(BuildContext context) =>
-        WorkingHoursPlannerDialog(initialWorkingHours: initialWorkingHours);
-    return MediaQuery.sizeOf(context).width >= Breakpoints.medium
-        ? AppModal.showDialog<WorkingHours>(
-            context: context,
-            maxWidth: 580,
-            builder: builder,
-            isDismissible: false,
-          )
-        : AppModal.showSheet<WorkingHours>(
-            context: context,
-            builder: builder,
-            isDismissible: false,
-            enableDrag: false,
-            showDragHandle: false,
-          );
+    return ProfileSheetLayout.show<WorkingHours>(
+      context,
+      builder: (_) =>
+          WorkingHoursPlannerDialog(initialWorkingHours: initialWorkingHours),
+    );
   }
 
   @override
@@ -260,6 +246,49 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
     );
   }
 
+  Widget _weekdays(BuildContext context) => LayoutBuilder(
+    builder: (context, bounds) {
+      final style = Theme.of(context).textTheme.labelLarge;
+      var width = 48.0;
+      for (var day = 1; day <= 7; day++) {
+        final text = TextPainter(
+          text: TextSpan(text: _dayName(day), style: style),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout();
+        width = math.max(width, text.width + 24);
+        text.dispose();
+      }
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: math.max(bounds.maxWidth, width * 7),
+          child: Row(
+            children: [
+              for (var day = 1; day <= 7; day++)
+                Expanded(
+                  child: Center(
+                    child: ChoiceChip(
+                      label: Text(_dayName(day)),
+                      tooltip: _dayName(day, full: true),
+                      selected: _day == day,
+                      showCheckmark: false,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                      materialTapTargetSize: MaterialTapTargetSize.padded,
+                      onSelected: _picking
+                          ? null
+                          : (_) => setState(() => _day = day),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
@@ -277,40 +306,16 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
       onPopInvokedWithResult: (popped, _) {
         if (!popped) _cancel();
       },
-      child: AppModalContent(
+      child: ProfileSheetLayout(
         title: l.settingsProfileWorkingHours,
-        icon: Icons.schedule_rounded,
-        actions: [
-          AppDialogAction(
-            label: l.commonCancel,
-            onPressed: _picking ? null : _cancel,
-          ),
-          AppDialogAction(
-            label: l.appearanceApply,
-            isPrimary: true,
-            onPressed: _picking ? null : _save,
-          ),
-        ],
+        onClose: _picking ? null : _cancel,
+        actionLabel: l.appearanceApply,
+        onSubmit: _picking ? null : _save,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            SettingsChoiceButtons<int>(
-              segments: [
-                for (var day = 1; day <= 7; day++)
-                  ButtonSegment(
-                    value: day,
-                    label: Text(_dayName(day)),
-                    tooltip: _dayName(day, full: true),
-                    enabled: !_picking,
-                  ),
-              ],
-              selected: {_day},
-              showSelectedIcon: false,
-              onSelectionChanged: _picking
-                  ? null
-                  : (value) => setState(() => _day = value.first),
-            ),
+            _weekdays(context),
             const SizedBox(height: 16),
             if (reduced)
               _daySection(context, intervals)
@@ -321,18 +326,19 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                 alignment: Alignment.topCenter,
                 child: _daySection(context, intervals),
               ),
-            SettingsSection(
+            ProfileDetailsGroup(
               title: l.settingsHoursPresets,
-              isCard: false,
               children: [
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Wrap(
+                    alignment: WrapAlignment.center,
                     spacing: 8,
                     runSpacing: 8,
                     children: [
                       for (final interval in presets)
                         ChoiceChip(
+                          showCheckmark: false,
                           label: Text('${interval.start}–${interval.end}'),
                           selected:
                               intervals.length == 1 &&
@@ -346,7 +352,8 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
                 ),
               ],
             ),
-            SettingsSection(
+            const SizedBox(height: 12),
+            ProfileDetailsGroup(
               title: l.settingsHoursRepeat,
               children: [
                 SettingsListItem.nav(
@@ -371,7 +378,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
               ],
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              padding: const EdgeInsets.only(top: 16),
               child: Text(
                 '${l.settingsHoursTimezone}: $_timezone',
                 style: Theme.of(context).textTheme.bodySmall,

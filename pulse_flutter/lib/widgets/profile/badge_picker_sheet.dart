@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/modal/app_modal.dart';
-import 'package:pulse_flutter/core/modal/app_modal_content.dart';
-import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -11,6 +8,7 @@ import 'package:pulse_flutter/repositories/auth_repository.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/profile/profile_sheet_layout.dart';
 
 class BadgePickerSheet extends ConsumerStatefulWidget {
   const BadgePickerSheet({this.initialSelectedBadgeIds = const [], super.key});
@@ -20,22 +18,11 @@ class BadgePickerSheet extends ConsumerStatefulWidget {
     BuildContext context, {
     List<int> initialSelectedBadgeIds = const [],
   }) {
-    Widget builder(BuildContext context) =>
-        BadgePickerSheet(initialSelectedBadgeIds: initialSelectedBadgeIds);
-    return MediaQuery.sizeOf(context).width >= Breakpoints.medium
-        ? AppModal.showDialog<List<int>>(
-            context: context,
-            maxWidth: 480,
-            builder: builder,
-            isDismissible: false,
-          )
-        : AppModal.showSheet<List<int>>(
-            context: context,
-            builder: builder,
-            isDismissible: false,
-            enableDrag: false,
-            showDragHandle: false,
-          );
+    return ProfileSheetLayout.show<List<int>>(
+      context,
+      builder: (_) =>
+          BadgePickerSheet(initialSelectedBadgeIds: initialSelectedBadgeIds),
+    );
   }
 
   @override
@@ -170,74 +157,72 @@ class _BadgePickerSheetState extends ConsumerState<BadgePickerSheet> {
     );
     final l = context.l10n;
     final owns = _ownsSession;
+    final Widget content;
+    if (!owns) {
+      content = Text(l.settingsProfileAccountChanged);
+    } else if (_loading) {
+      content = const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: AppLoadingIndicator()),
+      );
+    } else if (_failed) {
+      content = Column(
+        children: [
+          Text(l.settingsBadgePickerLoadFailed, textAlign: TextAlign.center),
+          TextButton.icon(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(l.commonRetry),
+          ),
+        ],
+      );
+    } else if (_badges.isEmpty) {
+      content = Text(l.settingsBadgePickerEmpty, textAlign: TextAlign.center);
+    } else {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l.settingsBadgePickerHint,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          SettingsSection(
+            title: '${l.settingsBadgePickerSelected}: ${_selected.length}/2',
+            children: [
+              for (final badge in _badges)
+                SettingsListItem(
+                  icon: _icon(badge),
+                  title: badge.name,
+                  subtitle: badge.description,
+                  isSection: true,
+                  isSelected: _selected.contains(badge.id),
+                  enabled: !_saving,
+                  trailing: Icon(
+                    _selected.contains(badge.id)
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                  ),
+                  onTap: () => _toggle(badge.id),
+                ),
+            ],
+          ),
+        ],
+      );
+    }
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (popped, _) {
         if (!popped) _close();
       },
-      child: AppModalContent(
-        title: l.settingsBadgePickerTitle,
-        subtitle: owns
-            ? l.settingsBadgePickerHint
-            : l.settingsProfileAccountChanged,
-        icon: Icons.verified_outlined,
-        actions: [
-          AppDialogAction(
-            label: l.commonCancel,
-            onPressed: _saving ? null : _close,
-          ),
-          if (owns)
-            AppDialogAction(
-              label: l.commonSave,
-              isPrimary: true,
-              isLoading: _saving,
-              onPressed: _saving || _loading || _failed || _accountId == null ? null : _save,
-            ),
-        ],
-        child: !owns
-            ? const SizedBox.shrink()
-            : _loading
-            ? const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: AppLoadingIndicator()),
-              )
-            : _failed
-            ? SettingsSection(
-                children: [
-                  SettingsListItem.nav(
-                    icon: Icons.refresh_rounded,
-                    title: l.settingsBadgePickerLoadFailed,
-                    value: l.commonRetry,
-                    onTap: _load,
-                  ),
-                ],
-              )
-            : _badges.isEmpty
-            ? Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(l.settingsBadgePickerEmpty),
-              )
-            : SettingsSection(
-                title:
-                    '${l.settingsBadgePickerSelected}: ${_selected.length}/2',
-                children: [
-                  for (final badge in _badges)
-                    SettingsListItem(
-                      icon: _icon(badge),
-                      title: badge.name,
-                      subtitle: badge.description,
-                      isSection: true,
-                      isSelected: _selected.contains(badge.id),
-                      enabled: !_saving,
-                      trailing: Icon(
-                        _selected.contains(badge.id)
-                            ? Icons.check_circle_rounded
-                            : Icons.circle_outlined,
-                      ),
-                      onTap: () => _toggle(badge.id),
-                    ),
-                ],
-              ),
+      child: ProfileSheetLayout(
+        title: l.settingsBadgesTitle,
+        onClose: _saving ? null : _close,
+        actionLabel: owns ? l.commonSave : null,
+        onSubmit: _loading || _failed || _accountId == null ? null : _save,
+        busy: _saving,
+        child: content,
       ),
     );
   }

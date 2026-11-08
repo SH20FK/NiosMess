@@ -125,6 +125,18 @@ void main() {
         await tester.ensureVisible(wednesday);
         await tester.tap(wednesday);
         await tester.pumpAndSettle();
+        final labels = AppLocalizations.of(
+          tester.element(find.byType(WorkingHoursPlannerDialog)),
+        )!;
+        final presets = find.text(labels.settingsHoursPresets);
+        // Secondary tools are deliberately collapsed until the user requests them.
+        final presetGroup = find.widgetWithText(
+          ExpansionTile,
+          labels.settingsHoursPresets,
+        );
+        await tester.ensureVisible(presetGroup);
+        await tester.tap(presets);
+        await tester.pumpAndSettle();
         final preset = find.text('09:00–18:00');
         await tester.ensureVisible(preset);
         await tester.tap(preset);

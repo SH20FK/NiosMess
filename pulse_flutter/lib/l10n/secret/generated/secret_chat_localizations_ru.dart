@@ -2117,4 +2117,10 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsHoursTimezone => 'Часовой пояс';
+
+  @override
+  String get settingsProfileExtraDetails => 'Дополнительные данные';
+
+  @override
+  String get settingsProfileLinksActions => 'Ссылки и аккаунт';
 }

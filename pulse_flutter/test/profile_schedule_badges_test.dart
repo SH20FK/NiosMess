@@ -432,7 +432,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Выбор бейджей'), findsOneWidget);
+      expect(find.text('Бейджи'), findsOneWidget);
+      expect(find.byTooltip('Отмена'), findsOneWidget);
       expect(find.text('VIP'), findsOneWidget);
       expect(find.text('VIP статус аккаунта'), findsOneWidget);
       expect(find.text('Сохранить'), findsOneWidget);

@@ -222,7 +222,7 @@ class _ChatTileState extends State<ChatTile>
                                     scheme,
                                   ),
                                 ),
-                          if (widget.isOnline)
+                          if (widget.isOnline && !widget.isSaved)
                             Positioned(
                               right: 0,
                               bottom: 0,

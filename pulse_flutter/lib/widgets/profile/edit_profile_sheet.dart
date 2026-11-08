@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_date_picker.dart';
-import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/working_hours_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/profile/working_hours_planner_dialog.dart';
+import 'package:pulse_flutter/widgets/profile/profile_sheet_layout.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -24,6 +25,7 @@ class EditProfileSheet extends ConsumerStatefulWidget {
     this.initialPhoneNumber,
     this.initialBirthday,
     this.initialWorkingHours,
+    this.onEditBadges,
     super.key,
   });
 
@@ -35,6 +37,7 @@ class EditProfileSheet extends ConsumerStatefulWidget {
   final WorkingHours? initialWorkingHours;
   final Future<void> Function() onUploadAvatar;
   final List<Widget> actions;
+  final VoidCallback? onEditBadges;
 
   static Future<bool?> show(
     BuildContext context, {
@@ -46,6 +49,7 @@ class EditProfileSheet extends ConsumerStatefulWidget {
     String? initialPhoneNumber,
     String? initialBirthday,
     WorkingHours? initialWorkingHours,
+    VoidCallback? onEditBadges,
   }) {
     Widget builder(BuildContext _) => EditProfileSheet(
       initialName: initialName,
@@ -56,22 +60,9 @@ class EditProfileSheet extends ConsumerStatefulWidget {
       initialWorkingHours: initialWorkingHours,
       onUploadAvatar: onUploadAvatar,
       actions: actions,
+      onEditBadges: onEditBadges,
     );
-    if (MediaQuery.sizeOf(context).width >= 600) {
-      return AppModal.showDialog<bool>(
-        context: context,
-        builder: builder,
-        isDismissible: false,
-        isScrollable: true,
-      );
-    }
-    return AppModal.showSheet<bool>(
-      context: context,
-      builder: builder,
-      isDismissible: false,
-      enableDrag: false,
-      isScrollable: true,
-    );
+    return ProfileSheetLayout.show<bool>(context, builder: builder);
   }
 
   @override
@@ -80,6 +71,7 @@ class EditProfileSheet extends ConsumerStatefulWidget {
 
 class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   final _form = GlobalKey<FormState>();
+  final _details = ExpansibleController();
   late final TextEditingController _name;
   late final TextEditingController _username;
   late final TextEditingController _bio;
@@ -116,6 +108,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
 
   @override
   void dispose() {
+    _details.dispose();
     for (final controller in [_name, _username, _bio, _phone]) {
       controller.dispose();
     }
@@ -132,7 +125,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
       _hours != widget.initialWorkingHours;
 
   Future<void> _close() async {
-    if (_saving || _avatarBusy) return;
+    if (!mounted || _saving || _avatarBusy) return;
     if (_dirty) {
       final discard = await showAppConfirmDialog(
         context: context,
@@ -150,7 +143,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   }
 
   Future<void> _birthdayPicker() async {
-    if (!_ownsSession) return;
+    if (!mounted || !_ownsSession) return;
     final now = DateTime.now();
     final parsed = DateTime.tryParse(_birthday) ?? DateTime(2000);
     final initial = parsed.isBefore(DateTime(1900))
@@ -173,7 +166,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   }
 
   Future<void> _workingHours() async {
-    if (!_ownsSession) return;
+    if (!mounted || !_ownsSession) return;
     final hours = await WorkingHoursPlannerDialog.show(
       context,
       initialWorkingHours: _hours,
@@ -184,7 +177,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   }
 
   Future<void> _avatar() async {
-    if (_avatarBusy || _saving || !_ownsSession) return;
+    if (!mounted || _avatarBusy || _saving || !_ownsSession) return;
     setState(() => _avatarBusy = true);
     try {
       await widget.onUploadAvatar();
@@ -202,10 +195,9 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   }
 
   Future<void> _save() async {
-    if (_saving ||
-        _avatarBusy ||
-        !_ownsSession ||
-        !_form.currentState!.validate()) {
+    if (!mounted || _saving || _avatarBusy || !_ownsSession) return;
+    if (!_form.currentState!.validate()) {
+      if (_phoneError(_phone.text) != null) _details.expand();
       return;
     }
     final session = ref.read(authProvider).session;
@@ -269,218 +261,195 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
     int lines = 1,
     TextInputType? keyboardType,
     String? prefix,
-  }) => Padding(
-    padding: const EdgeInsets.all(16),
-    child: TextFormField(
-      controller: controller,
-      enabled: !_saving,
-      validator: validator,
-      maxLength: maxLength,
-      minLines: lines,
-      maxLines: lines == 1 ? 1 : 5,
-      keyboardType: keyboardType,
-      textInputAction: lines == 1
-          ? TextInputAction.next
-          : TextInputAction.newline,
-      inputFormatters: keyboardType == TextInputType.phone
-          ? [FilteringTextInputFormatter.digitsOnly]
-          : null,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixText: prefix,
-        border: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(16)),
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    const radius = BorderRadius.all(Radius.circular(16));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        enabled: !_saving,
+        validator: validator,
+        maxLength: maxLength,
+        minLines: lines,
+        maxLines: lines == 1 ? 1 : 5,
+        keyboardType: keyboardType,
+        textInputAction: lines == 1
+            ? TextInputAction.next
+            : TextInputAction.newline,
+        inputFormatters: keyboardType == TextInputType.phone
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : null,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixText: prefix,
+          filled: true,
+          fillColor: scheme.surfaceContainerHigh,
+          border: const OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: const OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide(color: scheme.primary),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          counterText: '',
         ),
-        counterText: '',
-        filled: false,
       ),
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final auth = ref.watch(authProvider);
+    final l = context.l10n;
     if (!_ownsSession) {
-      return Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              context.l10n.settingsProfileAccountChanged,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.l10n.commonDismiss),
-            ),
-          ],
-        ),
+      return ProfileSheetLayout(
+        title: l.profileTitle,
+        onClose: () => Navigator.of(context).pop(),
+        child: Text(l.settingsProfileAccountChanged),
       );
     }
+    final date = DateTime.tryParse(_birthday);
+    final birthdayLabel = date == null
+        ? l.settingsProfileNotSet
+        : DateFormat.yMMMd(l.localeName).format(date);
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _close();
       },
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: LayoutBuilder(
-                builder: (context, bounds) {
-                  final stackActions =
-                      bounds.maxWidth < 400 &&
-                      MediaQuery.textScalerOf(context).scale(14) > 18;
-                  final save = FilledButton(
-                    onPressed: _saving || _avatarBusy ? null : _save,
-                    child: _saving
-                        ? const AppLoadingIndicator(size: 22)
-                        : Text(context.l10n.commonSave),
-                  );
-                  final heading = Row(
-                    children: [
-                      IconButton(
-                        onPressed: _saving ? null : _close,
-                        tooltip: context.l10n.commonCancel,
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                      Expanded(
-                        child: Text(
-                          context.l10n.profileTitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                      if (!stackActions) save,
-                    ],
-                  );
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      heading,
-                      if (stackActions)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: SizedBox(width: double.infinity, child: save),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                child: Form(
-                  key: _form,
-                  child: Column(
-                    children: [
-                      PulseAvatar(
-                        name: _name.text,
-                        avatarUrl: auth.profile?.avatarUrl,
-                        radius: 42,
-                        fallbackColor: scheme.primaryContainer,
-                        textColor: scheme.onPrimaryContainer,
-                      ),
-                      TextButton.icon(
-                        onPressed: _avatarBusy || _saving ? null : _avatar,
-                        icon: _avatarBusy
-                            ? const AppLoadingIndicator(size: 18)
-                            : const Icon(Icons.add_a_photo_outlined, size: 18),
-                        label: Text(context.l10n.settingsProfileChangePhoto),
-                      ),
-                      SettingsSection(
-                        children: [
-                          _field(
-                            controller: _name,
-                            label: context.l10n.profileDisplayName,
-                            maxLength: 64,
-                            validator: (value) => value!.trim().isEmpty
-                                ? context.l10n.registerNameRequired
-                                : value.trim().length > 64
-                                ? context.l10n.profileNameTooLong
-                                : null,
-                          ),
-                          _field(
-                            controller: _bio,
-                            label: context.l10n.profileDescription,
-                            maxLength: 500,
-                            lines: 3,
-                            keyboardType: TextInputType.multiline,
-                          ),
-                        ],
-                      ),
-                      SettingsSection(
-                        children: [
-                          _field(
-                            controller: _username,
-                            label: context.l10n.profileUsernameLabel,
-                            prefix: '@',
-                            validator: (value) =>
-                                (value!.trim().isEmpty &&
-                                        widget.initialUsername.isEmpty) ||
-                                    RegExp(
-                                      r'^[a-zA-Z0-9_]{3,32}$',
-                                    ).hasMatch(value.trim())
-                                ? null
-                                : context.l10n.profileUsernameInvalid,
-                          ),
-                          _field(
-                            controller: _phone,
-                            label: context.l10n.settingsProfilePhone,
-                            keyboardType: TextInputType.phone,
-                            prefix: '+',
-                            validator: _phoneError,
-                          ),
-                          SettingsListItem.value(
-                            icon: Icons.cake_outlined,
-                            title: context.l10n.settingsProfileBirthday,
-                            value: _birthday.isEmpty
-                                ? context.l10n.settingsProfileNotSet
-                                : _birthday,
-                            onTap: _saving ? null : _birthdayPicker,
-                            onLongPress: _saving
-                                ? null
-                                : () => setState(() => _birthday = ''),
-                          ),
-                          if (_birthday.isNotEmpty)
-                            SettingsListItem(
-                              icon: Icons.event_busy_outlined,
-                              title: context.l10n.settingsProfileClearBirthday,
-                              onTap: _saving
-                                  ? null
-                                  : () => setState(() => _birthday = ''),
-                            ),
-                        ],
-                      ),
-                      SettingsSection(
-                        children: [
-                          SettingsListItem.nav(
-                            icon: Icons.schedule_rounded,
-                            title: context.l10n.settingsProfileWorkingHours,
-                            value: _hours == null || _hours!.isEmpty
-                                ? context.l10n.settingsProfileNotSet
-                                : context.l10n.settingsProfileHoursConfigured,
-                            enabled: !_saving,
-                            onTap: _workingHours,
-                          ),
-                        ],
-                      ),
-                      if (widget.actions.isNotEmpty)
-                        SettingsSection(children: widget.actions),
-                    ],
+      child: ProfileSheetLayout(
+        title: l.profileTitle,
+        onClose: _saving || _avatarBusy ? null : _close,
+        actionLabel: l.commonSave,
+        onSubmit: _avatarBusy ? null : _save,
+        busy: _saving,
+        child: Form(
+          key: _form,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _name,
+                  builder: (context, value, _) => PulseAvatar(
+                    name: value.text,
+                    avatarUrl: auth.profile?.avatarUrl,
+                    radius: 36,
+                    fallbackColor: scheme.primaryContainer,
+                    textColor: scheme.onPrimaryContainer,
                   ),
                 ),
               ),
-            ),
-          ],
+              Center(
+                child: TextButton.icon(
+                  onPressed: _avatarBusy || _saving ? null : _avatar,
+                  icon: _avatarBusy
+                      ? const AppLoadingIndicator(size: 18)
+                      : const Icon(Icons.add_a_photo_outlined, size: 18),
+                  label: Text(l.settingsProfileChangePhoto),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _field(
+                controller: _name,
+                label: l.profileDisplayName,
+                maxLength: 64,
+                validator: (value) => value!.trim().isEmpty
+                    ? l.registerNameRequired
+                    : value.trim().length > 64
+                    ? l.profileNameTooLong
+                    : null,
+              ),
+              _field(
+                controller: _username,
+                label: l.profileUsernameLabel,
+                prefix: '@',
+                validator: (value) =>
+                    (value!.trim().isEmpty && widget.initialUsername.isEmpty) ||
+                        RegExp(r'^[a-zA-Z0-9_]{3,32}$').hasMatch(value.trim())
+                    ? null
+                    : l.profileUsernameInvalid,
+              ),
+              _field(
+                controller: _bio,
+                label: l.profileDescription,
+                maxLength: 500,
+                lines: 2,
+                keyboardType: TextInputType.multiline,
+              ),
+              const SizedBox(height: 4),
+              ProfileDetailsGroup(
+                title: l.settingsProfileExtraDetails,
+                controller: _details,
+                enabled: !_saving,
+                children: [
+                  const SizedBox(height: 8),
+                  _field(
+                    controller: _phone,
+                    label: l.settingsProfilePhone,
+                    keyboardType: TextInputType.phone,
+                    prefix: '+',
+                    validator: _phoneError,
+                  ),
+                  SettingsListItem(
+                    icon: Icons.cake_outlined,
+                    title: l.settingsProfileBirthday,
+                    subtitle: birthdayLabel,
+                    enabled: !_saving,
+                    onTap: _birthdayPicker,
+                    trailing: _birthday.isEmpty
+                        ? const Icon(Icons.chevron_right_rounded)
+                        : IconButton(
+                            tooltip: l.settingsProfileClearBirthday,
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: _saving
+                                ? null
+                                : () => setState(() => _birthday = ''),
+                          ),
+                  ),
+                  SettingsListItem.nav(
+                    icon: Icons.schedule_rounded,
+                    title: l.settingsProfileWorkingHours,
+                    value: _hours == null || _hours!.isEmpty
+                        ? l.settingsProfileNotSet
+                        : l.settingsProfileHoursConfigured,
+                    enabled: !_saving,
+                    onTap: _workingHours,
+                  ),
+                  if (widget.onEditBadges != null)
+                    SettingsListItem.nav(
+                      icon: Icons.verified_outlined,
+                      title: l.settingsBadgesTitle,
+                      enabled: !_saving,
+                      onTap: () {
+                        if (mounted && _ownsSession && !_saving) {
+                          widget.onEditBadges!();
+                        }
+                      },
+                    ),
+                ],
+              ),
+              if (widget.actions.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ProfileDetailsGroup(
+                  title: l.settingsProfileLinksActions,
+                  enabled: !_saving,
+                  children: widget.actions,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
