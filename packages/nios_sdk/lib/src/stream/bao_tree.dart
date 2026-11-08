@@ -80,11 +80,7 @@ final class BaoTree {
         digest.sha256.convert([domainLeaf]).bytes,
       );
       return BaoTree._(
-        root: BaoNode(
-          hash: emptyHash,
-          startSegment: 0,
-          endSegment: 0,
-        ),
+        root: BaoNode(hash: emptyHash, startSegment: 0, endSegment: 0),
         leafCount: 0,
       );
     }
@@ -93,11 +89,7 @@ final class BaoTree {
     for (var i = 0; i < segmentHashes.length; i++) {
       final leafHash = _hashLeaf(segmentHashes[i]);
       currentLevel.add(
-        BaoNode(
-          hash: leafHash,
-          startSegment: i,
-          endSegment: i + 1,
-        ),
+        BaoNode(hash: leafHash, startSegment: i, endSegment: i + 1),
       );
     }
 

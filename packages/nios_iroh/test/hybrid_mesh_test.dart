@@ -32,7 +32,9 @@ final class _MockMeshFallback implements LinkMeshFallback {
   }
 
   @override
-  Future<void> publishAcknowledgement(EncryptedEnvelope acknowledgement) async {}
+  Future<void> publishAcknowledgement(
+    EncryptedEnvelope acknowledgement,
+  ) async {}
 
   @override
   Stream<EncryptedEnvelope> get incoming => _incoming.stream;
@@ -84,7 +86,10 @@ void main() {
       final ack = receipt.acknowledgement!;
       expect(ack.context.recipientId, 'alice-dev');
       expect(utf8.decode(ack.ciphertext), 'ack-from-ble-mesh');
-      expect(hybrid.activeRoute('bob-unreachable-dev'), MeshActiveRoute.bluetoothMesh);
+      expect(
+        hybrid.activeRoute('bob-unreachable-dev'),
+        MeshActiveRoute.bluetoothMesh,
+      );
 
       await hybrid.close();
       expect(mesh.closed, isTrue);

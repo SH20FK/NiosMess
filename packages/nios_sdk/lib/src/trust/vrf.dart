@@ -13,10 +13,7 @@ final class VrfProof {
   final Uint8List outputHash;
   final Uint8List proofBytes;
 
-  const VrfProof({
-    required this.outputHash,
-    required this.proofBytes,
-  });
+  const VrfProof({required this.outputHash, required this.proofBytes});
 
   Map<String, dynamic> toJson() => {
     'outputHash': base64Encode(outputHash),
@@ -34,10 +31,7 @@ final class VrfKeyPair {
   final Uint8List secretKey;
   final Uint8List publicKey;
 
-  const VrfKeyPair({
-    required this.secretKey,
-    required this.publicKey,
-  });
+  const VrfKeyPair({required this.secretKey, required this.publicKey});
 
   /// Generate a secure 32-byte VRF key pair.
   static Future<VrfKeyPair> generate() async {
@@ -75,7 +69,10 @@ abstract final class NiosVrf {
 
     // 1. Compute deterministic pseudorandom output hash
     final hmacKey = digest.Hmac(digest.sha512, keyPair.secretKey);
-    final hashDigest = hmacKey.convert([...utf8.encode(_hashDomain), ...inputBytes]);
+    final hashDigest = hmacKey.convert([
+      ...utf8.encode(_hashDomain),
+      ...inputBytes,
+    ]);
     final outputHash = Uint8List.fromList(hashDigest.bytes.sublist(0, 32));
 
     // 2. Generate verifiable signature proof over (input || outputHash) using Ed25519

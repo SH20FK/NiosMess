@@ -8,7 +8,9 @@ import 'package:universal_io/io.dart';
 void main() {
   group('Post-Quantum Hybrid OpenMLS (ML-KEM / X-Wing)', () {
     late Directory tempDir;
-    final storageKey = Uint8List.fromList(List.generate(32, (i) => (i * 3) & 0xFF));
+    final storageKey = Uint8List.fromList(
+      List.generate(32, (i) => (i * 3) & 0xFF),
+    );
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('nios_mls_pq_test_');
@@ -29,36 +31,39 @@ void main() {
       );
     });
 
-    test('Alice creates a Post-Quantum Hybrid group and generates ML-KEM KeyPackage', () async {
-      final alice = await NiosMlsClient.open(
-        path: '${tempDir.path}/alice',
-        storageKey: storageKey,
-        accountId: 'alice-acc',
-        deviceId: 'alice-dev-1',
-        ciphersuite: NiosMlsClient.postQuantumHybridXWing,
-        authorizeDevice: (acc, dev, key) async => true,
-      );
+    test(
+      'Alice creates a Post-Quantum Hybrid group and generates ML-KEM KeyPackage',
+      () async {
+        final alice = await NiosMlsClient.open(
+          path: '${tempDir.path}/alice',
+          storageKey: storageKey,
+          accountId: 'alice-acc',
+          deviceId: 'alice-dev-1',
+          ciphersuite: NiosMlsClient.postQuantumHybridXWing,
+          authorizeDevice: (acc, dev, key) async => true,
+        );
 
-      expect(alice.ciphersuite, NiosMlsClient.postQuantumHybridXWing);
+        expect(alice.ciphersuite, NiosMlsClient.postQuantumHybridXWing);
 
-      // Create KeyPackage with Post-Quantum Hybrid ML-KEM-768 / X-Wing
-      final keyPackageBytes = await alice.createKeyPackage(
-        ciphersuite: NiosMlsClient.postQuantumHybridXWing,
-      );
-      expect(keyPackageBytes.isNotEmpty, isTrue);
+        // Create KeyPackage with Post-Quantum Hybrid ML-KEM-768 / X-Wing
+        final keyPackageBytes = await alice.createKeyPackage(
+          ciphersuite: NiosMlsClient.postQuantumHybridXWing,
+        );
+        expect(keyPackageBytes.isNotEmpty, isTrue);
 
-      // Create Post-Quantum Hybrid group
-      final groupId = Uint8List.fromList(utf8.encode('pq-group-1'));
-      final createdGroupId = await alice.createGroup(
-        groupId: groupId,
-        ciphersuite: NiosMlsClient.postQuantumHybridXWing,
-      );
-      expect(createdGroupId, equals(groupId));
+        // Create Post-Quantum Hybrid group
+        final groupId = Uint8List.fromList(utf8.encode('pq-group-1'));
+        final createdGroupId = await alice.createGroup(
+          groupId: groupId,
+          ciphersuite: NiosMlsClient.postQuantumHybridXWing,
+        );
+        expect(createdGroupId, equals(groupId));
 
-      expect(await alice.isActive(groupId), isTrue);
-      expect(await alice.epoch(groupId), BigInt.zero);
+        expect(await alice.isActive(groupId), isTrue);
+        expect(await alice.epoch(groupId), BigInt.zero);
 
-      await alice.close();
-    });
+        await alice.close();
+      },
+    );
   });
 }

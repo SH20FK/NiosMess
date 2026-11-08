@@ -244,7 +244,9 @@ final class SqliteWalDurableStore {
     for (final row in candidateRows) {
       hashInput.write('${row['operation_id']}:${row['sequence']};');
     }
-    final stateHash = sha256.convert(utf8.encode(hashInput.toString())).toString();
+    final stateHash = sha256
+        .convert(utf8.encode(hashInput.toString()))
+        .toString();
     final now = DateTime.now().millisecondsSinceEpoch;
     final checkpointId = 'chk-$watermarkSequence-$now';
 
@@ -271,10 +273,9 @@ final class SqliteWalDurableStore {
       // Prune very old deduplication entries beyond retainDedupWindow
       final minDedupSequence = watermarkSequence - retainDedupWindow;
       if (minDedupSequence > 0) {
-        db.execute(
-          'DELETE FROM nios_link_dedup WHERE sequence < ?;',
-          [minDedupSequence],
-        );
+        db.execute('DELETE FROM nios_link_dedup WHERE sequence < ?;', [
+          minDedupSequence,
+        ]);
       }
 
       db.execute('COMMIT;');

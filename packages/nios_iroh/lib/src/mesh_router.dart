@@ -34,12 +34,7 @@ abstract interface class LinkMeshFallback {
 }
 
 /// Active route channel identified for a peer.
-enum MeshActiveRoute {
-  quicDirect,
-  quicRelay,
-  bluetoothMesh,
-  unreachable,
-}
+enum MeshActiveRoute { quicDirect, quicRelay, bluetoothMesh, unreachable }
 
 /// Hybrid transport that combines:
 /// 1. Direct Iroh QUIC peer-to-peer streams (sub-millisecond latency when local/hole-punched).
@@ -99,7 +94,9 @@ final class HybridMeshTransport implements LinkTransport {
 
     // 2. Adaptive or Direct: Try Direct QUIC within bounded timeout
     try {
-      final receipt = await irohTransport.deliver(envelope).timeout(directP2pTimeout);
+      final receipt = await irohTransport
+          .deliver(envelope)
+          .timeout(directP2pTimeout);
       _setRoute(peerId, MeshActiveRoute.quicDirect);
       return receipt;
     } on TimeoutException catch (e) {
@@ -134,7 +131,9 @@ final class HybridMeshTransport implements LinkTransport {
     Object originalError,
   ) async {
     if (meshFallback != null) {
-      final canMesh = await meshFallback!.canReach(peerId).catchError((_) => false);
+      final canMesh = await meshFallback!
+          .canReach(peerId)
+          .catchError((_) => false);
       if (canMesh) {
         try {
           final ack = await meshFallback!.deliverEnvelope(envelope);
@@ -151,7 +150,8 @@ final class HybridMeshTransport implements LinkTransport {
   Future<void> publishAcknowledgement(EncryptedEnvelope acknowledgement) async {
     if (_closed) throw StateError('HybridMeshTransport is closed');
     final peerId = acknowledgement.context.recipientId;
-    if (_activeRoutes[peerId] == MeshActiveRoute.bluetoothMesh && meshFallback != null) {
+    if (_activeRoutes[peerId] == MeshActiveRoute.bluetoothMesh &&
+        meshFallback != null) {
       try {
         await meshFallback!.publishAcknowledgement(acknowledgement);
         return;

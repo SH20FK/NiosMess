@@ -231,7 +231,9 @@ final class NiosMlsClient {
       final encoded = box.get('state');
       Map<String, dynamic> state;
       if (encoded == null) {
-        final pair = MlsSignatureKeyPair.generate(ciphersuite: defaultCiphersuite);
+        final pair = MlsSignatureKeyPair.generate(
+          ciphersuite: defaultCiphersuite,
+        );
         final private = pair.privateKey();
         final signer = serializeSigner(
           ciphersuite: defaultCiphersuite,
