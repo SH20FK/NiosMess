@@ -238,10 +238,14 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
       child: Theme(
         data: Theme.of(context).copyWith(
           navigationBarTheme: NavigationBarThemeData(
-            height: 66,
+            // 80dp is the M3 navigation-bar height; `NavigationBar` adds the
+            // system gesture inset on top of it (`maintainBottomViewPadding`).
+            height: 80,
             elevation: 0,
             backgroundColor: scheme.surfaceContainer,
-            indicatorColor: scheme.primary.withValues(alpha: 0.16),
+            // Solid tonal pill instead of a 16% primary wash: the selected
+            // destination is the only state that must read at a glance.
+            indicatorColor: scheme.secondaryContainer,
             indicatorShape: const StadiumBorder(),
             labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
               (states) => TextStyle(
@@ -251,7 +255,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
                     ? FontWeight.w700
                     : FontWeight.w500,
                 color: states.contains(WidgetState.selected)
-                    ? scheme.primary
+                    ? scheme.onSurface
                     : scheme.onSurfaceVariant,
               ),
             ),
@@ -259,7 +263,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
         ),
         child: NavigationBar(
           key: const ValueKey('main-bottom-navigation'),
-          height: 66,
+          height: 80,
           elevation: 0,
           surfaceTintColor: Colors.transparent,
           animationDuration: duration,
@@ -274,25 +278,61 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
               outlineIcon: item.icon,
               filledIcon: item.selectedIcon,
               isSelected: selected,
-              color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              color: selected
+                  ? scheme.onSecondaryContainer
+                  : scheme.onSurfaceVariant,
               animate: animate,
               duration: duration,
-              size: 20,
+              size: 24,
             );
             return NavigationDestination(
               label: item.label,
-              icon: item.badge > 0
-                  ? Badge(
-                      backgroundColor: scheme.primary,
-                      textColor: scheme.onPrimary,
-                      label: Text(item.badge > 99 ? '99+' : '${item.badge}'),
-                      child: icon,
-                    )
-                  : icon,
+              icon: _destinationIcon(
+                scheme: scheme,
+                icon: icon,
+                count: item.badge,
+                // M3 keeps the selected destination clean: the tonal pill and
+                // the filled icon already carry the state, and a badge sitting
+                // on top of the active icon was the unreadable case in the
+                // audit screenshot.
+                showBadge: !selected,
+              ),
             );
           }),
         ),
       ),
+    );
+  }
+
+  /// Unread badge pinned to the icon's top-right corner.
+  ///
+  /// `Badge` centres a labelled pill on the top edge of its child, so the
+  /// offset is tuned against the 24dp icon: `dy -9` makes the ~13dp pill
+  /// straddle the icon's top-right corner instead of painting over the glyph,
+  /// `dx 2` pushes it just past the corner and `99+` is the widest label,
+  /// which keeps every count inside the destination slot.
+  Widget _destinationIcon({
+    required ColorScheme scheme,
+    required Widget icon,
+    required int count,
+    required bool showBadge,
+  }) {
+    if (count <= 0 || !showBadge) return icon;
+    return Badge(
+      backgroundColor: scheme.primary,
+      textColor: scheme.onPrimary,
+      alignment: AlignmentDirectional.topEnd,
+      offset: const Offset(2, -9),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+      textStyle: TextStyle(
+        fontFamily: AppFonts.ui,
+        fontSize: 10,
+        height: 1,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0,
+      ),
+      label: Text(count > 99 ? '99+' : '$count'),
+      child: icon,
     );
   }
 }

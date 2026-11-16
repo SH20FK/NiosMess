@@ -5,6 +5,7 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
+import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 Widget _buildTestHarness({
   required Widget child,
@@ -106,6 +107,88 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('999+'), findsNothing);
+    });
+
+    testWidgets('bar is 64 dp tall with a 16 dp title column and w700 title', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildTestHarness(
+          overrides: [totalUnreadCountProvider.overrideWith((ref) => 0)],
+          child: const Scaffold(appBar: ChatListHeader()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byType(AppBar)).height, 64);
+      expect(tester.getTopLeft(find.text('Чаты')).dx, 16);
+      expect(
+        tester.widget<Text>(find.text('Чаты')).style?.fontWeight,
+        FontWeight.w700,
+      );
+      // 32 dp avatar inside a 48 dp target, 8 dp gutter -> 16 dp right inset.
+      final avatar = find.byKey(const ValueKey('inbox-profile-settings'));
+      expect(tester.getSize(avatar), const Size(48, 48));
+      final avatarCircle = find.descendant(
+        of: avatar,
+        matching: find.byType(PulseAvatar),
+      );
+      final double screenWidth =
+          tester.view.physicalSize.width / tester.view.devicePixelRatio;
+      expect(tester.getSize(avatarCircle), const Size(32, 32));
+      expect(screenWidth - tester.getTopRight(avatarCircle).dx, 16);
+    });
+
+    testWidgets('scrim and hairline fade in once the list is scrolled', (
+      tester,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [totalUnreadCountProvider.overrideWith((ref) => 0)],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('ru'),
+            theme: ThemeData(useMaterial3: true),
+            home: const Scaffold(appBar: ChatListHeader()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      BoxDecoration scrim() =>
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: find.byType(ChatListHeader),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+
+      expect(scrim().color?.a ?? 0, 0);
+      expect(scrim().border!.bottom.color.a, 0);
+
+      container.read(chatListScrolledProvider.notifier).setScrolled(true);
+      await tester.pumpAndSettle();
+
+      final ColorScheme scheme = Theme.of(
+        tester.element(find.byType(ChatListHeader)),
+      ).colorScheme;
+      expect(scrim().color, scheme.surface);
+      expect(scrim().border!.bottom.width, 1);
+      expect(scrim().border!.bottom.color.a, closeTo(0.22, 0.001));
+
+      container.read(chatListScrolledProvider.notifier).setScrolled(false);
+      await tester.pumpAndSettle();
+      expect(scrim().color?.a ?? 0, 0);
     });
   });
 

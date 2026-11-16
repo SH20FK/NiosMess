@@ -196,12 +196,52 @@ abstract final class Breakpoints {
   static const double large = 1600.0;
 }
 
+/// Canonical 4dp spacing scale. Use these instead of magic padding numbers so
+/// every column (header, list rows, sheets) shares one rhythm.
+abstract final class AppSpacing {
+  /// 4.0 dp — hairline gap between an icon and its label.
+  static const double xs = 4.0;
+
+  /// 8.0 dp — gap between tightly related controls.
+  static const double sm = 8.0;
+
+  /// 12.0 dp — inner padding of compact rows and tiles.
+  static const double md = 12.0;
+
+  /// 16.0 dp — screen gutter, group padding.
+  static const double lg = 16.0;
+
+  /// 24.0 dp — section separation.
+  static const double xl = 24.0;
+
+  /// 32.0 dp — page-level breathing room.
+  static const double xxl = 32.0;
+}
+
 /// Standardized component heights across the app.
 abstract final class AppHeights {
   static const double sm = 40.0;
   static const double md = 48.0;
   static const double lg = 56.0;
   static const double xl = 64.0;
+
+  /// Compact top app bar (single title line, dense toolbars): 56.0 dp.
+  static const double appBarCompact = lg;
+
+  /// Standard top app bar (M3 small app bar): 64.0 dp.
+  static const double appBar = xl;
+
+  /// Chat / inbox list row: 48dp avatar + 2×14dp vertical padding = 76.0 dp.
+  static const double row = 76.0;
+
+  /// Compact list row (dense desktop / small windows): 64.0 dp.
+  static const double rowCompact = 64.0;
+
+  /// Standard interactive control height (buttons, chips, search field): 40.0 dp.
+  static const double control = sm;
+
+  /// Compact interactive control used in dense toolbars: 36.0 dp.
+  static const double controlCompact = 36.0;
 }
 
 /// Centralized motion tokens, springs, and press feedback parameters.

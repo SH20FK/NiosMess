@@ -14,6 +14,7 @@ import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
+import 'package:pulse_flutter/widgets/chat/chat_filter_bar.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 
@@ -520,11 +521,28 @@ void main() {
             home: body,
           ),
         );
-        await tester.pumpWidget(
-          app(const Scaffold(body: ChatProductivityBar())),
-        );
+        // The inbox scope row (folders replace the base types once configured)
+        // replaced the old folder-only productivity bar.
+        await tester.pumpWidget(app(const Scaffold(body: ChatFilterBar())));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
+        expect(
+          find.byKey(const ValueKey<String>('chat-filter-folder-folder')),
+          findsOneWidget,
+        );
+        expect(find.text('Все'), findsOneWidget);
+        final moreButton = find.byKey(
+          const ValueKey<String>('chat-filter-more'),
+        );
+        await tester.ensureVisible(moreButton);
+        await tester.tap(moreButton);
+        await tester.pumpAndSettle();
+        expect(
+          find.widgetWithText(MenuItemButton, 'Папки чатов'),
+          findsOneWidget,
+        );
+        await tester.tapAt(const Offset(4, 4));
+        await tester.pumpAndSettle();
         await tester.pumpWidget(app(const Scaffold(body: ChatFolderEditor())));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);

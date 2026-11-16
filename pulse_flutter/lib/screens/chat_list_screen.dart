@@ -32,7 +32,7 @@ import 'package:pulse_flutter/widgets/chat_tile.dart';
 import 'package:pulse_flutter/widgets/empty_state_widget.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
-import 'package:pulse_flutter/widgets/chat/chat_list_filter_bar.dart';
+import 'package:pulse_flutter/widgets/chat/chat_filter_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -50,9 +50,6 @@ class ChatListScreen extends ConsumerStatefulWidget {
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   static final RegExp _forwardedPattern = RegExp(r'^_fwd from\s+(.+?):');
-
-  /// Shared radius of a chat row and of the swipe action painted behind it.
-  static const double _kChatRowRadius = AppRadii.lg;
 
   @override
   void initState() {
@@ -161,6 +158,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           )
         : ref.watch(desktopSelectedChatProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool fabVisible = ref.watch(chatListFabVisibleProvider);
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
@@ -172,7 +170,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       child: Focus(
         child: Scaffold(
           appBar: PreferredSize(
-            preferredSize: Size.fromHeight(ChatListHeader.heightFor(context)),
+            preferredSize: Size.fromHeight(
+              ChatListHeader.heightFor(context, compact: compact),
+            ),
             child: const ChatListHeader(),
           ),
           backgroundColor: Colors.transparent,
@@ -181,9 +181,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
               await _retryChats();
             },
-            displacement: 40,
+            displacement: 24,
             color: scheme.primary,
-            backgroundColor: scheme.surfaceContainerHigh,
+            backgroundColor: scheme.surfaceContainerHighest,
             elevation: 0,
             child: NotificationListener<ScrollNotification>(
               onNotification: _handleScrollNotification,
@@ -191,17 +191,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: <Widget>[
                   SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const <Widget>[
-                          SizedBox(height: 4),
-                          RepaintBoundary(child: ChatListFilterBar()),
-                          ChatProductivityBar(showShortcuts: false),
-                          SizedBox(height: 12),
-                        ],
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        // 8 above the 40 dp control row, 12 below it: the row
+                        // holds its own 16 dp horizontal inset.
+                        const SizedBox(height: 8),
+                        RepaintBoundary(child: ChatFilterBar(compact: compact)),
+                        const SizedBox(height: 12),
+                      ],
                     ),
                   ),
                   const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
@@ -215,7 +213,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   ),
                   SliverPadding(
                     padding: EdgeInsets.only(
-                      bottom: 88 + MediaQuery.viewPaddingOf(context).bottom,
+                      // 24 resting + the 56 dp FAB and its 16 dp gap when the
+                      // floating button is visible + the system inset.
+                      bottom:
+                          24 +
+                          (fabVisible ? 72 : 0) +
+                          MediaQuery.viewPaddingOf(context).bottom,
                     ),
                   ),
                 ],
@@ -231,6 +234,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   static const double _kScrollHysteresis = 28.0;
 
   bool _handleScrollNotification(ScrollNotification notification) {
+    ref
+        .read(chatListScrolledProvider.notifier)
+        .setScrolled(notification.metrics.pixels > ChatListHeader.scrimOffset);
     if (notification.metrics.pixels <= 0) {
       ref.read(chatListFabVisibleProvider.notifier).show();
       _scrollDistance = 0.0;
@@ -260,7 +266,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   }
 
   Widget _savedShortcut(ColorScheme scheme, bool compact) => SliverPadding(
-    padding: const EdgeInsets.symmetric(horizontal: 10),
+    padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
     sliver: SliverToBoxAdapter(
       child: ChatTile(
         key: const ValueKey('saved-chat-shortcut'),
@@ -271,7 +277,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         avatarText: context.l10n.savedMessagesTitle,
         avatarColor: scheme.primaryContainer,
         isSaved: true,
-        isPinned: true,
         compact: compact,
         onTap: () => openSavedMessages(context, ref),
       ),
@@ -402,7 +407,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     return <Widget>[
       if (showSavedShortcut) _savedShortcut(scheme, compact),
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             (BuildContext context, int index) {
@@ -412,11 +417,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 direction: chat.unreadCount > 0
                     ? DismissDirection.startToEnd
                     : DismissDirection.none,
+                // 35% (~119 dp on a 340 dp row) leaves room for the whole
+                // "Прочитано" label; 40% used to trigger on a clipped label.
+                dismissThresholds: const <DismissDirection, double>{
+                  DismissDirection.startToEnd: 0.35,
+                },
                 background: _swipeBackground(
-                  scheme: scheme,
-                  alignment: Alignment.centerLeft,
+                  context: context,
                   icon: Icons.done_all_rounded,
-                  label: context.l10n.chatListMarkRead,
+                  label: context.l10n.deliveryRead,
                 ),
                 confirmDismiss: (DismissDirection direction) async {
                   if (ref.read(uiSettingsProvider).haptics) {
@@ -514,6 +523,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                 : null
                           : null,
                       chatId: chat.id,
+                      keyMismatch: chat.keyMismatch,
                       isSelected: desktopChatId == chat.id,
                       onTap: () {
                         if (ref
@@ -537,7 +547,16 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 ),
               );
 
-              return RepaintBoundary(key: ValueKey<int>(chat.id), child: item);
+              return RepaintBoundary(
+                key: ValueKey<int>(chat.id),
+                child: Padding(
+                  // 2 dp: unread tiles used to fuse into one block.
+                  padding: EdgeInsets.only(
+                    bottom: index == filtered.length - 1 ? 0 : 2,
+                  ),
+                  child: item,
+                ),
+              );
             },
             addAutomaticKeepAlives: false,
             addRepaintBoundaries: false,
@@ -673,44 +692,39 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     return NiosMark.resolveColor('$seed', scheme);
   }
 
+  /// Action painted behind a row that is being swiped towards the start.
+  ///
+  /// No vertical margin: the 2 dp gap lives between the tiles, so the backdrop
+  /// must not shrink behind them. The radius is the tile radius, and the text
+  /// is `labelLarge` so the label fits the 35% reveal.
   Widget _swipeBackground({
-    required ColorScheme scheme,
-    required Alignment alignment,
+    required BuildContext context,
     required IconData icon,
     required String label,
   }) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final BorderRadius radius = AppRadii.of(context).lgRadius;
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 1),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(_kChatRowRadius),
+        color: scheme.secondaryContainer,
+        borderRadius: radius,
       ),
-      alignment: alignment,
+      alignment: AlignmentDirectional.centerStart,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          if (alignment == Alignment.centerRight) ...<Widget>[
-            Text(
-              label,
-              style: TextStyle(
-                color: scheme.primary,
-                fontWeight: FontWeight.w700,
-              ),
+          Icon(icon, size: 20, color: scheme.onSecondaryContainer),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            maxLines: 1,
+            style: textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: scheme.onSecondaryContainer,
             ),
-            const SizedBox(width: 8),
-          ],
-          Icon(icon, color: scheme.primary),
-          if (alignment == Alignment.centerLeft) ...<Widget>[
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: scheme.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );

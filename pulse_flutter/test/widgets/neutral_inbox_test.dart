@@ -416,7 +416,7 @@ void main() {
             final nav = find.byType(NavigationBar);
             expect(nav, findsOneWidget);
             expect(tester.getSize(nav).width, 390);
-            expect(tester.getSize(nav).height, 66);
+            expect(tester.getSize(nav).height, 80);
             expect(tester.getBottomLeft(nav).dx, 0);
             expect(tester.getBottomLeft(nav).dy, 844);
 
@@ -442,7 +442,27 @@ void main() {
             }
 
             await captureStep('01-inbox');
-            expect(find.byType(FilterChip), findsNWidgets(4));
+            // One scope row: [Все] [Непрочитанные] [Группы] plus the "⋯" menu
+            // (this fixture configures no folders, so types stay in the row).
+            expect(find.byType(FilterChip), findsNothing);
+            for (final String key in <String>[
+              'chat-filter-all',
+              'chat-filter-unread',
+              'chat-filter-groups',
+              'chat-filter-more',
+            ]) {
+              expect(find.byKey(ValueKey<String>(key)), findsOneWidget);
+            }
+            expect(
+              tester
+                  .getSize(
+                    find.byKey(const ValueKey<String>('chat-filter-all')),
+                  )
+                  .height,
+              // 40 dp at the default scale; the pill only grows when the
+              // scaled label needs the room.
+              scale == 1 ? 40 : greaterThanOrEqualTo(40),
+            );
             expect(find.text('never-display-ciphertext'), findsNothing);
             expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
             expect(
@@ -503,20 +523,22 @@ void main() {
             expect(find.text('compose-person'), findsOneWidget);
             router.pop();
             await tester.pumpAndSettle();
-            final typeFilter = find.byKey(const ValueKey('chat-filter-type'));
-            final groupsLabel = locale == 'ru' ? 'Группы' : 'Groups';
-            await tester.ensureVisible(
-              find.widgetWithText(FilterChip, groupsLabel),
+            final moreFilter = find.byKey(
+              const ValueKey<String>('chat-filter-more'),
             );
-            await tester.tap(find.widgetWithText(FilterChip, groupsLabel));
+            final groupsPill = find.byKey(
+              const ValueKey<String>('chat-filter-groups'),
+            );
+            await tester.ensureVisible(groupsPill);
+            await tester.tap(groupsPill);
             await tester.pumpAndSettle();
             expect(find.byType(ChatTile), findsOneWidget);
             expect(
               find.text('Ирина: Обсуждаем планы на выходные'),
               findsOneWidget,
             );
-            await tester.ensureVisible(typeFilter);
-            await tester.tap(typeFilter);
+            await tester.ensureVisible(moreFilter);
+            await tester.tap(moreFilter);
             await tester.pumpAndSettle();
             await tester.tap(
               find.widgetWithText(
@@ -533,12 +555,17 @@ void main() {
               ),
               findsOneWidget,
             );
-            await tester.ensureVisible(typeFilter);
-            await tester.tap(typeFilter);
+            await tester.ensureVisible(moreFilter);
+            await tester.tap(moreFilter);
             await tester.pumpAndSettle();
-            // Resolve the existing localized label from the category menu.
-            final directItem = find.byType(MenuItemButton).first;
-            await tester.tap(directItem);
+            // The menu always lists every type; pick "Личные" explicitly
+            // (the first entry is "Все", which would clear the filter).
+            await tester.tap(
+              find.widgetWithText(
+                MenuItemButton,
+                locale == 'ru' ? 'Личные' : 'Direct',
+              ),
+            );
             await tester.pumpAndSettle();
             expect(find.text('NiosAI'), findsNothing);
             expect(find.text('Хорошо, договорились'), findsOneWidget);
@@ -551,11 +578,11 @@ void main() {
               findsOneWidget,
             );
             await captureStep('03-direct');
-            final unreadLabel = locale == 'ru' ? 'Непрочитанные' : 'Unread';
-            await tester.ensureVisible(
-              find.widgetWithText(FilterChip, unreadLabel),
+            final unreadPill = find.byKey(
+              const ValueKey<String>('chat-filter-unread'),
             );
-            await tester.tap(find.widgetWithText(FilterChip, unreadLabel));
+            await tester.ensureVisible(unreadPill);
+            await tester.tap(unreadPill);
             await tester.pumpAndSettle();
             expect(find.byType(ChatTile), findsNWidgets(2));
             await tester.longPress(find.text('Ирина'));
@@ -601,7 +628,8 @@ void main() {
             tester.view.viewPadding = const FakeViewPadding(bottom: 34);
             addTearDown(tester.view.resetViewPadding);
             await tester.pumpAndSettle();
-            expect(tester.getSize(nav).height, 100);
+            // 80 dp docked bar + the 34 dp system inset.
+            expect(tester.getSize(nav).height, 114);
             expect(tester.takeException(), isNull);
             expect(soundInitializations, 0);
             await tester.pumpWidget(const SizedBox());

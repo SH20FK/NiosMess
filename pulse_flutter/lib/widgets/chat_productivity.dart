@@ -16,7 +16,6 @@ import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
-import 'package:pulse_flutter/widgets/motion/m3_selection_motion.dart';
 
 class ProductivityIcon extends StatelessWidget {
   const ProductivityIcon(this.name, {super.key, this.size = 20, this.color});
@@ -81,71 +80,12 @@ Future<void> openSavedMessages(BuildContext context, WidgetRef ref) async {
   }
 }
 
-class ChatProductivityBar extends ConsumerWidget {
-  const ChatProductivityBar({super.key, this.showShortcuts = false});
-
-  /// Retained for source compatibility: the inbox header still passes
-  /// `showShortcuts: false`. The row itself was dead code (no caller ever
-  /// passed `true`) and pushed screens through `Navigator` instead of
-  /// go_router, so it has been removed.
-  final bool showShortcuts;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = context.l10n;
-    final foldersValue = ref.watch(chatFoldersProvider);
-    final folders = foldersValue.value ?? const <ChatFolder>[];
-    final selected = ref.watch(selectedChatFolderProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (foldersValue.hasError && folders.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: ActionChip(
-              avatar: const Icon(Icons.refresh_rounded, size: 18),
-              label: Text('${l.inboxFoldersUnavailable} · ${l.commonRetry}'),
-              onPressed: () => ref.invalidate(chatFoldersProvider),
-            ),
-          ),
-        if (folders.isNotEmpty)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: M3SelectionMotion(
-                    selected: selected == null,
-                    child: FilterChip(
-                      label: Text(l.inboxAllFolders),
-                      selected: selected == null,
-                      onSelected: (_) => ref
-                          .read(selectedChatFolderProvider.notifier)
-                          .select(null),
-                    ),
-                  ),
-                ),
-                for (final folder in folders)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: M3SelectionMotion(
-                      selected: selected == folder.id,
-                      child: FilterChip(
-                        label: CustomEmojiText(folder.title),
-                        selected: selected == folder.id,
-                        onSelected: (_) => ref
-                            .read(selectedChatFolderProvider.notifier)
-                            .select(selected == folder.id ? null : folder.id),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
+/// Opens folder management from the inbox scope strip (the "⋯" menu item
+/// and the long-press on a folder pill).
+Future<void> openChatFolders(BuildContext context) {
+  return Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => const ChatFoldersScreen()),
+  );
 }
 
 class ChatFoldersScreen extends ConsumerWidget {

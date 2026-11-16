@@ -29,6 +29,8 @@ class TouchContainer extends StatefulWidget {
     this.scaleDown = AppMotion.scalePressed,
     this.releaseCurve,
     this.boxShadow,
+    this.stateLayer = true,
+    this.stateLayerColor,
   });
 
   /// The child widget.
@@ -87,6 +89,14 @@ class TouchContainer extends StatefulWidget {
 
   /// Optional box shadows.
   final List<BoxShadow>? boxShadow;
+
+  /// Material 3 pressed state layer. Painted above the child (never a blur) so
+  /// every [TouchContainer] gets the standard 8% `onSurface` press feedback on
+  /// top of the scale animation.
+  final bool stateLayer;
+
+  /// Override for the state-layer fill (defaults to `onSurface @ 8%`).
+  final Color? stateLayerColor;
 
   @override
   State<TouchContainer> createState() => _TouchContainerState();
@@ -151,18 +161,35 @@ class _TouchContainerState extends State<TouchContainer> {
   Widget build(BuildContext context) {
     final BorderRadius effectiveRadius =
         widget.borderRadius ?? AppRadii.mdRadius;
+    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final Color stateLayerColor =
+        widget.stateLayerColor ??
+        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
 
-    final Widget container = Container(
+    final Widget container = AnimatedContainer(
       width: widget.width,
       height: widget.height,
       padding: widget.padding,
       margin: widget.margin,
+      duration: reduceMotion
+          ? Duration.zero
+          : _isPressed
+          ? AppMotion.durationPress
+          : AppMotion.durationRelease,
+      curve: _isPressed
+          ? Curves.easeOutCubic
+          : (widget.releaseCurve ?? AppMotion.spring),
       decoration: BoxDecoration(
         color: widget.color,
         borderRadius: effectiveRadius,
         border: widget.border,
         boxShadow: widget.boxShadow,
       ),
+      // Foreground (not background) so the 8% press layer reads on top of the
+      // tile/button fill exactly like an M3 InkWell highlight — without blur.
+      foregroundDecoration: widget.stateLayer && _isPressed
+          ? BoxDecoration(color: stateLayerColor, borderRadius: effectiveRadius)
+          : null,
       clipBehavior: widget.clipBehavior,
       child: widget.child,
     );

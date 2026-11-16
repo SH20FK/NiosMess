@@ -411,49 +411,63 @@ void main() {
     });
   }
 
-  testWidgets('read action is shown only when the chat has unread messages', (
-    tester,
-  ) async {
-    for (final unread in [0, 2]) {
-      ChatActionResult? selected;
-      await tester.pumpWidget(
-        app(
-          Builder(
-            builder: (context) => TextButton(
-              onPressed: () async {
-                selected = await ChatActionsModal.show(
-                  context,
-                  chat: ApiChatSummary(
-                    id: 1,
-                    name: 'Саша',
-                    chatType: 'direct',
-                    unreadCount: unread,
-                    membersCount: 2,
-                  ),
-                  avatarColor: Theme.of(context).colorScheme.primaryContainer,
-                );
-              },
-              child: const Text('open'),
+  testWidgets(
+    'read action is always listed and only enabled when messages are unread',
+    (tester) async {
+      for (final unread in [0, 2]) {
+        ChatActionResult? selected;
+        await tester.pumpWidget(
+          app(
+            Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  selected = await ChatActionsModal.show(
+                    context,
+                    chat: ApiChatSummary(
+                      id: 1,
+                      name: 'Саша',
+                      chatType: 'direct',
+                      unreadCount: unread,
+                      membersCount: 2,
+                    ),
+                    avatarColor: Theme.of(context).colorScheme.primaryContainer,
+                  );
+                },
+                child: const Text('open'),
+              ),
             ),
           ),
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Отметить прочитанным'),
-        unread > 0 ? findsOneWidget : findsNothing,
-      );
-      if (unread > 0) {
-        await tester.tap(find.text('Отметить прочитанным'));
+        );
+        await tester.tap(find.text('open'));
         await tester.pumpAndSettle();
-        expect(selected, ChatActionResult.markRead);
-      } else {
-        await tester.binding.handlePopRoute();
-        await tester.pumpAndSettle();
+        // The row is never filtered out: the menu must not change height or
+        // shift the destructive action under the pointer.
+        expect(find.text('Отметить прочитанным'), findsOneWidget);
+
+        final InkWell row = tester.widget<InkWell>(
+          find
+              .ancestor(
+                of: find.text('Отметить прочитанным'),
+                matching: find.byType(InkWell),
+              )
+              .first,
+        );
+        if (unread > 0) {
+          expect(row.onTap, isNotNull);
+          await tester.tap(find.text('Отметить прочитанным'));
+          await tester.pumpAndSettle();
+          expect(selected, ChatActionResult.markRead);
+        } else {
+          expect(row.onTap, isNull);
+          await tester.tap(find.text('Отметить прочитанным'));
+          await tester.pumpAndSettle();
+          expect(selected, isNull);
+          await tester.binding.handlePopRoute();
+          await tester.pumpAndSettle();
+        }
       }
-    }
-  });
+    },
+  );
 
   testWidgets(
     'delivery transitions keep the same timestamp and status geometry at large text',

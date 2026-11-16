@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
+import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
 import 'package:universal_io/io.dart';
@@ -40,6 +42,19 @@ import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/services/account_background_policy.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
+
+/// Max readable width of the inbox pane. On tablets/desktop the list is
+/// centred inside this budget instead of stretching edge to edge
+/// (INBOX_VISUAL_AUDIT_2026-11-16, P0 #3).
+const double kInboxContentMaxWidth = 640.0;
+
+/// Vertical space the inbox list keeps free for the composer FAB:
+/// 16 gap + 56 button + 16 gap. `ChatListScreen` reserves the same amount as
+/// trailing sliver padding, so the last row can always scroll above the FAB.
+const double kInboxComposerClearance = 88.0;
+
+/// Gap between the composer FAB and the pane edge / navigation bar.
+const double kInboxComposerMargin = 16.0;
 
 class MainShellScreen extends ConsumerStatefulWidget {
   const MainShellScreen({
@@ -292,6 +307,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     if (oldWidget.tab != widget.tab) {
       _mainScrolling = false;
       _lastBackPressTime = null;
+      _revealComposer();
       final int nextIndex = _tabIndex(widget.tab);
       if (!_activatedTabs.contains(nextIndex)) {
         setState(() {
@@ -320,6 +336,20 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     return 0;
   }
 
+  /// The inbox hides the composer while the user scrolls down (owned by
+  /// `ChatListScreen`). Without this reset a hidden FAB would stay hidden
+  /// forever after switching tabs, so the primary action would silently
+  /// disappear from the inbox.
+  void _revealComposer() {
+    if (ref.read(chatListFabVisibleProvider)) return;
+    // Post-frame: `didUpdateWidget` runs while the tree is building and
+    // Riverpod forbids provider writes during build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(chatListFabVisibleProvider.notifier).show();
+    });
+  }
+
   void _onTapTab(int nextIndex) {
     if (nextIndex < 0 || nextIndex >= _tabs.length) {
       return;
@@ -331,6 +361,10 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     }
 
     _lastBackPressTime = null;
+
+    if (targetTab == 'chats') {
+      _revealComposer();
+    }
 
     if (!_activatedTabs.contains(nextIndex)) {
       setState(() {
@@ -428,6 +462,15 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                 maxChatListWidth,
               );
 
+              final bool desktopChatOpen =
+                  capabilities.browserWorkspace && desktopChatId != null;
+              // The body already ends above the navigation bar
+              // (`extendBody: false`); the system gesture inset only needs to
+              // be added when no bar is painted at all (web workspace rail).
+              final double composerBottomInset = webRail
+                  ? MediaQuery.viewPaddingOf(context).bottom
+                  : 0;
+
               final List<Widget> pages = <Widget>[
                 if (isWide)
                   Row(
@@ -435,16 +478,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                     children: <Widget>[
                       SizedBox(
                         width: effectiveChatListWidth,
-                        child: const Stack(
-                          fit: StackFit.expand,
-                          children: <Widget>[
-                            ChatListScreen(),
-                            Positioned(
-                              right: 16,
-                              bottom: 16,
-                              child: InboxComposeButton(),
-                            ),
-                          ],
+                        child: _InboxPane(
+                          overlayComposer: true,
+                          bottomInset: composerBottomInset,
                         ),
                       ),
                       _DraggableSidebarDivider(
@@ -506,13 +542,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                     ],
                   )
                 else
-                  capabilities.browserWorkspace && desktopChatId != null
+                  desktopChatOpen
                       ? ChatDetailScreen(
                           key: ValueKey(desktopChatId),
                           chatId: desktopChatId.toString(),
                           highlightMessageId: widget.highlightMessageId,
                         )
-                      : const ChatListScreen(),
+                      : const _InboxPane(overlayComposer: false),
                 isWide
                     ? Center(
                         child: ConstrainedBox(
@@ -541,6 +577,15 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   }
                   if (notification is ScrollEndNotification) {
                     _mainScrolling = false;
+                    if (currentIndex == 0 &&
+                        notification.depth == 0 &&
+                        notification.metrics.axis == Axis.vertical &&
+                        notification.metrics.extentAfter <= 0) {
+                      // The list is parked at its end, where the composer would
+                      // sit right on top of the last row and its badge: keep it
+                      // hidden until the user scrolls back up.
+                      ref.read(chatListFabVisibleProvider.notifier).hide();
+                    }
                   }
                   _syncInteraction();
                   return false;
@@ -704,6 +749,93 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Inbox pane chrome shared by the compact and the list–detail layouts.
+///
+/// * The list is centred inside [kInboxContentMaxWidth] so tablet/desktop
+///   windows never stretch it edge to edge (audit P0 #3).
+/// * A tonal scrim covers the [kInboxComposerClearance] strip the list keeps
+///   free for the composer, so rows and unread badges never show through
+///   around the button (audit P0 #1).
+/// * In list–detail mode the composer is positioned here, inset-aware, with
+///   the exact clearance the list reserves at its end.
+class _InboxPane extends ConsumerWidget {
+  const _InboxPane({required this.overlayComposer, this.bottomInset = 0});
+
+  /// `true` in list–detail mode, where the shell owns the FAB position.
+  /// `false` on phones: the enclosing [Scaffold] docks the FAB.
+  final bool overlayComposer;
+
+  /// Extra bottom inset (system gesture area) for hosts without a nav bar.
+  final double bottomInset;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: kInboxContentMaxWidth),
+            child: const ChatListScreen(),
+          ),
+        ),
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: kInboxComposerClearance,
+          child: _InboxComposerScrim(),
+        ),
+        if (overlayComposer)
+          Positioned(
+            right: kInboxComposerMargin,
+            bottom: kInboxComposerMargin + bottomInset,
+            child: const InboxComposeButton(),
+          ),
+      ],
+    );
+  }
+}
+
+/// Tonal fade under the composer. No blur, no shadow: the pane backdrop is
+/// blended over the last rows so text and badges do not peek around the FAB.
+/// It follows the composer's own visibility, so scrolling down (which hides
+/// the FAB) leaves the list untouched.
+class _InboxComposerScrim extends ConsumerWidget {
+  const _InboxComposerScrim();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool visible = ref.watch(chatListFabVisibleProvider);
+    final Color backdrop = AppSurfaces.of(context);
+
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : M3Durations.short4,
+        curve: M3SpringCurves.expressiveDecel,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[
+                backdrop.withValues(alpha: 0),
+                backdrop.withValues(alpha: 0.72),
+                backdrop.withValues(alpha: 0.97),
+              ],
+              stops: const <double>[0, 0.55, 1],
+            ),
+          ),
         ),
       ),
     );

@@ -152,43 +152,75 @@ void main() {
   });
 
   group('Milestone 1: ChatFilterBar Tests', () {
-    testWidgets('filter selection animates and remains immediately usable', (
+    const allKey = ValueKey<String>('chat-filter-all');
+    const unreadKey = ValueKey<String>('chat-filter-unread');
+    const groupsKey = ValueKey<String>('chat-filter-groups');
+    const moreKey = ValueKey<String>('chat-filter-more');
+
+    ShapeDecoration pillDecoration(WidgetTester tester, Key key) =>
+        tester
+                .widget<AnimatedContainer>(
+                  find
+                      .descendant(
+                        of: find.byKey(key),
+                        matching: find.byType(AnimatedContainer),
+                      )
+                      .first,
+                )
+                .decoration!
+            as ShapeDecoration;
+
+    testWidgets('renders one 40 dp row of pills plus the overflow menu', (
       tester,
     ) async {
       await tester.pumpWidget(_buildTestApp(child: const ChatFilterBar()));
-      final unread = find.byKey(const ValueKey('chat-filter-unread'));
-      final chip = find.descendant(
-        of: unread,
-        matching: find.byType(FilterChip),
-      );
-      await tester.tap(chip);
-      await tester.pump();
-      final before = tester
-          .widget<Transform>(
-            find.descendant(of: unread, matching: find.byType(Transform)).first,
-          )
-          .transform
-          .entry(0, 0);
-      expect(
-        tester
-            .widget<Transform>(
-              find
-                  .descendant(of: unread, matching: find.byType(Transform))
-                  .first,
-            )
-            .transformHitTests,
-        isFalse,
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-      final during = tester
-          .widget<Transform>(
-            find.descendant(of: unread, matching: find.byType(Transform)).first,
-          )
-          .transform
-          .entry(0, 0);
-      expect(tester.widget<FilterChip>(chip).selected, isTrue);
-      expect(during, greaterThan(before));
       await tester.pumpAndSettle();
+
+      for (final key in <Key>[allKey, unreadKey, groupsKey, moreKey]) {
+        expect(find.byKey(key), findsOneWidget, reason: '$key');
+      }
+      // The legacy second row ("Тип чата") is gone: no chips, no type control.
+      expect(find.byType(FilterChip), findsNothing);
+      expect(find.text('Chat type'), findsNothing);
+      expect(find.text('Тип чата'), findsNothing);
+
+      // One row only: every control shares the same vertical centre and height.
+      final double centerY = tester.getCenter(find.byKey(allKey)).dy;
+      for (final key in <Key>[unreadKey, groupsKey, moreKey]) {
+        expect(tester.getCenter(find.byKey(key)).dy, centerY, reason: '$key');
+      }
+      expect(tester.getSize(find.byKey(allKey)).height, 40);
+      expect(tester.getSize(find.byKey(moreKey)).height, 40);
+      // Pills and the app bar share the 16 dp text column.
+      expect(tester.getTopLeft(find.byKey(allKey)).dx, 16);
+    });
+
+    testWidgets('selection swaps the fill and keeps the pill width stable', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_buildTestApp(child: const ChatFilterBar()));
+      await tester.pumpAndSettle();
+
+      final ColorScheme scheme = Theme.of(
+        tester.element(find.byType(ChatFilterBar)),
+      ).colorScheme;
+      final double widthBefore = tester.getSize(find.byKey(unreadKey)).width;
+      expect(
+        pillDecoration(tester, unreadKey).color,
+        scheme.surfaceContainerLow,
+      );
+      expect(pillDecoration(tester, allKey).color, scheme.secondaryContainer);
+
+      await tester.tap(find.byKey(unreadKey));
+      await tester.pumpAndSettle();
+
+      expect(
+        pillDecoration(tester, unreadKey).color,
+        scheme.secondaryContainer,
+      );
+      expect(pillDecoration(tester, allKey).color, scheme.surfaceContainerLow);
+      // The selected weight is constant (w600), so the row never reflows.
+      expect(tester.getSize(find.byKey(unreadKey)).width, widthBefore);
     });
 
     testWidgets(
@@ -209,56 +241,69 @@ void main() {
             ),
           ),
         );
-        final unread = find.byKey(const ValueKey('chat-filter-unread'));
         expect(
           tester
-              .widget<TweenAnimationBuilder<double>>(
+              .widget<AnimatedContainer>(
                 find
                     .descendant(
-                      of: unread,
-                      matching: find.byType(TweenAnimationBuilder<double>),
+                      of: find.byKey(unreadKey),
+                      matching: find.byType(AnimatedContainer),
                     )
                     .first,
               )
               .duration,
           Duration.zero,
         );
-        await tester.tap(
-          find.descendant(of: unread, matching: find.byType(FilterChip)),
-        );
+        await tester.tap(find.byKey(unreadKey));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       },
     );
 
-    testWidgets('shows groups and keeps remaining categories available', (
+    testWidgets('shows groups in the row and every type in the menu', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(_buildTestApp(child: const ChatFilterBar()));
       await tester.pumpAndSettle();
 
-      expect(find.byType(FilterChip), findsNWidgets(4));
-      final groups = find.byKey(const ValueKey('chat-filter-groups'));
-      await tester.ensureVisible(groups);
-      await tester.tap(
-        find.descendant(of: groups, matching: find.byType(FilterChip)),
+      await tester.tap(find.byKey(groupsKey));
+      await tester.pumpAndSettle();
+      final ColorScheme scheme = Theme.of(
+        tester.element(find.byType(ChatFilterBar)),
+      ).colorScheme;
+      expect(
+        pillDecoration(tester, groupsKey).color,
+        scheme.secondaryContainer,
       );
+
+      await tester.tap(find.byKey(moreKey));
+      await tester.pumpAndSettle();
+
+      // Six chat types + folder management.
+      expect(find.byType(MenuItemButton), findsNWidgets(7));
+      for (final label in [
+        'All',
+        'Unread',
+        'Groups',
+        'Channels',
+        'Direct',
+        'Bots',
+        'Chat folders',
+      ]) {
+        expect(find.widgetWithText(MenuItemButton, label), findsOneWidget);
+      }
+      // The active type carries the check mark.
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(MenuItemButton, 'Channels'));
       await tester.pumpAndSettle();
       expect(
-        tester
-            .widget<FilterChip>(
-              find.descendant(of: groups, matching: find.byType(FilterChip)),
-            )
-            .selected,
-        isTrue,
+        pillDecoration(tester, groupsKey).color,
+        scheme.surfaceContainerLow,
       );
-      final typeMenu = find.byKey(const ValueKey('chat-filter-type'));
-      await tester.ensureVisible(typeMenu);
-      await tester.tap(
-        find.descendant(of: typeMenu, matching: find.byType(FilterChip)),
-      );
+      await tester.tap(find.byKey(moreKey));
       await tester.pumpAndSettle();
-      expect(find.byType(MenuItemButton), findsNWidgets(3));
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     });
 
     testWidgets('does not duplicate global unread counts in filters', (
@@ -284,6 +329,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Chat scope pills never echo the global unread total: only folder pills
+      // (absent here) carry a VK-style counter.
       expect(find.text('3'), findsNothing);
     });
   });

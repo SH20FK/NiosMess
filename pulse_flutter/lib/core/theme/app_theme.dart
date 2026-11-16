@@ -87,9 +87,7 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           elevation: 0,
-          shape: RoundedSuperellipseBorder(
-            borderRadius: BorderRadius.circular(AppShape.control),
-          ),
+          shape: AppShape.controlBorder(),
           backgroundColor: scheme.primary,
           foregroundColor: scheme.onPrimary,
           textStyle: textTheme.labelLarge,
@@ -110,9 +108,7 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: scheme.primary,
           textStyle: textTheme.labelLarge,
-          shape: RoundedSuperellipseBorder(
-            borderRadius: BorderRadius.circular(AppShape.control),
-          ),
+          shape: AppShape.controlBorder(),
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
@@ -130,9 +126,9 @@ class AppTheme {
         backgroundColor: scheme.surfaceContainerLow,
         selectedColor: scheme.secondaryContainer,
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
-        shape: RoundedSuperellipseBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        // Chips are the one component family that owns the pill silhouette
+        // (`AppShape.pill` is reserved for chips, filter tags and status tags).
+        shape: AppShape.pill,
         labelStyle: textTheme.labelMedium,
         elevation: 0,
         pressElevation: 0,
@@ -236,9 +232,7 @@ class AppTheme {
         elevation: 0,
         backgroundColor: scheme.surfaceContainerHigh,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedSuperellipseBorder(
-          borderRadius: BorderRadius.circular(28),
-        ),
+        shape: AppShape.dialogBorder(),
         iconColor: scheme.primary,
         titleTextStyle: textTheme.titleLarge?.copyWith(
           fontSize: 24,
