@@ -78,6 +78,7 @@ Color _badgeColor(WidgetTester tester, Key pillKey) {
 void main() {
   const allKey = ValueKey<String>('chat-filter-all');
   const moreKey = ValueKey<String>('chat-filter-more');
+  const unreadKey = ValueKey<String>('chat-filter-unread');
   const workKey = ValueKey<String>('chat-filter-folder-work');
   const quietKey = ValueKey<String>('chat-filter-folder-quiet');
 
@@ -87,14 +88,12 @@ void main() {
     await tester.pumpWidget(_app(const ChatFilterBar()));
     await tester.pumpAndSettle();
 
-    for (final key in <Key>[allKey, workKey, quietKey, moreKey]) {
+    for (final key in <Key>[allKey, unreadKey, workKey, quietKey]) {
       expect(find.byKey(key), findsOneWidget, reason: '$key');
     }
-    // Chat types are menu-only while folders exist.
-    expect(
-      find.byKey(const ValueKey<String>('chat-filter-unread')),
-      findsNothing,
-    );
+    // All folders are visible at once; no overflow menu exists.
+    expect(find.byKey(moreKey), findsNothing);
+    // "Группы" duplicates folders, so it only appears when no folders exist.
     expect(
       find.byKey(const ValueKey<String>('chat-filter-groups')),
       findsNothing,
@@ -152,21 +151,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('the overflow menu keeps types and folder management', (
+  testWidgets('long-press on "Все" opens folder management', (
     tester,
   ) async {
     await tester.pumpWidget(_app(const ChatFilterBar()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(moreKey));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(MenuItemButton), findsNWidgets(7));
-    expect(find.widgetWithText(MenuItemButton, 'Каналы'), findsOneWidget);
-    expect(find.widgetWithText(MenuItemButton, 'Личные'), findsOneWidget);
-    expect(find.widgetWithText(MenuItemButton, 'Боты'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(MenuItemButton, 'Папки чатов'));
+    await tester.longPress(find.byKey(allKey));
     await tester.pumpAndSettle();
     expect(find.byType(ChatFoldersScreen), findsOneWidget);
   });

@@ -170,27 +170,28 @@ void main() {
                 .decoration!
             as ShapeDecoration;
 
-    testWidgets('renders one 40 dp row of pills plus the overflow menu', (
+    testWidgets('renders one 40 dp row of pills without an overflow menu', (
       tester,
     ) async {
       await tester.pumpWidget(_buildTestApp(child: const ChatFilterBar()));
       await tester.pumpAndSettle();
 
-      for (final key in <Key>[allKey, unreadKey, groupsKey, moreKey]) {
+      for (final key in <Key>[allKey, unreadKey, groupsKey]) {
         expect(find.byKey(key), findsOneWidget, reason: '$key');
       }
+      // Types are shown directly in the row; the old "⋯" menu is gone.
+      expect(find.byKey(moreKey), findsNothing);
       // The legacy second row ("Тип чата") is gone: no chips, no type control.
       expect(find.byType(FilterChip), findsNothing);
       expect(find.text('Chat type'), findsNothing);
       expect(find.text('Тип чата'), findsNothing);
 
-      // One row only: every control shares the same vertical centre and height.
+      // One row only: every visible control shares the same vertical centre.
       final double centerY = tester.getCenter(find.byKey(allKey)).dy;
-      for (final key in <Key>[unreadKey, groupsKey, moreKey]) {
+      for (final key in <Key>[unreadKey, groupsKey]) {
         expect(tester.getCenter(find.byKey(key)).dy, centerY, reason: '$key');
       }
       expect(tester.getSize(find.byKey(allKey)).height, 40);
-      expect(tester.getSize(find.byKey(moreKey)).height, 40);
       // Pills and the app bar share the 16 dp text column.
       expect(tester.getTopLeft(find.byKey(allKey)).dx, 16);
     });
@@ -260,7 +261,7 @@ void main() {
       },
     );
 
-    testWidgets('shows groups in the row and every type in the menu', (
+    testWidgets('shows every chat type as a pill in the row', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(_buildTestApp(child: const ChatFilterBar()));
@@ -276,34 +277,20 @@ void main() {
         scheme.secondaryContainer,
       );
 
-      await tester.tap(find.byKey(moreKey));
-      await tester.pumpAndSettle();
-
-      // Six chat types + folder management.
-      expect(find.byType(MenuItemButton), findsNWidgets(7));
-      for (final label in [
-        'All',
-        'Unread',
-        'Groups',
-        'Channels',
-        'Direct',
-        'Bots',
-        'Chat folders',
-      ]) {
-        expect(find.widgetWithText(MenuItemButton, label), findsOneWidget);
-      }
-      // The active type carries the check mark.
-      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
-
-      await tester.tap(find.widgetWithText(MenuItemButton, 'Channels'));
+      // The overflow menu is gone: the remaining types are pills in the row.
+      expect(find.byKey(moreKey), findsNothing);
+      const channelsKey = ValueKey<String>('chat-filter-channels');
+      await tester.ensureVisible(find.byKey(channelsKey));
+      await tester.tap(find.byKey(channelsKey));
       await tester.pumpAndSettle();
       expect(
         pillDecoration(tester, groupsKey).color,
         scheme.surfaceContainerLow,
       );
-      await tester.tap(find.byKey(moreKey));
-      await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      expect(
+        pillDecoration(tester, channelsKey).color,
+        scheme.secondaryContainer,
+      );
     });
 
     testWidgets('does not duplicate global unread counts in filters', (

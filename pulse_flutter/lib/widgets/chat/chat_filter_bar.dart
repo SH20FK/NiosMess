@@ -16,18 +16,17 @@ import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart'
     show openChatFolders;
 
-/// Inbox scope strip: exactly one 40 dp row.
+/// Inbox scope strip: exactly one 40 dp row, no overflow menu.
 ///
-/// Two axes used to compete for the same space (chat types and folders), which
-/// produced a duplicated, jittery pair of rows. The strip now has a single row
-/// and one trailing "⋯" menu:
+/// The row shows every folder immediately (horizontally scrollable), so the
+/// user never has to open a menu to reach a folder:
 ///
-/// * folders configured → `[Все] [folder…] [⋯]`, chat types live in the menu;
-/// * no folders → `[Все] [Непрочитанные] [Группы] [⋯]`, the remaining types
-///   (channels / direct / bots) live in the menu.
+/// * folders configured → `[Все] [Непрочитанные] [folder…]`;
+/// * no folders → `[Все] [Непрочитанные] [Группы] [Каналы] [Личные] [Боты]`.
 ///
 /// "Все" resets both axes (folder + type), so it can never advertise a wider
-/// result set than the list actually shows.
+/// result set than the list actually shows. Long-press on "Все" (or on any
+/// folder) opens folder management, which replaces the old menu entry.
 class ChatFilterBar extends ConsumerWidget {
   const ChatFilterBar({super.key, this.compact = false});
 
@@ -90,6 +89,16 @@ class ChatFilterBar extends ConsumerWidget {
         selected: filter == ChatFilter.all && selectedFolderId == null,
         minHeight: rowHeight,
         onTap: resetAll,
+        // Folder management lives behind a long-press on "Все" once the
+        // overflow menu is gone.
+        onLongPress: () => openChatFolders(context),
+      ),
+      _FilterPill(
+        key: const ValueKey<String>('chat-filter-unread'),
+        label: Text(l.chatListFilterUnread),
+        selected: filter == ChatFilter.unread,
+        minHeight: rowHeight,
+        onTap: () => selectFilter(ChatFilter.unread),
       ),
       if (hasFolders)
         for (final ChatFolder folder in folders)
@@ -108,34 +117,34 @@ class ChatFilterBar extends ConsumerWidget {
           )
       else ...<Widget>[
         _FilterPill(
-          key: const ValueKey<String>('chat-filter-unread'),
-          label: Text(l.chatListFilterUnread),
-          selected: filter == ChatFilter.unread,
-          minHeight: rowHeight,
-          onTap: () => selectFilter(ChatFilter.unread),
-        ),
-        _FilterPill(
           key: const ValueKey<String>('chat-filter-groups'),
           label: Text(l.chatListFilterGroups),
           selected: filter == ChatFilter.groups,
           minHeight: rowHeight,
           onTap: () => selectFilter(ChatFilter.groups),
         ),
+        _FilterPill(
+          key: const ValueKey<String>('chat-filter-channels'),
+          label: Text(l.chatListFilterChannels),
+          selected: filter == ChatFilter.channels,
+          minHeight: rowHeight,
+          onTap: () => selectFilter(ChatFilter.channels),
+        ),
+        _FilterPill(
+          key: const ValueKey<String>('chat-filter-direct'),
+          label: Text(l.chatListFilterDirect),
+          selected: filter == ChatFilter.direct,
+          minHeight: rowHeight,
+          onTap: () => selectFilter(ChatFilter.direct),
+        ),
+        _FilterPill(
+          key: const ValueKey<String>('chat-filter-bots'),
+          label: Text(l.chatListFilterBots),
+          selected: filter == ChatFilter.bots,
+          minHeight: rowHeight,
+          onTap: () => selectFilter(ChatFilter.bots),
+        ),
       ],
-      _FilterMenu(
-        key: const ValueKey<String>('chat-filter-more'),
-        current: filter,
-        minHeight: rowHeight,
-        // A menu-only type is active: show a dot so the row never silently
-        // disagrees with the list.
-        highlight: switch (filter) {
-          ChatFilter.all => false,
-          ChatFilter.unread || ChatFilter.groups => hasFolders,
-          ChatFilter.channels || ChatFilter.direct || ChatFilter.bots => true,
-        },
-        onSelect: selectFilter,
-        onManageFolders: () => openChatFolders(context),
-      ),
     ];
 
     return SizedBox(
@@ -328,150 +337,6 @@ class _PillBadge extends StatelessWidget {
                   color: alert ? scheme.onPrimary : scheme.onSurfaceVariant,
                 ),
       ),
-    );
-  }
-}
-
-/// The trailing "⋯" pill: every chat type plus folder management.
-class _FilterMenu extends StatelessWidget {
-  const _FilterMenu({
-    super.key,
-    required this.current,
-    required this.minHeight,
-    required this.highlight,
-    required this.onSelect,
-    required this.onManageFolders,
-  });
-
-  final ChatFilter current;
-  final double minHeight;
-  final bool highlight;
-  final ValueChanged<ChatFilter> onSelect;
-  final VoidCallback onManageFolders;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = context.l10n;
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
-
-    final List<({ChatFilter value, String label, IconData icon})> types =
-        <({ChatFilter value, String label, IconData icon})>[
-          (
-            value: ChatFilter.all,
-            label: l.chatListFilterAll,
-            icon: Icons.forum_outlined,
-          ),
-          (
-            value: ChatFilter.unread,
-            label: l.chatListFilterUnread,
-            icon: Icons.mark_email_unread_outlined,
-          ),
-          (
-            value: ChatFilter.groups,
-            label: l.chatListFilterGroups,
-            icon: Icons.groups_outlined,
-          ),
-          (
-            value: ChatFilter.channels,
-            label: l.chatListFilterChannels,
-            icon: Icons.campaign_outlined,
-          ),
-          (
-            value: ChatFilter.direct,
-            label: l.chatListFilterDirect,
-            icon: Icons.person_outline_rounded,
-          ),
-          (
-            value: ChatFilter.bots,
-            label: l.chatListFilterBots,
-            icon: Icons.smart_toy_outlined,
-          ),
-        ];
-
-    return MenuAnchor(
-      menuChildren: <Widget>[
-        for (final entry in types)
-          MenuItemButton(
-            leadingIcon: Icon(
-              current == entry.value ? Icons.check_rounded : entry.icon,
-              size: 20,
-              color: current == entry.value ? scheme.primary : null,
-            ),
-            onPressed: () => onSelect(entry.value),
-            child: Text(entry.label),
-          ),
-        const Divider(height: 9, indent: 12, endIndent: 12),
-        MenuItemButton(
-          leadingIcon: const Icon(Icons.folder_outlined, size: 20),
-          onPressed: onManageFolders,
-          child: Text(l.inboxFolders),
-        ),
-      ],
-      builder:
-          (BuildContext context, MenuController controller, Widget? child) {
-            final bool open = controller.isOpen;
-            return Semantics(
-              button: true,
-              label: l.inboxChatType,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => open ? controller.close() : controller.open(),
-                child: AnimatedContainer(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 200),
-                  curve: M3SpringCurves.gentle,
-                  // Square target: the overflow control must read as a control,
-                  // not as a text pill.
-                  constraints: BoxConstraints.tightFor(
-                    width: minHeight,
-                    height: minHeight,
-                  ),
-                  decoration: ShapeDecoration(
-                    color: open
-                        ? scheme.secondaryContainer
-                        : scheme.surfaceContainerLow,
-                    shape: StadiumBorder(
-                      side: BorderSide(
-                        color: open
-                            ? Colors.transparent
-                            : scheme.outlineVariant.withValues(alpha: 0.35),
-                      ),
-                    ),
-                  ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: <Widget>[
-                      Icon(
-                        Icons.more_horiz_rounded,
-                        size: 20,
-                        color: open
-                            ? scheme.onSecondaryContainer
-                            : scheme.onSurfaceVariant,
-                      ),
-                      if (highlight)
-                        Positioned(
-                          // Inside the pill: the 40 dp row clips anything that
-                          // paints above it.
-                          right: 5,
-                          top: 5,
-                          child: Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: scheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
     );
   }
 }

@@ -442,17 +442,20 @@ void main() {
             }
 
             await captureStep('01-inbox');
-            // One scope row: [Все] [Непрочитанные] [Группы] plus the "⋯" menu
-            // (this fixture configures no folders, so types stay in the row).
+            // One scope row: [Все] [Непрочитанные] [Группы] [Каналы] [Личные]
+            // [Боты] — every filter is visible, there is no overflow menu.
             expect(find.byType(FilterChip), findsNothing);
             for (final String key in <String>[
               'chat-filter-all',
               'chat-filter-unread',
               'chat-filter-groups',
-              'chat-filter-more',
             ]) {
               expect(find.byKey(ValueKey<String>(key)), findsOneWidget);
             }
+            expect(
+              find.byKey(const ValueKey<String>('chat-filter-more')),
+              findsNothing,
+            );
             expect(
               tester
                   .getSize(
@@ -523,8 +526,11 @@ void main() {
             expect(find.text('compose-person'), findsOneWidget);
             router.pop();
             await tester.pumpAndSettle();
-            final moreFilter = find.byKey(
-              const ValueKey<String>('chat-filter-more'),
+            final channelsPill = find.byKey(
+              const ValueKey<String>('chat-filter-channels'),
+            );
+            final directPill = find.byKey(
+              const ValueKey<String>('chat-filter-direct'),
             );
             final groupsPill = find.byKey(
               const ValueKey<String>('chat-filter-groups'),
@@ -537,15 +543,8 @@ void main() {
               find.text('Ирина: Обсуждаем планы на выходные'),
               findsOneWidget,
             );
-            await tester.ensureVisible(moreFilter);
-            await tester.tap(moreFilter);
-            await tester.pumpAndSettle();
-            await tester.tap(
-              find.widgetWithText(
-                MenuItemButton,
-                locale == 'ru' ? 'Каналы' : 'Channels',
-              ),
-            );
+            await tester.ensureVisible(channelsPill);
+            await tester.tap(channelsPill);
             await tester.pumpAndSettle();
             expect(
               find.text(
@@ -555,17 +554,8 @@ void main() {
               ),
               findsOneWidget,
             );
-            await tester.ensureVisible(moreFilter);
-            await tester.tap(moreFilter);
-            await tester.pumpAndSettle();
-            // The menu always lists every type; pick "Личные" explicitly
-            // (the first entry is "Все", which would clear the filter).
-            await tester.tap(
-              find.widgetWithText(
-                MenuItemButton,
-                locale == 'ru' ? 'Личные' : 'Direct',
-              ),
-            );
+            await tester.ensureVisible(directPill);
+            await tester.tap(directPill);
             await tester.pumpAndSettle();
             expect(find.text('NiosAI'), findsNothing);
             expect(find.text('Хорошо, договорились'), findsOneWidget);
