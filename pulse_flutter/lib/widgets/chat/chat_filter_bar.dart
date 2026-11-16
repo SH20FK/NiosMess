@@ -30,19 +30,13 @@ import 'package:pulse_flutter/widgets/chat_productivity.dart'
 class ChatFilterBar extends ConsumerWidget {
   const ChatFilterBar({super.key, this.compact = false});
 
-  /// Compact density (`UiSettingsState.compactMode`): 36 dp control height.
+  /// Compact density (`UiSettingsState.compactMode`): 32 dp segments.
   final bool compact;
-
-  /// Distance between two pills (M3 chip gap).
-  static const double _pillGap = 8;
-
-  /// Horizontal inset of the strip. The screen no longer pads the row from the
-  /// outside: containers start at x = 16, matching the app bar title column.
-  static const double _rowInset = 16;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = context.l10n;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     final ChatFilter filter = ref.watch(chatFilterProvider);
     final AsyncValue<List<ChatFolder>> foldersValue = ref.watch(
       chatFoldersProvider,
@@ -80,14 +74,15 @@ class ChatFilterBar extends ConsumerWidget {
       ref.read(selectedChatFolderProvider.notifier).select(null);
     }
 
-    final double rowHeight = _resolveRowHeight(context);
+    final double segmentHeight = _resolveRowHeight(context);
+    final double trackHeight = segmentHeight + 8;
 
     final List<Widget> items = <Widget>[
       _FilterPill(
         key: const ValueKey<String>('chat-filter-all'),
         label: Text(l.chatListFilterAll),
         selected: filter == ChatFilter.all && selectedFolderId == null,
-        minHeight: rowHeight,
+        minHeight: segmentHeight,
         onTap: resetAll,
         // Folder management lives behind a long-press on "Все" once the
         // overflow menu is gone.
@@ -97,7 +92,7 @@ class ChatFilterBar extends ConsumerWidget {
         key: const ValueKey<String>('chat-filter-unread'),
         label: Text(l.chatListFilterUnread),
         selected: filter == ChatFilter.unread,
-        minHeight: rowHeight,
+        minHeight: segmentHeight,
         onTap: () => selectFilter(ChatFilter.unread),
       ),
       if (hasFolders)
@@ -105,7 +100,7 @@ class ChatFilterBar extends ConsumerWidget {
           _buildFolderPill(
             folder: folder,
             selected: selectedFolderId == folder.id,
-            minHeight: rowHeight,
+            minHeight: segmentHeight,
             unread: _folderUnread(
               folder: folder,
               chats: chats,
@@ -120,55 +115,79 @@ class ChatFilterBar extends ConsumerWidget {
           key: const ValueKey<String>('chat-filter-groups'),
           label: Text(l.chatListFilterGroups),
           selected: filter == ChatFilter.groups,
-          minHeight: rowHeight,
+          minHeight: segmentHeight,
           onTap: () => selectFilter(ChatFilter.groups),
         ),
         _FilterPill(
           key: const ValueKey<String>('chat-filter-channels'),
           label: Text(l.chatListFilterChannels),
           selected: filter == ChatFilter.channels,
-          minHeight: rowHeight,
+          minHeight: segmentHeight,
           onTap: () => selectFilter(ChatFilter.channels),
         ),
         _FilterPill(
           key: const ValueKey<String>('chat-filter-direct'),
           label: Text(l.chatListFilterDirect),
           selected: filter == ChatFilter.direct,
-          minHeight: rowHeight,
+          minHeight: segmentHeight,
           onTap: () => selectFilter(ChatFilter.direct),
         ),
         _FilterPill(
           key: const ValueKey<String>('chat-filter-bots'),
           label: Text(l.chatListFilterBots),
           selected: filter == ChatFilter.bots,
-          minHeight: rowHeight,
+          minHeight: segmentHeight,
           onTap: () => selectFilter(ChatFilter.bots),
         ),
       ],
     ];
 
-    return SizedBox(
-      height: rowHeight,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: _rowInset),
-        child: Row(
-          children: <Widget>[
-            for (int i = 0; i < items.length; i++) ...<Widget>[
-              if (i > 0) const SizedBox(width: _pillGap),
-              items[i],
-            ],
-          ],
+    return Container(
+      height: trackHeight,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      decoration: ShapeDecoration(
+        color: scheme.surfaceContainerLow,
+        shape: StadiumBorder(
+          side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.28),
+          ),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(trackHeight),
+        child: ShaderMask(
+          // Soft right-edge fade so a scrolled row reads as "more to the
+          // right" instead of a chopped pill.
+          shaderCallback: (Rect bounds) => LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: const <Color>[Colors.white, Colors.white, Colors.transparent],
+            stops: const <double>[0.0, 0.92, 1.0],
+          ).createShader(bounds),
+          blendMode: BlendMode.dstIn,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Row(
+              children: <Widget>[
+                for (int i = 0; i < items.length; i++) ...<Widget>[
+                  if (i > 0) const SizedBox(width: 2),
+                  items[i],
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  /// 40 dp (36 dp compact), growing only when the text scale needs it.
+  /// 36 dp segment (32 dp compact) inside a 44 dp rail; grows with text scale.
   double _resolveRowHeight(BuildContext context) {
-    final double base = compact ? 36 : 40;
-    final double scaledLabel = MediaQuery.textScalerOf(context).scale(20);
-    return math.max(base, scaledLabel + 8);
+    final double base = compact ? 32 : 36;
+    final double scaledLabel = MediaQuery.textScalerOf(context).scale(18);
+    return math.max(base, scaledLabel + 6);
   }
 
   Widget _buildFolderPill({
@@ -266,24 +285,16 @@ class _FilterPill extends StatelessWidget {
               ? Duration.zero
               : const Duration(milliseconds: 200),
           curve: M3SpringCurves.gentle,
-          constraints: BoxConstraints(minHeight: minHeight),
+          constraints: BoxConstraints.tightFor(height: minHeight),
           padding: EdgeInsets.only(
-            left: 16,
-            right: showBadge ? 10 : 16,
-            top: 4,
-            bottom: 4,
+            left: 14,
+            right: showBadge ? 10 : 14,
+            top: 3,
+            bottom: 3,
           ),
           decoration: ShapeDecoration(
-            color: selected
-                ? scheme.secondaryContainer
-                : scheme.surfaceContainerLow,
-            shape: StadiumBorder(
-              side: BorderSide(
-                color: selected
-                    ? Colors.transparent
-                    : scheme.outlineVariant.withValues(alpha: 0.35),
-              ),
-            ),
+            color: selected ? scheme.secondaryContainer : Colors.transparent,
+            shape: const StadiumBorder(),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

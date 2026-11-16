@@ -191,7 +191,7 @@ void main() {
       for (final key in <Key>[unreadKey, groupsKey]) {
         expect(tester.getCenter(find.byKey(key)).dy, centerY, reason: '$key');
       }
-      expect(tester.getSize(find.byKey(allKey)).height, 40);
+      expect(tester.getSize(find.byKey(allKey)).height, 36);
       // Pills and the app bar share the 16 dp text column.
       expect(tester.getTopLeft(find.byKey(allKey)).dx, 16);
     });
@@ -208,7 +208,7 @@ void main() {
       final double widthBefore = tester.getSize(find.byKey(unreadKey)).width;
       expect(
         pillDecoration(tester, unreadKey).color,
-        scheme.surfaceContainerLow,
+        Colors.transparent,
       );
       expect(pillDecoration(tester, allKey).color, scheme.secondaryContainer);
 
@@ -219,7 +219,7 @@ void main() {
         pillDecoration(tester, unreadKey).color,
         scheme.secondaryContainer,
       );
-      expect(pillDecoration(tester, allKey).color, scheme.surfaceContainerLow);
+      expect(pillDecoration(tester, allKey).color, Colors.transparent);
       // The selected weight is constant (w600), so the row never reflows.
       expect(tester.getSize(find.byKey(unreadKey)).width, widthBefore);
     });
@@ -285,7 +285,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         pillDecoration(tester, groupsKey).color,
-        scheme.surfaceContainerLow,
+        Colors.transparent,
       );
       expect(
         pillDecoration(tester, channelsKey).color,

@@ -464,7 +464,7 @@ void main() {
                   .height,
               // 40 dp at the default scale; the pill only grows when the
               // scaled label needs the room.
-              scale == 1 ? 40 : greaterThanOrEqualTo(40),
+              scale == 1 ? 36 : greaterThanOrEqualTo(36),
             );
             expect(find.text('never-display-ciphertext'), findsNothing);
             expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
