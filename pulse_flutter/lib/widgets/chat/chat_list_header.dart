@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -7,6 +9,31 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 
 class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
   const ChatListHeader({super.key});
+
+  /// Vertical breathing room around the scaled page title.
+  static const double _titleVerticalPadding = 8;
+
+  /// Toolbar height that fits the title at the current text scale.
+  ///
+  /// [PreferredSizeWidget.preferredSize] cannot read the widget tree, so the
+  /// screen wraps this header in a [PreferredSize] built from this value.
+  static double heightFor(BuildContext context) {
+    final TextStyle? titleStyle = Theme.of(context).textTheme.headlineSmall;
+    final double fontSize = titleStyle?.fontSize ?? 24;
+    final double lineHeight = (titleStyle?.height ?? 1.33) * fontSize;
+    final double scaledTitle = MediaQuery.textScalerOf(
+      context,
+    ).scale(lineHeight);
+    return math.max(kToolbarHeight, scaledTitle + _titleVerticalPadding * 2);
+  }
+
+  static double _heightForTextScale(double textScaleFactor) {
+    // headlineSmall is 24/32 in the app typography; 32 is the scaled line box.
+    return math.max(
+      kToolbarHeight,
+      32 * textScaleFactor + _titleVerticalPadding * 2,
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,14 +49,12 @@ class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
     return AppBar(
       automaticallyImplyLeading: false,
       titleSpacing: 16,
+      toolbarHeight: heightFor(context),
       title: Text(
         l10n.tabChats,
-        style: theme.textTheme.titleLarge?.copyWith(
-          fontSize: 24,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
-          color: scheme.onSurface,
-        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.headlineSmall?.copyWith(color: scheme.onSurface),
       ),
       centerTitle: false,
       actions: <Widget>[
@@ -56,5 +81,9 @@ class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(
+    _heightForTextScale(
+      WidgetsBinding.instance.platformDispatcher.textScaleFactor,
+    ),
+  );
 }

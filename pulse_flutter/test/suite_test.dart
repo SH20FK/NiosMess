@@ -30,6 +30,7 @@ import 'widgets/niosgram_draft_restore_test.dart' as niosgram_draft_restore;
 import 'widgets/niosgram_layout_test.dart' as niosgram_layout;
 import 'widgets/niosgram_share_test.dart' as niosgram_share;
 import 'providers/chat_account_boundary_test.dart' as audit_accounts;
+import 'providers/inbox_refresh_merge_test.dart' as audit_inbox_merge;
 import 'providers/send_account_fence_test.dart' as audit_send_fence;
 import 'providers/custom_emoji_lifecycle_test.dart' as audit_emoji_lifecycle;
 import 'providers/niosgram_race_test.dart' as audit_feed_races;
@@ -387,6 +388,7 @@ void main() {
     group('audit_auth', audit_auth.main);
     group('audit_drafts', audit_drafts.main);
     group('audit_accounts', audit_accounts.main);
+    group('audit_inbox_merge', audit_inbox_merge.main);
     group('audit_send_fence', audit_send_fence.main);
     group('audit_emoji_lifecycle', audit_emoji_lifecycle.main);
     group('audit_feed_races', audit_feed_races.main);

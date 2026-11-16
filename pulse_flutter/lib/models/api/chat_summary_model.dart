@@ -18,6 +18,18 @@ String? _parsePartnerPublicKey(Map<String, dynamic> json) {
 bool _parseKeyMismatch(Map<String, dynamic> json) =>
     _parseBool(json['key_mismatch']);
 
+/// Shared inbox ordering: the most recent activity first. Secret chats, server
+/// chats and refreshed snapshots all use it, so a chat never jumps to the
+/// bottom just because it arrived through another merge path.
+int compareChatRecency(ApiChatSummary a, ApiChatSummary b) {
+  final int byActivity = b.lastActivity.compareTo(a.lastActivity);
+  if (byActivity != 0) return byActivity;
+  final int aLast = a.lastMessage?.id ?? 0;
+  final int bLast = b.lastMessage?.id ?? 0;
+  if (aLast != bLast) return bLast.compareTo(aLast);
+  return b.id.compareTo(a.id);
+}
+
 class ApiChatSummary {
   const ApiChatSummary({
     required this.id,
@@ -162,6 +174,7 @@ class ApiChatSummary {
               (partnerMap['user_id'] as num?)?.toInt())
         : ((json['with_user_id'] as num?)?.toInt() ??
               (json['partner_id'] as num?)?.toInt() ??
+              (json['partner_user_id'] as num?)?.toInt() ??
               (json['other_user_id'] as num?)?.toInt());
 
     final bool isBlockedByMe = _parseBool(
@@ -331,6 +344,14 @@ class ApiChatSummary {
       if (autoDeleteSeconds != null) 'auto_delete_seconds': autoDeleteSeconds,
       'is_online': isOnline,
       if (partnerUserId != null) 'partner_user_id': partnerUserId,
+      // Moderation/blocking and key state survive a restart; missing keys in old
+      // caches fall back to false/null.
+      'key_mismatch': keyMismatch,
+      'is_blocked_by_me': isBlockedByMe,
+      'is_blocked_by_user': isBlockedByUser,
+      'is_blocked': isBlocked,
+      if (partnerStatusEmoji != null)
+        'partner_status_emoji': partnerStatusEmoji!.toJson(),
       'last_message': lastMessage?.toJson(),
     };
   }

@@ -3976,6 +3976,288 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Links and account'**
   String get settingsProfileLinksActions;
+
+  /// No description provided for @inboxAllFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'All folders'**
+  String get inboxAllFolders;
+
+  /// No description provided for @inboxFolderCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create folder'**
+  String get inboxFolderCreate;
+
+  /// No description provided for @inboxFolderNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New folder'**
+  String get inboxFolderNew;
+
+  /// No description provided for @inboxFolderEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit folder'**
+  String get inboxFolderEdit;
+
+  /// No description provided for @inboxFolderDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete folder'**
+  String get inboxFolderDelete;
+
+  /// No description provided for @inboxFolderActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder actions'**
+  String get inboxFolderActions;
+
+  /// No description provided for @inboxFolderChatsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No chats} one{{count} chat} other{{count} chats}}'**
+  String inboxFolderChatsCount(int count);
+
+  /// No description provided for @inboxFolderHasRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Has rules'**
+  String get inboxFolderHasRules;
+
+  /// No description provided for @inboxFolderAutoAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add automatically'**
+  String get inboxFolderAutoAdd;
+
+  /// No description provided for @inboxFolderUnreadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread only'**
+  String get inboxFolderUnreadOnly;
+
+  /// No description provided for @inboxFolderAddChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Add individual chats'**
+  String get inboxFolderAddChats;
+
+  /// No description provided for @inboxFolderNameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name of up to 40 characters'**
+  String get inboxFolderNameInvalid;
+
+  /// No description provided for @inboxFolderEmptyRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Select chats or a rule'**
+  String get inboxFolderEmptyRules;
+
+  /// No description provided for @inboxFolderConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder changed on another device. The list was updated'**
+  String get inboxFolderConflict;
+
+  /// No description provided for @inboxFoldersUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Folders unavailable'**
+  String get inboxFoldersUnavailable;
+
+  /// No description provided for @inboxChatsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load chats'**
+  String get inboxChatsLoadFailed;
+
+  /// No description provided for @commonSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get commonSaving;
+
+  /// No description provided for @inboxScheduleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled message'**
+  String get inboxScheduleTitle;
+
+  /// No description provided for @inboxReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind about message'**
+  String get inboxReminderTitle;
+
+  /// No description provided for @inboxScheduleCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Message scheduled'**
+  String get inboxScheduleCreated;
+
+  /// No description provided for @inboxReminderSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder saved'**
+  String get inboxReminderSaved;
+
+  /// No description provided for @inboxReminderText.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder text'**
+  String get inboxReminderText;
+
+  /// No description provided for @inboxScheduleInHour.
+  ///
+  /// In en, this message translates to:
+  /// **'In an hour'**
+  String get inboxScheduleInHour;
+
+  /// No description provided for @inboxScheduleTomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow morning'**
+  String get inboxScheduleTomorrow;
+
+  /// No description provided for @inboxScheduleServerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'It will be sent from the server even if this device is turned off.'**
+  String get inboxScheduleServerHint;
+
+  /// No description provided for @inboxMessageRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a message'**
+  String get inboxMessageRequired;
+
+  /// No description provided for @inboxScheduleFutureTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a time in the future'**
+  String get inboxScheduleFutureTime;
+
+  /// No description provided for @inboxReminderSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save reminder'**
+  String get inboxReminderSave;
+
+  /// No description provided for @inboxScheduleAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get inboxScheduleAction;
+
+  /// No description provided for @inboxScheduledTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled and reminders'**
+  String get inboxScheduledTitle;
+
+  /// No description provided for @inboxScheduleEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled yet'**
+  String get inboxScheduleEmpty;
+
+  /// No description provided for @inboxScheduleEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold the send button to pick a time. Any message can also be turned into a reminder.'**
+  String get inboxScheduleEmptyHint;
+
+  /// No description provided for @inboxScheduleActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled message actions'**
+  String get inboxScheduleActions;
+
+  /// No description provided for @inboxScheduleReschedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Change time'**
+  String get inboxScheduleReschedule;
+
+  /// No description provided for @inboxScheduleCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel sending'**
+  String get inboxScheduleCancel;
+
+  /// No description provided for @inboxTopicsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group topics'**
+  String get inboxTopicsTitle;
+
+  /// No description provided for @inboxTopicClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Topic closed'**
+  String get inboxTopicClosed;
+
+  /// No description provided for @inboxTopicActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Topic actions'**
+  String get inboxTopicActions;
+
+  /// No description provided for @inboxTopicRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get inboxTopicRename;
+
+  /// No description provided for @inboxTopicOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open topic'**
+  String get inboxTopicOpen;
+
+  /// No description provided for @inboxTopicClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close topic'**
+  String get inboxTopicClose;
+
+  /// No description provided for @inboxTopicName.
+  ///
+  /// In en, this message translates to:
+  /// **'Topic name'**
+  String get inboxTopicName;
+
+  /// No description provided for @inboxTopicCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create topic'**
+  String get inboxTopicCreate;
+
+  /// No description provided for @inboxE2eeWaitingActiveDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for keys from your active device'**
+  String get inboxE2eeWaitingActiveDevice;
+
+  /// No description provided for @inboxE2eeWaitingKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for encrypted chat keys'**
+  String get inboxE2eeWaitingKeys;
+
+  /// No description provided for @inboxSavedOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening Saved Messages…'**
+  String get inboxSavedOpening;
+
+  /// No description provided for @inboxScheduleLockedPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a device with encryption keys to read this message'**
+  String get inboxScheduleLockedPreview;
 }
 
 class _SecretChatLocalizationsDelegate

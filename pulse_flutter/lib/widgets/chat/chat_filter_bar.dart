@@ -33,33 +33,41 @@ class ChatFilterBar extends ConsumerWidget {
     Widget animatedChip({
       required bool selected,
       required Widget child,
+      required VoidCallback onTap,
       Key? key,
     }) => M3SelectionMotion(
       key: key,
       selected: selected,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          child,
-          AnimatedContainer(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : M3Durations.short4,
-            curve: M3SpringCurves.gentle,
-            width: selected ? 30 : 0,
-            height: 3,
-            decoration: BoxDecoration(
-              color: scheme.primary,
-              borderRadius: BorderRadius.circular(3),
+      child: GestureDetector(
+        // The underline lives inside the chip's column, so the tap target must
+        // cover both the chip and the 3dp indicator below it.
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            child,
+            AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : M3Durations.short4,
+              curve: M3SpringCurves.gentle,
+              width: selected ? 30 : 0,
+              height: 3,
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                borderRadius: BorderRadius.circular(3),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
     Widget chip(ChatFilter value, String label) => animatedChip(
       key: ValueKey('chat-filter-${value.name}'),
       selected: filter == value,
+      onTap: () => select(value),
       child: FilterChip(
         label: Text(label),
         color: const WidgetStatePropertyAll<Color>(Colors.transparent),
@@ -105,6 +113,8 @@ class ChatFilterBar extends ConsumerWidget {
             builder: (context, controller, child) => animatedChip(
               key: const ValueKey('chat-filter-type'),
               selected: types.containsKey(filter),
+              onTap: () =>
+                  controller.isOpen ? controller.close() : controller.open(),
               child: FilterChip(
                 tooltip: l.inboxChatType,
                 color: const WidgetStatePropertyAll<Color>(Colors.transparent),
@@ -112,13 +122,21 @@ class ChatFilterBar extends ConsumerWidget {
                   color: types.containsKey(filter)
                       ? scheme.primary
                       : scheme.onSurfaceVariant,
+                  fontWeight: types.containsKey(filter)
+                      ? FontWeight.w700
+                      : FontWeight.w500,
                 ),
                 side: BorderSide.none,
                 shape: const StadiumBorder(),
                 labelPadding: const EdgeInsets.symmetric(horizontal: 5),
-                label: types.containsKey(filter)
-                    ? Text(types[filter]!)
-                    : const Icon(Icons.tune_rounded, size: 20),
+                // Keep "Chat type" in the label even when a category is
+                // selected: an icon-only or category-only chip hides what the
+                // menu actually does.
+                label: Text(
+                  types.containsKey(filter)
+                      ? '${l.inboxChatType} · ${types[filter]}'
+                      : l.inboxChatType,
+                ),
                 selected: types.containsKey(filter),
                 showCheckmark: false,
                 onSelected: (_) =>

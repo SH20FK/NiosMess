@@ -42,9 +42,13 @@ class ProductivityIcon extends StatelessWidget {
   return (s?.userId, s?.accessToken);
 }
 
-void _sameAccount(WidgetRef ref, (int?, String?) expected) {
+void _sameAccount(
+  WidgetRef ref,
+  (int?, String?) expected,
+  AppLocalizations l10n,
+) {
   if (expected.$1 == null || _account(ref) != expected) {
-    throw StateError('Сеанс изменился');
+    throw StateError(l10n.errorSessionExpired);
   }
 }
 
@@ -52,64 +56,57 @@ String _date(BuildContext context, DateTime value) => DateFormat.MMMd(
   Localizations.localeOf(context).toLanguageTag(),
 ).add_Hm().format(value);
 
+/// Single-flight guard for [openSavedMessages]: a second tap while the saved
+/// chat is still resolving must not push a duplicate route.
+bool _savedMessagesOpening = false;
+
 Future<void> openSavedMessages(BuildContext context, WidgetRef ref) async {
+  if (_savedMessagesOpening) return;
   final account = _account(ref);
+  if (account.$1 == null) return;
+  _savedMessagesOpening = true;
+  final repo = ref.read(chatProductivityRepositoryProvider);
+  if (repo.cachedSavedChatId == null) {
+    AppToast.showInfo(context, context.l10n.inboxSavedOpening);
+  }
   try {
-    final chat = await ref.read(chatProductivityRepositoryProvider).saved();
+    final chat = await repo.saved();
     if (!context.mounted) return;
-    _sameAccount(ref, account);
+    _sameAccount(ref, account, context.l10n);
     context.push('/chat/${chat.id}');
   } catch (e) {
     if (context.mounted) AppToast.showError(context, e);
+  } finally {
+    _savedMessagesOpening = false;
   }
 }
 
 class ChatProductivityBar extends ConsumerWidget {
-  const ChatProductivityBar({super.key, this.showShortcuts = true});
+  const ChatProductivityBar({super.key, this.showShortcuts = false});
+
+  /// Retained for source compatibility: the inbox header still passes
+  /// `showShortcuts: false`. The row itself was dead code (no caller ever
+  /// passed `true`) and pushed screens through `Navigator` instead of
+  /// go_router, so it has been removed.
   final bool showShortcuts;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final folders = ref.watch(chatFoldersProvider).value ?? [];
+    final l = context.l10n;
+    final foldersValue = ref.watch(chatFoldersProvider);
+    final folders = foldersValue.value ?? const <ChatFolder>[];
     final selected = ref.watch(selectedChatFolderProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showShortcuts)
-          Row(
-            children: [
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => openSavedMessages(context, ref),
-                    icon: const ProductivityIcon('bookmark'),
-                    label: Text(
-                      context.l10n.savedMessagesTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Отложенные сообщения и напоминания',
-                icon: const ProductivityIcon('clock'),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const ScheduledMessagesScreen(),
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Папки чатов',
-                icon: const ProductivityIcon('folder'),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const ChatFoldersScreen(),
-                  ),
-                ),
-              ),
-            ],
+        if (foldersValue.hasError && folders.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: ActionChip(
+              avatar: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text('${l.inboxFoldersUnavailable} · ${l.commonRetry}'),
+              onPressed: () => ref.invalidate(chatFoldersProvider),
+            ),
           ),
         if (folders.isNotEmpty)
           SingleChildScrollView(
@@ -121,7 +118,7 @@ class ChatProductivityBar extends ConsumerWidget {
                   child: M3SelectionMotion(
                     selected: selected == null,
                     child: FilterChip(
-                      label: const Text('Все папки'),
+                      label: Text(l.inboxAllFolders),
                       selected: selected == null,
                       onSelected: (_) => ref
                           .read(selectedChatFolderProvider.notifier)
@@ -160,17 +157,35 @@ class ChatFoldersScreen extends ConsumerWidget {
         isScrollable: true,
         builder: (_) => ChatFolderEditor(folder: folder),
       );
+
+  Future<void> _remove(
+    BuildContext context,
+    WidgetRef ref,
+    ChatFolder folder,
+  ) async {
+    try {
+      await ref.read(chatFoldersProvider.notifier).remove(folder.id);
+      if (ref.read(selectedChatFolderProvider) == folder.id) {
+        ref.read(selectedChatFolderProvider.notifier).select(null);
+      }
+    } catch (e) {
+      if (context.mounted) AppToast.showError(context, e);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
     final value = ref.watch(chatFoldersProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Папки чатов')),
+      appBar: AppBar(title: Text(l.inboxFolders)),
       body: value.when(
         loading: () => const Center(child: AppLoadingIndicator()),
         error: (e, _) => Center(
-          child: TextButton(
+          child: TextButton.icon(
             onPressed: () => ref.invalidate(chatFoldersProvider),
-            child: const Text('Повторить загрузку'),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(l.commonRetry),
           ),
         ),
         data: (folders) => ReorderableListView.builder(
@@ -179,7 +194,7 @@ class ChatFoldersScreen extends ConsumerWidget {
           footer: TextButton.icon(
             onPressed: () => _edit(context, null),
             icon: const ProductivityIcon('plus'),
-            label: const Text('Создать папку'),
+            label: Text(l.inboxFolderCreate),
           ),
           onReorderItem: (a, b) async {
             if (a >= folders.length) return;
@@ -188,17 +203,9 @@ class ChatFoldersScreen extends ConsumerWidget {
             final item = ordered.removeAt(a);
             ordered.insert(b, item);
             try {
-              for (var i = 0; i < ordered.length; i++) {
-                final f = ordered[i];
-                await ref.read(chatProductivityRepositoryProvider).call(
-                  'save_chat_folder',
-                  {...f.toJson(), 'position': i},
-                );
-              }
-              ref.invalidate(chatFoldersProvider);
+              await ref.read(chatFoldersProvider.notifier).reorder(ordered);
             } catch (e) {
               if (context.mounted) AppToast.showError(context, e);
-              ref.invalidate(chatFoldersProvider);
             }
           },
           itemBuilder: (context, i) {
@@ -208,31 +215,31 @@ class ChatFoldersScreen extends ConsumerWidget {
               leading: const ProductivityIcon('folder'),
               title: CustomEmojiText(f.title),
               subtitle: Text(
-                '${f.chatIds.length} выбранных чатов${f.types.isEmpty ? '' : ' · Есть правила'}',
+                [
+                  l.inboxFolderChatsCount(f.chatIds.length),
+                  if (f.types.isNotEmpty) l.inboxFolderHasRules,
+                ].join(' · '),
               ),
               onTap: () => _edit(context, f),
-              trailing: PopupMenuButton<String>(
-                tooltip: 'Действия с папкой',
-                onSelected: (value) async {
-                  if (value == 'edit') {
-                    await _edit(context, f);
-                    return;
-                  }
-                  try {
-                    await ref.read(chatFoldersProvider.notifier).remove(f.id);
-                    if (ref.read(selectedChatFolderProvider) == f.id) {
-                      ref
-                          .read(selectedChatFolderProvider.notifier)
-                          .select(null);
-                    }
-                  } catch (e) {
-                    if (context.mounted) AppToast.showError(context, e);
-                  }
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Изменить')),
-                  PopupMenuItem(value: 'delete', child: Text('Удалить папку')),
+              trailing: MenuAnchor(
+                menuChildren: [
+                  MenuItemButton(
+                    leadingIcon: const Icon(Icons.edit_outlined),
+                    onPressed: () => _edit(context, f),
+                    child: Text(l.chatEdit),
+                  ),
+                  MenuItemButton(
+                    leadingIcon: const Icon(Icons.delete_outline_rounded),
+                    onPressed: () => _remove(context, ref, f),
+                    child: Text(l.inboxFolderDelete),
+                  ),
                 ],
+                builder: (context, controller, _) => IconButton(
+                  tooltip: l.inboxFolderActions,
+                  icon: const ProductivityIcon('ellipsis'),
+                  onPressed: () =>
+                      controller.isOpen ? controller.close() : controller.open(),
+                ),
               ),
             );
           },
@@ -275,13 +282,14 @@ class _ChatFolderEditorState extends ConsumerState<ChatFolderEditor> {
 
   Future<void> _save() async {
     if (_saving) return;
+    final l = context.l10n;
     try {
-      _sameAccount(ref, _owner);
+      _sameAccount(ref, _owner, context.l10n);
       if (_name.text.trim().isEmpty || customEmojiLength(_name.text) > 40) {
-        throw StateError('Введите название до 40 символов');
+        throw StateError(l.inboxFolderNameInvalid);
       }
       if (_ids.isEmpty && _types.isEmpty) {
-        throw StateError('Выберите чаты или правило');
+        throw StateError(l.inboxFolderEmptyRules);
       }
       setState(() => _saving = true);
       await ref
@@ -290,9 +298,10 @@ class _ChatFolderEditorState extends ConsumerState<ChatFolderEditor> {
             ChatFolder(
               id: _id,
               title: _name.text.trim(),
-              chatIds: _ids
-                  .where((id) => ref.read(chatByIdProvider(id)) != null)
-                  .toList(),
+              // Every explicitly selected chat is sent as-is: the local list may
+              // be filtered by search or still loading, and dropping unknown ids
+              // silently removed folder members on save.
+              chatIds: _ids.toList(),
               types: _types.toList(),
               unreadOnly: _unread,
               position:
@@ -302,6 +311,10 @@ class _ChatFolderEditorState extends ConsumerState<ChatFolderEditor> {
             ),
           );
       if (mounted) Navigator.pop(context);
+    } on ChatFolderVersionConflict {
+      if (!mounted) return;
+      AppToast.showError(context, l.inboxFolderConflict);
+      Navigator.pop(context);
     } catch (e) {
       if (mounted) AppToast.showError(context, e);
     } finally {
@@ -311,7 +324,26 @@ class _ChatFolderEditorState extends ConsumerState<ChatFolderEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final chats = ref.watch(visibleChatsProvider).value ?? [];
+    final l = context.l10n;
+    final chatsValue = ref.watch(visibleChatsProvider);
+    final chats = chatsValue.value ?? const <ApiChatSummary>[];
+    final Widget? status = chats.isNotEmpty
+        ? null
+        : chatsValue.hasError
+        ? Center(
+            child: TextButton.icon(
+              onPressed: () => ref.invalidate(chatsProvider),
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(l.inboxChatsLoadFailed),
+            ),
+          )
+        : chatsValue.isLoading
+        ? const SizedBox(
+            height: 160,
+            child: Center(child: AppLoadingIndicator()),
+          )
+        : null;
+    final headerCount = 1 + (status == null ? 0 : 1);
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * .85,
       child: SafeArea(
@@ -321,10 +353,10 @@ class _ChatFolderEditorState extends ConsumerState<ChatFolderEditor> {
             children: [
               Expanded(
                 child: ListView.builder(
-                  itemCount: chats.length + 1,
+                  itemCount: chats.length + headerCount,
                   itemBuilder: (context, index) {
-                    if (index > 0) {
-                      final chat = chats[index - 1];
+                    if (index >= headerCount) {
+                      final chat = chats[index - headerCount];
                       return CheckboxListTile(
                         value: _ids.contains(chat.id),
                         title: CustomEmojiText(chat.name),
@@ -337,13 +369,14 @@ class _ChatFolderEditorState extends ConsumerState<ChatFolderEditor> {
                         ),
                       );
                     }
+                    if (index == 1) return status!;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
                           widget.folder == null
-                              ? 'Новая папка'
-                              : 'Изменить папку',
+                              ? l.inboxFolderNew
+                              : l.inboxFolderEdit,
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 16),
@@ -351,24 +384,24 @@ class _ChatFolderEditorState extends ConsumerState<ChatFolderEditor> {
                           controller: _name,
                           inputFormatters: [CustomEmojiLengthFormatter(40)],
                           decoration: InputDecoration(
-                            labelText: 'Название',
+                            labelText: l.groupNameLabel,
                             suffixIcon: CustomEmojiComposerButton(
                               controller: _name,
                             ),
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text('Автоматически добавлять'),
+                        Text(l.inboxFolderAutoAdd),
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
                           children: [
                             for (final entry in {
-                              'direct': 'Личные',
-                              'group': 'Группы',
-                              'channel': 'Каналы',
-                              'bot': 'Боты',
+                              'direct': l.chatListFilterDirect,
+                              'group': l.chatListFilterGroups,
+                              'channel': l.chatListFilterChannels,
+                              'bot': l.chatListFilterBots,
                             }.entries)
                               FilterChip(
                                 label: Text(entry.value),
@@ -383,11 +416,11 @@ class _ChatFolderEditorState extends ConsumerState<ChatFolderEditor> {
                         ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Только непрочитанные'),
+                          title: Text(l.inboxFolderUnreadOnly),
                           value: _unread,
                           onChanged: (v) => setState(() => _unread = v),
                         ),
-                        const Text('Добавить отдельные чаты'),
+                        Text(l.inboxFolderAddChats),
                         const SizedBox(height: 8),
                       ],
                     );
@@ -399,7 +432,7 @@ class _ChatFolderEditorState extends ConsumerState<ChatFolderEditor> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _saving ? null : _save,
-                  child: Text(_saving ? 'Сохранение' : 'Сохранить'),
+                  child: Text(_saving ? l.commonSaving : l.commonSave),
                 ),
               ),
             ],
@@ -447,10 +480,11 @@ Future<bool> showScheduledMessageComposer(
       text: text,
       reminder: reminder != null,
       submit: (value, due, operationId) async {
-        _sameAccount(ref, account);
+        final l10n = context.l10n;
+        _sameAccount(ref, account, l10n);
         final repo = ref.read(chatProductivityRepositoryProvider);
         final target = reminder == null ? chatId : (await repo.saved()).id;
-        _sameAccount(ref, account);
+        _sameAccount(ref, account, l10n);
         await repo.schedule(
           target,
           value,
@@ -466,7 +500,9 @@ Future<bool> showScheduledMessageComposer(
   if (result == true && context.mounted) {
     AppToast.showSuccess(
       context,
-      reminder == null ? 'Сообщение запланировано' : 'Напоминание сохранено',
+      reminder == null
+          ? context.l10n.inboxScheduleCreated
+          : context.l10n.inboxReminderSaved,
     );
   }
   return result == true;
@@ -497,138 +533,186 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !_saving,
-    child: SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          MediaQuery.viewInsetsOf(context).bottom + 16,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.reminder ? 'Напомнить о сообщении' : 'Отложенная отправка',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _text,
-              enabled: !_saving,
-              minLines: 2,
-              maxLines: 6,
-              inputFormatters: [CustomEmojiLengthFormatter(10000)],
-              decoration: InputDecoration(
-                labelText: widget.reminder ? 'Текст напоминания' : 'Сообщение',
-                suffixIcon: CustomEmojiComposerButton(controller: _text),
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return PopScope(
+      canPop: !_saving,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            MediaQuery.viewInsetsOf(context).bottom + 16,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.reminder
+                    ? l.inboxReminderTitle
+                    : l.inboxScheduleTitle,
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-            ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              icon: const ProductivityIcon('clock'),
-              label: Text(_date(context, _due)),
-              onPressed: _saving
-                  ? null
-                  : () async {
-                      final date = await pickProductivityDate(context, _due);
-                      if (date != null && mounted) setState(() => _due = date);
-                    },
-            ),
-            Wrap(
-              spacing: 6,
-              children: [
-                for (final entry in {
-                  'Через час': DateTime.now().add(const Duration(hours: 1)),
-                  'Завтра утром': DateTime(
-                    DateTime.now().year,
-                    DateTime.now().month,
-                    DateTime.now().day + 1,
-                    9,
-                  ),
-                }.entries)
-                  ActionChip(
-                    label: Text(entry.key),
-                    onPressed: _saving
-                        ? null
-                        : () => setState(() => _due = entry.value),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Отправится с сервера, даже если это устройство будет выключено.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _saving
-                  ? null
-                  : () async {
-                      if (_text.text.trim().isEmpty) {
-                        AppToast.showError(
-                          context,
-                          StateError('Введите сообщение'),
-                        );
-                        return;
-                      }
-                      if (!_due.isAfter(
-                        DateTime.now().add(const Duration(seconds: 5)),
-                      )) {
-                        AppToast.showError(
-                          context,
-                          StateError('Выберите время в будущем'),
-                        );
-                        return;
-                      }
-                      setState(() => _saving = true);
-                      try {
-                        await widget.submit(
-                          _text.text.trim(),
-                          _due,
-                          _operationId,
-                        );
-                        if (context.mounted) Navigator.pop(context, true);
-                      } catch (e) {
-                        if (context.mounted) AppToast.showError(context, e);
-                      } finally {
-                        if (mounted) setState(() => _saving = false);
-                      }
-                    },
-              child: Text(
-                _saving
-                    ? 'Сохраняем…'
-                    : widget.reminder
-                    ? 'Сохранить напоминание'
-                    : 'Запланировать',
+              const SizedBox(height: 16),
+              TextField(
+                controller: _text,
+                enabled: !_saving,
+                minLines: 2,
+                maxLines: 6,
+                inputFormatters: [CustomEmojiLengthFormatter(10000)],
+                decoration: InputDecoration(
+                  labelText: widget.reminder
+                      ? l.inboxReminderText
+                      : l.chatMessageHint,
+                  suffixIcon: CustomEmojiComposerButton(controller: _text),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextButton.icon(
+                icon: const ProductivityIcon('clock'),
+                label: Text(_date(context, _due)),
+                onPressed: _saving
+                    ? null
+                    : () async {
+                        final date = await pickProductivityDate(context, _due);
+                        if (date != null && mounted) setState(() => _due = date);
+                      },
+              ),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final entry in {
+                    l.inboxScheduleInHour: DateTime.now().add(
+                      const Duration(hours: 1),
+                    ),
+                    l.inboxScheduleTomorrow: DateTime(
+                      DateTime.now().year,
+                      DateTime.now().month,
+                      DateTime.now().day + 1,
+                      9,
+                    ),
+                  }.entries)
+                    ActionChip(
+                      label: Text(entry.key),
+                      onPressed: _saving
+                          ? null
+                          : () => setState(() => _due = entry.value),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                l.inboxScheduleServerHint,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _saving
+                    ? null
+                    : () async {
+                        if (_text.text.trim().isEmpty) {
+                          AppToast.showError(
+                            context,
+                            StateError(l.inboxMessageRequired),
+                          );
+                          return;
+                        }
+                        if (!_due.isAfter(
+                          DateTime.now().add(const Duration(seconds: 5)),
+                        )) {
+                          AppToast.showError(
+                            context,
+                            StateError(l.inboxScheduleFutureTime),
+                          );
+                          return;
+                        }
+                        setState(() => _saving = true);
+                        try {
+                          await widget.submit(
+                            _text.text.trim(),
+                            _due,
+                            _operationId,
+                          );
+                          if (context.mounted) Navigator.pop(context, true);
+                        } catch (e) {
+                          if (context.mounted) AppToast.showError(context, e);
+                        } finally {
+                          if (mounted) setState(() => _saving = false);
+                        }
+                      },
+                child: Text(
+                  _saving
+                      ? l.commonSaving
+                      : widget.reminder
+                      ? l.inboxReminderSave
+                      : l.inboxScheduleAction,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class ScheduledMessagesScreen extends ConsumerWidget {
   const ScheduledMessagesScreen({super.key, this.chatId});
   final int? chatId;
+
+  Future<void> _reschedule(
+    BuildContext context,
+    WidgetRef ref,
+    ScheduledChatMessage job,
+  ) async {
+    final account = _account(ref);
+    try {
+      final due = await pickProductivityDate(context, job.dueAt);
+      if (due == null || !context.mounted) return;
+      _sameAccount(ref, account, context.l10n);
+      await ref.read(chatProductivityRepositoryProvider).call(
+        'update_scheduled_message',
+        {'id': job.id, 'due_at': due.toUtc().toIso8601String()},
+      );
+      ref.invalidate(scheduledChatMessagesProvider(chatId));
+    } catch (e) {
+      if (context.mounted) AppToast.showError(context, e);
+    }
+  }
+
+  Future<void> _cancel(
+    BuildContext context,
+    WidgetRef ref,
+    ScheduledChatMessage job,
+  ) async {
+    try {
+      await ref.read(chatProductivityRepositoryProvider).call(
+        'cancel_scheduled_message',
+        {'id': job.id},
+      );
+      ref.invalidate(scheduledChatMessagesProvider(chatId));
+    } catch (e) {
+      if (context.mounted) AppToast.showError(context, e);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = context.l10n;
     final jobs = ref.watch(scheduledChatMessagesProvider(chatId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Отложенные и напоминания')),
+      appBar: AppBar(title: Text(l.inboxScheduledTitle)),
       body: jobs.when(
         skipLoadingOnRefresh: false,
         loading: () => const Center(child: AppLoadingIndicator()),
         error: (e, _) => Center(
-          child: TextButton(
+          child: TextButton.icon(
             onPressed: () =>
                 ref.invalidate(scheduledChatMessagesProvider(chatId)),
-            child: const Text('Повторить загрузку'),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(l.commonRetry),
           ),
         ),
         data: (items) => items.isEmpty
@@ -637,15 +721,13 @@ class ScheduledMessagesScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Пока ничего не запланировано'),
+                    Text(l.inboxScheduleEmpty),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Удерживайте кнопку отправки, чтобы выбрать время. У сообщения можно выбрать «Напомнить».',
-                    ),
+                    Text(l.inboxScheduleEmptyHint),
                     const SizedBox(height: 12),
                     TextButton(
                       onPressed: () => Navigator.maybePop(context),
-                      child: const Text('Вернуться к чатам'),
+                      child: Text(l.callBackToChats),
                     ),
                   ],
                 ),
@@ -666,55 +748,40 @@ class ScheduledMessagesScreen extends ConsumerWidget {
                         job.kind == 'reminder' ? 'bell' : 'clock',
                       ),
                       title: CustomEmojiText(
-                        job.preview,
+                        job.previewLocked
+                            ? l.inboxScheduleLockedPreview
+                            : job.preview,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Text(
-                        '${chat?.name ?? 'Чат'}\n${_date(context, job.dueAt)}${job.error == null ? '' : '\n${job.error}'}',
+                        '${chat?.name ?? l.commonChat}\n${_date(context, job.dueAt)}${job.error == null ? '' : '\n${job.error}'}',
                       ),
                       isThreeLine: true,
                       onTap: () => context.push('/chat/${job.chatId}'),
-                      trailing: PopupMenuButton<String>(
-                        tooltip: 'Действия с отложенным сообщением',
-                        onSelected: (action) async {
-                          final account = _account(ref);
-                          try {
-                            final payload = <String, dynamic>{'id': job.id};
-                            if (action == 'reschedule') {
-                              final due = await pickProductivityDate(
-                                context,
-                                job.dueAt,
-                              );
-                              if (due == null || !context.mounted) return;
-                              _sameAccount(ref, account);
-                              payload['due_at'] = due.toUtc().toIso8601String();
-                            }
-                            await ref
-                                .read(chatProductivityRepositoryProvider)
-                                .call(
-                                  action == 'cancel'
-                                      ? 'cancel_scheduled_message'
-                                      : 'update_scheduled_message',
-                                  payload,
-                                );
-                            ref.invalidate(
-                              scheduledChatMessagesProvider(chatId),
-                            );
-                          } catch (e) {
-                            if (context.mounted) AppToast.showError(context, e);
-                          }
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
-                            value: 'reschedule',
-                            child: Text('Изменить время'),
+                      trailing: MenuAnchor(
+                        menuChildren: [
+                          MenuItemButton(
+                            leadingIcon: const Icon(Icons.schedule_rounded),
+                            onPressed: () => _reschedule(context, ref, job),
+                            child: Text(l.inboxScheduleReschedule),
                           ),
-                          PopupMenuItem(
-                            value: 'cancel',
-                            child: Text('Отменить отправку'),
+                          MenuItemButton(
+                            leadingIcon: const Icon(
+                              Icons.cancel_outlined,
+                            ),
+                            onPressed: () =>
+                                _cancel(context, ref, job),
+                            child: Text(l.inboxScheduleCancel),
                           ),
                         ],
+                        builder: (context, controller, _) => IconButton(
+                          tooltip: l.inboxScheduleActions,
+                          icon: const ProductivityIcon('ellipsis'),
+                          onPressed: () => controller.isOpen
+                              ? controller.close()
+                              : controller.open(),
+                        ),
                       ),
                     );
                   },
@@ -752,7 +819,7 @@ class _GroupTopicsScreenState extends ConsumerState<GroupTopicsScreen> {
 
   Future<void> _save() async {
     try {
-      _sameAccount(ref, _owner);
+      _sameAccount(ref, _owner, context.l10n);
       setState(() => _busy = true);
       await ref
           .read(chatProductivityRepositoryProvider)
@@ -779,19 +846,47 @@ class _GroupTopicsScreenState extends ConsumerState<GroupTopicsScreen> {
     }
   }
 
+  Future<void> _toggleClosed(BuildContext context, ChatTopic topic) async {
+    try {
+      _sameAccount(ref, _owner, context.l10n);
+      await ref.read(chatProductivityRepositoryProvider).call(
+        'update_group_topic',
+        {
+          'chat_id': widget.chatId,
+          'topic_id': topic.id,
+          'closed': !topic.closed,
+        },
+      );
+      ref.invalidate(groupTopicsProvider(widget.chatId));
+      ref.invalidate(chatsProvider);
+    } catch (e) {
+      if (context.mounted) AppToast.showError(context, e);
+    }
+  }
+
+  void _startRename(ChatTopic topic) {
+    setState(() {
+      _topic = topic;
+      _editing = true;
+      _name.text = topic.title;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final value = ref.watch(groupTopicsProvider(widget.chatId));
     final chat = ref.watch(chatByIdProvider(widget.chatId));
     return Scaffold(
-      appBar: AppBar(title: Text(chat?.name ?? 'Темы группы')),
+      appBar: AppBar(title: Text(chat?.name ?? l.inboxTopicsTitle)),
       body: value.when(
         skipLoadingOnRefresh: false,
         loading: () => const Center(child: AppLoadingIndicator()),
         error: (e, _) => Center(
-          child: TextButton(
+          child: TextButton.icon(
             onPressed: () => ref.invalidate(groupTopicsProvider(widget.chatId)),
-            child: const Text('Повторить загрузку'),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(l.commonRetry),
           ),
         ),
         data: (data) => Column(
@@ -807,7 +902,7 @@ class _GroupTopicsScreenState extends ConsumerState<GroupTopicsScreen> {
                   return ListTile(
                     leading: ProductivityIcon(topic.closed ? 'lock' : 'hash'),
                     title: CustomEmojiText(topic.title),
-                    subtitle: topic.closed ? const Text('Тема закрыта') : null,
+                    subtitle: topic.closed ? Text(l.inboxTopicClosed) : null,
                     onTap: () async {
                       final account = _account(ref);
                       try {
@@ -815,7 +910,7 @@ class _GroupTopicsScreenState extends ConsumerState<GroupTopicsScreen> {
                             .read(chatProductivityRepositoryProvider)
                             .call('get_chat', {'chat_id': topic.id});
                         if (!context.mounted) return;
-                        _sameAccount(ref, account);
+                        _sameAccount(ref, account, context.l10n);
                         ref
                             .read(chatsProvider.notifier)
                             .upsertChat(ApiChatSummary.fromJson(json));
@@ -833,50 +928,34 @@ class _GroupTopicsScreenState extends ConsumerState<GroupTopicsScreen> {
                             style: Theme.of(context).textTheme.labelLarge,
                           ),
                         if (data.canManage && topic.id != widget.chatId)
-                          PopupMenuButton<String>(
-                            tooltip: 'Действия с темой',
-                            onSelected: (action) async {
-                              if (action == 'rename') {
-                                setState(() {
-                                  _topic = topic;
-                                  _editing = true;
-                                  _name.text = topic.title;
-                                });
-                                return;
-                              }
-                              try {
-                                _sameAccount(ref, _owner);
-                                await ref
-                                    .read(chatProductivityRepositoryProvider)
-                                    .call('update_group_topic', {
-                                      'chat_id': widget.chatId,
-                                      'topic_id': topic.id,
-                                      'closed': !topic.closed,
-                                    });
-                                ref.invalidate(
-                                  groupTopicsProvider(widget.chatId),
-                                );
-                                ref.invalidate(chatsProvider);
-                              } catch (e) {
-                                if (context.mounted) {
-                                  AppToast.showError(context, e);
-                                }
-                              }
-                            },
-                            itemBuilder: (_) => [
-                              const PopupMenuItem(
-                                value: 'rename',
-                                child: Text('Переименовать'),
+                          MenuAnchor(
+                            menuChildren: [
+                              MenuItemButton(
+                                leadingIcon: const Icon(Icons.edit_outlined),
+                                onPressed: () => _startRename(topic),
+                                child: Text(l.inboxTopicRename),
                               ),
-                              PopupMenuItem(
-                                value: 'close',
+                              MenuItemButton(
+                                leadingIcon: Icon(
+                                  topic.closed
+                                      ? Icons.unarchive_outlined
+                                      : Icons.archive_outlined,
+                                ),
+                                onPressed: () => _toggleClosed(context, topic),
                                 child: Text(
                                   topic.closed
-                                      ? 'Открыть тему'
-                                      : 'Закрыть тему',
+                                      ? l.inboxTopicOpen
+                                      : l.inboxTopicClose,
                                 ),
                               ),
                             ],
+                            builder: (context, controller, _) => IconButton(
+                              tooltip: l.inboxTopicActions,
+                              icon: const ProductivityIcon('ellipsis'),
+                              onPressed: () => controller.isOpen
+                                  ? controller.close()
+                                  : controller.open(),
+                            ),
                           ),
                       ],
                     ),
@@ -898,7 +977,7 @@ class _GroupTopicsScreenState extends ConsumerState<GroupTopicsScreen> {
                               autofocus: true,
                               inputFormatters: [CustomEmojiLengthFormatter(80)],
                               decoration: InputDecoration(
-                                labelText: 'Название темы',
+                                labelText: l.inboxTopicName,
                                 suffixIcon: CustomEmojiComposerButton(
                                   controller: _name,
                                 ),
@@ -913,11 +992,11 @@ class _GroupTopicsScreenState extends ConsumerState<GroupTopicsScreen> {
                                   onPressed: _busy
                                       ? null
                                       : () => setState(() => _editing = false),
-                                  child: const Text('Отмена'),
+                                  child: Text(l.commonCancel),
                                 ),
                                 FilledButton(
                                   onPressed: _busy ? null : _save,
-                                  child: const Text('Сохранить'),
+                                  child: Text(l.commonSave),
                                 ),
                               ],
                             ),
@@ -930,7 +1009,7 @@ class _GroupTopicsScreenState extends ConsumerState<GroupTopicsScreen> {
                             _name.clear();
                           }),
                           icon: const ProductivityIcon('plus'),
-                          label: const Text('Создать тему'),
+                          label: Text(l.inboxTopicCreate),
                         ),
                 ),
               ),

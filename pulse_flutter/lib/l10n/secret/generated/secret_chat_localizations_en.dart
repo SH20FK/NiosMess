@@ -2106,4 +2106,159 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsProfileLinksActions => 'Links and account';
+
+  @override
+  String get inboxAllFolders => 'All folders';
+
+  @override
+  String get inboxFolderCreate => 'Create folder';
+
+  @override
+  String get inboxFolderNew => 'New folder';
+
+  @override
+  String get inboxFolderEdit => 'Edit folder';
+
+  @override
+  String get inboxFolderDelete => 'Delete folder';
+
+  @override
+  String get inboxFolderActions => 'Folder actions';
+
+  @override
+  String inboxFolderChatsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chats',
+      one: '$count chat',
+      zero: 'No chats',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inboxFolderHasRules => 'Has rules';
+
+  @override
+  String get inboxFolderAutoAdd => 'Add automatically';
+
+  @override
+  String get inboxFolderUnreadOnly => 'Unread only';
+
+  @override
+  String get inboxFolderAddChats => 'Add individual chats';
+
+  @override
+  String get inboxFolderNameInvalid => 'Enter a name of up to 40 characters';
+
+  @override
+  String get inboxFolderEmptyRules => 'Select chats or a rule';
+
+  @override
+  String get inboxFolderConflict =>
+      'Folder changed on another device. The list was updated';
+
+  @override
+  String get inboxFoldersUnavailable => 'Folders unavailable';
+
+  @override
+  String get inboxChatsLoadFailed => 'Could not load chats';
+
+  @override
+  String get commonSaving => 'Saving…';
+
+  @override
+  String get inboxScheduleTitle => 'Scheduled message';
+
+  @override
+  String get inboxReminderTitle => 'Remind about message';
+
+  @override
+  String get inboxScheduleCreated => 'Message scheduled';
+
+  @override
+  String get inboxReminderSaved => 'Reminder saved';
+
+  @override
+  String get inboxReminderText => 'Reminder text';
+
+  @override
+  String get inboxScheduleInHour => 'In an hour';
+
+  @override
+  String get inboxScheduleTomorrow => 'Tomorrow morning';
+
+  @override
+  String get inboxScheduleServerHint =>
+      'It will be sent from the server even if this device is turned off.';
+
+  @override
+  String get inboxMessageRequired => 'Enter a message';
+
+  @override
+  String get inboxScheduleFutureTime => 'Choose a time in the future';
+
+  @override
+  String get inboxReminderSave => 'Save reminder';
+
+  @override
+  String get inboxScheduleAction => 'Schedule';
+
+  @override
+  String get inboxScheduledTitle => 'Scheduled and reminders';
+
+  @override
+  String get inboxScheduleEmpty => 'Nothing scheduled yet';
+
+  @override
+  String get inboxScheduleEmptyHint =>
+      'Hold the send button to pick a time. Any message can also be turned into a reminder.';
+
+  @override
+  String get inboxScheduleActions => 'Scheduled message actions';
+
+  @override
+  String get inboxScheduleReschedule => 'Change time';
+
+  @override
+  String get inboxScheduleCancel => 'Cancel sending';
+
+  @override
+  String get inboxTopicsTitle => 'Group topics';
+
+  @override
+  String get inboxTopicClosed => 'Topic closed';
+
+  @override
+  String get inboxTopicActions => 'Topic actions';
+
+  @override
+  String get inboxTopicRename => 'Rename';
+
+  @override
+  String get inboxTopicOpen => 'Open topic';
+
+  @override
+  String get inboxTopicClose => 'Close topic';
+
+  @override
+  String get inboxTopicName => 'Topic name';
+
+  @override
+  String get inboxTopicCreate => 'Create topic';
+
+  @override
+  String get inboxE2eeWaitingActiveDevice =>
+      'Waiting for keys from your active device';
+
+  @override
+  String get inboxE2eeWaitingKeys => 'Waiting for encrypted chat keys';
+
+  @override
+  String get inboxSavedOpening => 'Opening Saved Messages…';
+
+  @override
+  String get inboxScheduleLockedPreview =>
+      'Connect a device with encryption keys to read this message';
 }

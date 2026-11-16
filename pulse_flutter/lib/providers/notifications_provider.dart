@@ -260,8 +260,11 @@ class NotificationsNotifier extends Notifier<NotificationsState> {
       }
       final prefs = await ref.read(notificationPreferencesProvider.future);
       if (!ref.mounted || _account != account) return;
-      if (event.chatId != null &&
-          await ref.read(chatMutedProvider(event.chatId!).future)) {
+      // Mute is enforced here and only here: WS `notification` pushes, FCM
+      // foreground messages and chat reminders all reach presentation through
+      // [accept], so no other layer may decide to show a chat notification on
+      // its own. (Calls gate on `chatMutedProvider` in `call_push_handler`.)
+      if (event.chatId != null && await _isChatMuted(event.chatId!)) {
         return;
       }
       if (!ref.mounted || _account != account) return;
@@ -328,6 +331,20 @@ class NotificationsNotifier extends Notifier<NotificationsState> {
     });
     _delivery = task;
     return task;
+  }
+
+  /// Mute lookup for delivery paths.
+  ///
+  /// Backed by [chatMutedProvider], which reads the account-scoped
+  /// [chatMuteHubProvider] set, so this does not touch prefs per notification.
+  /// Fail open: an unavailable mute state must not silence every chat.
+  Future<bool> _isChatMuted(int chatId) async {
+    try {
+      return await ref.read(chatMutedProvider(chatId).future);
+    } catch (error) {
+      debugPrint('[Notifications] MUTE_STATE_UNAVAILABLE: $error');
+      return false;
+    }
   }
 
   void stopAccount() {

@@ -35,16 +35,39 @@ class ChatProductivityRepository {
     return Map<String, dynamic>.from(result);
   }
 
-  Future<ApiChatSummary> saved() async {
+  int? _savedChatId;
+  Future<ApiChatSummary>? _savedInFlight;
+
+  /// Last resolved Saved Messages chat id, or `null` while it is unknown.
+  int? get cachedSavedChatId => _savedChatId;
+
+  Future<ApiChatSummary> saved() {
+    final cachedId = _savedChatId;
+    if (cachedId != null) {
+      final local = ref.read(chatByIdProvider(cachedId));
+      if (local != null && local.isSaved) return Future.value(local);
+      _savedChatId = null;
+    }
+    // Coalesce concurrent taps into a single `open_saved_messages` request.
+    return _savedInFlight ??= _openSaved().whenComplete(
+      () => _savedInFlight = null,
+    );
+  }
+
+  Future<ApiChatSummary> _openSaved() async {
     if (!ref.read(webSocketClientProvider).isConnected) {
       final saved = ref
           .read(chatsProvider)
           .value
           ?.where((c) => c.isSaved)
           .firstOrNull;
-      if (saved != null) return saved;
+      if (saved != null) {
+        _savedChatId = saved.id;
+        return saved;
+      }
     }
     final result = ApiChatSummary.fromJson(await call('open_saved_messages'));
+    _savedChatId = result.id;
     ref.read(chatsProvider.notifier).upsertChat(result);
     return result;
   }
@@ -161,8 +184,29 @@ void _listenChanges(Ref ref) {
   ref.onDispose(push.cancel);
 }
 
+/// Raised when the server rejects `save_chat_folder` because the folder was
+/// modified on another device (`version` mismatch).
+class ChatFolderVersionConflict implements Exception {
+  const ChatFolderVersionConflict();
+  @override
+  String toString() => 'ChatFolderVersionConflict';
+}
+
+bool _isVersionConflict(String message) {
+  final text = message.toLowerCase();
+  return text.contains('изменена') ||
+      text.contains('version') ||
+      text.contains('conflict') ||
+      text.contains('409');
+}
+
 class ChatFoldersNotifier extends AsyncNotifier<List<ChatFolder>> {
   int? _account;
+
+  /// Incremented by every local mutation so an in-flight [build] fetch cannot
+  /// overwrite a fresher server response (classic last-write-wins race).
+  int _generation = 0;
+
   @override
   Future<List<ChatFolder>> build() async {
     final session = ref.watch(
@@ -174,6 +218,7 @@ class ChatFoldersNotifier extends AsyncNotifier<List<ChatFolder>> {
     }
     if (session.$1 == null) return [];
     _listenChanges(ref);
+    final generation = ++_generation;
     final prefs = await SharedPreferences.getInstance();
     if (!ref.mounted || _account != session.$1) return [];
     final key = 'chat_folders_v1_${session.$1}';
@@ -184,7 +229,9 @@ class ChatFoldersNotifier extends AsyncNotifier<List<ChatFolder>> {
           .map((m) => ChatFolder.fromJson(Map<String, dynamic>.from(m)))
           .toList();
     } catch (_) {}
-    if (cached.isNotEmpty) state = AsyncData(cached);
+    if (cached.isNotEmpty && generation == _generation) {
+      state = AsyncData(cached);
+    }
     if (!ref.read(webSocketClientProvider).isConnected) return cached;
     try {
       final result = await ref
@@ -195,6 +242,7 @@ class ChatFoldersNotifier extends AsyncNotifier<List<ChatFolder>> {
           .map((m) => ChatFolder.fromJson(Map<String, dynamic>.from(m)))
           .toList();
       if (!ref.mounted || _account != session.$1) return [];
+      if (generation != _generation) return state.value ?? folders;
       await prefs.setString(
         key,
         jsonEncode(folders.map((f) => f.toJson()).toList()),
@@ -206,19 +254,87 @@ class ChatFoldersNotifier extends AsyncNotifier<List<ChatFolder>> {
     }
   }
 
+  bool _reordering = false;
+
+  List<ChatFolder>? _foldersFrom(Map<String, dynamic> result) {
+    final raw = result['folders'];
+    if (raw is! List) return null;
+    return raw
+        .whereType<Map>()
+        .map((m) => ChatFolder.fromJson(Map<String, dynamic>.from(m)))
+        .toList();
+  }
+
+  /// Applies the authoritative folder list returned by every mutation.
+  bool _applyFolders(Map<String, dynamic> result) {
+    final folders = _foldersFrom(result);
+    if (folders == null) return false;
+    _generation++;
+    state = AsyncData(folders);
+    unawaited(_cacheFolders(folders));
+    return true;
+  }
+
+  Future<void> _cacheFolders(List<ChatFolder> folders) async {
+    final account = _account;
+    if (account == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'chat_folders_v1_$account',
+        jsonEncode(folders.map((f) => f.toJson()).toList()),
+      );
+    } catch (_) {}
+  }
+
   Future<void> save(ChatFolder folder) async {
-    await ref
-        .read(chatProductivityRepositoryProvider)
-        .call('save_chat_folder', folder.toJson());
-    ref.invalidateSelf();
+    try {
+      final result = await ref
+          .read(chatProductivityRepositoryProvider)
+          .call('save_chat_folder', folder.toJson());
+      if (!_applyFolders(result)) ref.invalidateSelf();
+    } on StateError catch (error) {
+      // The server rejected the write (usually a stale `version`): drop the
+      // stale local list so the next edit starts from fresh state.
+      ref.invalidateSelf();
+      if (_isVersionConflict(error.message)) {
+        throw const ChatFolderVersionConflict();
+      }
+      rethrow;
+    }
+  }
+
+  /// Persists a new folder order with one round per folder and a single state
+  /// update at the end (the server has no batch reorder action).
+  Future<void> reorder(List<ChatFolder> ordered) async {
+    if (_reordering) return;
+    _reordering = true;
+    final repo = ref.read(chatProductivityRepositoryProvider);
+    try {
+      Map<String, dynamic>? last;
+      for (var i = 0; i < ordered.length; i++) {
+        last = await repo.call('save_chat_folder', {
+          ...ordered[i].toJson(),
+          'position': i,
+        });
+      }
+      if (last == null || !_applyFolders(last)) ref.invalidateSelf();
+    } on StateError catch (error) {
+      ref.invalidateSelf();
+      if (_isVersionConflict(error.message)) {
+        throw const ChatFolderVersionConflict();
+      }
+      rethrow;
+    } finally {
+      _reordering = false;
+    }
   }
 
   Future<void> remove(String id) async {
-    await ref.read(chatProductivityRepositoryProvider).call(
-      'delete_chat_folder',
-      {'id': id},
-    );
-    ref.invalidateSelf();
+    final result = await ref
+        .read(chatProductivityRepositoryProvider)
+        .call('delete_chat_folder', {'id': id});
+    if (!_applyFolders(result)) ref.invalidateSelf();
   }
 }
 
@@ -228,13 +344,64 @@ final chatFoldersProvider =
     );
 
 class SelectedChatFolder extends Notifier<String?> {
+  static const String _prefix = 'chat_selected_folder_v1_';
+  int? _account;
+
   @override
   String? build() {
-    ref.watch(authProvider.select((a) => a.session?.userId));
+    final userId = ref.watch(authProvider.select((a) => a.session?.userId));
+    _account = userId;
+    // A folder can disappear (deleted on another device), so drop a selection
+    // that no longer exists instead of silently showing every chat.
+    ref.listen(chatFoldersProvider, (_, next) {
+      final folders = next.value;
+      if (folders == null) return;
+      final current = state;
+      if (current != null && !folders.any((f) => f.id == current)) {
+        state = null;
+        _persist(null);
+      }
+    });
+    if (userId == null) return null;
+    _restore(userId);
     return null;
   }
 
-  void select(String? id) => state = id;
+  void select(String? id) {
+    state = id;
+    _persist(id);
+  }
+
+  Future<void> _restore(int userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!ref.mounted || _account != userId) return;
+      final id = prefs.getString('$_prefix$userId');
+      if (id == null || id.isEmpty) return;
+      final folders = ref.read(chatFoldersProvider).value;
+      if (!ref.mounted || _account != userId) return;
+      if (folders != null && !folders.any((f) => f.id == id)) {
+        await prefs.remove('$_prefix$userId');
+        return;
+      }
+      state = id;
+    } catch (_) {}
+  }
+
+  void _persist(String? id) {
+    final userId = _account;
+    if (userId == null) return;
+    unawaited(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (id == null || id.isEmpty) {
+          await prefs.remove('$_prefix$userId');
+        } else {
+          await prefs.setString('$_prefix$userId', id);
+        }
+      } catch (_) {}
+    }());
+  }
 }
 
 final selectedChatFolderProvider =
@@ -302,6 +469,7 @@ final scheduledChatMessagesProvider = FutureProvider.autoDispose
           Map<String, dynamic>.from(raw),
         );
         var preview = item.payload['content'] as String? ?? '';
+        var previewLocked = false;
         if (item.payload['e2ee_content'] != null) {
           final message = ApiMessage.fromJson({
             'id': 0,
@@ -316,9 +484,8 @@ final scheduledChatMessagesProvider = FutureProvider.autoDispose
           final decrypted = await ref
               .read(ordinaryE2eeProvider)
               ?.decrypt(message);
-          preview = decrypted?.isDecrypted == true
-              ? decrypted!.content
-              : 'Подключите устройство к шифрованию, чтобы прочитать сообщение';
+          previewLocked = decrypted?.isDecrypted != true;
+          preview = previewLocked ? '' : decrypted!.content;
         }
         if (!ref.mounted ||
             ref.read(authProvider).session?.userId != account.$1 ||
@@ -329,6 +496,7 @@ final scheduledChatMessagesProvider = FutureProvider.autoDispose
           ScheduledChatMessage.fromJson(
             Map<String, dynamic>.from(raw),
             preview: preview,
+            previewLocked: previewLocked,
           ),
         );
       }

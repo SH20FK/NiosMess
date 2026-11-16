@@ -42,17 +42,19 @@ class ChatListSkeleton extends StatelessWidget {
       itemCount: count,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (BuildContext context, int index) {
+        // Mirrors ChatTile metrics (12dp horizontal / 14dp vertical padding,
+        // 16dp radius, 48dp avatar) so the list does not jump when data lands.
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
-            color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(24),
+            color: scheme.surfaceContainerHigh.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: <Widget>[
               Container(
-                width: 52,
-                height: 52,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerHighest,
                   shape: BoxShape.circle,
@@ -81,6 +83,15 @@ class ChatListSkeleton extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 28,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ],
@@ -113,7 +124,9 @@ class MessageListSkeleton extends StatelessWidget {
             margin: const EdgeInsets.symmetric(vertical: 4),
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
             decoration: BoxDecoration(
-              color: isMine ? scheme.primaryContainer : scheme.surfaceContainerLow,
+              color: isMine
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerLow,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(18),
                 topRight: const Radius.circular(18),
@@ -363,10 +376,7 @@ class PostFeedSkeleton extends StatelessWidget {
         final int lines = (index % 3) + 1;
 
         return Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: PostCardSkeleton(
             hasMedia: hasMedia,
             aspectRatio: aspectRatio,
@@ -377,4 +387,3 @@ class PostFeedSkeleton extends StatelessWidget {
     );
   }
 }
-

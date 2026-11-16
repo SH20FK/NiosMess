@@ -21,11 +21,9 @@ import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
-import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/desktop_chat_provider.dart';
-import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
@@ -50,8 +48,12 @@ class ChatListScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
 }
 
-class _ChatListScreenState extends ConsumerState<ChatListScreen>
-    with SingleTickerProviderStateMixin {
+class _ChatListScreenState extends ConsumerState<ChatListScreen> {
+  static final RegExp _forwardedPattern = RegExp(r'^_fwd from\s+(.+?):');
+
+  /// Shared radius of a chat row and of the swipe action painted behind it.
+  static const double _kChatRowRadius = AppRadii.lg;
+
   @override
   void initState() {
     super.initState();
@@ -101,6 +103,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     }
   }
 
+  void _resetInboxFilters() {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
+    ref.read(chatFilterProvider.notifier).updateFilter(ChatFilter.all);
+    ref.read(selectedChatFolderProvider.notifier).select(null);
+  }
+
   List<ApiChatSummary> _applyFilter(
     List<ApiChatSummary> chats,
     ChatFilter filter,
@@ -143,9 +151,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
       visibleChatsProvider,
     );
-    final AsyncValue<ApiSearchResult> searchAsync = ref.watch(
-      chatListSearchProvider,
-    );
     final filter = ref.watch(chatFilterProvider);
     final browserWorkspace = ref
         .watch(clientCapabilitiesProvider)
@@ -155,7 +160,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
             GoRouterState.of(context).uri.queryParameters['chat'] ?? '',
           )
         : ref.watch(desktopSelectedChatProvider);
-    final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return CallbackShortcuts(
@@ -167,7 +171,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
       },
       child: Focus(
         child: Scaffold(
-          appBar: const ChatListHeader(),
+          appBar: PreferredSize(
+            preferredSize: Size.fromHeight(ChatListHeader.heightFor(context)),
+            child: const ChatListHeader(),
+          ),
           backgroundColor: Colors.transparent,
           body: RefreshIndicator(
             onRefresh: () async {
@@ -203,8 +210,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                     chatsAsync,
                     compact,
                     scheme,
-                    textTheme,
-                    searchAsync.asData?.value,
                     filter,
                     desktopChatId,
                   ),
@@ -278,8 +283,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     AsyncValue<List<ApiChatSummary>> chatsAsync,
     bool compact,
     ColorScheme scheme,
-    TextTheme textTheme,
-    ApiSearchResult? searchResult,
     ChatFilter filter,
     int? desktopChatId,
   ) {
@@ -300,7 +303,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         chats: cachedChats,
         compact: compact,
         scheme: scheme,
-        searchResult: searchResult,
         filter: filter,
         desktopChatId: desktopChatId,
       );
@@ -311,7 +313,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         chats: chats,
         compact: compact,
         scheme: scheme,
-        searchResult: searchResult,
         filter: filter,
         desktopChatId: desktopChatId,
       ),
@@ -332,7 +333,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           _savedShortcut(scheme, compact),
         SliverFillRemaining(
           child: EmptyStateWidget(
-            title: context.l10n.chatListFailedLoad(context.l10n.commonError),
+            title: context.l10n.inboxRefreshFailed,
             actionLabel: context.l10n.commonRetry,
             onAction: _retryChats,
             isBusy: _retrying,
@@ -347,69 +348,55 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     required List<ApiChatSummary> chats,
     required bool compact,
     required ColorScheme scheme,
-    required ApiSearchResult? searchResult,
     required ChatFilter filter,
     required int? desktopChatId,
   }) {
     final folders = ref.watch(chatFoldersProvider).value ?? [];
     final selected = ref.watch(selectedChatFolderProvider);
     final folder = folders.where((f) => f.id == selected).firstOrNull;
-    final List<ApiChatSummary> filtered = _applyFilter(
-      folder == null ? chats : chats.where(folder.includes).toList(),
-      filter,
-    );
-    final Set<int> resultChatIds = <int>{
-      ...?searchResult?.chats.map((ApiSearchChat chat) => chat.id),
-      ...?searchResult?.messages.map(
-        (ApiSearchMessage message) => message.chatId,
+    final List<ApiChatSummary> filtered = List<ApiChatSummary>.of(
+      _applyFilter(
+        folder == null ? chats : chats.where(folder.includes).toList(),
+        filter,
       ),
-    };
-    final bool isSearchActive = ref
-        .watch(chatListSearchProvider.notifier)
-        .hasActiveQuery;
-    final List<ApiChatSummary> searched = filtered
-        .where((ApiChatSummary chat) {
-          if (!isSearchActive) return true;
-          return resultChatIds.contains(chat.id);
-        })
-        .toList(growable: true);
+    );
+    final bool hasActiveFolder = folder != null;
+    final bool canResetFilters = filter != ChatFilter.all || hasActiveFolder;
+
     // The self-chat is always the first pinned item in the main inbox.
-    if (folder == null && filter == ChatFilter.all && !isSearchActive) {
-      final index = searched.indexWhere((chat) => chat.isSaved);
-      if (index > 0) searched.insert(0, searched.removeAt(index));
+    if (!hasActiveFolder && filter == ChatFilter.all) {
+      final index = filtered.indexWhere((chat) => chat.isSaved);
+      if (index > 0) filtered.insert(0, filtered.removeAt(index));
     }
     final showSavedShortcut =
-        folder == null &&
+        !hasActiveFolder &&
         filter == ChatFilter.all &&
-        !isSearchActive &&
-        !searched.any((chat) => chat.isSaved);
+        !filtered.any((chat) => chat.isSaved);
 
-    if (searched.isEmpty && !showSavedShortcut) {
+    if (filtered.isEmpty && !showSavedShortcut) {
       return <Widget>[
         SliverFillRemaining(
           child: EmptyStateWidget(
-            title: isSearchActive
-                ? context.l10n.inboxSearchEmpty
-                : filter == ChatFilter.unread
+            title: filter == ChatFilter.unread
                 ? context.l10n.inboxNoUnread
                 : filter == ChatFilter.all
                 ? context.l10n.chatListNoChats
                 : context.l10n.inboxCategoryEmpty,
-            subtitle: isSearchActive
-                ? context.l10n.inboxSearchEmptyHint
-                : filter == ChatFilter.all
-                ? null
-                : context.l10n.inboxFilterResetHint,
-            icon: isSearchActive
-                ? Icons.search_off_rounded
-                : Icons.chat_bubble_outline_rounded,
+            subtitle: canResetFilters
+                ? context.l10n.inboxFilterResetHint
+                : null,
+            actionLabel: canResetFilters
+                ? context.l10n.preferencesResetConfirm
+                : null,
+            onAction: canResetFilters ? _resetInboxFilters : null,
+            icon: Icons.chat_bubble_outline_rounded,
           ),
         ),
       ];
     }
 
     final Map<int, int> idToIndex = <int, int>{
-      for (int i = 0; i < searched.length; i++) searched[i].id: i,
+      for (int i = 0; i < filtered.length; i++) filtered[i].id: i,
     };
 
     return <Widget>[
@@ -419,143 +406,134 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
             (BuildContext context, int index) {
-              final ApiChatSummary chat = searched[index];
-              final Widget item = Padding(
-                padding: EdgeInsets.zero,
-                child: Dismissible(
-                  key: ValueKey<String>('chat_${chat.id}'),
-                  direction: chat.unreadCount > 0
-                      ? DismissDirection.startToEnd
-                      : DismissDirection.none,
-                  background: _swipeBackground(
-                    scheme: scheme,
-                    alignment: Alignment.centerLeft,
-                    icon: Icons.done_all_rounded,
-                    label: context.l10n.chatListMarkRead,
-                  ),
-                  confirmDismiss: (DismissDirection direction) async {
-                    if (ref.read(uiSettingsProvider).haptics) {
-                      HapticService.tap();
-                    }
-                    await _markRead(chat);
-                    return false;
-                  },
-                  child: GestureDetector(
-                    onSecondaryTapDown: (TapDownDetails details) {
-                      _showChatContextMenu(context, chat);
-                    },
-                    child: Consumer(
-                      builder: (BuildContext context, WidgetRef ref, _) {
-                        final bool isTyping =
-                            !chat.isSaved &&
-                            ref.watch(
-                              typingProvider(chat.id).select(
-                                (TypingState s) => s.typingUserIds.isNotEmpty,
-                              ),
-                            );
-                        String? draft;
-                        if (chat.isSecret) {
-                          ref.watch(secretChatRevisionProvider);
-                          draft =
-                              ref
-                                      .watch(secretChatEngineProvider)
-                                      ?.chat(chat.id)['draft']
-                                  as String?;
-                        } else {
-                          draft = ref.watch(
-                            liveDraftMapProvider.select(
-                              (value) => value.value?[chat.id],
-                            ),
-                          );
-                        }
-                        final hasDraft = draft?.trim().isNotEmpty == true;
-                        return ChatTile(
-                          title: chat.isSaved
-                              ? context.l10n.savedMessagesTitle
-                              : chat.name,
-                          draftLabel: hasDraft
-                              ? context.l10n.inboxDraftLabel
-                              : null,
-                          enableHaptics: ref.watch(
-                            uiSettingsProvider.select((s) => s.haptics),
+              final ApiChatSummary chat = filtered[index];
+              final Widget item = Dismissible(
+                key: ValueKey<String>('chat_${chat.id}'),
+                direction: chat.unreadCount > 0
+                    ? DismissDirection.startToEnd
+                    : DismissDirection.none,
+                background: _swipeBackground(
+                  scheme: scheme,
+                  alignment: Alignment.centerLeft,
+                  icon: Icons.done_all_rounded,
+                  label: context.l10n.chatListMarkRead,
+                ),
+                confirmDismiss: (DismissDirection direction) async {
+                  if (ref.read(uiSettingsProvider).haptics) {
+                    HapticService.tap();
+                  }
+                  await _markRead(chat);
+                  return false;
+                },
+                child: Consumer(
+                  builder: (BuildContext context, WidgetRef ref, _) {
+                    final bool isTyping =
+                        !chat.isSaved &&
+                        ref.watch(
+                          typingProvider(chat.id).select(
+                            (TypingState s) => s.typingUserIds.isNotEmpty,
                           ),
-                          subtitle: hasDraft
-                              ? messagePreviewText(draft!)
-                              : isTyping
-                              ? context.l10n.chatTyping
-                              : _chatPreview(chat),
-                          formattedTime: formatRelativeTime(
-                            chat.lastActivity,
-                            localeCode: context.l10n.localeName,
-                          ),
-                          deliveryIcon:
-                              chat.lastMessage != null &&
-                                  chat.lastMessage!.senderId ==
-                                      ref.read(authProvider).session?.userId
-                              ? (chat.lastMessage!.isFailed
-                                    ? Icons.error_outline_rounded
-                                    : chat.lastMessage!.isSending ||
-                                          chat.lastMessage!.id <= 0
-                                    ? Icons.schedule_rounded
-                                    : chat.lastMessage!.isRead
-                                    ? Icons.done_all_rounded
-                                    : Icons.done_rounded)
-                              : null,
-                          unreadCount: chat.unreadCount,
-                          avatarText: chat.isSaved
-                              ? context.l10n.savedMessagesTitle
-                              : chat.name,
-                          avatarUrl: chat.avatarUrl,
-                          avatarColor: _avatarColor(chat.id, scheme),
-                          subtitleIcon: hasDraft
-                              ? null
-                              : isTyping
-                              ? Icons.edit_note_rounded
-                              : _chatPreviewIcon(chat),
-                          compact: compact,
-                          isOnline:
-                              !chat.isSaved &&
-                              chat.chatType == 'direct' &&
-                              chat.isOnline,
-                          isSecret: chat.isSecret,
-                          isSaved: chat.isSaved,
-                          isPinned: chat.isSaved,
-                          partnerBadges: chat.partnerBadges,
-                          isMuted:
-                              ref.watch(chatMutedProvider(chat.id)).value ??
-                              false,
-                          deliveryLabel:
-                              chat.lastMessage?.senderId ==
-                                  ref.read(authProvider).session?.userId
-                              ? chat.lastMessage?.isFailed == true
-                                    ? context.l10n.inboxSendFailed
-                                    : chat.lastMessage?.isSending == true ||
-                                          (chat.lastMessage?.id ?? 1) <= 0
-                                    ? context.l10n.inboxWaitingToSend
-                                    : null
-                              : null,
-                          chatId: chat.id,
-                          isSelected: desktopChatId == chat.id,
-                          onTap: () {
-                            if (ref
-                                .read(clientCapabilitiesProvider)
-                                .browserWorkspace) {
-                              context.go('/main/chats?chat=${chat.id}');
-                            } else if (MediaQuery.sizeOf(context).width >=
-                                Breakpoints.medium) {
-                              ref
-                                  .read(desktopSelectedChatProvider.notifier)
-                                  .setSelectedChat(chat.id);
-                            } else {
-                              context.push('/chat/${chat.id}');
-                            }
-                          },
-                          onLongPress: () =>
-                              _showChatContextMenu(context, chat),
                         );
+                    String? draft;
+                    if (chat.isSecret) {
+                      ref.watch(secretChatRevisionProvider);
+                      draft =
+                          ref
+                                  .watch(secretChatEngineProvider)
+                                  ?.chat(chat.id)['draft']
+                              as String?;
+                    } else {
+                      draft = ref.watch(
+                        liveDraftMapProvider.select(
+                          (value) => value.value?[chat.id],
+                        ),
+                      );
+                    }
+                    final hasDraft = draft?.trim().isNotEmpty == true;
+                    return ChatTile(
+                      title: chat.isSaved
+                          ? context.l10n.savedMessagesTitle
+                          : chat.name,
+                      draftLabel: hasDraft
+                          ? context.l10n.inboxDraftLabel
+                          : null,
+                      enableHaptics: ref.watch(
+                        uiSettingsProvider.select((s) => s.haptics),
+                      ),
+                      subtitle: hasDraft
+                          ? messagePreviewText(draft!)
+                          : isTyping
+                          ? context.l10n.chatTyping
+                          : _chatPreview(chat),
+                      formattedTime: formatRelativeTime(
+                        chat.lastMessage?.sentAt ?? chat.lastActivity,
+                        localeCode: context.l10n.localeName,
+                      ),
+                      deliveryIcon:
+                          chat.lastMessage != null &&
+                              chat.lastMessage!.senderId ==
+                                  ref.read(authProvider).session?.userId
+                          ? (chat.lastMessage!.isFailed
+                                ? Icons.error_outline_rounded
+                                : chat.lastMessage!.isSending ||
+                                      chat.lastMessage!.id <= 0
+                                ? Icons.schedule_rounded
+                                : chat.lastMessage!.isRead
+                                ? Icons.done_all_rounded
+                                : Icons.done_rounded)
+                          : null,
+                      unreadCount: chat.unreadCount,
+                      avatarText: chat.isSaved
+                          ? context.l10n.savedMessagesTitle
+                          : chat.name,
+                      avatarUrl: chat.avatarUrl,
+                      avatarColor: _avatarColor(chat.id, scheme),
+                      subtitleIcon: hasDraft
+                          ? null
+                          : isTyping
+                          ? Icons.edit_note_rounded
+                          : _chatPreviewIcon(chat),
+                      compact: compact,
+                      isOnline:
+                          !chat.isSaved &&
+                          chat.chatType == 'direct' &&
+                          chat.isOnline,
+                      isSecret: chat.isSecret,
+                      isSaved: chat.isSaved,
+                      partnerBadges: chat.partnerBadges,
+                      isMuted:
+                          ref.watch(chatMutedProvider(chat.id)).value ?? false,
+                      deliveryLabel:
+                          chat.lastMessage?.senderId ==
+                              ref.read(authProvider).session?.userId
+                          ? chat.lastMessage?.isFailed == true
+                                ? context.l10n.inboxSendFailed
+                                : chat.lastMessage?.isSending == true ||
+                                      (chat.lastMessage?.id ?? 1) <= 0
+                                ? context.l10n.inboxWaitingToSend
+                                : null
+                          : null,
+                      chatId: chat.id,
+                      isSelected: desktopChatId == chat.id,
+                      onTap: () {
+                        if (ref
+                            .read(clientCapabilitiesProvider)
+                            .browserWorkspace) {
+                          context.go('/main/chats?chat=${chat.id}');
+                        } else if (MediaQuery.sizeOf(context).width >=
+                            Breakpoints.medium) {
+                          ref
+                              .read(desktopSelectedChatProvider.notifier)
+                              .setSelectedChat(chat.id);
+                        } else {
+                          context.push('/chat/${chat.id}');
+                        }
                       },
-                    ),
-                  ),
+                      onLongPress: () => _showChatContextMenu(context, chat),
+                      onSecondaryTapDown: (Offset position) =>
+                          _showChatContextMenu(context, chat, anchor: position),
+                    );
+                  },
                 ),
               );
 
@@ -568,7 +546,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
               final int id = key.value;
               return idToIndex[id];
             },
-            childCount: searched.length,
+            childCount: filtered.length,
           ),
         ),
       ),
@@ -583,10 +561,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
                 '')
             .trim();
     if (text.isEmpty) return context.l10n.chatNoMessages;
-    final RegExp forwarded = RegExp(r'^_fwd from\s+(.+?):');
-    final Match? match = forwarded.firstMatch(text);
+    final Match? match = _forwardedPattern.firstMatch(text);
     if (match != null) {
-      return context.l10n.chatPreviewForwardedFrom(match.group(1) ?? 'Unknown');
+      return context.l10n.chatPreviewForwardedFrom(
+        match.group(1) ?? context.l10n.commonUnknown,
+      );
     }
     return _previewFormatter.format(text, cache: cache);
   }
@@ -699,15 +678,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     required Alignment alignment,
     required IconData icon,
     required String label,
-    bool destructive = false,
   }) {
-    final Color seed = destructive ? scheme.error : scheme.primary;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 1),
       padding: const EdgeInsets.symmetric(horizontal: 18),
       decoration: BoxDecoration(
-        color: seed.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(24),
+        color: scheme.primary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(_kChatRowRadius),
       ),
       alignment: alignment,
       child: Row(
@@ -716,16 +693,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
           if (alignment == Alignment.centerRight) ...<Widget>[
             Text(
               label,
-              style: TextStyle(color: seed, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(width: 8),
           ],
-          Icon(icon, color: seed),
+          Icon(icon, color: scheme.primary),
           if (alignment == Alignment.centerLeft) ...<Widget>[
             const SizedBox(width: 8),
             Text(
               label,
-              style: TextStyle(color: seed, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ],
@@ -775,10 +758,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
     }
   }
 
+  /// Opens the chat action modal.
+  ///
+  /// [anchor] carries the desktop pointer position captured by
+  /// `TouchContainer.onSecondaryTapDown`; it is kept in the signature so the
+  /// modal can be swapped for a cursor-anchored MenuAnchor without another
+  /// wiring pass through the tile.
   Future<void> _showChatContextMenu(
     BuildContext context,
-    ApiChatSummary chat,
-  ) async {
+    ApiChatSummary chat, {
+    Offset? anchor,
+  }) async {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool isMuted = ref.read(chatMutedProvider(chat.id)).value ?? false;
     final ChatActionResult? action = await ChatActionsModal.show(

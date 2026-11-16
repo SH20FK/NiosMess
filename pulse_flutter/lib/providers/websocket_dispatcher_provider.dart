@@ -2,8 +2,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
+import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/core/services/desktop_window_service.dart';
 
@@ -106,6 +109,14 @@ class WebSocketPushDispatcher {
   static final Map<int, void Function(ChatPushEvent)> _chatListListeners = {};
   static StreamSubscription<Map<String, dynamic>>? _subscription;
 
+  /// Chat-level pushes (`chat_updated` / `chat_deleted`) do not carry a message,
+  /// and [ChatPushEventKind] is consumed exhaustively by the inbox for
+  /// message-level updates, so they are routed through this separate hook.
+  /// [payload] is the raw server payload; it may or may not include a full
+  /// chat summary or a mute flag.
+  static void Function(String action, int chatId, Map<String, dynamic> payload)?
+  onChatListPush;
+
   static void registerChat(int chatId, void Function(ChatPushEvent) onEvent) {
     _chatListeners[chatId] = onEvent;
   }
@@ -127,6 +138,20 @@ class WebSocketPushDispatcher {
   static void emit(ApiMessage stub, ChatPushEvent event) {
     _chatListeners[stub.chatId]?.call(event);
     _chatListListeners[-1]?.call(event);
+  }
+
+  /// Chat id of a chat-level payload: `chat_id` / `id`, or the nested full
+  /// summary under `chat`.
+  static int _chatIdOf(Map<String, dynamic> payload) {
+    final int? direct = int.tryParse(
+      payload['chat_id']?.toString() ?? payload['id']?.toString() ?? '',
+    );
+    if (direct != null && direct > 0) return direct;
+    final dynamic chat = payload['chat'];
+    if (chat is Map) {
+      return int.tryParse(chat['id']?.toString() ?? '') ?? 0;
+    }
+    return 0;
   }
 
   static void _handlePushEvent(Map<String, dynamic> event) {
@@ -204,6 +229,17 @@ class WebSocketPushDispatcher {
             emit(stub, ChatPushEvent.userBlocked(stub, userId: byUserId, isBlocked: isBlocked));
           }
           break;
+        // Chat-level pushes carry no message (rename, auto-delete TTL,
+        // membership change, deletion). They must not go through `emit`, whose
+        // payload is an ApiMessage consumed by the open-chat screen.
+        case 'chat_updated':
+        case 'chat_deleted':
+        case 'chat_removed':
+          final int chatId = _chatIdOf(payload);
+          if (chatId > 0) {
+            onChatListPush?.call(action!, chatId, payload);
+          }
+          break;
         case 'end_call':
         case 'call_ended':
           final dynamic callMsg = payload['message'];
@@ -228,8 +264,85 @@ class WebSocketPushDispatcher {
   static void dispose() {
     _subscription?.cancel();
     _subscription = null;
+    onChatListPush = null;
     _chatListeners.clear();
     _chatListListeners.clear();
+  }
+}
+
+/// Coalesces chat-level pushes into one inbox sync.
+///
+/// The server's `chat_updated` carries identifiers (TTL, rename, membership),
+/// not a full summary, so the inbox cannot be patched from it; a refresh is
+/// needed. Debouncing means a burst — bulk member changes, several renames —
+/// costs one `list_chats` instead of one per event. A payload that does carry a
+/// full summary is applied pointwise through `ChatsNotifier.upsertChat`.
+class _ChatListPushSync {
+  _ChatListPushSync(this._ref);
+
+  static const Duration _window = Duration(milliseconds: 500);
+
+  final Ref _ref;
+  Timer? _timer;
+  bool _refresh = false;
+  bool _disposed = false;
+
+  void handle(String action, int chatId, Map<String, dynamic> payload) {
+    if (_disposed || chatId <= 0) return;
+
+    // A mute flag, when the server starts sending one, is applied immediately:
+    // notifications must stop without waiting for the refresh window.
+    final dynamic mute = payload['is_muted'] ?? payload['muted'];
+    if (mute is bool) {
+      unawaited(
+        _ref.read(chatMuteHubProvider.notifier).applyServerMute(chatId, mute),
+      );
+    }
+
+    final Map<String, dynamic>? summary = _fullSummary(payload, chatId);
+    if (summary != null && action != 'chat_deleted') {
+      _ref.read(chatsProvider.notifier).upsertChat(
+        ApiChatSummary.fromJson(summary),
+      );
+    } else {
+      // `chat_deleted` / `chat_removed` (and any sparse update) needs the
+      // server list: it is what drops a chat the user left or that was removed.
+      _refresh = true;
+    }
+    if (_refresh) _timer ??= Timer(_window, _flush);
+  }
+
+  void _flush() {
+    _timer = null;
+    if (_disposed || !_ref.mounted) return;
+    final bool refresh = _refresh;
+    _refresh = false;
+    if (!refresh) return;
+    // `refresh()` keeps the current list on a failed request (unlike
+    // invalidate, which also drops the pending cache snapshot) and replaces it
+    // with the server list, which is what removes a deleted chat.
+    unawaited(_ref.read(chatsProvider.notifier).refresh());
+  }
+
+  /// The payload is a full chat summary when it carries the summary fields; a
+  /// sparse `{chat_id, auto_delete_seconds}` update must not overwrite a tile.
+  Map<String, dynamic>? _fullSummary(Map<String, dynamic> payload, int chatId) {
+    final dynamic nested = payload['chat'];
+    final dynamic candidate = nested is Map ? nested : payload;
+    if (candidate is! Map) return null;
+    final Map<String, dynamic> summary = <String, dynamic>{
+      for (final MapEntry<dynamic, dynamic> entry in candidate.entries)
+        entry.key.toString(): entry.value,
+    };
+    if (summary['chat_type'] == null || summary['name'] == null) return null;
+    summary['id'] = chatId;
+    return summary;
+  }
+
+  void dispose() {
+    _disposed = true;
+    _timer?.cancel();
+    _timer = null;
   }
 }
 
@@ -247,7 +360,11 @@ final Provider<WebSocketPushDispatcher> webSocketDispatcherProvider =
   final WebSocketClient client = ref.watch(webSocketClientProvider);
   WebSocketPushDispatcher.init(client);
 
+  final _ChatListPushSync chatListSync = _ChatListPushSync(ref);
+  WebSocketPushDispatcher.onChatListPush = chatListSync.handle;
+
   ref.onDispose(() {
+    chatListSync.dispose();
     WebSocketPushDispatcher.dispose();
   });
 

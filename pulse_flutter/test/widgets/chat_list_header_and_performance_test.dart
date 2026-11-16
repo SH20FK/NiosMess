@@ -109,63 +109,32 @@ void main() {
     });
   });
 
-  group('ChatTile Lazy Animation & Performance Tests', () {
-    testWidgets(
-      'renders normally when animateEntrance is false without throwing',
-      (WidgetTester tester) async {
-        bool tapped = false;
-        await tester.pumpWidget(
-          _buildTestHarness(
-            child: ChatTile(
-              title: 'Тестовый чат',
-              subtitle: 'Привет мир',
-              formattedTime: '12:00',
-              unreadCount: 3,
-              avatarText: 'ТЧ',
-              avatarColor: Colors.blue,
-              animateEntrance: false,
-              onTap: () => tapped = true,
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('Тестовый чат'), findsOneWidget);
-        expect(find.text('Привет мир'), findsOneWidget);
-        expect(find.text('3'), findsOneWidget);
-
-        await tester.tap(find.byType(ChatTile));
-        expect(tapped, isTrue);
-      },
-    );
-
-    testWidgets('animates correctly when animateEntrance is true', (
+  group('ChatTile rendering & performance Tests', () {
+    testWidgets('renders title, preview and unread badge without throwing', (
       WidgetTester tester,
     ) async {
+      bool tapped = false;
       await tester.pumpWidget(
         _buildTestHarness(
           child: ChatTile(
-            title: 'Анимированный чат',
-            subtitle: 'Новое сообщение',
-            formattedTime: '12:30',
-            unreadCount: 0,
-            avatarText: 'АЧ',
-            avatarColor: Colors.purple,
-            animateEntrance: true,
-            onTap: () {},
+            title: 'Тестовый чат',
+            subtitle: 'Привет мир',
+            formattedTime: '12:00',
+            unreadCount: 3,
+            avatarText: 'ТЧ',
+            avatarColor: Colors.blue,
+            onTap: () => tapped = true,
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Анимированный чат'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(ChatTile),
-          matching: find.byType(SlideTransition),
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Тестовый чат'), findsOneWidget);
+      expect(find.text('Привет мир'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+
+      await tester.tap(find.byType(ChatTile));
+      expect(tapped, isTrue);
     });
   });
 }

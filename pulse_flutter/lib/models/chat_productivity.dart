@@ -84,15 +84,21 @@ class ScheduledChatMessage {
     this.state = 'pending',
     this.error,
     this.preview = '',
+    this.previewLocked = false,
   });
   final String id, kind, state, preview;
   final String? error;
   final int chatId;
   final DateTime dueAt;
   final Map<String, dynamic> payload;
+
+  /// True when the payload is encrypted and this device cannot decrypt it, so
+  /// the UI shows a localized placeholder instead of an empty preview.
+  final bool previewLocked;
   factory ScheduledChatMessage.fromJson(
     Map<String, dynamic> j, {
     String preview = '',
+    bool previewLocked = false,
   }) => ScheduledChatMessage(
     id: j['id'] as String,
     chatId: (j['chat_id'] as num).toInt(),
@@ -102,5 +108,6 @@ class ScheduledChatMessage {
     error: j['error'] as String?,
     payload: Map<String, dynamic>.from(j['payload'] as Map),
     preview: preview,
+    previewLocked: previewLocked,
   );
 }

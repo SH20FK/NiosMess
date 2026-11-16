@@ -653,7 +653,9 @@ class SecretChatCoordinator
     // Chats belonging to a different device remain visibly unavailable and are
     // never silently rebound or used to initialize new ratchets.
     result.addAll(remote.where((c) => c.isSecret && c.keyMismatch));
-    result.sort((a, b) => b.lastActivity.compareTo(a.lastActivity));
+    // Same ordering as the server list (see `compareChatRecency`): without it a
+    // refreshed secret conversation drops to the bottom of the inbox.
+    result.sort(compareChatRecency);
     return result;
   }
 

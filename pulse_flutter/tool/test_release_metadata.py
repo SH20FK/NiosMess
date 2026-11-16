@@ -14,9 +14,10 @@ class ReleaseMetadataTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = pathlib.Path(temporary) / 'pulse_flutter'
             (project / 'tool').mkdir(parents=True)
+            (project / 'assets').mkdir(parents=True)
             (project / 'dist/android').mkdir(parents=True)
             (project / 'pubspec.yaml').write_text('version: 3.100.0+229\n')
-            (project.parent / 'CHANGELOG.md').write_text('## [3.100.0]\n\nАктивация NiosPlus\n\n## [3.99.2]\n\nOld notes\n', encoding='utf-8')
+            (project / 'assets/CHANGELOG.md').write_text('## [3.100.0]\n\nАктивация NiosPlus\n\n## [3.99.2]\n\nOld notes\n', encoding='utf-8')
             for abi in ('universal', 'arm64-v8a', 'armeabi-v7a', 'x86_64'):
                 name = 'niosmess.apk' if abi == 'universal' else f'niosmess-{abi}.apk'
                 (project / 'dist/android' / name).write_bytes(abi.encode())

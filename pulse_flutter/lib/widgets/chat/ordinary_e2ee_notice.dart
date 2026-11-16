@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 
 class OrdinaryE2eeNotice extends ConsumerWidget {
@@ -9,6 +10,7 @@ class OrdinaryE2eeNotice extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final service = ref.watch(ordinaryE2eeProvider);
     if (service == null) return const SizedBox.shrink();
+    final l = context.l10n;
     return ListenableBuilder(
       listenable: service,
       builder: (context, _) {
@@ -22,14 +24,14 @@ class OrdinaryE2eeNotice extends ConsumerWidget {
               Expanded(
                 child: Text(
                   service.autoWaiting
-                      ? 'Получаем ключи от активного устройства'
-                      : 'Ожидаем ключи защищённых чатов',
+                      ? l.inboxE2eeWaitingActiveDevice
+                      : l.inboxE2eeWaitingKeys,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
               TextButton(
                 onPressed: () => context.push('/settings/e2ee'),
-                child: const Text('Открыть'),
+                child: Text(l.noticeOpen),
               ),
             ],
           ),

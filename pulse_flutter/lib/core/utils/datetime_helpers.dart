@@ -62,7 +62,7 @@ String formatRelativeTime(DateTime dateTime, {String? localeCode}) {
   if (diff.isNegative) return _wordNow(locale);
   if (diff.inSeconds < 60) return _wordNow(locale);
   if (diff.inMinutes < 60) {
-    return locale == 'ru' ? '${diff.inMinutes} мин' : '${diff.inMinutes}m';
+    return _minutesAgo(diff.inMinutes, locale);
   }
 
   final bool sameDay =
@@ -81,7 +81,7 @@ String formatRelativeTime(DateTime dateTime, {String? localeCode}) {
   if (isYesterday) return _wordYesterday(locale);
 
   if (diff.inDays < 7) {
-    return locale == 'ru' ? '${diff.inDays} д' : '${diff.inDays}d';
+    return _daysAgo(diff.inDays, locale);
   }
 
   if (resolved.year == now.year) {
@@ -127,13 +127,74 @@ Duration computeCallElapsed(DateTime? startedAt, int? durationSeconds) {
   return Duration.zero;
 }
 
-String _wordNow(String locale) {
-  return locale == 'ru' ? 'сейчас' : 'now';
+/// Short unit words for relative timestamps.
+///
+/// This helper is imported by pure-Dart models (`message_model`, `call_models`)
+/// and therefore must never import `package:flutter` — `dart test` runs those
+/// models without `dart:ui`. The widget layer gets the same labels from the
+/// `timeNow` / `timeYesterday` ARB keys, so keep both in sync.
+class _RelativeTimeWords {
+  const _RelativeTimeWords({
+    required this.now,
+    required this.yesterday,
+    required this.minute,
+    required this.day,
+  });
+
+  final String now;
+  final String yesterday;
+  final String minute;
+  final String day;
 }
 
-String _wordYesterday(String locale) {
-  return locale == 'ru' ? 'вчера' : 'yesterday';
+/// `minute` / `day` carry their own separator: Russian needs a space before the
+/// shortened unit ("7 мин"), English does not ("7m").
+const Map<String, _RelativeTimeWords> _relativeTimeWords = {
+  'ru': _RelativeTimeWords(
+    now: 'сейчас',
+    yesterday: 'вчера',
+    minute: ' мин',
+    day: ' д',
+  ),
+};
+
+const _RelativeTimeWords _relativeTimeFallback = _RelativeTimeWords(
+  now: 'now',
+  yesterday: 'yesterday',
+  minute: 'm',
+  day: 'd',
+);
+
+_RelativeTimeWords _wordsFor(String locale) =>
+    _relativeTimeWords[locale] ?? _relativeTimeFallback;
+
+String _minutesAgo(int count, String locale) {
+  final unit = _wordsFor(locale).minute;
+  return Intl.plural(
+    count,
+    locale: locale,
+    one: '$count$unit',
+    few: '$count$unit',
+    many: '$count$unit',
+    other: '$count$unit',
+  );
 }
+
+String _daysAgo(int count, String locale) {
+  final unit = _wordsFor(locale).day;
+  return Intl.plural(
+    count,
+    locale: locale,
+    one: '$count$unit',
+    few: '$count$unit',
+    many: '$count$unit',
+    other: '$count$unit',
+  );
+}
+
+String _wordNow(String locale) => _wordsFor(locale).now;
+
+String _wordYesterday(String locale) => _wordsFor(locale).yesterday;
 
 bool _hasExplicitTimeZone(String value) {
   return RegExp(r'(?:[tT ].*)(?:[zZ]|[+-]\d\d(?::?\d\d)?)$').hasMatch(value);

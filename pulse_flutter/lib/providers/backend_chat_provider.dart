@@ -120,6 +120,35 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   }
 
   final _seenOperations = <String>{};
+
+  /// Message keys already folded into the inbox counters. Unlike
+  /// [_seenOperations] this survives a rebuild, so a mesh replay or a
+  /// re-delivered push cannot bump the unread badge twice. It is cleared only
+  /// when the account (or its token) changes.
+  final _seenMessages = <String>{};
+
+  /// Recently applied reaction pushes (event signature -> apply time). The WS
+  /// dispatcher does not expose event ids, so duplicates are recognised by
+  /// signature inside a short window instead.
+  final Map<String, DateTime> _recentReactions = {};
+
+  /// Monotonic `list_chats` sequence. Only the newest response may replace the
+  /// state, otherwise a slow request would roll back fresher pushes.
+  int _refreshSeq = 0;
+  int _appliedSnapshotSeq = 0;
+
+  /// Per-chat timestamp of the last local unread mutation, used to decide
+  /// whether a server snapshot is allowed to lower a counter.
+  final Map<int, DateTime> _unreadTouchedAt = {};
+
+  /// Per-chat timestamp of the last local unread *decrease* (explicit read). A
+  /// snapshot computed before that read must not resurrect the badge.
+  final Map<int, DateTime> _unreadLoweredAt = {};
+
+  /// Unread counters captured before an optimistic mark-read, per chat. Used to
+  /// roll the badge back when the server call fails or cannot run.
+  final Map<int, Map<int, int>> _readResets = {};
+
   Timer? _persistTimer;
   final _previewDecryptions = <String>{};
   List<ApiChatSummary>? _pendingChats;
@@ -152,10 +181,11 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   }
 
   /// Flushes the debounced chat-list snapshot immediately so the last
-  /// (up to 2s) batch of changes is not lost on rebuild or dispose. When
-  /// [onlyAccountId] is provided, a pending snapshot that belongs to another
-  /// account is dropped instead of written (account switch must not leak the
-  /// previous inbox into the cache).
+  /// (up to 2s) batch of changes is not lost on rebuild, dispose or process
+  /// death. When [onlyAccountId] is provided, a pending snapshot that belongs
+  /// to another account is dropped instead of written (account switch must not
+  /// leak the previous inbox into the cache). The method touches no provider,
+  /// so it is safe to call from `onDispose`.
   void _flushPendingChats({int? onlyAccountId}) {
     _persistTimer?.cancel();
     _persistTimer = null;
@@ -178,10 +208,20 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       authProvider.select((s) => (s.session?.userId, s.session?.accessToken)),
     );
     final generation = ++_generation;
+    final bool accountChanged = _identity != identity;
     _identity = identity;
     _builtForSession = true;
-    _flushPendingChats(onlyAccountId: _identity.$1);
-    _seenOperations.clear();
+    if (accountChanged) {
+      // Rebuilds keep the dedupe/dedupe-adjacent caches: Riverpod disposes and
+      // rebuilds on `ref.invalidate`, and dropping them there re-counted every
+      // replayed mesh operation. A different account must start clean.
+      _seenOperations.clear();
+      _seenMessages.clear();
+      _recentReactions.clear();
+      _unreadTouchedAt.clear();
+      _unreadLoweredAt.clear();
+      _readResets.clear();
+    }
     _previewDecryptions.clear();
     // An authenticated account change must clear previous AsyncValue data too.
     state = const AsyncData([]);
@@ -250,15 +290,14 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     ref.onDispose(() {
       unawaited(connected.cancel());
       WebSocketPushDispatcher.unregisterGlobal();
-      // Dispose also runs on an account switch, and Riverpod forbids ref
-      // reads here, so the pending snapshot is dropped rather than risk
-      // writing the previous inbox next to the new account's cache. A
-      // same-account rebuild still flushes in build().
-      _persistTimer?.cancel();
-      _persistTimer = null;
-      _pendingChats = null;
-      _pendingChatsAccountId = null;
-      _pendingChatsCache = null;
+      // Riverpod forbids provider reads inside dispose, so the pending
+      // snapshot is written from the fields captured when it was queued. The
+      // guard keeps a snapshot from leaking into another account's cache: it is
+      // only written when it belongs to the identity this notifier was built
+      // for. Rebuilds (invalidate) and account switches both land here, and
+      // `build()` runs after dispose, so this is the only place that can flush.
+      final int? accountId = _identity.$1;
+      if (accountId != null) _flushPendingChats(onlyAccountId: accountId);
     });
 
     final secret = await ref.read(secretChatCoordinatorProvider.future);
@@ -402,22 +441,25 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     final ApiChatSummary chat = currentChats[index];
 
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(
-      currentChats,
-    );
 
     if (userId == myUserId) {
-      // Current user read the chat
-      if (chat.unreadCount != 0) {
-        updated[index] = chat.copyWith(unreadCount: 0);
-        state = AsyncData<List<ApiChatSummary>>(updated);
-        _persistChats(updated);
-      }
+      // Current user read the chat: topic children are read as well, otherwise
+      // the aggregated group badge would keep showing the old counters.
+      final Map<int, int> zeros = <int, int>{
+        for (final ApiChatSummary c in currentChats)
+          if ((c.id == chatId || c.topicParentId == chatId) &&
+              c.unreadCount != 0)
+            c.id: 0,
+      };
+      if (zeros.isNotEmpty) _writeUnread(zeros);
     } else {
       // Peer read the chat: mark our last message as read
       if (chat.lastMessage != null &&
           chat.lastMessage!.senderId == myUserId &&
           !chat.lastMessage!.isRead) {
+        final List<ApiChatSummary> updated = List<ApiChatSummary>.from(
+          currentChats,
+        );
         updated[index] = chat.copyWith(
           lastMessage: chat.lastMessage!.copyWith(isRead: true),
         );
@@ -425,6 +467,33 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         _persistChats(updated);
       }
     }
+  }
+
+  /// Writes absolute unread counters and remembers when they were touched so a
+  /// concurrent `list_chats` response does not resurrect an older value.
+  void _writeUnread(Map<int, int> values) {
+    final List<ApiChatSummary>? current = state.value;
+    if (current == null) return;
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
+    final List<int> changed = <int>[];
+    final List<int> lowered = <int>[];
+    for (int i = 0; i < updated.length; i++) {
+      final int? value = values[updated[i].id];
+      if (value == null || value == updated[i].unreadCount) continue;
+      if (value < updated[i].unreadCount) lowered.add(updated[i].id);
+      updated[i] = updated[i].copyWith(unreadCount: value);
+      changed.add(updated[i].id);
+    }
+    if (changed.isEmpty) return;
+    final DateTime now = DateTime.now();
+    for (final int id in changed) {
+      _unreadTouchedAt[id] = now;
+    }
+    for (final int id in lowered) {
+      _unreadLoweredAt[id] = now;
+    }
+    state = AsyncData<List<ApiChatSummary>>(updated);
+    _persistChats(updated);
   }
 
   void _handleDeletedPush(ApiMessage message) {
@@ -468,14 +537,37 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     final ApiChatSummary chat = currentChats[index];
     if (chat.lastMessage?.id != message.id) return;
 
-    final Map<String, int> reactions = Map<String, int>.from(
-      chat.lastMessage!.reactions,
-    );
-    final int count = (reactions[emoji] ?? 0) + (added ? 1 : -1);
-    if (count > 0) {
-      reactions[emoji] = count;
+    // The dispatcher does not forward event ids, so the same push delivered
+    // twice is recognised by its signature within a short window instead of
+    // being applied twice.
+    final String eventKey =
+        '${message.chatId}:${message.id}:$emoji:${added ? 1 : 0}';
+    final DateTime now = DateTime.now();
+    final DateTime? appliedAt = _recentReactions[eventKey];
+    if (appliedAt != null &&
+        now.difference(appliedAt) < const Duration(seconds: 2)) {
+      return;
+    }
+    _recentReactions[eventKey] = now;
+    if (_recentReactions.length > 256) {
+      _recentReactions.removeWhere(
+        (_, DateTime time) => now.difference(time) > const Duration(seconds: 10),
+      );
+    }
+
+    final Map<String, int> reactions;
+    if (message.reactions.isNotEmpty) {
+      // An authoritative aggregate beats local arithmetic: a missed push can no
+      // longer desynchronise the counter forever.
+      reactions = Map<String, int>.from(message.reactions);
     } else {
-      reactions.remove(emoji);
+      reactions = Map<String, int>.from(chat.lastMessage!.reactions);
+      final int count = (reactions[emoji] ?? 0) + (added ? 1 : -1);
+      if (count > 0) {
+        reactions[emoji] = count;
+      } else {
+        reactions.remove(emoji);
+      }
     }
 
     final List<ApiChatSummary> updated = List<ApiChatSummary>.from(
@@ -502,7 +594,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     final List<ApiChatSummary> updated = List<ApiChatSummary>.from(
       currentChats,
     );
-    updated[index] = chat.copyWith(lastMessage: message);
+    updated[index] = chat.copyWith(
+      lastMessage: _newestLastMessage(chat.lastMessage, message),
+    );
     state = AsyncData<List<ApiChatSummary>>(updated);
     _persistChats(updated);
     if (!message.isDecrypted &&
@@ -576,6 +670,48 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     }
   }
 
+  /// True only when the user is actually looking at the newest messages of
+  /// [chatId]. A kept-alive route or a chat scrolled into the history is not
+  /// proof of reading, so read receipts and counter resets stay suppressed.
+  bool _isViewingLatest(int chatId) {
+    if (!PushNotificationService.isForeground) return false;
+    if (PushNotificationService.currentChatId != chatId) return false;
+    // Reading the history notifier would build the whole conversation for a
+    // chat that may never have been opened, so it is only consulted when it is
+    // already alive (i.e. the screen is mounted).
+    if (!ref.exists(chatMessagesProvider(chatId))) return true;
+    return ref.read(chatMessagesProvider(chatId).notifier).followingLatest;
+  }
+
+  /// Stable identity of a message inside its chat, used to fold a message into
+  /// the counters at most once. Mesh messages carry a session-stable client id
+  /// (`mesh:<operation>`), server messages are identified by id.
+  String? _messageKey(ApiMessage message) {
+    if (message.id > 0) return '${message.chatId}:${message.id}';
+    final String clientId = message.clientMessageId ?? '';
+    if (clientId.isEmpty) return null;
+    return '${message.chatId}:$clientId';
+  }
+
+  void _rememberMessage(String? key) {
+    if (key == null) return;
+    while (_seenMessages.length > 4096) {
+      _seenMessages.remove(_seenMessages.first);
+    }
+  }
+
+  /// Keeps the newer of two summaries' last messages. A server acknowledgement
+  /// always replaces the optimistic placeholder; otherwise an older edit or a
+  /// replay cannot move the preview backwards.
+  static ApiMessage? _newestLastMessage(ApiMessage? current, ApiMessage? next) {
+    if (current == null) return next;
+    if (next == null) return current;
+    if (current.id == next.id) return next;
+    if (current.id < 0 && next.id > 0) return next;
+    if (next.id < 0 && current.id > 0) return current;
+    return next.sentAt.isBefore(current.sentAt) ? current : next;
+  }
+
   void _applyNewMessagePush(ApiMessage message, {bool notify = true}) {
     final List<ApiChatSummary>? currentChats = state.value;
     if (currentChats == null) return;
@@ -584,9 +720,20 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       (ApiChatSummary c) => c.id == message.chatId,
     );
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final bool isCurrentChatOpen =
-        PushNotificationService.isForeground &&
-        PushNotificationService.currentChatId == message.chatId;
+    final bool isCurrentChatOpen = _isViewingLatest(message.chatId);
+
+    final String? key = _messageKey(message);
+    // A replayed mesh operation or a re-delivered push must not bump the badge
+    // again; the counter is kept as-is instead of incremented.
+    final String? operation = meshOperation(message);
+    final bool operationDuplicate =
+        operation != null && !_seenOperations.add(operation);
+    while (_seenOperations.length > 4096) {
+      _seenOperations.remove(_seenOperations.first);
+    }
+    final bool duplicate =
+        (key != null && !_seenMessages.add(key)) || operationDuplicate;
+    _rememberMessage(key);
 
     if (index != -1) {
       final List<ApiChatSummary> updated = List<ApiChatSummary>.from(
@@ -594,27 +741,31 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       );
       final ApiChatSummary chat = updated[index];
 
-      final operation = meshOperation(message);
-      final duplicate = operation != null && !_seenOperations.add(operation);
-      while (_seenOperations.length > 4096) {
-        _seenOperations.remove(_seenOperations.first);
+      final int newUnreadCount;
+      if (message.senderId == myUserId) {
+        newUnreadCount = isCurrentChatOpen ? 0 : chat.unreadCount;
+      } else if (isCurrentChatOpen) {
+        newUnreadCount = 0;
+      } else if (duplicate) {
+        newUnreadCount = chat.unreadCount;
+      } else {
+        newUnreadCount = chat.unreadCount + 1;
       }
-      final int newUnreadCount =
-          (message.senderId != myUserId && !isCurrentChatOpen && !duplicate)
-          ? chat.unreadCount + 1
-          : (isCurrentChatOpen ? 0 : chat.unreadCount);
 
       updated[index] = chat.copyWith(
-        lastMessage: message,
+        lastMessage: _newestLastMessage(chat.lastMessage, message),
         unreadCount: newUnreadCount,
       );
 
-      // Sort chats by last activity
-      updated.sort((ApiChatSummary a, ApiChatSummary b) {
-        final DateTime timeA = a.lastMessage?.sentAt ?? a.lastActivity;
-        final DateTime timeB = b.lastMessage?.sentAt ?? b.lastActivity;
-        return timeB.compareTo(timeA);
-      });
+      if (newUnreadCount != chat.unreadCount) {
+        final DateTime now = DateTime.now();
+        _unreadTouchedAt[chat.id] = now;
+        if (newUnreadCount < chat.unreadCount) _unreadLoweredAt[chat.id] = now;
+      }
+
+      // Keep the inbox ordered by activity: a chat that just received a
+      // message belongs to the top, secret and server chats alike.
+      updated.sort(compareChatRecency);
 
       state = AsyncData<List<ApiChatSummary>>(updated);
       _persistChats(updated);
@@ -630,7 +781,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       }
     } else {
       unawaited(refresh());
-      if (notify && message.senderId != myUserId) {
+      if (notify && message.senderId != myUserId && !duplicate) {
         _notifyMessage(message, present: !isCurrentChatOpen);
       }
     }
@@ -683,13 +834,114 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
           .read(notificationsProvider.notifier)
           .accept(notification, present: present),
     );
-    if (present && !PushNotificationService.isForeground) {
-      unawaited(PushNotificationService.showLocalNotification(notification));
-    }
+    // No direct `showLocalNotification` here: it bypassed the mute/preference
+    // checks in notificationsProvider, which is the single delivery path.
   }
+
+  /// Reconciles a freshly fetched server snapshot with the pushes applied
+  /// while the request was in flight, so a slow `list_chats` can never roll the
+  /// inbox back. Returns `null` when a newer snapshot already won the race.
+  List<ApiChatSummary>? _adoptSnapshot(
+    List<ApiChatSummary> fetched,
+    int seq,
+    DateTime requestedAt,
+  ) {
+    if (seq < _appliedSnapshotSeq) return null;
+    _appliedSnapshotSeq = seq;
+    final Map<int, ApiChatSummary> known = <int, ApiChatSummary>{
+      for (final ApiChatSummary chat in state.value ?? const <ApiChatSummary>[])
+        chat.id: chat,
+    };
+    // The server owns chat membership: locally known chats that a snapshot no
+    // longer contains were deleted or left, so they are dropped here. Pushed
+    // chats are covered because a push for an unknown chat triggers `refresh`.
+    return <ApiChatSummary>[
+      for (final ApiChatSummary remote in fetched)
+        known[remote.id] == null
+            ? remote
+            : _mergeChatSummary(known[remote.id]!, remote, requestedAt),
+    ]..sort(compareChatRecency);
+  }
+
+  /// Field-wise merge of a local summary with a server one.
+  ///
+  /// "Non-empty wins" for descriptive fields (a partial summary must not erase a
+  /// known name/key/avatar), the newest last message wins, and an unread counter
+  /// that was mutated locally after the request started is never lowered.
+  /// [requestedAt] is the moment the `list_chats` request was sent; `null` means
+  /// "local counters are always at least as fresh as the incoming summary".
+  ApiChatSummary _mergeChatSummary(
+    ApiChatSummary known,
+    ApiChatSummary incoming,
+    DateTime? requestedAt,
+  ) {
+    final DateTime? touched = _unreadTouchedAt[incoming.id];
+    final bool recentLocalWrite =
+        requestedAt != null &&
+        touched != null &&
+        !touched.isBefore(requestedAt);
+    final DateTime? lowered = _unreadLoweredAt[incoming.id];
+    final bool recentLocalRead =
+        requestedAt != null &&
+        lowered != null &&
+        !lowered.isBefore(requestedAt);
+    final int unreadCount;
+    if (requestedAt == null) {
+      // A summary that arrives while an explicit read is still pending must not
+      // bring the badge back.
+      unreadCount = _readResets.containsKey(incoming.id)
+          ? known.unreadCount
+          : (known.unreadCount > incoming.unreadCount
+                ? known.unreadCount
+                : incoming.unreadCount);
+    } else if (recentLocalRead) {
+      // An explicit read happened after the request was sent: the snapshot still
+      // carries the old counter and must not resurrect the badge.
+      unreadCount = known.unreadCount;
+    } else if (recentLocalWrite) {
+      unreadCount = known.unreadCount > incoming.unreadCount
+          ? known.unreadCount
+          : incoming.unreadCount;
+    } else {
+      unreadCount = incoming.unreadCount;
+    }
+    return incoming.copyWith(
+      name: incoming.name.trim().isEmpty ? known.name : null,
+      username: _isBlank(incoming.username) ? known.username : null,
+      avatarUrl: _isBlank(incoming.avatarUrl) ? known.avatarUrl : null,
+      description: incoming.description.trim().isEmpty
+          ? known.description
+          : null,
+      partnerBadges: incoming.partnerBadges.isEmpty
+          ? known.partnerBadges
+          : null,
+      partnerPublicKey: _isBlank(incoming.partnerPublicKey)
+          ? known.partnerPublicKey
+          : null,
+      partnerStatusEmoji: incoming.partnerStatusEmoji == null
+          ? known.partnerStatusEmoji
+          : null,
+      partnerUserId: incoming.partnerUserId == null
+          ? known.partnerUserId
+          : null,
+      autoDeleteSeconds: incoming.autoDeleteSeconds == null
+          ? known.autoDeleteSeconds
+          : null,
+      lastMessage: _newestLastMessage(known.lastMessage, incoming.lastMessage),
+      unreadCount: unreadCount,
+      isOnline: known.isOnline,
+      // A device-bound key mismatch is a safety signal: it stays sticky until a
+      // rebind clears it on both sides.
+      keyMismatch: known.keyMismatch || incoming.keyMismatch,
+    );
+  }
+
+  static bool _isBlank(String? value) => value == null || value.trim().isEmpty;
 
   Future<List<ApiChatSummary>> _fetch({bool allowStale = true}) async {
     final generation = _generation;
+    final int seq = ++_refreshSeq;
+    final DateTime requestedAt = DateTime.now();
     try {
       final secret = await ref.read(secretChatCoordinatorProvider.future);
       if (!_valid(generation)) return const [];
@@ -703,17 +955,26 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       if (!_valid(generation)) return const [];
       final chats = secret?.mergeChats(remote) ?? remote;
       ref.read(bluetoothMeshProvider)?.warmChats(chats);
-      // Hydrate presentation after returning the list; never block the inbox on key/network repair.
+      final List<ApiChatSummary>? merged = _adoptSnapshot(chats, seq, requestedAt);
+      if (merged == null) {
+        // A newer request already published a fresher snapshot.
+        return state.value ?? const [];
+      }
+      // Publish synchronously with the merge: any await here would reopen the
+      // window for a push to be overwritten by the older snapshot.
+      state = AsyncData<List<ApiChatSummary>>(merged);
+      // Cache mirrors the final state, never the raw response.
+      _persistChats(merged);
+      // Hydrate presentation after publishing; never block the inbox on
+      // key/network repair.
       final previewAccount = ref.read(authProvider).session?.userId;
       Timer.run(() {
         if (_valid(generation) &&
             previewAccount == ref.read(authProvider).session?.userId) {
-          unawaited(_hydrateInboxPreviews(chats));
+          unawaited(_hydrateInboxPreviews(merged));
         }
       });
-      // Save cache
-      _persistChats(chats);
-      return chats;
+      return merged;
     } catch (e) {
       if (!_valid(generation)) return const [];
       final List<ApiChatSummary>? currentData = state.value;
@@ -727,9 +988,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   Future<void> refreshOrThrow() async {
     final generation = _generation;
     try {
-      final chats = await _fetch(allowStale: false);
+      // `_fetch` publishes the merged snapshot itself.
+      await _fetch(allowStale: false);
       if (!_valid(generation)) return;
-      state = AsyncData(chats);
     } catch (error, stack) {
       if (!_valid(generation)) return;
       if (state.value == null || state.value!.isEmpty) {
@@ -748,9 +1009,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     }
 
     try {
-      final List<ApiChatSummary> chats = await _fetch();
+      // `_fetch` merges with concurrent pushes and publishes the result.
+      await _fetch();
       if (!_valid(generation)) return;
-      state = AsyncData<List<ApiChatSummary>>(chats);
     } catch (e) {
       if (!_valid(generation)) return;
       // Do not overwrite state with error if we have cached data
@@ -767,24 +1028,18 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       return;
     }
     final int idx = current.indexWhere((ApiChatSummary c) => c.id == chat.id);
-    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
     if (idx != -1) {
-      final ApiChatSummary known = current[idx];
-      final String? knownKey = known.partnerPublicKey;
-      final bool keyMissing =
-          chat.partnerPublicKey == null || chat.partnerPublicKey!.isEmpty;
-      final bool badgesMissing =
-          chat.partnerBadges.isEmpty && known.partnerBadges.isNotEmpty;
-      updated[idx] = chat.copyWith(
-        partnerPublicKey:
-            (keyMissing && knownKey != null && knownKey.isNotEmpty)
-            ? knownKey
-            : null,
-        partnerBadges: badgesMissing ? known.partnerBadges : null,
-      );
-    } else {
-      updated.insert(0, chat);
+      final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
+      // A partial summary must not wipe the known preview/unread state; the
+      // position follows the recency comparator instead of jumping to the top.
+      updated[idx] = _mergeChatSummary(updated[idx], chat, null);
+      updated.sort(compareChatRecency);
+      state = AsyncData<List<ApiChatSummary>>(updated);
+      _persistChats(updated);
+      return;
     }
+    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
+    insertSorted(updated, chat, compareChatRecency);
     state = AsyncData<List<ApiChatSummary>>(updated);
     _persistChats(updated);
   }
@@ -805,18 +1060,52 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     _persistChats(updated);
   }
 
+  /// Optimistically clears the badge of [chatId] (and of its topic children,
+  /// which the aggregated tile badge includes). The server call is owned by
+  /// [ChatMessagesNotifier.markRead]; if it fails or cannot run it calls
+  /// [rollbackChatRead], so the badge never disappears for good without the
+  /// server agreeing.
   void markChatAsRead(int chatId) {
     final List<ApiChatSummary>? current = state.value;
     if (current == null) return;
-    final int idx = current.indexWhere((ApiChatSummary c) => c.id == chatId);
-    if (idx == -1) return;
-    final ApiChatSummary chat = current[idx];
-    if (chat.unreadCount == 0) return;
-    final List<ApiChatSummary> updated = List<ApiChatSummary>.from(current);
-    updated[idx] = chat.copyWith(unreadCount: 0);
-    state = AsyncData<List<ApiChatSummary>>(updated);
-    _persistChats(updated);
+    final Map<int, int> zeros = <int, int>{};
+    final Map<int, int> snapshot = <int, int>{};
+    for (final ApiChatSummary chat in current) {
+      if (chat.id != chatId && chat.topicParentId != chatId) continue;
+      if (chat.unreadCount == 0) continue;
+      zeros[chat.id] = 0;
+      snapshot[chat.id] = chat.unreadCount;
+    }
+    if (zeros.isEmpty) return;
+    // The first snapshot wins: a repeated mark-read must still restore the
+    // counters the user actually saw before the optimistic reset.
+    _readResets.putIfAbsent(chatId, () => snapshot);
+    _writeUnread(zeros);
   }
+
+  /// Drops the rollback snapshot once the server confirmed the read.
+  void confirmChatRead(int chatId) {
+    _readResets.remove(chatId);
+  }
+
+  /// Restores the counters captured by [markChatAsRead]. Never lowers a value
+  /// that grew in the meantime (a new message read is still unread).
+  void rollbackChatRead(int chatId) {
+    final Map<int, int>? snapshot = _readResets.remove(chatId);
+    if (snapshot == null) return;
+    final List<ApiChatSummary>? current = state.value;
+    if (current == null) return;
+    final Map<int, int> restore = <int, int>{};
+    for (final ApiChatSummary chat in current) {
+      final int? previous = snapshot[chat.id];
+      if (previous == null || chat.unreadCount >= previous) continue;
+      restore[chat.id] = previous;
+    }
+    if (restore.isNotEmpty) _writeUnread(restore);
+  }
+
+  /// True when a local mark-read reset is waiting for its server confirmation.
+  bool hasPendingReadReset(int chatId) => _readResets.containsKey(chatId);
 }
 
 final AsyncNotifierProvider<ChatsNotifier, List<ApiChatSummary>> chatsProvider =
@@ -824,21 +1113,22 @@ final AsyncNotifierProvider<ChatsNotifier, List<ApiChatSummary>> chatsProvider =
       ChatsNotifier.new,
     );
 
+/// Watches a single summary. `select` narrows the subscription to the requested
+/// chat, so presence/unread changes of other chats no longer rebuild every
+/// family instance, and the scan stops as soon as the id is found.
 final chatByIdProvider = Provider.family<ApiChatSummary?, int>((
   Ref ref,
   int chatId,
 ) {
-  final AsyncValue<List<ApiChatSummary>> value = ref.watch(chatsProvider);
-  return value.maybeWhen(
-    data: (List<ApiChatSummary> chats) {
+  return ref.watch(
+    chatsProvider.select((AsyncValue<List<ApiChatSummary>> value) {
+      final List<ApiChatSummary>? chats = value.value;
+      if (chats == null) return null;
       for (final ApiChatSummary chat in chats) {
-        if (chat.id == chatId) {
-          return chat;
-        }
+        if (chat.id == chatId) return chat;
       }
       return null;
-    },
-    orElse: () => null,
+    }),
   );
 });
 
@@ -983,6 +1273,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     incomingRevision: _incomingRevision,
     revision: _windowRevision,
   );
+
+  /// True while the viewport is pinned to the newest messages. The inbox uses it
+  /// to decide whether an open chat has actually been read.
+  bool get followingLatest => _followingLatest;
 
   void setFollowingLatest(bool atBottom) {
     if (_secret != null) return;
@@ -2654,22 +2948,44 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   }
 
   Future<void> markRead({bool reportFailure = false}) async {
+    final ChatsNotifier chats = ref.read(chatsProvider.notifier);
+    // The inbox may have cleared the badge optimistically already (the screens
+    // call `markChatAsRead` right after this method starts). If the receipt
+    // cannot be sent, that reset has to be undone instead of the swipe looking
+    // like a no-op. The snapshot is looked up at rejection time for that reason.
+    void reject() => chats.rollbackChatRead(_chatId);
+
     // A kept-alive route is not proof that the user can see the conversation.
     // Otherwise background WS delivery cancels the system push as already read.
-    if (!PushNotificationService.isForeground) return;
+    if (!PushNotificationService.isForeground) {
+      reject();
+      if (reportFailure) {
+        throw StateError('READ_RECEIPT_UNAVAILABLE: app is in background');
+      }
+      return;
+    }
+    final int generation = _generation;
+    final SecretChatCoordinator? secret = _secret;
+    final int remoteId =
+        secret?.engine.chat(_chatId)['remote_id'] as int? ?? _chatId;
+    if (remoteId <= 0) {
+      reject();
+      if (reportFailure) {
+        throw StateError('READ_RECEIPT_UNAVAILABLE: chat has no server id');
+      }
+      return;
+    }
     try {
-      final generation = _generation;
-      final secret = _secret;
-      final remoteId =
-          secret?.engine.chat(_chatId)['remote_id'] as int? ?? _chatId;
-      if (remoteId <= 0) return;
       await ref.read(chatRepositoryProvider).markRead(remoteId);
       if (!ref.mounted || generation != _generation) return;
       await secret?.engine.markReadLocally(_chatId);
       if (!ref.mounted || generation != _generation) return;
       final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-      ref.read(chatsProvider.notifier)._handleReadPush(_chatId, myUserId);
+      final ChatsNotifier notifier = ref.read(chatsProvider.notifier);
+      notifier.confirmChatRead(_chatId);
+      notifier._handleReadPush(_chatId, myUserId);
     } catch (e) {
+      reject();
       if (reportFailure) rethrow;
       debugPrint('[backend_chat_provider.dart] Read receipt failed');
     }

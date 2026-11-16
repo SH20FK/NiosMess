@@ -15,6 +15,7 @@ class TouchContainer extends StatefulWidget {
     this.onTap,
     this.onLongPress,
     this.onDoubleTap,
+    this.onSecondaryTapDown,
     this.borderRadius,
     this.color,
     this.border,
@@ -41,6 +42,12 @@ class TouchContainer extends StatefulWidget {
 
   /// Called on double tap.
   final VoidCallback? onDoubleTap;
+
+  /// Called with the global pointer position when a secondary (right) click
+  /// starts. When provided, it replaces the legacy
+  /// `onSecondaryTap -> onLongPress` bridge so callers can open a single
+  /// cursor-anchored menu instead of a duplicate context menu.
+  final ValueChanged<Offset>? onSecondaryTapDown;
 
   /// The corner radius for the container and clipping (defaults to [AppRadii.mdRadius]).
   final BorderRadius? borderRadius;
@@ -93,7 +100,8 @@ class _TouchContainerState extends State<TouchContainer> {
       widget.enabled &&
       (widget.onTap != null ||
           widget.onLongPress != null ||
-          widget.onDoubleTap != null);
+          widget.onDoubleTap != null ||
+          widget.onSecondaryTapDown != null);
 
   void _handleTapDown(TapDownDetails details) {
     if (!_isInteractive) return;
@@ -180,7 +188,15 @@ class _TouchContainerState extends State<TouchContainer> {
               widget.onLongPress?.call();
             }
           : null,
-      onSecondaryTap: widget.onLongPress,
+      onSecondaryTapDown: widget.onSecondaryTapDown == null
+          ? null
+          : (TapDownDetails details) =>
+                widget.onSecondaryTapDown!(details.globalPosition),
+      // Legacy bridge kept for every other call site: without a cursor-aware
+      // handler a right click behaves as a long press.
+      onSecondaryTap: widget.onSecondaryTapDown != null
+          ? null
+          : widget.onLongPress,
       onDoubleTap: widget.onDoubleTap,
       child: AnimatedScale(
         scale: _isPressed && !MediaQuery.disableAnimationsOf(context)

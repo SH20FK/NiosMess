@@ -2123,4 +2123,161 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsProfileLinksActions => 'Ссылки и аккаунт';
+
+  @override
+  String get inboxAllFolders => 'Все папки';
+
+  @override
+  String get inboxFolderCreate => 'Создать папку';
+
+  @override
+  String get inboxFolderNew => 'Новая папка';
+
+  @override
+  String get inboxFolderEdit => 'Изменить папку';
+
+  @override
+  String get inboxFolderDelete => 'Удалить папку';
+
+  @override
+  String get inboxFolderActions => 'Действия с папкой';
+
+  @override
+  String inboxFolderChatsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count чата',
+      many: '$count чатов',
+      few: '$count чата',
+      one: '$count чат',
+      zero: 'Нет чатов',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inboxFolderHasRules => 'Есть правила';
+
+  @override
+  String get inboxFolderAutoAdd => 'Автоматически добавлять';
+
+  @override
+  String get inboxFolderUnreadOnly => 'Только непрочитанные';
+
+  @override
+  String get inboxFolderAddChats => 'Добавить отдельные чаты';
+
+  @override
+  String get inboxFolderNameInvalid => 'Введите название до 40 символов';
+
+  @override
+  String get inboxFolderEmptyRules => 'Выберите чаты или правило';
+
+  @override
+  String get inboxFolderConflict =>
+      'Папка изменена на другом устройстве. Список обновлён';
+
+  @override
+  String get inboxFoldersUnavailable => 'Папки недоступны';
+
+  @override
+  String get inboxChatsLoadFailed => 'Не удалось загрузить чаты';
+
+  @override
+  String get commonSaving => 'Сохранение…';
+
+  @override
+  String get inboxScheduleTitle => 'Отложенная отправка';
+
+  @override
+  String get inboxReminderTitle => 'Напомнить о сообщении';
+
+  @override
+  String get inboxScheduleCreated => 'Сообщение запланировано';
+
+  @override
+  String get inboxReminderSaved => 'Напоминание сохранено';
+
+  @override
+  String get inboxReminderText => 'Текст напоминания';
+
+  @override
+  String get inboxScheduleInHour => 'Через час';
+
+  @override
+  String get inboxScheduleTomorrow => 'Завтра утром';
+
+  @override
+  String get inboxScheduleServerHint =>
+      'Отправится с сервера, даже если это устройство будет выключено.';
+
+  @override
+  String get inboxMessageRequired => 'Введите сообщение';
+
+  @override
+  String get inboxScheduleFutureTime => 'Выберите время в будущем';
+
+  @override
+  String get inboxReminderSave => 'Сохранить напоминание';
+
+  @override
+  String get inboxScheduleAction => 'Запланировать';
+
+  @override
+  String get inboxScheduledTitle => 'Отложенные и напоминания';
+
+  @override
+  String get inboxScheduleEmpty => 'Пока ничего не запланировано';
+
+  @override
+  String get inboxScheduleEmptyHint =>
+      'Удерживайте кнопку отправки, чтобы выбрать время. У сообщения можно выбрать «Напомнить».';
+
+  @override
+  String get inboxScheduleActions => 'Действия с отложенным сообщением';
+
+  @override
+  String get inboxScheduleReschedule => 'Изменить время';
+
+  @override
+  String get inboxScheduleCancel => 'Отменить отправку';
+
+  @override
+  String get inboxTopicsTitle => 'Темы группы';
+
+  @override
+  String get inboxTopicClosed => 'Тема закрыта';
+
+  @override
+  String get inboxTopicActions => 'Действия с темой';
+
+  @override
+  String get inboxTopicRename => 'Переименовать';
+
+  @override
+  String get inboxTopicOpen => 'Открыть тему';
+
+  @override
+  String get inboxTopicClose => 'Закрыть тему';
+
+  @override
+  String get inboxTopicName => 'Название темы';
+
+  @override
+  String get inboxTopicCreate => 'Создать тему';
+
+  @override
+  String get inboxE2eeWaitingActiveDevice =>
+      'Получаем ключи от активного устройства';
+
+  @override
+  String get inboxE2eeWaitingKeys => 'Ожидаем ключи защищённых чатов';
+
+  @override
+  String get inboxSavedOpening => 'Открываем «Избранное»…';
+
+  @override
+  String get inboxScheduleLockedPreview =>
+      'Подключите устройство к шифрованию, чтобы прочитать сообщение';
 }

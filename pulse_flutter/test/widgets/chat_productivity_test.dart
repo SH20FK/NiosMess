@@ -87,6 +87,37 @@ class _Folders extends ChatFoldersNotifier {
   ];
 }
 
+class _MutableFolders extends ChatFoldersNotifier {
+  List<ChatFolder> folders = const [
+    ChatFolder(id: 'folder', title: 'Work', types: ['group']),
+  ];
+  @override
+  Future<List<ChatFolder>> build() async => folders;
+  void replace(List<ChatFolder> value) {
+    folders = value;
+    state = AsyncData(value);
+  }
+}
+
+/// Serves scripted websocket answers and records every request.
+class _ActionSocket extends WebSocketClient {
+  _ActionSocket(this.handler)
+    : super(baseUrl: 'https://fixture.invalid', readToken: () => 'fixture');
+  final dynamic Function(String action, Map<String, dynamic> payload) handler;
+  final requests = <(String, Map<String, dynamic>)>[];
+  @override
+  Future<dynamic> request(
+    String action, {
+    Map<String, dynamic>? payload,
+    Duration timeout = const Duration(seconds: 15),
+    int maxRetries = 2,
+  }) async {
+    final body = payload ?? const <String, dynamic>{};
+    requests.add((action, body));
+    return handler(action, body);
+  }
+}
+
 class _Socket extends WebSocketClient {
   _Socket(this.answer)
     : super(baseUrl: 'https://fixture.invalid', readToken: () => 'fixture');
@@ -275,6 +306,152 @@ void main() {
       expect(socket.requests.last['id'], 'same-operation');
     },
   );
+  test(
+    'folder save sends every selected chat and adopts the authoritative list',
+    () async {
+      final socket = _ActionSocket(
+        (action, payload) => {
+          'folders': [
+            {
+              'id': 'folder',
+              'title': 'Work',
+              'rules': {
+                'chat_ids': [30, 999],
+                'types': <String>[],
+                'unread_only': false,
+              },
+              'position': 0,
+              'version': 4,
+            },
+          ],
+        },
+      );
+      addTearDown(socket.close);
+      final c = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith(_Auth.new),
+          webSocketClientProvider.overrideWithValue(socket),
+        ],
+      );
+      addTearDown(c.dispose);
+      await c.read(chatFoldersProvider.future);
+      await c
+          .read(chatFoldersProvider.notifier)
+          .save(
+            const ChatFolder(
+              id: 'folder',
+              title: 'Work',
+              chatIds: [30, 999],
+              version: 3,
+            ),
+          );
+      final sent = socket.requests.single.$2;
+      expect(sent['version'], 3);
+      expect((sent['rules'] as Map)['chat_ids'], [30, 999]);
+      expect(
+        c.read(chatFoldersProvider).requireValue.single.version,
+        4,
+      );
+    },
+  );
+  test('stale folder version is reported as a conflict', () async {
+    final socket = _ActionSocket(
+      (action, payload) => {
+        'error': 'Папка изменена на другом устройстве. Обновите список',
+      },
+    );
+    addTearDown(socket.close);
+    final c = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(_Auth.new),
+        webSocketClientProvider.overrideWithValue(socket),
+      ],
+    );
+    addTearDown(c.dispose);
+    await c.read(chatFoldersProvider.future);
+    await expectLater(
+      c
+          .read(chatFoldersProvider.notifier)
+          .save(const ChatFolder(id: 'folder', title: 'Work', version: 2)),
+      throwsA(isA<ChatFolderVersionConflict>()),
+    );
+    expect(socket.requests.single.$1, 'save_chat_folder');
+    expect(socket.requests.single.$2['version'], 2);
+  });
+  test('reorder writes each position once and applies one final list', () async {
+    final socket = _ActionSocket(
+      (action, payload) => {
+        'folders': [
+          {
+            'id': 'b',
+            'title': 'B',
+            'rules': {'chat_ids': <int>[], 'types': <String>[], 'unread_only': false},
+            'position': 0,
+            'version': 2,
+          },
+          {
+            'id': 'a',
+            'title': 'A',
+            'rules': {'chat_ids': <int>[], 'types': <String>[], 'unread_only': false},
+            'position': 1,
+            'version': 2,
+          },
+        ],
+      },
+    );
+    addTearDown(socket.close);
+    final c = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(_Auth.new),
+        webSocketClientProvider.overrideWithValue(socket),
+      ],
+    );
+    addTearDown(c.dispose);
+    await c.read(chatFoldersProvider.future);
+    await c.read(chatFoldersProvider.notifier).reorder(const [
+      ChatFolder(id: 'b', title: 'B', version: 1),
+      ChatFolder(id: 'a', title: 'A', version: 1),
+    ]);
+    expect(socket.requests.map((r) => r.$1), everyElement('save_chat_folder'));
+    expect(socket.requests.map((r) => r.$2['position']), [0, 1]);
+    expect(c.read(chatFoldersProvider).requireValue.first.id, 'b');
+  });
+  test('saved chat id is memoised for the account', () async {
+    final c = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(_Auth.new),
+        chatsProvider.overrideWith(_Chats.new),
+      ],
+    );
+    addTearDown(c.dispose);
+    await c.read(chatsProvider.future);
+    final repo = c.read(chatProductivityRepositoryProvider);
+    expect(repo.cachedSavedChatId, isNull);
+    expect((await repo.saved()).id, 30);
+    expect(repo.cachedSavedChatId, 30);
+  });
+  test('folder selection survives a restart and dies with its folder', () async {
+    SharedPreferences.setMockInitialValues({
+      'chat_selected_folder_v1_1': 'folder',
+    });
+    final c = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(_Auth.new),
+        chatFoldersProvider.overrideWith(_MutableFolders.new),
+      ],
+    );
+    addTearDown(c.dispose);
+    await c.read(chatFoldersProvider.future);
+    c.read(selectedChatFolderProvider);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(c.read(selectedChatFolderProvider), 'folder');
+
+    (c.read(chatFoldersProvider.notifier) as _MutableFolders).replace(const []);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(c.read(selectedChatFolderProvider), isNull);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('chat_selected_folder_v1_1'), isNull);
+  });
   testWidgets('chat folders are managed from chat settings', (tester) async {
     await tester.pumpWidget(
       ProviderScope(

@@ -26,7 +26,7 @@ def main():
     root = pathlib.Path(__file__).resolve().parents[1]
     version = re.search(r'^version:\s*(\S+)', (root / 'pubspec.yaml').read_text(encoding='utf-8'), re.M).group(1)
     base = version.split('+')[0]
-    content = (root.parent / 'CHANGELOG.md').read_text(encoding='utf-8')
+    content = (root / 'assets' / 'CHANGELOG.md').read_text(encoding='utf-8')
     section = re.search(r'##\s*\[' + re.escape(base) + r'\][^\n]*\n(.*?)(?=\n##\s*\[|\Z)', content, re.S)
     if not section:
         raise ValueError('Latest version changelog is missing')
