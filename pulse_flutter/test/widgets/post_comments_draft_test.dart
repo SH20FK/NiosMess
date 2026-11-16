@@ -101,8 +101,9 @@ class _Repository extends PostCommentsRepository {
     int channelId,
     int postId,
     String content,
-    int? replyToId,
-  ) {
+    int? replyToId, {
+    String? clientCommentId,
+  }) {
     submitted = content;
     return sent.future;
   }

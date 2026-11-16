@@ -108,6 +108,8 @@ class RemoteParticipant {
     required this.clientId,
     required this.nickname,
     DateTime? lastSeen,
+    this.audioEnabled = true,
+    this.videoEnabled = false,
   }) : lastSeen = lastSeen ?? DateTime.now();
 
   final int clientId;
@@ -116,6 +118,25 @@ class RemoteParticipant {
   /// Last heartbeat received from this participant; used to drop peers
   /// that silently disappeared.
   final DateTime lastSeen;
+
+  /// Peer-reported mic/camera state from `media_state` signaling frames.
+  final bool audioEnabled;
+  final bool videoEnabled;
+
+  RemoteParticipant copyWith({
+    String? nickname,
+    DateTime? lastSeen,
+    bool? audioEnabled,
+    bool? videoEnabled,
+  }) {
+    return RemoteParticipant(
+      clientId: clientId,
+      nickname: nickname ?? this.nickname,
+      lastSeen: lastSeen ?? this.lastSeen,
+      audioEnabled: audioEnabled ?? this.audioEnabled,
+      videoEnabled: videoEnabled ?? this.videoEnabled,
+    );
+  }
 }
 
 /// Callback: outgoing audio frame (Opus) to send.

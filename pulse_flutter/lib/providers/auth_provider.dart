@@ -26,7 +26,6 @@ import 'package:pulse_flutter/services/protocol/nios_protocol_accounts.dart';
 import 'dart:async';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/notifications_provider.dart';
-import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
 import 'package:pulse_flutter/core/notifications/notification_history_store.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -527,9 +526,6 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       if (ref.exists(notificationsProvider)) {
         ref.read(notificationsProvider.notifier).stopAccount();
-      }
-      if (ref.exists(inAppNotificationProvider)) {
-        ref.read(inAppNotificationProvider.notifier).clearAccount();
       }
       if (ref.exists(incomingCallProvider)) {
         ref.read(incomingCallProvider.notifier).set(null);

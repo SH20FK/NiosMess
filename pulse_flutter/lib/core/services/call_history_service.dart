@@ -165,12 +165,11 @@ class CallHistoryNotifier extends Notifier<List<CallLogEntry>> {
       final String entryId = 'chat_${chat.id}_msg_${msg.id}';
       if (existingIds.contains(entryId)) continue;
 
-      final String content = msg.content.toLowerCase();
-      final bool isVideo = msg.content.contains('Видеозвонок') ||
-          msg.content.startsWith('📹') ||
+      // systemEvent carries structured call metadata; the text substrings
+      // inside the ApiMessage getters are only a legacy fallback.
+      final bool isVideo = msg.isCallVideo ||
           (msg.mediaType?.contains('video') ?? false);
-      final bool isMissed =
-          content.contains('пропущен') || content.contains('отклон');
+      final bool isMissed = msg.isCallMissed;
       final bool isOutgoing =
           currentUserId > 0 && msg.senderId == currentUserId;
 

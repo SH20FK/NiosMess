@@ -22,6 +22,7 @@ class SmoothTextStreamer {
   final int minCharIntervalMs;
 
   final StringBuffer _targetBuffer = StringBuffer();
+  String _target = '';
   String _currentRendered = '';
   Timer? _ticker;
   bool _isStreamCompleted = false;
@@ -34,6 +35,7 @@ class SmoothTextStreamer {
   void appendChunk(String chunk) {
     if (_isDisposed) return;
     _targetBuffer.write(chunk);
+    _target = _targetBuffer.toString();
     _ensureTickerStarted();
   }
 
@@ -43,6 +45,7 @@ class SmoothTextStreamer {
     if (finalFullText != null && finalFullText.length > _targetBuffer.length) {
       final String remainder = finalFullText.substring(_targetBuffer.length);
       _targetBuffer.write(remainder);
+      _target = _targetBuffer.toString();
     }
     _isStreamCompleted = true;
     _ensureTickerStarted();
@@ -72,7 +75,7 @@ class SmoothTextStreamer {
       return;
     }
 
-    final String target = _targetBuffer.toString();
+    final String target = _target;
     final int remaining = target.length - _currentRendered.length;
 
     if (remaining <= 0) {

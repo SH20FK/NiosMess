@@ -137,7 +137,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     final CallSessionData data = session.currentData;
     final participants = data.remoteParticipants;
     final String participantName = participants.isNotEmpty
-        ? participants.map((p) => p.nickname).join(', ')
+        ? participants
+            .map((p) => p.audioEnabled ? p.nickname : '${p.nickname} 🔇')
+            .join(', ')
         : (data.peerName?.isNotEmpty == true
               ? data.peerName!
               : context.l10n.callsInProgress);

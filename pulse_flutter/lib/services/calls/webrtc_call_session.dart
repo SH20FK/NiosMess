@@ -60,6 +60,8 @@ class WebRtcCallSession {
   final Map<int, RTCPeerConnection> _peerConnections = {};
   MediaStream? _localStream;
   MediaStream? _remoteStream;
+  final Map<int, MediaStream> _remoteStreams = {};
+  bool _remoteRendererBound = false;
 
   CallSessionState _state = CallSessionState.idle;
   int _elapsedSeconds = 0;
@@ -116,6 +118,11 @@ class WebRtcCallSession {
   bool get wasAnswered => _peerSeen;
   MediaStream? get localStream => _localStream;
   MediaStream? get remoteStream => _remoteStream;
+
+  /// Remote media streams keyed by peer id (the 1:1 renderer follows the
+  /// first peer; multi-party consumers should use this map).
+  Map<int, MediaStream> get remoteStreams =>
+      Map<int, MediaStream>.unmodifiable(_remoteStreams);
 
   Future<void> start() {
     if (_ended) return Future<void>.value();
@@ -310,9 +317,15 @@ class WebRtcCallSession {
         '[WebRtcCallSession] Received remote track: ${event.track.kind}',
       );
       if (event.streams.isNotEmpty) {
-        _remoteStream = event.streams[0];
-        remoteRenderer.srcObject = _remoteStream;
-        if (devices.output.isNotEmpty) unawaited(devices.applyOutput(remoteRenderer).catchError((Object _) {}));
+        _remoteStreams[peerId] = event.streams[0];
+        // The single 1:1 renderer sticks to the first peer instead of
+        // flickering to whichever peer produced the latest track.
+        _remoteStream ??= event.streams[0];
+        if (!_remoteRendererBound) {
+          _remoteRendererBound = true;
+          remoteRenderer.srcObject = event.streams[0];
+          if (devices.output.isNotEmpty) unawaited(devices.applyOutput(remoteRenderer).catchError((Object _) {}));
+        }
       }
     };
 
@@ -450,6 +463,17 @@ class WebRtcCallSession {
         }
         break;
 
+      case WebRtcSignalType.mediaState:
+        final int fromId = (msg['from_id'] as num?)?.toInt() ?? 0;
+        if (fromId > 0) {
+          _handleMediaState(
+            fromId,
+            audio: msg['audio'] == true,
+            video: msg['video'] == true,
+          );
+        }
+        break;
+
       case WebRtcSignalType.peerLeft:
         final int leftId = (msg['user_id'] as num?)?.toInt() ?? 0;
         _handlePeerLeft(leftId);
@@ -492,22 +516,47 @@ class WebRtcCallSession {
     );
 
     if (makeOffer) {
-      final RTCSessionDescription offer = await pc.createOffer({
-        'offerToReceiveAudio': 1,
-        'offerToReceiveVideo': isVideo ? 1 : 0,
-      });
-      await pc.setLocalDescription(offer);
-      await _configureSenders(pc);
+      if (pc.signalingState == RTCSignalingState.RTCSignalingStateStable) {
+        final RTCSessionDescription offer = await pc.createOffer({
+          'offerToReceiveAudio': 1,
+          'offerToReceiveVideo': isVideo ? 1 : 0,
+        });
+        await pc.setLocalDescription(offer);
+        await _configureSenders(pc);
 
-      _signaling?.sendOffer(remoteId, {'type': offer.type, 'sdp': offer.sdp});
-      debugPrint('[WebRtcCallSession] Sent offer to peer $remoteId');
+        _signaling?.sendOffer(remoteId, {'type': offer.type, 'sdp': offer.sdp});
+        debugPrint('[WebRtcCallSession] Sent offer to peer $remoteId');
+      } else {
+        // A replayed ready/peer_joined (e.g. after a signaling reconnect)
+        // must not stack a second offer onto an in-flight negotiation.
+        debugPrint('[WebRtcCallSession] Offer for $remoteId skipped: negotiation already in flight');
+      }
     }
+    // Late joiners and renegotiated peers need our current mute/camera state.
+    _sendMediaState();
   }
 
   Future<void> _handleOffer(int fromId, Map sdpData) async {
-    final pc = await _getOrCreatePeerConnection(fromId);
+    var pc = await _getOrCreatePeerConnection(fromId);
     final String sdp = sdpData['sdp']?.toString() ?? '';
     final String type = sdpData['type']?.toString() ?? 'offer';
+
+    // Glare: both sides hold a local offer simultaneously (a replayed
+    // peer_joined racing a recovery restart). Perfect-negotiation split:
+    // the side that normally offers (lower user id) keeps its own offer and
+    // drops this one; the answering side rebuilds the peer connection and
+    // accepts the remote offer.
+    if (pc.signalingState ==
+        RTCSignalingState.RTCSignalingStateHaveLocalOffer) {
+      final int? localId = _signaling?.localUserId;
+      if (localId != null && localId < fromId) {
+        debugPrint('[WebRtcCallSession] Glare: keeping local offer, dropping offer from $fromId');
+        return;
+      }
+      debugPrint('[WebRtcCallSession] Glare: rebuilding peer connection for $fromId');
+      await _discardPeerConnection(fromId);
+      pc = await _getOrCreatePeerConnection(fromId);
+    }
 
     await pc.setRemoteDescription(RTCSessionDescription(sdp, type));
     await _flushIce(fromId, pc);
@@ -520,6 +569,7 @@ class WebRtcCallSession {
 
     _signaling?.sendAnswer(fromId, {'type': answer.type, 'sdp': answer.sdp});
     debugPrint('[WebRtcCallSession] Sent answer to peer $fromId');
+    _sendMediaState();
   }
 
   Future<void> _handleAnswer(int fromId, Map sdpData) async {
@@ -559,6 +609,28 @@ class WebRtcCallSession {
     }
   }
 
+  void _handleMediaState(int peerId, {required bool audio, required bool video}) {
+    final int idx = _remoteParticipants.indexWhere((p) => p.clientId == peerId);
+    if (idx == -1) return;
+    _remoteParticipants[idx] = _remoteParticipants[idx].copyWith(
+      audioEnabled: audio,
+      videoEnabled: video,
+      lastSeen: DateTime.now(),
+    );
+    _triggerStateUpdate();
+  }
+
+  Future<void> _discardPeerConnection(int peerId) async {
+    final pc = _peerConnections.remove(peerId);
+    _samplers.remove(peerId);
+    _remoteDescriptionReady.remove(peerId);
+    _remoteStreams.remove(peerId);
+    if (pc != null) {
+      try { await pc.close(); } catch (_) {}
+      try { await pc.dispose(); } catch (_) {}
+    }
+  }
+
   void _handlePeerLeft(int peerId) {
     final pc = _peerConnections.remove(peerId);
     _samplers.remove(peerId);
@@ -567,6 +639,16 @@ class WebRtcCallSession {
     pc?.close();
     pc?.dispose();
     _remoteParticipants.removeWhere((p) => p.clientId == peerId);
+    final MediaStream? removedStream = _remoteStreams.remove(peerId);
+    if (removedStream != null && identical(_remoteStream, removedStream)) {
+      // Hand the 1:1 renderer over to a remaining peer, if any.
+      _remoteStream = _remoteStreams.isEmpty ? null : _remoteStreams.values.first;
+      _remoteRendererBound = _remoteStream != null;
+      remoteRenderer.srcObject = _remoteStream;
+      if (_remoteStream != null && devices.output.isNotEmpty) {
+        unawaited(devices.applyOutput(remoteRenderer).catchError((Object _) {}));
+      }
+    }
 
     if (_remoteParticipants.isEmpty) {
       // A closed signaling socket also emits peer_left. Give it time to rejoin.
@@ -621,7 +703,17 @@ class WebRtcCallSession {
       if (_ended) return;
       if (_peerConnections.isNotEmpty && _peerConnections.values.every(
           (pc) => pc.connectionState == RTCPeerConnectionState.RTCPeerConnectionStateConnected)) {
-        _onRemotePeerJoined(_peerConnections.keys.first, peerName);
+        // Re-announce every connected peer under its own display name.
+        for (final id in _peerConnections.keys) {
+          String? knownName;
+          for (final participant in _remoteParticipants) {
+            if (participant.clientId == id) {
+              knownName = participant.nickname;
+              break;
+            }
+          }
+          _onRemotePeerJoined(id, knownName);
+        }
         return;
       }
       // The lower user ID offers on both clients, avoiding simultaneous restart offers.
@@ -852,6 +944,8 @@ class WebRtcCallSession {
     localRenderer.srcObject = null;
     remoteRenderer.srcObject = null;
     _remoteStream = null;
+    _remoteStreams.clear();
+    _remoteRendererBound = false;
 
     if (!_stateController.isClosed) {
       await _stateController.close();

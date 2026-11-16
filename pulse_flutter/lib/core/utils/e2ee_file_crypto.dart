@@ -120,42 +120,18 @@ class E2eeFileCrypto {
       throw ArgumentError('Invalid E2EE file key or nonce length');
     }
     final length = await File(plainPath).length();
-    if (E2eeStreamingFileCipher.supportsPlaintextLength(length)) {
-      await E2eeStreamingFileCipher.encrypt(
-        plainPath: plainPath,
-        outputPath: outputPath,
-        key: key,
-        nonce: nonce,
-      );
-      return;
+    if (!E2eeStreamingFileCipher.supportsPlaintextLength(length)) {
+      // Refuse instead of materializing a >=512MiB file in memory (OOM on
+      // phones). Decryption keeps a legacy path so old oversized envelopes
+      // stay readable.
+      throw StateError('E2EE_FILE_TOO_LARGE');
     }
-    // Compatibility for old files beyond the streaming library's length range.
-    // Deliberately retain cryptography's correct uint64 GCM length encoding.
-    final plain = await File(plainPath).readAsBytes();
-    final box = await AesGcm.with256bits().encrypt(
-      plain,
-      secretKey: SecretKey(key),
+    await E2eeStreamingFileCipher.encrypt(
+      plainPath: plainPath,
+      outputPath: outputPath,
+      key: key,
       nonce: nonce,
     );
-    final temporary = File('$outputPath.partial');
-    try {
-      final sink = await temporary.open(mode: FileMode.write);
-      try {
-        await sink.writeFrom(nonce);
-        await sink.writeFrom(box.cipherText);
-        await sink.writeFrom(box.mac.bytes);
-        await sink.flush();
-      } finally {
-        await sink.close();
-      }
-      if (await File(outputPath).exists()) {
-        throw StateError('E2EE destination exists');
-      }
-      await temporary.rename(outputPath);
-    } finally {
-      plain.fillRange(0, plain.length, 0);
-      if (await temporary.exists()) await temporary.delete();
-    }
   }
 
   /// Generates a fresh 256-bit file key.

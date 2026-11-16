@@ -196,8 +196,11 @@ final class HeadlessWorkerClient {
     Map<String, dynamic> payload,
     TransferableTypedData? bytes,
   ) async {
-    // Pure in-process mock execution for browsers
-    return WorkerResponse.ok(0, data: {'webFallback': true});
+    // A fake success here made encryptPayload silently return empty bytes and
+    // lose data. Browsers must fail loudly instead.
+    throw UnsupportedError(
+      'Background worker is unavailable on the web build (${action.name})',
+    );
   }
 
   /// Gracefully terminates the background isolate and releases all resources.

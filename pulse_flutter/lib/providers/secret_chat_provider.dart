@@ -143,15 +143,32 @@ class SecretChatCoordinator
     );
     final prefix = _prefix(userId);
     final rawKey = await _secure.read(key: '$prefix.key');
-    final bytes = rawKey == null
-        ? await AesGcm.with256bits().newSecretKey().then(
-            (k) => k.extractBytes(),
-          )
-        : base64Decode(rawKey);
-    if (rawKey == null) {
+    final box = await Hive.openBox<String>('secret_journal_v2_$userId');
+    final List<int> bytes;
+    if (rawKey != null) {
+      bytes = base64Decode(rawKey);
+    } else {
+      if (box.isNotEmpty) {
+        // Secure storage lost the journal key (reinstall / keychain reset)
+        // while ciphertext remains. Archive the unreadable records instead of
+        // leaving the journal bricked forever, then start a fresh one.
+        final archive = await Hive.openBox<String>(
+          'secret_journal_orphaned_$userId',
+        );
+        for (final recordKey in box.keys.toList()) {
+          final value = box.get(recordKey);
+          if (value != null) await archive.put(recordKey, value);
+        }
+        await box.clear();
+        debugPrint(
+          '[SecretChat] JOURNAL_KEY_LOST: existing journal archived for account $userId',
+        );
+      }
+      bytes = await AesGcm.with256bits().newSecretKey().then(
+        (k) => k.extractBytes(),
+      );
       await _secure.write(key: '$prefix.key', value: base64Encode(bytes));
     }
-    final box = await Hive.openBox<String>('secret_journal_v2_$userId');
     coordinator._attachments = await SecretAttachmentStore.open(
       'secret_attachments_v2_$userId',
       directoryPath: await _attachmentDirectoryPath(userId),

@@ -19,7 +19,6 @@ void main() {
         'ui.cornerRadius': 24.0,
         'ui.messageBubbleRadius': 20.0,
         'ui.soundVolume': 0.60,
-        'ui.pureBlackOled': true,
         'ui.autoDownloadWifi': true,
         'ui.autoDownloadCellular': false,
       });
@@ -40,7 +39,6 @@ void main() {
       expect(state.uiCornerRadius, equals(24.0));
       expect(state.messageBubbleRadius, equals(20.0));
       expect(state.soundVolume, closeTo(0.60, 0.001));
-      expect(state.pureBlackOled, isTrue);
     });
 
     test('4.2 Debounced targeted persistence for continuous sliders', () async {
@@ -83,7 +81,6 @@ void main() {
 
       // Preferences keys are removed
       expect(prefs.containsKey('ui.cornerRadius'), isFalse);
-      expect(prefs.containsKey('ui.pureBlackOled'), isFalse);
       expect(prefs.containsKey('ui.themeMode'), isFalse);
     });
 

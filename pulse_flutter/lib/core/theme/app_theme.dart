@@ -28,10 +28,6 @@ class AppTheme {
     );
   }
 
-  static LinearGradient heroGradient(ColorScheme scheme) {
-    return LinearGradient(colors: <Color>[scheme.surface, scheme.surface]);
-  }
-
   static ThemeData themed(
     VisualThemeSettings settings,
     Brightness brightness, {
@@ -45,7 +41,6 @@ class AppTheme {
       settings.useSystemDynamic,
       settings.predictiveBackEnabled,
       (settings.predictiveBackStrength * 100).round(),
-      settings.pureBlackOled,
       settings.uiCornerRadius.round(),
       settings.paletteStyle.index,
       (contrastLevel * 100).round(),

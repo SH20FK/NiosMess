@@ -13,7 +13,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
-import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/services/update/update_integrity.dart';
 import 'package:universal_io/io.dart';
@@ -341,7 +340,7 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
       await sink.close();
       if (!_currentDownload(epoch)) return;
 
-      if (!await UpdateIntegrity.verify(
+      if (!await UpdateIntegrity.verifyForInstall(
         updateFile,
         size: targetInfo.apkSize,
         sha: targetInfo.sha256,
@@ -399,7 +398,7 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
     final String? path = state.downloadedApkPath;
     if (path == null || path.isEmpty) {
       if (state.updateInfo != null) {
-        startDownload();
+        await startDownload();
       }
       return;
     }
@@ -410,11 +409,11 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
         status: OtaStatus.available,
         errorMessage: 'Файл обновления не найден. Загрузка перезапущена.',
       );
-      startDownload();
+      await startDownload();
       return;
     }
 
-    if (!await UpdateIntegrity.verify(
+    if (!await UpdateIntegrity.verifyForInstall(
       updateFile,
       size: state.updateInfo?.apkSize,
       sha: state.updateInfo?.sha256,
@@ -601,20 +600,6 @@ class OtaUpdateNotifier extends Notifier<OtaUpdateState> {
             .catchError((Object _) {}),
       );
     } catch (_) {}
-
-    // 2. In-App Banner Overlay
-    ref
-        .read(inAppNotificationProvider.notifier)
-        .show(
-          InAppNotificationItem(
-            id: 'ota_ready_${targetInfo.latestVersion}',
-            title: _notificationStrings.noticeUpdateReady,
-            body:
-                '${_notificationStrings.noticeUpdateTap} v${targetInfo.latestVersion}',
-            icon: Icons.system_update_rounded,
-            timestamp: DateTime.now(),
-          ),
-        );
 
     HapticService.confirm();
   }

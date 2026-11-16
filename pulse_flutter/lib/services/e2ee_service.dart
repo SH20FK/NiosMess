@@ -281,7 +281,10 @@ class E2eeService {
       if (session.peerStaticDh.isNotEmpty &&
           session.peerStaticDh != theirPublicKeyBase64) {
         debugPrint('[E2eeService] Peer DH key changed for chat $chatId, resetting memory session');
-        await resetSession(chatId, clearVerifiedPeer: true);
+        // The Ed25519 pin survives DH rotation on purpose: a peer may rotate
+        // DH keys, but an identity swap must still trip MITM detection in
+        // completeHandshake/acceptHandshake.
+        await resetSession(chatId, clearVerifiedPeer: false);
         return null;
       }
       return session;
@@ -292,7 +295,9 @@ class E2eeService {
       if (loaded.peerStaticDh.isNotEmpty &&
           loaded.peerStaticDh != theirPublicKeyBase64) {
         debugPrint('[E2eeService] Peer DH key changed for chat $chatId, resetting persisted session');
-        await resetSession(chatId, clearVerifiedPeer: true);
+        // Keep the verified Ed25519 pin: DH rotation is normal, identity
+        // swap is not, and the pin is what detects the swap.
+        await resetSession(chatId, clearVerifiedPeer: false);
         return null;
       }
       // Ensure peerStaticDh is recorded if it was empty from older JSON
@@ -609,25 +614,6 @@ class E2eeService {
 
   // ─── Call key derivation ──────────────────────────────────────
 
-  /// Derives the call media key from the ECDH shared secret with the peer,
-  /// so both sides arrive at the same key (deriving from one's own public
-  /// key produced different keys per side and leaked a public value into
-  /// the KDF).
-  Future<SecretKey> deriveCallKey(
-    int callId, {
-    required String theirPublicKeyBase64,
-  }) async {
-    final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
-    final info = utf8.encode('nios-call-key-$callId');
-    final shared = await computeSharedSecret(
-      theirPublicKeyBase64: theirPublicKeyBase64,
-    );
-    return hkdf.deriveKey(
-      secretKey: shared,
-      nonce: info,
-      info: info,
-    );
-  }
 }
 
 final Provider<E2eeService> e2eeServiceProvider =

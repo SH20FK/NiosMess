@@ -7,6 +7,7 @@ import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart'
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_codec.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'dart:async';
+import 'package:uuid/uuid.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/models/live_location.dart';
 import 'package:pulse_flutter/core/storage/chat_history_anchor.dart';
@@ -122,23 +123,53 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   Timer? _persistTimer;
   final _previewDecryptions = <String>{};
   List<ApiChatSummary>? _pendingChats;
+  int? _pendingChatsAccountId;
+  CacheService? _pendingChatsCache;
 
   void _persistChats(List<ApiChatSummary> chats) {
-    final generation = _generation, accountId = _identity.$1;
+    final generation = _generation;
     _pendingChats = chats;
+    _pendingChatsAccountId = _identity.$1;
+    _pendingChatsCache = ref.read(cacheServiceProvider);
     _persistTimer ??= Timer(const Duration(seconds: 2), () {
       _persistTimer = null;
       final List<ApiChatSummary>? snapshot = _pendingChats;
+      final int? accountId = _pendingChatsAccountId;
+      final CacheService? cache = _pendingChatsCache;
       _pendingChats = null;
-      if (snapshot == null || !_valid(generation)) return;
+      _pendingChatsAccountId = null;
+      _pendingChatsCache = null;
+      if (snapshot == null ||
+          accountId == null ||
+          cache == null ||
+          !_valid(generation)) {
+        return;
+      }
       try {
-        unawaited(
-          ref
-              .read(cacheServiceProvider)
-              .saveChats(snapshot, accountId: accountId),
-        );
+        unawaited(cache.saveChats(snapshot, accountId: accountId));
       } catch (_) {}
     });
+  }
+
+  /// Flushes the debounced chat-list snapshot immediately so the last
+  /// (up to 2s) batch of changes is not lost on rebuild or dispose. When
+  /// [onlyAccountId] is provided, a pending snapshot that belongs to another
+  /// account is dropped instead of written (account switch must not leak the
+  /// previous inbox into the cache).
+  void _flushPendingChats({int? onlyAccountId}) {
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    final List<ApiChatSummary>? snapshot = _pendingChats;
+    final int? accountId = _pendingChatsAccountId;
+    final CacheService? cache = _pendingChatsCache;
+    _pendingChats = null;
+    _pendingChatsAccountId = null;
+    _pendingChatsCache = null;
+    if (snapshot == null || accountId == null || cache == null) return;
+    if (onlyAccountId != null && accountId != onlyAccountId) return;
+    try {
+      unawaited(cache.saveChats(snapshot, accountId: accountId));
+    } catch (_) {}
   }
 
   @override
@@ -149,9 +180,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     final generation = ++_generation;
     _identity = identity;
     _builtForSession = true;
-    _persistTimer?.cancel();
-    _persistTimer = null;
-    _pendingChats = null;
+    _flushPendingChats(onlyAccountId: _identity.$1);
     _seenOperations.clear();
     _previewDecryptions.clear();
     // An authenticated account change must clear previous AsyncValue data too.
@@ -221,9 +250,15 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     ref.onDispose(() {
       unawaited(connected.cancel());
       WebSocketPushDispatcher.unregisterGlobal();
+      // Dispose also runs on an account switch, and Riverpod forbids ref
+      // reads here, so the pending snapshot is dropped rather than risk
+      // writing the previous inbox next to the new account's cache. A
+      // same-account rebuild still flushes in build().
       _persistTimer?.cancel();
       _persistTimer = null;
       _pendingChats = null;
+      _pendingChatsAccountId = null;
+      _pendingChatsCache = null;
     });
 
     final secret = await ref.read(secretChatCoordinatorProvider.future);
@@ -594,7 +629,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         _notifyMessage(message, chat: chat, present: !isCurrentChatOpen);
       }
     } else {
-      refresh();
+      unawaited(refresh());
       if (notify && message.senderId != myUserId) {
         _notifyMessage(message, present: !isCurrentChatOpen);
       }
@@ -1385,9 +1420,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final cacheUserId = accountId;
     final cacheGeneration = _cacheAccountGeneration;
     final connected = ref.read(webSocketClientProvider).onConnected.listen((_) {
-      if (ref.mounted && PushNotificationService.currentChatId == _chatId) {
-        unawaited(refresh());
-      }
+      // Any live chat provider catches up on reconnect, not just the one
+      // currently on screen.
+      if (ref.mounted) unawaited(refresh());
     });
     ref.onDispose(() {
       unawaited(connected.cancel());
@@ -1587,7 +1622,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final List<ApiMessage> updated = List<ApiMessage>.from(current)
       ..removeAt(index);
     state = AsyncData<List<ApiMessage>>(updated);
-    _saveToCache(updated);
+    unawaited(_saveToCache(updated));
   }
 
   Future<void> _purgeFromCache(int messageId) async {
@@ -1608,6 +1643,44 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       );
     } catch (e) {
       debugPrint('[backend_chat_provider.dart] Purge cached message error: $e');
+    }
+  }
+
+  Future<void> _patchCachedReactions(
+    int messageId,
+    String emoji, {
+    required bool added,
+  }) async {
+    try {
+      final int myUserId = ref.read(authProvider).session?.userId ?? -1;
+      final int? userId = myUserId > 0 ? myUserId : null;
+      final List<ApiMessage> cached = await EncryptedMessageCache.loadMessages(
+        _chatId,
+        userId: userId,
+      );
+      final int cachedIndex = cached.indexWhere((m) => m.id == messageId);
+      if (cachedIndex == -1) return;
+      final ApiMessage row = cached[cachedIndex];
+      final Map<String, int> reactions = Map<String, int>.from(row.reactions);
+      final int count = (reactions[emoji] ?? 0) + (added ? 1 : -1);
+      if (count > 0) {
+        reactions[emoji] = count;
+      } else {
+        reactions.remove(emoji);
+      }
+      final List<ApiMessage> updated = List<ApiMessage>.from(cached);
+      updated[cachedIndex] = row.copyWith(reactions: reactions);
+      final ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));
+      await EncryptedMessageCache.saveMessages(
+        _chatId,
+        updated,
+        userId: userId,
+        isSecretChat: chat?.isSecret == true,
+      );
+    } catch (e) {
+      debugPrint(
+        '[backend_chat_provider.dart] Patch cached reactions error: $e',
+      );
     }
   }
 
@@ -1636,6 +1709,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
                 .catchError((Object _) {}) ??
             Future<void>.value(),
       );
+      // The on-disk cache must agree with the archive, otherwise the stale
+      // reaction count resurfaces on the next cold load.
+      unawaited(_patchCachedReactions(message.id, emoji, added: added));
       return;
     }
 
@@ -1658,7 +1734,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         index: index,
       ),
     );
-    _saveToCache(updated);
+    unawaited(_saveToCache(updated));
   }
 
   /// [userId] read the whole chat: every message NOT sent by them is now read.
@@ -1685,7 +1761,7 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         replacements: replacements,
       ),
     );
-    _saveToCache(updated);
+    unawaited(_saveToCache(updated));
   }
 
   Future<void> _handleNewIncomingMessage(ApiMessage message) async {
@@ -2740,7 +2816,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     if (!deliveryActive()) return;
     if (ref.read(chatByIdProvider(_chatId)) == null && _secret == null) {
       try {
-        await ref.read(chatsProvider.future);
+        // Offline must fail the operation visibly instead of hanging forever.
+        await ref
+            .read(chatsProvider.future)
+            .timeout(const Duration(seconds: 8));
       } catch (_) {}
       if (!deliveryActive()) return;
       if (ref.read(chatByIdProvider(_chatId)) == null) {
@@ -3157,7 +3236,10 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     if (!deliveryActive()) return;
     if (ref.read(chatByIdProvider(_chatId)) == null && _secret == null) {
       try {
-        await ref.read(chatsProvider.future);
+        // Offline must fail the operation visibly instead of hanging forever.
+        await ref
+            .read(chatsProvider.future)
+            .timeout(const Duration(seconds: 8));
       } catch (_) {}
       if (!deliveryActive()) return;
       if (ref.read(chatByIdProvider(_chatId)) == null) {
@@ -3755,6 +3837,7 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
   final _pendingMutations = <int, Future<void>>{};
   final _mutationIntents = <(int, String, String?, String?), Future<void>>{};
   final _pendingSends = <(String, int?), Future<void>>{};
+  final _attemptKeys = <(String, int?), String>{};
   bool _current(int epoch) =>
       ref.mounted &&
       epoch == _accountEpoch &&
@@ -3923,13 +4006,22 @@ class PostCommentsNotifier extends AsyncNotifier<List<ApiMessage>> {
   Future<void> _send(String content, {int? replyToId}) async {
     final epoch = _accountEpoch;
     if (!_current(epoch)) throw StateError('COMMENT_ACCOUNT_CHANGED');
+    // Idempotency: a retry of the same text after a lost response reuses the
+    // key, so the server returns the original comment instead of a duplicate.
+    final attempt = (content.trim(), replyToId);
+    final String clientKey = _attemptKeys[attempt] ??= const Uuid().v4();
+    if (_attemptKeys.length > 64) {
+      _attemptKeys.remove(_attemptKeys.keys.first);
+    }
     final created = await _repository.send(
       _args.channelId,
       _args.postId,
       content.trim(),
       replyToId,
+      clientCommentId: clientKey,
     );
     if (!_current(epoch)) throw StateError('COMMENT_ACCOUNT_CHANGED');
+    _attemptKeys.remove(attempt);
     _revision++;
     final exists = state.value?.any((item) => item.id == created.id) ?? false;
     if (totalCount != null && !exists) totalCount = totalCount! + 1;

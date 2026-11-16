@@ -102,6 +102,9 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
 
   @override
   Map<String, UploadTask> build() {
+    // Crash recovery: encrypted staging files from a previous process must
+    // not pile up in the temp directory.
+    unawaited(_sweepStaleEncryptions());
     ref.listen(connectivityProvider, (
       AsyncValue<bool>? prev,
       AsyncValue<bool> next,
@@ -113,6 +116,26 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
       }
     });
     return const <String, UploadTask>{};
+  }
+
+  Future<void> _sweepStaleEncryptions() async {
+    try {
+      final Directory dir = await getTemporaryDirectory();
+      final DateTime cutoff = DateTime.now().subtract(
+        const Duration(hours: 1),
+      );
+      await for (final FileSystemEntity entity in dir.list()) {
+        if (entity is! File) continue;
+        final String name = entity.path.split(RegExp(r'[/\\]')).last;
+        if (!name.startsWith('nios-e2e-') || !name.endsWith('.bin')) continue;
+        try {
+          final FileStat stat = await entity.stat();
+          if (stat.modified.isBefore(cutoff)) await entity.delete();
+        } catch (_) {}
+      }
+    } catch (_) {
+      // Temp-directory access is best effort; uploads still work without it.
+    }
   }
 
   void enqueue({

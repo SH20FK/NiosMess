@@ -85,7 +85,7 @@ class CallSessionManager {
        _accountId = ref.read(authProvider).session?.userId,
        _accountToken = ref.read(authProvider).session?.accessToken;
 
-  final dynamic ref;
+  final Ref ref;
   final int? _accountId;
   final String? _accountToken;
   final int chatId;
@@ -94,7 +94,7 @@ class CallSessionManager {
   final bool isVideo;
   final CallDirection direction;
   final String displayName;
-  final String? peerName;
+  String? peerName;
   final String? peerAvatarUrl;
   final String? peerUsername;
   final bool isListener;
@@ -167,7 +167,7 @@ class CallSessionManager {
     String action,
     Map<String, dynamic> payload,
   ) async {
-    if (ref is Ref && !(ref as Ref).mounted) {
+    if (!ref.mounted) {
       throw StateError('call_account_unavailable');
     }
     final auth = ref.read(authProvider);
@@ -252,7 +252,7 @@ class CallSessionManager {
 
   Future<void> _connectOnce() async {
     if (_disposed || _ended) return;
-    final sound = ref.read(appSoundProvider) as SoundService;
+    final sound = ref.read(appSoundProvider);
     _callSound = sound;
     await sound.suspendForCall();
     if (_disposed || _ended) {
@@ -278,6 +278,12 @@ class CallSessionManager {
     required Map<String, dynamic> startResponse,
     String? peerDisplayName,
   }) async {
+    // The WS `start_call` response is accepted as proof the call exists; the
+    // peer display name it carries wins over a missing constructor value.
+    if ((peerName == null || peerName!.isEmpty) &&
+        (peerDisplayName?.isNotEmpty ?? false)) {
+      peerName = peerDisplayName;
+    }
     // WebRTC owns audio from capture until teardown; media tones must not
     // request a competing focus or reset the communication route.
     try {
@@ -376,9 +382,8 @@ class CallSessionManager {
   bool get isLocalVideoEnabled =>
       _session?.currentData.isSelfVideoEnabled ?? false;
   MediaStream? get localStream => _session?.localStream;
-  Map<int, MediaStream> get remoteStreams => _session?.remoteStream != null
-      ? <int, MediaStream>{0: _session!.remoteStream!}
-      : const <int, MediaStream>{};
+  Map<int, MediaStream> get remoteStreams =>
+      _session?.remoteStreams ?? const <int, MediaStream>{};
 
   Future<void> initRenderers() {
     if (_disposed || _ended) return Future<void>.value();

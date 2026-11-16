@@ -288,8 +288,11 @@ class ApiMessage {
 
     return ApiMessage(
       clientMessageId: json['client_message_id'] as String?,
-      isSending: _parseBool(json['is_sending']),
-      isFailed: _parseBool(json['is_failed']),
+      // A message that was mid-flight when the process died can never finish
+      // sending — restore it as failed so it does not spin forever.
+      isSending: false,
+      isFailed:
+          _parseBool(json['is_failed']) || _parseBool(json['is_sending']),
       id: json['id'] as int? ?? 0,
       chatId: json['chat_id'] as int? ?? 0,
       senderId: (json['sender_id'] as num?)?.toInt() ??
@@ -361,7 +364,6 @@ class ApiMessage {
   Map<String, dynamic> toJson() {
     return {
       'client_message_id': clientMessageId,
-      'is_sending': isSending,
       'is_failed': isFailed,
       'id': id,
       'chat_id': chatId,

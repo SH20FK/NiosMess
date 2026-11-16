@@ -8,17 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:universal_io/io.dart';
-import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/services/update/update_integrity.dart';
-
-class _QuietNotifications extends InAppNotificationNotifier {
-  @override
-  InAppNotificationItem? build() => null;
-  @override
-  void show(InAppNotificationItem item) {}
-}
 
 class _DelayedUpdateService extends AppUpdateService {
   final response = Completer<AppUpdateInfo>();
@@ -42,11 +34,7 @@ void main() {
       paths,
       (_) async => directory.path,
     );
-    container = ProviderContainer(
-      overrides: [
-        inAppNotificationProvider.overrideWith(_QuietNotifications.new),
-      ],
-    );
+    container = ProviderContainer();
     notifier = container.read(otaUpdateProvider.notifier);
   });
   tearDown(() async {
@@ -239,7 +227,6 @@ void main() {
       container.dispose();
       container = ProviderContainer(
         overrides: [
-          inAppNotificationProvider.overrideWith(_QuietNotifications.new),
           appUpdateServiceProvider.overrideWithValue(service),
         ],
       );

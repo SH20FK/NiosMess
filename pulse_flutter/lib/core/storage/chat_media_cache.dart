@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -58,6 +57,18 @@ class ChatMediaCache {
     }
     return false;
   }
+
+  /// Cheap field-by-field comparison; a full JSON round-trip per message was
+  /// O(n) on every cache save.
+  static bool _sameMessage(ApiMessage a, ApiMessage b) =>
+      a.content == b.content &&
+      a.msgType == b.msgType &&
+      a.mediaUrl == b.mediaUrl &&
+      a.mediaName == b.mediaName &&
+      a.editedAt == b.editedAt &&
+      a.isDeleted == b.isDeleted &&
+      a.isRead == b.isRead &&
+      mapEquals(a.reactions, b.reactions);
 
   static Future<void> ensureInitialized() async {
     if (_initialized && Hive.isBoxOpen(_boxName)) return;
@@ -138,8 +149,7 @@ class ChatMediaCache {
       bool changed = false;
       for (final ApiMessage m in newMedia) {
         final ApiMessage? previous = byId[m.id];
-        if (previous == null ||
-            jsonEncode(previous.toJson()) != jsonEncode(m.toJson())) {
+        if (previous == null || !_sameMessage(previous, m)) {
           byId[m.id] = m;
           changed = true;
         }

@@ -73,14 +73,19 @@ class PostCommentsRepository {
     int channelId,
     int postId,
     String content,
-    int? replyToId,
-  ) async {
+    int? replyToId, {
+    String? clientCommentId,
+  }) async {
     return ApiMessage.fromJson(
       await request(
         channelId > 0 ? 'post_comment' : 'comment_post',
         channelId,
         postId,
-        <String, dynamic>{'content': content, 'reply_to_id': replyToId},
+        <String, dynamic>{
+          'content': content,
+          'reply_to_id': replyToId,
+          'client_comment_id': ?clientCommentId,
+        },
       ),
     );
   }

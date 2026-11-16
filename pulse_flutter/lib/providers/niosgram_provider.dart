@@ -82,9 +82,12 @@ class _HiddenFeedPost {
 }
 
 class _FeedPage {
-  const _FeedPage(this.posts, this.hasMore);
+  const _FeedPage(this.posts, this.hasMore, [this.cursor]);
   final List<NgPost> posts;
   final bool hasMore;
+
+  /// Stable `before_id` watermark from the server (null on old servers).
+  final int? cursor;
 }
 
 /// Error feedback can be observed from a shared post without loading the feed.
@@ -105,6 +108,7 @@ final niosgramReactionErrorsProvider =
 
 class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
   int _epoch = 0, _pageRevision = 0;
+  int? _feedCursor;
   int? _account;
   bool _refreshing = false;
   final _deletedIds = <int>{};
@@ -208,19 +212,42 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final removed = baseline.keys
         .where((id) => !currentIds.contains(id))
         .toSet();
-    final changed = live
-        .where((item) => !identical(baseline[item.id], item))
-        .toList();
-    final changedIds = changed.map((item) => item.id).toSet();
-    return [
-      ...changed.where((item) => !_deletedIds.contains(item.id)),
-      ...fresh.where(
-        (item) =>
-            !_deletedIds.contains(item.id) &&
-            !removed.contains(item.id) &&
-            !changedIds.contains(item.id),
-      ),
-    ];
+    final freshById = {for (final item in fresh) item.id: item};
+    final liveIds = live.map((item) => item.id).toSet();
+    final List<NgPost> merged = <NgPost>[];
+    for (final item in live) {
+      if (_deletedIds.contains(item.id) || removed.contains(item.id)) {
+        continue;
+      }
+      final server = freshById[item.id];
+      if (server == null) {
+        // Rows the live list gained after the request started (a push or a
+        // local insert) stay in their live position; stale rows the fresh
+        // page no longer carries are dropped by the refresh itself.
+        if (identical(baseline[item.id], item)) continue;
+        merged.add(item);
+      } else {
+        // Keep a locally mutated row in its server position instead of
+        // lifting it to the top of the feed.
+        merged.add(identical(baseline[item.id], item) ? server : item);
+      }
+    }
+    for (final item in fresh) {
+      if (liveIds.contains(item.id) ||
+          _deletedIds.contains(item.id) ||
+          removed.contains(item.id)) {
+        continue;
+      }
+      final int byDate = merged.indexWhere(
+        (p) => p.createdAt.isBefore(item.createdAt),
+      );
+      if (byDate == -1) {
+        merged.add(item);
+      } else {
+        merged.insert(byDate, item);
+      }
+    }
+    return merged;
   }
 
   @override
@@ -237,6 +264,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     _account = session.$1;
     final epoch = ++_epoch;
     _pageRevision++;
+    _feedCursor = null;
     _deletedIds.clear();
     _startupPosts.clear();
     _mutations.clear();
@@ -268,6 +296,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
       if (revision != _pageRevision) {
         return state.value ?? const NiosgramState();
       }
+      _feedCursor = page.cursor;
       final List<NgPost> reconciled =
           _preserveChanges(freshPosts, cached, [
                 ..._startupPosts.values,
@@ -296,13 +325,16 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     }
   }
 
-  Future<_FeedPage> _fetchPage(int page) async {
+  Future<_FeedPage> _fetchPage(int page, {int? beforeId}) async {
     final epoch = _epoch;
     final ballots = ref.read(feedPollVotesProvider.notifier);
     final voteRevisions = ballots.revisions;
     final dynamic response = await ref
         .read(webSocketClientProvider)
-        .request('get_feed', payload: <String, dynamic>{'page': page});
+        .request('get_feed', payload: <String, dynamic>{
+          'page': page,
+          'before_id': ?beforeId,
+        });
     final dynamic posts = response is Map ? response['posts'] : response;
     if (response is Map && response['error'] != null) {
       throw StateError('feed_request_failed');
@@ -319,12 +351,19 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     final limit = response is Map ? (response['limit'] as num?)?.toInt() : null;
     // The current server returns 15; use its declared size when present.
     final pageSize = limit != null && limit > 0 ? limit : 15;
+    final int? cursor = response is Map
+        ? (response['before_id'] as num?)?.toInt()
+        : null;
+    final bool? explicitHasMore = response is Map && response['has_more'] is bool
+        ? response['has_more'] as bool
+        : null;
     if (_current(epoch)) ballots.reconcile(voteRevisions, items);
     return _FeedPage(
       items
           .where((item) => !_hidden.containsKey(item.id))
           .toList(growable: false),
-      posts.length >= pageSize,
+      explicitHasMore ?? posts.length >= pageSize,
+      cursor,
     );
   }
 
@@ -405,6 +444,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
       final page = await _fetchPage(1);
       final fresh = page.posts;
       if (!_current(epoch) || revision != _pageRevision) return;
+      _feedCursor = page.cursor;
       final merged = _preserveChanges(
         fresh,
         before,
@@ -441,7 +481,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     );
     final nextPage = current.value.page + 1;
     try {
-      final page = await _fetchPage(nextPage);
+      final page = await _fetchPage(nextPage, beforeId: _feedCursor);
       final more = page.posts;
       if (!_current(epoch) || revision != _pageRevision) return;
       final live = state.value ?? current.value;
@@ -597,12 +637,26 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
           final bool exists = fresh.value.posts.any(
             (NgPost p) => p.id == postId,
           );
-          final originalIndex =
-              _hidden[postId]?.index ??
-              current.value.posts.indexWhere((p) => p.id == postId);
+          final int? hiddenIndex = _hidden[postId]?.index;
+          final int locatedIndex = current.value.posts.indexWhere(
+            (p) => p.id == postId,
+          );
           final List<NgPost> restored = List<NgPost>.of(fresh.value.posts);
           if (!exists) {
-            restored.insert(originalIndex.clamp(0, restored.length), target);
+            final int insertAt;
+            if (hiddenIndex != null && hiddenIndex >= 0) {
+              insertAt = hiddenIndex.clamp(0, restored.length);
+            } else if (locatedIndex >= 0) {
+              insertAt = locatedIndex.clamp(0, restored.length);
+            } else {
+              // Unknown original position: keep the post in date order instead
+              // of pinning it to the top of the feed.
+              final int byDate = restored.indexWhere(
+                (p) => p.createdAt.isBefore(target.createdAt),
+              );
+              insertAt = byDate == -1 ? restored.length : byDate;
+            }
+            restored.insert(insertAt, target);
           }
           final List<NgPost> reverted = exists
               ? fresh.value.posts
@@ -641,12 +695,14 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
     List<double>? mediaDurations,
     List<String>? aiTags,
     Map<String, dynamic>? poll,
+    String? clientPostId,
   }) async {
     final epoch = _epoch;
     if (!_current(epoch)) return;
     final Map<String, dynamic> payload = <String, dynamic>{
       'content': text.trim(),
       'poll': ?poll,
+      'client_post_id': ?clientPostId,
     };
     final List<dynamic> effectiveUploadIds = <dynamic>[
       ...?uploadIds,
@@ -699,6 +755,7 @@ class NiosgramNotifier extends AsyncNotifier<NiosgramState> {
       final page = await _fetchPage(1);
       final freshPosts = page.posts;
       if (!_current(epoch)) return;
+      _feedCursor = page.cursor;
       final AsyncData<NiosgramState>? current = state.asData;
       if (current != null && freshPosts.isNotEmpty) {
         final List<NgPost> reconciled = _preserveChanges(

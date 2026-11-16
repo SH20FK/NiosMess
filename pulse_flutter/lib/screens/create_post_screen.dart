@@ -17,6 +17,8 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/image_compressor.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/niosgram_provider.dart';
+import 'package:uuid/uuid.dart';
+import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:pulse_flutter/providers/niosgram_draft_provider.dart';
 import 'package:pulse_flutter/core/storage/niosgram_draft_store.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -80,6 +82,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
   bool _restoring = true, _restoreFailed = false, _allowPop = false;
   bool _published = false, _leaving = false, _finalizing = false;
   bool _alreadyPublished = false;
+  String? _submitKey;
   int _revision = 0;
   String _lastText = '';
   late final (int?, String?) _account;
@@ -214,6 +217,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
   void _changed() {
     _revision++;
     _alreadyPublished = false;
+    _submitKey = null;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 350), () {
       unawaited(
@@ -514,6 +518,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
       _isLoading = true;
       _error = null;
     });
+    // One submission attempt = one idempotency key. A retry after a lost
+    // response reuses it, so the server returns the original post.
+    final String clientPostId = _submitKey ??= const Uuid().v4();
 
     final files = List<PlatformFile>.of(
       _selectedFiles.isNotEmpty ? _selectedFiles : [?_selectedFile],
@@ -595,8 +602,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
         poll: poll,
         uploadId: uploadIds.firstOrNull,
         mediaDurations: durations,
+        clientPostId: clientPostId,
       );
       publicationConfirmed = true;
+      _submitKey = null;
 
       if (mounted && active()) {
         if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
@@ -646,6 +655,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
       if (mounted) {
         AppToast.showError(context, formatted);
       }
+      if (unknown && mounted && _revision == revision) {
+        unawaited(_verifyUnknownPublication(text, revision));
+      }
     } finally {
       if (identical(_uploadCancellation, cancellation)) {
         _uploadCancellation = null;
@@ -657,6 +669,50 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
         });
       }
     }
+  }
+
+  /// The socket timed out after `create_post` was sent; the server may have
+  /// committed anyway and a plain retry would publish a duplicate. Verify
+  /// against a fresh feed page and finish the flow when the post is found.
+  Future<void> _verifyUnknownPublication(String text, int revision) async {
+    try {
+      await ref.read(niosgramProvider.notifier).refresh();
+    } catch (_) {
+      return;
+    }
+    if (!mounted || _revision != revision) return;
+    final int? myId = ref.read(authProvider).session?.userId;
+    final String normalized = text.trim();
+    if (myId == null || normalized.isEmpty) return;
+    final DateTime cutoff = DateTime.now().subtract(
+      const Duration(minutes: 5),
+    );
+    final posts =
+        ref.read(niosgramProvider).value?.posts ?? const <NgPost>[];
+    final bool published = posts.any(
+      (p) =>
+          p.author.id == myId &&
+          p.content.trim() == normalized &&
+          p.createdAt.isAfter(cutoff),
+    );
+    if (!published || !mounted) return;
+    _saveTimer?.cancel();
+    setState(() {
+      _error = null;
+      _published = true;
+      _alreadyPublished = true;
+      _allowPop = true;
+    });
+    try {
+      await _draftWrites;
+      await _draftStore?.clear();
+    } catch (_) {
+      // The draft is cosmetic once the post is confirmed on the server.
+    }
+    if (!mounted) return;
+    AppToast.showSuccess(context, context.l10n.auditPostPublished);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override

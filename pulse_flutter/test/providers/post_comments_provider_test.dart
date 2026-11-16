@@ -62,8 +62,9 @@ class _Repository extends PostCommentsRepository {
     int channelId,
     int postId,
     String content,
-    int? replyToId,
-  ) async {
+    int? replyToId, {
+    String? clientCommentId,
+  }) async {
     sends++;
     return pendingSend?.future ?? message(100);
   }

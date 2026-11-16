@@ -132,7 +132,11 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
 
   @override
   AdaptivePerformanceState build() {
-    _detectedRefreshRate = FrameTimingMonitor.detectRefreshRate();
+    // Store the clamped target, not the raw Hz, so refreshDisplayRate()
+    // compares like with like and budget/fps always describe the same rate.
+    _detectedRefreshRate = FrameTimingMonitor.computeTargetFps(
+      FrameTimingMonitor.detectRefreshRate(),
+    );
     final double budget = FrameTimingMonitor.computeBudgetMs(
       _detectedRefreshRate,
     );

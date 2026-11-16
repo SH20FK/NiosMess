@@ -35,6 +35,21 @@ class PushNotificationService {
   static bool _routingReady = false;
   static final deviceRegistered = ValueNotifier<bool>(false);
   static final _handledClicks = <String>{};
+  /// Foreground conversation threads (one per chat) so a chat's system
+  /// notification renders as an expanding MessagingStyle conversation and new
+  /// messages replace the previous notification instead of stacking.
+  static final Map<int, List<Message>> _conversationThreads = {};
+
+  /// Stable per-chat notification id: read receipts cancel by this id, and any
+  /// replacement post overwrites the previous notification for that chat.
+  static int chatNotificationId(int chatId) =>
+      0x40000000 | (chatId & 0x3FFFFFFF);
+
+  /// Stable per-room call notification id: cancelling an ended room can never
+  /// erase a newer incoming call from a different room.
+  static int callNotificationId(String roomId) =>
+      notificationSystemId('call:$roomId');
+
   static bool get supportsPush =>
       kIsWeb ||
       defaultTargetPlatform == TargetPlatform.android ||
@@ -92,6 +107,7 @@ class PushNotificationService {
     _routingReady = false;
     _accountId = null;
     _currentChatId = null;
+    _conversationThreads.clear();
     pendingNotificationData = null;
     _pendingLocalResponse = null;
     await configureAccount(null);
@@ -191,6 +207,7 @@ class PushNotificationService {
     int? chatId,
     required AppLocalizations strings,
     bool sound = true,
+    List<Message>? conversation,
   }) {
     final String channelId = isCall
         ? 'niosmess_calls'
@@ -220,11 +237,14 @@ class PushNotificationService {
             : MessagingStyleInformation(
                 const Person(name: 'NiosMess'),
                 conversationTitle: title,
-                messages: [Message(body, DateTime.now(), Person(name: title))],
+                messages: conversation ??
+                    [Message(body, DateTime.now(), Person(name: title))],
               ),
         timeoutAfter: isCall ? 60000 : null,
-        onlyAlertOnce: true,
-        groupKey: chatId != null ? 'niosmess_chat_$chatId' : 'niosmess_general',
+        // One notification per chat gets replaced on every new message, so it
+        // must re-alert each time (onlyAlertOnce would mute the whole chat).
+        onlyAlertOnce: false,
+        groupKey: isCall ? 'niosmess_calls' : 'niosmess_chats',
         subText: isCall ? strings.noticeIncomingCall : null,
         enableLights: true,
         ledColor: const Color(0xFF6750A4),
@@ -335,31 +355,61 @@ class PushNotificationService {
         data['room_id'].toString(),
       );
     }
-    await _local.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(
-          requestAlertPermission: false,
-          requestBadgePermission: false,
-          requestSoundPermission: false,
+    try {
+      await _local.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(
+            requestAlertPermission: false,
+            requestBadgePermission: false,
+            requestSoundPermission: false,
+          ),
         ),
-      ),
-      onDidReceiveNotificationResponse: _onNotificationTap,
-    );
-    await _local.show(
-      id: event.isCall ? kCallNotificationId : notificationSystemId(event.id),
-      title: title,
-      body: body,
-      notificationDetails: _buildNotificationDetails(
+        onDidReceiveNotificationResponse: _onNotificationTap,
+      );
+      final int? chatId = event.chatId;
+      final String? callRoom = event.isCall ? data['room_id']?.toString() : null;
+      final List<Message>? conversation;
+      if (!event.isCall && chatId != null) {
+        final thread = [
+          ...?_conversationThreads[chatId],
+          Message(body, DateTime.now(), Person(name: title)),
+        ];
+        conversation = thread.length > 8
+            ? thread.sublist(thread.length - 8)
+            : thread;
+        _conversationThreads[chatId] = conversation;
+      } else {
+        conversation = null;
+      }
+      await _local.show(
+        // Calls keep a per-room id (a late cancellation of an old room must not
+        // erase a newer call), chats keep a stable per-chat id (read receipts
+        // cancel it and new messages replace the previous text), everything
+        // else keeps a per-event id.
+        id: event.isCall
+            ? (callRoom != null
+                  ? callNotificationId(callRoom)
+                  : kCallNotificationId)
+            : chatId != null
+                  ? chatNotificationId(chatId)
+                  : notificationSystemId(event.id),
         title: title,
         body: body,
-        isCall: event.isCall,
-        chatId: event.chatId,
-        strings: strings,
-        sound: options['sound'] != false,
-      ),
-      payload: jsonEncode({...data, 'account_id': account}),
-    );
+        notificationDetails: _buildNotificationDetails(
+          title: title,
+          body: body,
+          isCall: event.isCall,
+          chatId: chatId,
+          strings: strings,
+          sound: options['sound'] != false,
+          conversation: conversation,
+        ),
+        payload: jsonEncode({...data, 'account_id': account}),
+      );
+    } catch (error) {
+      debugPrint('[Push] LOCAL_NOTIFICATION_ERROR $error');
+    }
   }
 
   static void registerBackgroundHandler() {
@@ -404,6 +454,8 @@ class PushNotificationService {
           description: strings.noticeMessagesChannel,
           importance: Importance.high,
           playSound: true,
+          enableVibration: true,
+          vibrationPattern: Int64List.fromList(<int>[0, 200, 100, 200]),
         );
     final AndroidNotificationChannel callsChannel = AndroidNotificationChannel(
       'niosmess_calls',
@@ -412,6 +464,7 @@ class PushNotificationService {
       importance: Importance.max,
       playSound: true,
       enableVibration: true,
+      vibrationPattern: Int64List.fromList(<int>[0, 400, 200, 400]),
     );
     final AndroidNotificationChannel updatesChannel =
         AndroidNotificationChannel(
@@ -578,7 +631,7 @@ class PushNotificationService {
             as Map<String, dynamic>;
     await prefs.setString('notifications.ringing_room', roomId);
     await _local.show(
-      id: kCallNotificationId,
+      id: callNotificationId(roomId),
       title: callerName,
       body: body,
       notificationDetails: _buildNotificationDetails(
@@ -616,7 +669,10 @@ class PushNotificationService {
           'notifications.ended_calls',
           ended.skip(ended.length > 128 ? ended.length - 128 : 0).toList(),
         );
-        await _local.cancel(id: 0, tag: 'call-$endedRoom');
+        // show() never posted tags, so the old `cancel(id: 0, tag: ...)` call
+        // matched nothing and ended calls rang until they timed out.
+        await _local.cancel(id: callNotificationId(endedRoom));
+        await _local.cancel(id: kCallNotificationId);
       }
       // A late cancellation from an old room cannot erase a newer incoming call.
       if (roomId == null || current == roomId) {
@@ -627,9 +683,12 @@ class PushNotificationService {
   }
 
   static Future<void> cancelChatNotification(int chatId) async {
+    // Notifications were posted without tags, so this cancel never matched
+    // anything and read receipts left stale notifications on the phone.
+    _conversationThreads.remove(chatId);
     if (!kIsWeb) {
       try {
-        await _local.cancel(id: 0, tag: 'chat-$chatId');
+        await _local.cancel(id: chatNotificationId(chatId));
       } catch (_) {}
     }
   }

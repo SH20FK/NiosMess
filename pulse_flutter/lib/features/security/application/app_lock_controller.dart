@@ -15,6 +15,8 @@ class AppLockNotifier extends Notifier<AppLockState> {
   bool get _supportedClient =>
       ref.mounted && !ref.read(clientCapabilitiesProvider).isWeb;
   bool _current(int epoch) => _supportedClient && epoch == _epoch;
+  final Stopwatch _backgroundedFor = Stopwatch();
+
   bool _ready(int epoch) =>
       _current(epoch) && !state.isInitializing && !state.hasInitializationError;
 
@@ -98,6 +100,10 @@ class AppLockNotifier extends Notifier<AppLockState> {
 
   void onAppBackgrounded() {
     if (!_ready(_epoch) || !state.isEnabled) return;
+    // Monotonic elapsed time: a clock change must not bypass the lock.
+    _backgroundedFor
+      ..reset()
+      ..start();
     state = state.copyWith(lastBackgroundedAt: DateTime.now());
   }
 
@@ -106,7 +112,10 @@ class AppLockNotifier extends Notifier<AppLockState> {
     final DateTime? bgTime = state.lastBackgroundedAt;
     if (bgTime == null) return;
 
-    final Duration elapsed = DateTime.now().difference(bgTime);
+    final Duration elapsed = _backgroundedFor.isRunning
+        ? _backgroundedFor.elapsed
+        : DateTime.now().difference(bgTime);
+    _backgroundedFor.stop();
     if (state.timeout == AppLockTimeout.immediately ||
         elapsed >= state.timeout.duration) {
       state = state.copyWith(isLocked: true);

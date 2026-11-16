@@ -11,7 +11,6 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
-import 'package:pulse_flutter/providers/in_app_notification_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
 enum AppNotificationType { message, postLike, postComment, other }
@@ -273,7 +272,6 @@ class NotificationsNotifier extends Notifier<NotificationsState> {
       final previous = state.notifications
           .where((n) => n.id == event.id)
           .firstOrNull;
-      final duplicate = previous != null;
       if (previous != null &&
           event.avatarUrl == null &&
           previous.event.avatarUrl != null) {
@@ -307,10 +305,14 @@ class NotificationsNotifier extends Notifier<NotificationsState> {
       } catch (_) {
         debugPrint('[Notifications] HISTORY_WRITE_UNAVAILABLE');
       }
+      // In-app banners were removed: foreground deliveries now surface as
+      // system notifications (one stable notification per chat) instead of an
+      // in-app overlay. `previous != null` dedupes re-delivered events so a
+      // notification never re-alerts for the same event id.
       if (!ref.mounted ||
           _account != account ||
           !present ||
-          (duplicate && ref.read(inAppNotificationProvider)?.id != event.id) ||
+          previous != null ||
           !PushNotificationService.isForeground) {
         return;
       }
@@ -318,19 +320,11 @@ class NotificationsNotifier extends Notifier<NotificationsState> {
           event.body.toLowerCase() == 'new activity') {
         return;
       }
-      ref
-          .read(inAppNotificationProvider.notifier)
-          .show(
-            InAppNotificationItem(
-              id: event.id,
-              title: event.title,
-              body: event.body,
-              avatarUrl: event.avatarUrl,
-              route: event.target,
-              chatId: event.chatId,
-              timestamp: event.createdAt,
-            ),
-          );
+      unawaited(
+        PushNotificationService.showLocalNotification(
+          <String, dynamic>{...data, ...event.toJson()},
+        ),
+      );
     });
     _delivery = task;
     return task;

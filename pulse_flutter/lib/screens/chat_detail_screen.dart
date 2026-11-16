@@ -24,6 +24,7 @@ import 'package:pulse_flutter/widgets/chat/chat_overlay_layer.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/auto_delete_bottom_sheet.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/services/desktop_pasteboard_service.dart';
@@ -47,6 +48,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/smooth_text_streamer.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
@@ -55,7 +57,6 @@ import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
-import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/models/api/inline_query_model.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/providers/inline_query_provider.dart';
@@ -80,6 +81,8 @@ import 'package:pulse_flutter/core/services/desktop_window_service.dart';
 import 'package:pulse_flutter/core/utils/screen_security_service.dart';
 import 'package:pulse_flutter/widgets/chat/chat_state_surface.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/core/network/api_constants.dart';
+import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
@@ -351,7 +354,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _inputController.removeListener(_onInputChanged);
     _inputController.dispose();
     _inputFocusNode.dispose();
-    ref.read(inlineQueryProvider.notifier).clear();
+    try {
+      ref.read(inlineQueryProvider.notifier).clear();
+    } catch (_) {
+      // The provider may already be gone when the screen outlives its scope.
+    }
     if (_isSecret) {
       ScreenSecurityService.setSecureFlag(enabled: false);
     }
@@ -926,14 +933,18 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     required int fileSize,
     String text = '',
     bool showSentSnackBar = false,
+    bool attachCurrentReply = true,
   }) async {
+    final int? replyToId = attachCurrentReply ? _replyToMessageId : null;
     if (ref.read(chatByIdProvider(chatId)) == null && !_isSecret) {
       try {
-        await ref.read(chatsProvider.future);
+        await ref
+            .read(chatsProvider.future)
+            .timeout(const Duration(seconds: 8));
       } catch (_) {}
       if (!mounted) return;
       if (ref.read(chatByIdProvider(chatId)) == null) {
-        AppToast.showError(context, context.l10n.secretAttachmentSaveFailed);
+        AppToast.showError(context, context.l10n.errorFileUploadFailed);
         throw StateError('Conversation metadata unavailable');
       }
     }
@@ -953,7 +964,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             filename: filename,
             type: type,
             text: text,
-            replyToId: _replyToMessageId,
+            replyToId: replyToId,
           );
         } else {
           if (bytes == null || bytes.isEmpty) {
@@ -965,10 +976,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             filename: filename,
             type: type,
             text: text,
-            replyToId: _replyToMessageId,
+            replyToId: replyToId,
           );
         }
-        if (mounted) {
+        if (mounted && attachCurrentReply) {
           if (_inputController.text == text) _inputController.clear();
           _clearReply();
           _scrollToBottom();
@@ -986,8 +997,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         (-(DateTime.now().millisecondsSinceEpoch + Random().nextInt(1000)))
             .toString();
     final int tempIntId = int.parse(localId);
-
-    final int? replyToId = _replyToMessageId;
 
     final Uint8List? effectiveBytes = (bytes != null && bytes.isNotEmpty)
         ? bytes
@@ -1030,8 +1039,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     ref
         .read(chatMessagesProvider(chatId).notifier)
         .addOptimisticLocalMessage(optimisticMessage);
-    _clearReply();
-    _scrollToBottom();
+    if (attachCurrentReply) {
+      _clearReply();
+      _scrollToBottom();
+    }
 
     ref
         .read(uploadQueueProvider.notifier)
@@ -1350,7 +1361,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final List<ApiMessage> messages =
         ref.read(chatMessagesProvider(chatId)).value ?? const <ApiMessage>[];
 
-    for (final ApiMessage message in messages) {
+    for (final ApiMessage message in messages.reversed) {
       if (message.senderId == myUserId &&
           !message.isDeleted &&
           !message.isFailed &&
@@ -1508,17 +1519,50 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     if (target == null || !mounted) return;
 
-    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final bool hideMyAuthor =
-        message.senderId == myUserId &&
-        ref.read(privacyProvider).policyFor('forwards') == PrivacyPolicy.nobody;
-    final String forwardText = hideMyAuthor || message.senderDisplayName.isEmpty
-        ? '_fwd: ${message.content}'
-        : '_fwd from ${message.senderDisplayName}: ${message.content}';
     try {
-      await ref
-          .read(chatMessagesProvider(target.id).notifier)
-          .send(forwardText);
+      if (message.hasMedia && message.mediaUrl != null) {
+        final Uint8List mediaBytes = await WsMediaFetcher.fetchAndDecryptMedia(
+          filePath: message.mediaUrl!,
+          wsClient: ref.read(webSocketClientProvider),
+          e2eeFileKey: message.e2eeFileKey != null
+              ? base64Decode(message.e2eeFileKey!)
+              : null,
+        );
+        if (!mounted) return;
+        final String filename = (message.mediaName ?? '').isNotEmpty
+            ? message.mediaName!
+            : 'forward_${DateTime.now().millisecondsSinceEpoch}';
+        final FileTypeInfo typeInfo = FileTypeDetector.detect(
+          fileName: filename,
+        );
+        final String? mediaType = message.mediaType;
+        final String subtype = message.msgType == 'voice'
+            ? 'voice'
+            : message.msgType == 'circle'
+                ? 'circle'
+                : mediaType == 'image' || mediaType == 'video' || mediaType == 'audio'
+                    ? mediaType!
+                    : (typeInfo.isImage
+                        ? 'image'
+                        : typeInfo.isVideo
+                            ? 'video'
+                            : typeInfo.isAudio
+                                ? 'audio'
+                                : 'document');
+        await _uploadAndSend(
+          chatId: target.id,
+          bytes: mediaBytes,
+          filename: filename,
+          mediaSubtype: subtype,
+          fileSize: message.mediaSize ?? mediaBytes.length,
+          text: message.content,
+          attachCurrentReply: false,
+        );
+      } else {
+        await ref
+            .read(chatMessagesProvider(target.id).notifier)
+            .send(message.content);
+      }
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.chatMessageForwarded);
     } catch (e) {
@@ -1575,7 +1619,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           var text = _displayText(message);
           if (message.hasMedia) {
             text =
-                '$text\nhttps://ni-os.ru/web/#/chat/${message.chatId}?highlight=${message.id}';
+                '$text\n${ApiConstants.origin}/web/#/chat/${message.chatId}?highlight=${message.id}';
           }
           await ref
               .read(chatProductivityRepositoryProvider)
@@ -1591,7 +1635,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           chatId: message.chatId,
           reminder: message,
           text:
-              '${_displayText(message)}\nhttps://ni-os.ru/web/#/chat/${message.chatId}?highlight=${message.id}',
+              '${_displayText(message)}\n${ApiConstants.origin}/web/#/chat/${message.chatId}?highlight=${message.id}',
         );
       case MessageActionType.forward:
         _forwardMessage(message);
@@ -3129,7 +3173,7 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
       _controller = ctrl;
       final CurvedAnimation curve = CurvedAnimation(
         parent: ctrl,
-        curve: Curves.easeOutCubic,
+        curve: M3SpringCurves.gentle,
       );
       _fade = Tween<double>(begin: 0.0, end: 1.0).animate(curve);
       _scale = Tween<double>(begin: 0.98, end: 1.0).animate(curve);

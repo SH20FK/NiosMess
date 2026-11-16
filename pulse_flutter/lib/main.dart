@@ -1,5 +1,4 @@
 import 'package:pulse_flutter/providers/notifications_provider.dart';
-import 'package:pulse_flutter/widgets/notifications/notification_overlay_host.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/services/protocol/nios_protocol_licenses.dart';
 import 'package:flutter/material.dart';
@@ -38,7 +37,6 @@ import 'package:pulse_flutter/repositories/call_repository.dart';
 import 'package:pulse_flutter/services/calls/call_starter.dart';
 import 'package:pulse_flutter/widgets/calls/call_overlay.dart';
 import 'package:pulse_flutter/screens/calls/incoming_call_overlay.dart';
-import 'package:pulse_flutter/widgets/notifications/in_app_notification_banner.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
@@ -410,24 +408,21 @@ class _PulseAppState extends ConsumerState<PulseApp> {
                   return MediaQuery(
                     data: mediaQuery,
                     child: AppLockGate(
-                      child: NotificationOverlayHost(
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            SizedBox.expand(
-                              child: child ?? const SizedBox.shrink(),
-                            ),
-                            Consumer(
-                              builder:
-                                  (BuildContext context, WidgetRef ref, _) =>
-                                      ref.watch(incomingCallProvider) == null
-                                      ? const SizedBox.shrink()
-                                      : const IncomingCallOverlay(),
-                            ),
-                            const CallOverlay(),
-                            const InAppNotificationBannerOverlay(),
-                          ],
-                        ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          SizedBox.expand(
+                            child: child ?? const SizedBox.shrink(),
+                          ),
+                          Consumer(
+                            builder:
+                                (BuildContext context, WidgetRef ref, _) =>
+                                    ref.watch(incomingCallProvider) == null
+                                    ? const SizedBox.shrink()
+                                    : const IncomingCallOverlay(),
+                          ),
+                          const CallOverlay(),
+                        ],
                       ),
                     ),
                   );

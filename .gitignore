@@ -51,6 +51,7 @@ credentials.json
 
 # === Server Core ===
 server_core/
+server_core.legacy-*/
 
 # === Agent / Tool artifacts ===
 .agents/

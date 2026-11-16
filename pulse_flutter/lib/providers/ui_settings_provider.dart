@@ -36,7 +36,6 @@ class VisualThemeSettings {
     required this.useSystemDynamic,
     required this.predictiveBackEnabled,
     this.predictiveBackStrength = 1.0,
-    this.pureBlackOled = false,
     this.uiCornerRadius = 20.0,
     this.paletteStyle = PaletteStyle.expressive,
   });
@@ -46,7 +45,6 @@ class VisualThemeSettings {
   final bool useSystemDynamic;
   final bool predictiveBackEnabled;
   final double predictiveBackStrength;
-  final bool pureBlackOled;
   final double uiCornerRadius;
   final PaletteStyle paletteStyle;
 
@@ -60,7 +58,6 @@ class VisualThemeSettings {
           useSystemDynamic == other.useSystemDynamic &&
           predictiveBackEnabled == other.predictiveBackEnabled &&
           predictiveBackStrength == other.predictiveBackStrength &&
-          pureBlackOled == other.pureBlackOled &&
           uiCornerRadius == other.uiCornerRadius &&
           paletteStyle == other.paletteStyle;
 
@@ -71,7 +68,6 @@ class VisualThemeSettings {
       useSystemDynamic.hashCode ^
       predictiveBackEnabled.hashCode ^
       predictiveBackStrength.hashCode ^
-      pureBlackOled.hashCode ^
       uiCornerRadius.hashCode ^
       paletteStyle.hashCode;
 }
@@ -96,7 +92,6 @@ class UiSettingsState {
     required this.useSystemDynamic,
     required this.fontScale,
     required this.navBarFloating,
-    this.pureBlackOled = false,
     this.sendOnEnter = true,
     this.doubleTapReactionEmoji = '❤️',
     this.autoDownloadWifi = true,
@@ -123,7 +118,6 @@ class UiSettingsState {
     this.saveToGalleryChannels = false,
     this.badgeCountMessages = true,
     this.badgeIncludeMuted = false,
-    this.inAppNotificationPreview = true,
     this.accountSelfDestructMonths = 6,
     this.linkPreviewsInSecretChats = false,
     this.secureScreenshotsInSecretChats = true,
@@ -136,7 +130,6 @@ class UiSettingsState {
         useSystemDynamic: useSystemDynamic,
         predictiveBackEnabled: predictiveBackEnabled,
         predictiveBackStrength: predictiveBackStrength,
-        pureBlackOled: pureBlackOled,
         uiCornerRadius: uiCornerRadius,
         paletteStyle: paletteStyle,
       );
@@ -160,7 +153,6 @@ class UiSettingsState {
       useSystemDynamic = false,
       fontScale = AppFontScale.normal,
       navBarFloating = false,
-      pureBlackOled = false,
       sendOnEnter = true,
       doubleTapReactionEmoji = '❤️',
       autoDownloadWifi = true,
@@ -187,7 +179,6 @@ class UiSettingsState {
       saveToGalleryChannels = false,
       badgeCountMessages = true,
       badgeIncludeMuted = false,
-      inAppNotificationPreview = true,
       accountSelfDestructMonths = 6,
       linkPreviewsInSecretChats = false,
       secureScreenshotsInSecretChats = true,
@@ -211,7 +202,6 @@ class UiSettingsState {
   final bool useSystemDynamic;
   final AppFontScale fontScale;
   final bool navBarFloating;
-  final bool pureBlackOled;
   final bool sendOnEnter;
   final String doubleTapReactionEmoji;
   final bool autoDownloadWifi;
@@ -238,7 +228,6 @@ class UiSettingsState {
   final bool saveToGalleryChannels;
   final bool badgeCountMessages;
   final bool badgeIncludeMuted;
-  final bool inAppNotificationPreview;
   final int accountSelfDestructMonths;
   final bool linkPreviewsInSecretChats;
   final bool secureScreenshotsInSecretChats;
@@ -265,7 +254,6 @@ class UiSettingsState {
     bool? useSystemDynamic,
     AppFontScale? fontScale,
     bool? navBarFloating,
-    bool? pureBlackOled,
     bool? sendOnEnter,
     String? doubleTapReactionEmoji,
     bool? autoDownloadWifi,
@@ -292,7 +280,6 @@ class UiSettingsState {
     bool? saveToGalleryChannels,
     bool? badgeCountMessages,
     bool? badgeIncludeMuted,
-    bool? inAppNotificationPreview,
     int? accountSelfDestructMonths,
     bool? linkPreviewsInSecretChats,
     bool? secureScreenshotsInSecretChats,
@@ -320,7 +307,6 @@ class UiSettingsState {
       useSystemDynamic: useSystemDynamic ?? this.useSystemDynamic,
       fontScale: fontScale ?? this.fontScale,
       navBarFloating: navBarFloating ?? this.navBarFloating,
-      pureBlackOled: pureBlackOled ?? this.pureBlackOled,
       sendOnEnter: sendOnEnter ?? this.sendOnEnter,
       doubleTapReactionEmoji:
           doubleTapReactionEmoji ?? this.doubleTapReactionEmoji,
@@ -355,8 +341,6 @@ class UiSettingsState {
           saveToGalleryChannels ?? this.saveToGalleryChannels,
       badgeCountMessages: badgeCountMessages ?? this.badgeCountMessages,
       badgeIncludeMuted: badgeIncludeMuted ?? this.badgeIncludeMuted,
-      inAppNotificationPreview:
-          inAppNotificationPreview ?? this.inAppNotificationPreview,
       accountSelfDestructMonths:
           accountSelfDestructMonths ?? this.accountSelfDestructMonths,
       linkPreviewsInSecretChats:
@@ -395,7 +379,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _useSystemDynamicKey = 'ui.useSystemDynamic';
   static const String _fontScaleKey = 'ui.fontScale';
   static const String _navBarFloatingKey = 'ui.navBarFloating';
-  static const String _pureBlackOledKey = 'ui.pureBlackOled';
   static const String _sendOnEnterKey = 'ui.sendOnEnter';
   static const String _doubleTapReactionEmojiKey = 'ui.doubleTapReactionEmoji';
   static const String _autoDownloadWifiKey = 'ui.autoDownloadWifi';
@@ -419,7 +402,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _saveToGalleryChannelsKey = 'ui.saveGalleryChannels';
   static const String _badgeCountMessagesKey = 'ui.badgeCountMessages';
   static const String _badgeIncludeMutedKey = 'ui.badgeIncludeMuted';
-  static const String _inAppNotificationPreviewKey = 'ui.inAppNotificationPreview';
   static const String _accountSelfDestructMonthsKey = 'ui.accountSelfDestructMonths';
   static const String _linkPreviewsSecretKey = 'ui.linkPreviewsSecret';
   static const String _secureScreenshotsSecretKey = 'ui.secureScreenshotsSecret';
@@ -481,7 +463,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         orElse: () => AppFontScale.normal,
       ),
       navBarFloating: prefs.getBool(_navBarFloatingKey) ?? defaults.navBarFloating,
-      pureBlackOled: prefs.getBool(_pureBlackOledKey) ?? defaults.pureBlackOled,
       sendOnEnter: prefs.getBool(_sendOnEnterKey) ?? defaults.sendOnEnter,
       doubleTapReactionEmoji:
           prefs.getString(_doubleTapReactionEmojiKey) ?? defaults.doubleTapReactionEmoji,
@@ -526,8 +507,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
           prefs.getBool(_badgeCountMessagesKey) ?? defaults.badgeCountMessages,
       badgeIncludeMuted:
           prefs.getBool(_badgeIncludeMutedKey) ?? defaults.badgeIncludeMuted,
-      inAppNotificationPreview:
-          prefs.getBool(_inAppNotificationPreviewKey) ?? defaults.inAppNotificationPreview,
       accountSelfDestructMonths:
           prefs.getInt(_accountSelfDestructMonthsKey) ?? defaults.accountSelfDestructMonths,
       linkPreviewsInSecretChats:
@@ -742,11 +721,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _persistKey(_navBarFloatingKey, value);
   }
 
-  void setPureBlackOled(bool value) {
-    state = state.copyWith(pureBlackOled: value);
-    _persistKey(_pureBlackOledKey, value);
-  }
-
   void setSendOnEnter(bool value) {
     state = state.copyWith(sendOnEnter: value);
     _persistKey(_sendOnEnterKey, value);
@@ -865,11 +839,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _persistKey(_badgeIncludeMutedKey, value);
   }
 
-  void setInAppNotificationPreview(bool value) {
-    state = state.copyWith(inAppNotificationPreview: value);
-    _persistKey(_inAppNotificationPreviewKey, value);
-  }
-
   void setAccountSelfDestructMonths(int value) {
     state = state.copyWith(accountSelfDestructMonths: value);
     _persistKey(_accountSelfDestructMonthsKey, value);
@@ -919,7 +888,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.remove(_useSystemDynamicKey),
       prefs.remove(_fontScaleKey),
       prefs.remove(_navBarFloatingKey),
-      prefs.remove(_pureBlackOledKey),
       prefs.remove(_sendOnEnterKey),
       prefs.remove(_doubleTapReactionEmojiKey),
       prefs.remove(_autoDownloadWifiKey),
@@ -943,7 +911,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.remove(_saveToGalleryChannelsKey),
       prefs.remove(_badgeCountMessagesKey),
       prefs.remove(_badgeIncludeMutedKey),
-      prefs.remove(_inAppNotificationPreviewKey),
       prefs.remove(_accountSelfDestructMonthsKey),
       prefs.remove(_linkPreviewsSecretKey),
       prefs.remove(_secureScreenshotsSecretKey),

@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -42,6 +43,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   bool _reducedMotion = false;
   bool _tickerEnabled = false;
   bool _dismissing = false;
+  bool _accepting = false;
   int _transitionGeneration = 0;
   late final SoundService _sound;
   late final ProviderSubscription<IncomingCallData?> _incomingSubscription;
@@ -124,6 +126,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
       final bool startRinging = _lastIncoming == null || _dismissing;
       _transitionGeneration++;
       _dismissing = false;
+      _accepting = false;
       setState(() => _lastIncoming = incoming);
       _syncPulse();
       if (startRinging) {
@@ -266,7 +269,10 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                     // Decline Button (M3 ErrorContainer)
                     TouchContainer(
                       scaleDown: 0.90,
-                      onTap: () => _declineCall(data),
+                      onTap: () {
+                        if (_accepting) return;
+                        _declineCall(data);
+                      },
                       child: Container(
                         width: CallTokens.incomingButtonSize,
                         height: CallTokens.incomingButtonSize,
@@ -288,7 +294,10 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                     // Accept Button (M3 Primary)
                     TouchContainer(
                       scaleDown: 0.90,
-                      onTap: () => _acceptCall(context, ref, data),
+                      onTap: () {
+                        if (_accepting) return;
+                        _acceptCall(context, ref, data);
+                      },
                       child: Container(
                         width: CallTokens.incomingButtonSize,
                         height: CallTokens.incomingButtonSize,
@@ -297,13 +306,18 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
                           shape: BoxShape.circle,
                         ),
                         child: Center(
-                          child: Icon(
-                            data.isVideo
-                                ? Icons.videocam_rounded
-                                : Icons.phone_rounded,
-                            color: scheme.onPrimary,
-                            size: 24,
-                          ),
+                          child: _accepting
+                              ? AppLoadingIndicator(
+                                  size: 22,
+                                  color: scheme.onPrimary,
+                                )
+                              : Icon(
+                                  data.isVideo
+                                      ? Icons.videocam_rounded
+                                      : Icons.phone_rounded,
+                                  color: scheme.onPrimary,
+                                  size: 24,
+                                ),
                         ),
                       ),
                     ),
@@ -340,10 +354,9 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     WidgetRef ref,
     IncomingCallData incoming,
   ) async {
+    if (_accepting) return;
     final router = ref.read(appRouterProvider);
     HapticService.confirm();
-    ref.read(incomingCallProvider.notifier).set(null);
-    unawaited(PushNotificationService.cancelCallNotification());
 
     final isAlreadyInCall = ref.read(callSessionProvider)?.isActive ?? false;
     if (isAlreadyInCall) {
@@ -353,6 +366,10 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
       return;
     }
 
+    // Keep the overlay up in a connecting state until the session actually
+    // starts; the user must never stare at a silent chat list wondering
+    // whether the tap landed.
+    setState(() => _accepting = true);
     try {
       await startIncomingCall(
         ref: ref,
@@ -363,8 +380,11 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         peerName: incoming.initiatorName,
       );
 
+      ref.read(incomingCallProvider.notifier).set(null);
+      unawaited(PushNotificationService.cancelCallNotification());
       router.push('/call/${incoming.callId}');
     } on CallStartException catch (e) {
+      if (mounted) setState(() => _accepting = false);
       if (context.mounted) {
         AppToast.showError(
           context,
@@ -374,6 +394,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
         );
       }
     } catch (_) {
+      if (mounted) setState(() => _accepting = false);
       final errorContext = context.mounted
           ? context
           : AppRouter.navigatorKey.currentContext;

@@ -31,6 +31,10 @@ class DRMetadata {
     this.fileData,
   });
 
+  /// What the UI shows for this payload: the caption/file name for legacy
+  /// file messages, the text otherwise.
+  String? get displayText => type == 'file' ? fileName : content;
+
   Map<String, dynamic> toJson() {
     final m = <String, dynamic>{'t': type};
     if (type == 'file') {
@@ -351,7 +355,23 @@ class DoubleRatchetService {
     return (headerB64: headerB64, ciphertext: ciphertext);
   }
 
+  /// Decrypts a message and returns it as display text (legacy API).
   Future<String?> decrypt({
+    required DoubleRatchetSession session,
+    required String headerB64,
+    required List<int> ciphertext,
+  }) async {
+    final metadata = await decryptMessageMetadata(
+      session: session,
+      headerB64: headerB64,
+      ciphertext: ciphertext,
+    );
+    return metadata?.displayText;
+  }
+
+  /// Decrypts a message into its full metadata. Unlike [decrypt], a legacy
+  /// `file` payload keeps its [DRMetadata.fileData] instead of discarding it.
+  Future<DRMetadata?> decryptMessageMetadata({
     required DoubleRatchetSession session,
     required String headerB64,
     required List<int> ciphertext,
@@ -364,11 +384,11 @@ class DoubleRatchetService {
     final mksKey = '${header.dh}_${header.n}';
     if (session.skipKs.containsKey(mksKey)) {
       final msgKey = session.skipKs[mksKey]!;
-      final plaintext = await _decryptWithKey(msgKey, headerBytes, ciphertext);
-      if (plaintext != null) {
+      final metadata = await _decryptWithKey(msgKey, headerBytes, ciphertext);
+      if (metadata != null) {
         session.skipKs.remove(mksKey);
       }
-      return plaintext;
+      return metadata;
     }
 
     final tmpSession = session.copy();
@@ -388,8 +408,8 @@ class DoubleRatchetService {
       final msgKey = ckResult.msgKey;
       tmpSession.numRcv++;
 
-      final plaintext = await _decryptWithKey(msgKey, headerBytes, ciphertext);
-      if (plaintext == null) return null;
+      final metadata = await _decryptWithKey(msgKey, headerBytes, ciphertext);
+      if (metadata == null) return null;
 
       session.ratKey = tmpSession.ratKey;
       session.dhsSeed = tmpSession.dhsSeed;
@@ -401,14 +421,14 @@ class DoubleRatchetService {
       session.prvNum = tmpSession.prvNum;
       session.skipKs = tmpSession.skipKs;
 
-      return plaintext;
+      return metadata;
     } catch (e) {
       debugPrint('[DoubleRatchet] Decrypt failed: $e');
       return null;
     }
   }
 
-  Future<String?> _decryptWithKey(
+  Future<DRMetadata?> _decryptWithKey(
     SecretKey msgKey,
     List<int> headerBytes,
     List<int> ciphertext,
@@ -426,10 +446,9 @@ class DoubleRatchetService {
         secretKey: msgKey,
         aad: headerBytes,
       );
-      final metadata = DRMetadata.fromJson(
+      return DRMetadata.fromJson(
         jsonDecode(utf8.decode(decrypted)) as Map<String, dynamic>,
       );
-      return metadata.type == 'file' ? metadata.fileName : metadata.content;
     } catch (e) {
       debugPrint('[DoubleRatchet] _decryptWithKey failed: $e');
       return null;

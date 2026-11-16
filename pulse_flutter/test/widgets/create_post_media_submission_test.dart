@@ -142,6 +142,7 @@ class _Feed extends NiosgramNotifier {
     List<double>? mediaDurations,
     List<String>? aiTags,
     Map<String, dynamic>? poll,
+    String? clientPostId,
   }) async {
     submissions++;
     submitted = text;
