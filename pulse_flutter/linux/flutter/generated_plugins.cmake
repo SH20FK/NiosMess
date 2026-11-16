@@ -3,13 +3,13 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  app_links_linux
   audioplayers_linux
   desktop_drop
   dynamic_color
   emoji_picker_flutter
   flutter_secure_storage_linux
   flutter_webrtc
+  gtk
   open_file_linux
   pasteboard
   record_linux
