@@ -26,6 +26,8 @@ class ExpressionPickerPanel extends StatefulWidget {
     required this.onClose,
     required this.onBackspace,
     required this.onExpandedChanged,
+    this.onHandleDragUpdate,
+    this.onHandleDragEnd,
     this.initialMode = ExpressionMode.emoji,
     super.key,
   });
@@ -33,6 +35,13 @@ class ExpressionPickerPanel extends StatefulWidget {
   final ValueChanged<ApiSticker> onStickerSelected;
   final VoidCallback onClose, onBackspace;
   final ValueChanged<bool> onExpandedChanged;
+
+  /// Finger movement on the header since the last update; positive is down.
+  final ValueChanged<double>? onHandleDragUpdate;
+
+  /// Finger velocity when the header drag ends; positive is down. Called
+  /// before the drag decides to expand, collapse or close.
+  final ValueChanged<double>? onHandleDragEnd;
   final ExpressionMode initialMode;
   @override
   State<ExpressionPickerPanel> createState() => _ExpressionPickerPanelState();
@@ -44,6 +53,7 @@ class _ExpressionPickerPanelState extends State<ExpressionPickerPanel> {
   final _customKey = GlobalKey<CustomEmojiPickerState>();
   final _stickerKey = GlobalKey<StickerPickerViewState>();
   final _storage = PageStorageBucket();
+  static const double _flingVelocity = 700;
   bool _expanded = false, _library = false;
   double _drag = 0;
   int? _stickerSet, _customSet;
@@ -109,12 +119,25 @@ class _ExpressionPickerPanelState extends State<ExpressionPickerPanel> {
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onVerticalDragStart: (_) => _drag = 0,
-                    onVerticalDragUpdate: (details) =>
-                        _drag += details.delta.dy,
-                    onVerticalDragEnd: (_) {
-                      if (_drag < -24) {
+                    onVerticalDragCancel: () =>
+                        widget.onHandleDragEnd?.call(0),
+                    onVerticalDragUpdate: (details) {
+                      _drag += details.delta.dy;
+                      widget.onHandleDragUpdate?.call(details.delta.dy);
+                    },
+                    onVerticalDragEnd: (details) {
+                      final velocity = details.primaryVelocity ?? 0.0;
+                      widget.onHandleDragEnd?.call(velocity);
+                      // A fling decides on its own and overrides the distance.
+                      final up =
+                          velocity < -_flingVelocity ||
+                          (velocity <= _flingVelocity && _drag < -24);
+                      final down =
+                          velocity > _flingVelocity ||
+                          (velocity >= -_flingVelocity && _drag > 24);
+                      if (up) {
                         _expand(library: true);
-                      } else if (_drag > 24) {
+                      } else if (down) {
                         _expanded ? _collapse() : widget.onClose();
                       }
                     },

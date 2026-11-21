@@ -552,33 +552,17 @@ class MessageBubble extends ConsumerWidget {
               _buildInlineKeyboard(scheme, textTheme),
             if (hasMedia && !isSticker && !isDeleted && messageData != null)
               FileRequestAction(message: messageData!),
-            if (reactions.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
-                  children: reactions.entries
-                      .map((MapEntry<String, int> item) {
-                        return BubbleReactionChip(
-                          key: ValueKey<String>('react_${item.key}'),
-                          label: normalizeReactionEmoji(item.key),
-                          count: item.value,
-                          onTap: onReactionTap != null
-                              ? () {
-                                  TriSync.reaction(
-                                    ref: ref,
-                                    context: context,
-                                  );
-                                  onReactionTap!(item.key);
-                                }
-                              : null,
-                        );
-                      })
-                      .toList(growable: false),
-                ),
-              ),
+            BubbleReactionRow(
+              reactions: reactions,
+              alignEnd: isMine,
+              labelBuilder: normalizeReactionEmoji,
+              onReactionTap: onReactionTap != null
+                  ? (String key) {
+                      TriSync.reaction(ref: ref, context: context);
+                      onReactionTap!(key);
+                    }
+                  : null,
+            ),
           ],
         ),
       ),

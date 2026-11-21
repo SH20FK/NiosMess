@@ -2,6 +2,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/core/utils/expression_editing.dart';
+import 'package:pulse_flutter/widgets/chat/expression_panel_frame.dart';
 import 'package:pulse_flutter/widgets/chat/expression_picker_panel.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
@@ -88,6 +89,16 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   bool _showEmojiPicker = false;
   bool _pickerHasOpened = false;
   bool _pickerExpanded = false;
+  final GlobalKey<ExpressionPanelFrameState> _panelKey =
+      GlobalKey<ExpressionPanelFrameState>();
+
+  /// True while the keyboard rises over the still open panel. The panel gives
+  /// up exactly the height the keyboard takes, so the composer stays put.
+  bool _keyboardHandoff = false;
+  double _handoffHeight = 0.0;
+  double _handoffLayoutHeight = 0.0;
+  Timer? _handoffTimer;
+  double _keyboardPeak = 0.0;
   double _cachedKeyboardHeight = 310.0;
   double _windowKeyboardInset = 0;
   bool _isFocused = false;
@@ -140,13 +151,22 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             ?.devicePixelRatio ??
         1.0;
     final double logicalBottom = bottom / (pixelRatio > 0 ? pixelRatio : 1.0);
+    final bool keyboardWasHidden = _windowKeyboardInset <= 1.0;
     if (mounted && (_windowKeyboardInset - logicalBottom).abs() > 1) {
       setState(() => _windowKeyboardInset = logicalBottom);
     }
     if (logicalBottom > 0) {
-      final double clamped = logicalBottom.clamp(260.0, 440.0);
-      if ((_cachedKeyboardHeight - clamped).abs() > 1.0) {
-        _cachedKeyboardHeight = clamped;
+      // The inset arrives on every frame of the keyboard animation, so the
+      // height to remember is the peak of the current keyboard session.
+      if (keyboardWasHidden) _keyboardPeak = 0.0;
+      _keyboardPeak = math.max(_keyboardPeak, logicalBottom);
+      _cachedKeyboardHeight = _keyboardPeak.clamp(260.0, 440.0);
+    }
+    if (_keyboardHandoff) {
+      if (logicalBottom >= _handoffHeight - 0.5) {
+        _hidePicker();
+      } else {
+        _armHandoffTimer();
       }
     }
   }
@@ -154,6 +174,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _handoffTimer?.cancel();
     widget.inputController.removeListener(_onTextChanged);
     widget.inputFocusNode.removeListener(_onFocusChanged);
     _dragOffsetNotifier.dispose();
@@ -176,38 +197,62 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     if (hasFocus != _isFocused) {
       setState(() => _isFocused = hasFocus);
     }
-    if (hasFocus && _showEmojiPicker) {
-      // Delay closing picker slightly to allow keyboard to slide up synchronously
-      Future<void>.delayed(const Duration(milliseconds: 140), () {
-        if (mounted && widget.inputFocusNode.hasFocus) {
-          setState(() {
-            _showEmojiPicker = false;
-          });
-        }
-      });
+    if (hasFocus) _handOffToKeyboard();
+  }
+
+  /// Lets the keyboard rise over the open panel instead of closing the panel
+  /// first: the panel gives up exactly the height the keyboard takes.
+  void _handOffToKeyboard() {
+    if (!_showEmojiPicker || _keyboardHandoff) return;
+    final ExpressionPanelFrame? panel = _panelKey.currentState?.widget;
+    final bool softKeyboard =
+        defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    if (!softKeyboard || panel == null || panel.height <= 0.0) {
+      _hidePicker();
+      return;
     }
+    setState(() {
+      _keyboardHandoff = true;
+      _handoffHeight = panel.height + panel.keyboardInset;
+      _handoffLayoutHeight = panel.layoutHeight;
+    });
+    _armHandoffTimer();
+  }
+
+  /// Closes the panel when the keyboard stops short of covering it or never
+  /// shows up, e.g. with a hardware keyboard.
+  void _armHandoffTimer() {
+    _handoffTimer?.cancel();
+    _handoffTimer = Timer(M3Durations.medium1, _hidePicker);
+  }
+
+  void _hidePicker() {
+    _handoffTimer?.cancel();
+    _handoffTimer = null;
+    if (!mounted || !_showEmojiPicker) return;
+    setState(() {
+      _showEmojiPicker = false;
+      _keyboardHandoff = false;
+    });
   }
 
   void _toggleEmojiPicker() {
     if (widget.hapticsEnabled) HapticService.tap();
-    if (_showEmojiPicker) {
+    if (_showEmojiPicker && !_keyboardHandoff) {
       // Switching from emoji panel back to keyboard
       widget.inputFocusNode.requestFocus();
-      Future<void>.delayed(const Duration(milliseconds: 140), () {
-        if (mounted) {
-          setState(() {
-            _showEmojiPicker = false;
-          });
-        }
-      });
+      _handOffToKeyboard();
     } else {
-      // Switching to emoji panel
+      // Switching to emoji panel, also while the keyboard is still rising
+      _handoffTimer?.cancel();
       final bool keyboardOpen =
           MediaQuery.viewInsetsOf(context).bottom > 0 ||
           widget.inputFocusNode.hasFocus;
       setState(() {
         _pickerHasOpened = true;
         _showEmojiPicker = true;
+        _keyboardHandoff = false;
       });
       if (keyboardOpen) {
         widget.inputFocusNode.unfocus();
@@ -476,9 +521,12 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
       MediaQuery.viewInsetsOf(context).bottom,
       _windowKeyboardInset,
     );
-    final double effectiveKeyboardHeight = bottomInset > 0
-        ? bottomInset.clamp(260.0, 440.0)
-        : _cachedKeyboardHeight;
+    // The remembered height wins while the keyboard is on its way down, so
+    // the panel takes over exactly the space the keyboard leaves.
+    final double effectiveKeyboardHeight = math.max(
+      _cachedKeyboardHeight,
+      bottomInset.clamp(0.0, 440.0),
+    );
 
     final media = MediaQuery.of(context);
     // Keep the picker above the IME, within the remaining chat viewport.
@@ -490,22 +538,25 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
       effectiveKeyboardHeight,
       math.max(0.0, media.size.height - media.padding.vertical - 160),
     );
-    final panelLayoutHeight = _pickerExpanded
-        ? math.min(media.size.height * .72, available)
-        : compactHeight;
-    final effectivePanelHeight = _showEmojiPicker
-        ? (_pickerExpanded
-              ? panelLayoutHeight
-              : math.max(0.0, compactHeight - bottomInset))
-        : 0.0;
+    final expandedHeight = math.min(media.size.height * .72, available);
+    final panelLayoutHeight = _pickerExpanded ? expandedHeight : compactHeight;
+    final double effectivePanelHeight;
+    if (!_showEmojiPicker) {
+      effectivePanelHeight = 0.0;
+    } else if (_keyboardHandoff) {
+      effectivePanelHeight = math.max(0.0, _handoffHeight - bottomInset);
+    } else if (_pickerExpanded) {
+      effectivePanelHeight = panelLayoutHeight;
+    } else {
+      effectivePanelHeight = math.max(0.0, compactHeight - bottomInset);
+    }
+    final bool pickerActive = _showEmojiPicker && !_keyboardHandoff;
 
     return PopScope(
       canPop: !_showEmojiPicker,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
         if (!didPop && _showEmojiPicker) {
-          setState(() {
-            _showEmojiPicker = false;
-          });
+          _hidePicker();
           FocusManager.instance.primaryFocus?.unfocus();
         }
       },
@@ -758,12 +809,12 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                               );
                                             },
                                         child: Icon(
-                                          _showEmojiPicker
+                                          pickerActive
                                               ? Icons.keyboard_rounded
                                               : Icons.emoji_emotions_outlined,
-                                          key: ValueKey<bool>(_showEmojiPicker),
+                                          key: ValueKey<bool>(pickerActive),
                                           size: 22,
-                                          color: _showEmojiPicker
+                                          color: pickerActive
                                               ? scheme.primary
                                               : scheme.onSurfaceVariant
                                                     .withValues(alpha: 0.75),
@@ -801,9 +852,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                         if (event.logicalKey ==
                                             LogicalKeyboardKey.escape) {
                                           if (_showEmojiPicker) {
-                                            setState(
-                                              () => _showEmojiPicker = false,
-                                            );
+                                            _hidePicker();
                                             return KeyEventResult.handled;
                                           }
                                           if (widget.editingMessageId != null) {
@@ -1006,28 +1055,14 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           // ── Edge-to-Edge Material 3 Expressive Emoji & Sticker Hub ──
           ConstrainedBox(
             constraints: BoxConstraints(maxHeight: available),
-            child: AnimatedContainer(
-              duration: context.reduceMotion
-                  ? Duration.zero
-                  : M3Durations.medium1,
-              // Height must stay non-negative while the panel settles at zero.
-              curve: M3SpringCurves.effectsSlow,
+            child: ExpressionPanelFrame(
+              key: _panelKey,
               height: effectivePanelHeight,
-              clipBehavior: Clip.hardEdge,
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerLow,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(24),
-                ),
-                border: effectivePanelHeight > 0
-                    ? Border(
-                        top: BorderSide(
-                          color: scheme.outlineVariant.withValues(alpha: 0.2),
-                          width: 1,
-                        ),
-                      )
-                    : null,
-              ),
+              keyboardInset: bottomInset,
+              layoutHeight: _keyboardHandoff
+                  ? _handoffLayoutHeight
+                  : panelLayoutHeight,
+              maxHeight: expandedHeight,
               child: !_pickerHasOpened
                   ? const SizedBox.shrink()
                   : IgnorePointer(
@@ -1038,35 +1073,34 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                           excluding: !_showEmojiPicker,
                           child: TickerMode(
                             enabled: _showEmojiPicker,
-                            child: OverflowBox(
-                              alignment: Alignment.topCenter,
-                              minHeight: panelLayoutHeight,
-                              maxHeight: panelLayoutHeight,
-                              child: ExpressionPickerPanel(
-                                inputController: widget.inputController,
-                                onBackspace: _onEmojiBackspace,
-                                onClose: () {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                  setState(() => _showEmojiPicker = false);
-                                },
-                                onExpandedChanged: (expanded) =>
-                                    setState(() => _pickerExpanded = expanded),
-                                onStickerSelected: (sticker) {
-                                  if (widget.onSendSticker != null) {
-                                    widget.onSendSticker!(sticker);
-                                  } else if (widget.chatId != null) {
-                                    unawaited(
-                                      ref
-                                          .read(
-                                            chatMessagesProvider(
-                                              widget.chatId!,
-                                            ).notifier,
-                                          )
-                                          .sendSticker(sticker.id),
-                                    );
-                                  }
-                                },
-                              ),
+                            child: ExpressionPickerPanel(
+                              inputController: widget.inputController,
+                              onBackspace: _onEmojiBackspace,
+                              onClose: () {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                _hidePicker();
+                              },
+                              onExpandedChanged: (expanded) =>
+                                  setState(() => _pickerExpanded = expanded),
+                              onHandleDragUpdate: (double delta) =>
+                                  _panelKey.currentState?.dragBy(delta),
+                              onHandleDragEnd: (double velocity) =>
+                                  _panelKey.currentState?.release(velocity),
+                              onStickerSelected: (sticker) {
+                                if (widget.onSendSticker != null) {
+                                  widget.onSendSticker!(sticker);
+                                } else if (widget.chatId != null) {
+                                  unawaited(
+                                    ref
+                                        .read(
+                                          chatMessagesProvider(
+                                            widget.chatId!,
+                                          ).notifier,
+                                        )
+                                        .sendSticker(sticker.id),
+                                  );
+                                }
+                              },
                             ),
                           ),
                         ),

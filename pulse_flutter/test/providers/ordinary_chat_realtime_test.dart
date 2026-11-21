@@ -965,6 +965,7 @@ void main() {
         await notifier.flushHistoryArchive();
         expect(messages().length, ChatMessagesNotifier.maxVisibleMessages);
         expect(messages().any((m) => m.id < 0), isFalse);
+        await _waitUntil(() => socket.sentMessages.isNotEmpty);
         socket.sentMessages.single.completeError(StateError('offline'));
         await sending;
         expect(

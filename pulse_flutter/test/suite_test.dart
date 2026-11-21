@@ -236,6 +236,8 @@ import 'widgets/m3_modal_route_test.dart' as widgets_m3_modal_route;
 import 'widgets/m3_page_transitions_test.dart' as widgets_m3_page_transitions;
 import 'widgets/chat_viewport_test.dart' as widgets_chat_viewport;
 import 'widgets/bubble_reaction_chip_test.dart' as widgets_bubble_reaction_chip;
+import 'widgets/expression_panel_frame_test.dart'
+    as widgets_expression_panel_frame;
 import 'widgets/swipe_action_row_test.dart' as widgets_swipe_action_row;
 import 'widgets/reorder_slide_test.dart' as widgets_reorder_slide;
 import 'widgets/m3_entrance_test.dart' as widgets_m3_entrance;
@@ -490,6 +492,7 @@ void main() {
     widgets_m3_page_transitions.main();
     widgets_chat_viewport.main();
     widgets_bubble_reaction_chip.main();
+    widgets_expression_panel_frame.main();
     widgets_swipe_action_row.main();
     widgets_reorder_slide.main();
     widgets_m3_entrance.main();

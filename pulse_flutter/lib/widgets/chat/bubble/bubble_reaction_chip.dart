@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -104,6 +106,174 @@ class _BubbleReactionChipState extends State<BubbleReactionChip> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Row of reaction pills under a message bubble.
+///
+/// A reaction that was taken away stays for a short fade-out instead of
+/// vanishing. Taps on a leaving pill are ignored.
+class BubbleReactionRow extends StatefulWidget {
+  const BubbleReactionRow({
+    required this.reactions,
+    required this.alignEnd,
+    required this.labelBuilder,
+    this.onReactionTap,
+    super.key,
+  });
+
+  /// Reaction key to its count, in display order.
+  final Map<String, int> reactions;
+  final bool alignEnd;
+
+  /// Maps a reaction key to the emoji shown in the pill.
+  final String Function(String key) labelBuilder;
+  final ValueChanged<String>? onReactionTap;
+
+  @override
+  State<BubbleReactionRow> createState() => _BubbleReactionRowState();
+}
+
+class _BubbleReactionRowState extends State<BubbleReactionRow> {
+  late List<String> _order = widget.reactions.keys.toList();
+
+  /// Reactions that are fading out, with the last count they showed.
+  final Map<String, int> _leaving = <String, int>{};
+
+  @override
+  void didUpdateWidget(BubbleReactionRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final Map<String, int> next = widget.reactions;
+    if (next.isEmpty && _order.isEmpty) return;
+
+    _leaving.removeWhere((String key, int _) => next.containsKey(key));
+    if (context.reduceMotion) {
+      _leaving.clear();
+    } else {
+      for (final MapEntry<String, int> entry in oldWidget.reactions.entries) {
+        if (!next.containsKey(entry.key)) _leaving[entry.key] = entry.value;
+      }
+    }
+
+    // Leaving pills keep the slot they had, the rest follow the new order.
+    final List<String> merged = next.keys.toList();
+    for (int i = 0; i < _order.length; i++) {
+      final String key = _order[i];
+      if (_leaving.containsKey(key)) {
+        merged.insert(math.min(i, merged.length), key);
+      }
+    }
+    _order = merged;
+  }
+
+  void _onGone(String key) {
+    if (!mounted || !_leaving.containsKey(key)) return;
+    setState(() {
+      _leaving.remove(key);
+      _order.remove(key);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_order.isEmpty) return const SizedBox.shrink();
+    final ValueChanged<String>? onReactionTap = widget.onReactionTap;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        alignment: widget.alignEnd ? WrapAlignment.end : WrapAlignment.start,
+        children: <Widget>[
+          for (final String key in _order)
+            _ReactionPresence(
+              key: ValueKey<String>('react_$key'),
+              leaving: _leaving.containsKey(key),
+              onGone: () => _onGone(key),
+              child: BubbleReactionChip(
+                label: widget.labelBuilder(key),
+                count: widget.reactions[key] ?? _leaving[key] ?? 0,
+                onTap: onReactionTap == null || _leaving.containsKey(key)
+                    ? null
+                    : () => onReactionTap(key),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fades and shrinks a pill out when its reaction is taken away.
+class _ReactionPresence extends StatefulWidget {
+  const _ReactionPresence({
+    required this.leaving,
+    required this.onGone,
+    required this.child,
+    super.key,
+  });
+
+  final bool leaving;
+  final VoidCallback onGone;
+  final Widget child;
+
+  @override
+  State<_ReactionPresence> createState() => _ReactionPresenceState();
+}
+
+class _ReactionPresenceState extends State<_ReactionPresence>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: M3Durations.short4,
+      value: widget.leaving ? 0.0 : 1.0,
+    )..addStatusListener(_onStatus);
+    _opacity = _controller.drive(
+      CurveTween(curve: M3SpringCurves.effectsFast),
+    );
+    _scale = _opacity.drive(Tween<double>(begin: 0.8, end: 1.0));
+  }
+
+  @override
+  void didUpdateWidget(_ReactionPresence oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.leaving == oldWidget.leaving) return;
+    if (widget.leaving) {
+      _controller.reverse();
+    } else {
+      _controller.forward();
+    }
+  }
+
+  void _onStatus(AnimationStatus status) {
+    if (status == AnimationStatus.dismissed && widget.leaving) {
+      widget.onGone();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: widget.leaving,
+      child: FadeTransition(
+        opacity: _opacity,
+        child: ScaleTransition(scale: _scale, child: widget.child),
       ),
     );
   }
