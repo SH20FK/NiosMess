@@ -12,7 +12,7 @@ class M3MorphingIcon extends StatefulWidget {
     super.key,
     this.size = 24.0,
     this.color,
-    this.duration = const Duration(milliseconds: 260),
+    this.duration = M3Durations.medium1,
     this.curve = M3SpringCurves.spatialDefault,
     this.semanticLabel,
   });

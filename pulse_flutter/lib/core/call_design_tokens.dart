@@ -41,13 +41,12 @@ class CallTokens {
   static const Duration incomingOverlayAnimationDuration = Duration(
     milliseconds: 320,
   );
-  static const Duration controlsFadeDuration = Duration(milliseconds: 220);
-  static const Duration exitAnimationDuration = Duration(milliseconds: 280);
+  static const Duration controlsFadeDuration = M3Durations.effectsDefault;
   static const Duration controlsAutoHideDuration = Duration(seconds: 4);
   static const Duration rippleAnimationDuration = Duration(milliseconds: 2000);
 
   // M3 Expressive Animation Curves
   static const Curve incomingOverlayCurve = M3SpringCurves.spatialDefault;
   // Normalized smooth curve for Opacity / FadeTransition
-  static const Curve controlsFadeCurve = Curves.easeInOutCubic;
+  static const Curve controlsFadeCurve = M3SpringCurves.effectsDefault;
 }

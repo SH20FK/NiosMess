@@ -20,7 +20,6 @@ class TouchContainer extends StatefulWidget {
     this.onDoubleTap,
     this.onSecondaryTapDown,
     this.borderRadius,
-    this.pressedBorderRadius,
     this.color,
     this.border,
     this.padding,
@@ -57,10 +56,6 @@ class TouchContainer extends StatefulWidget {
 
   /// The corner radius for the container and clipping (defaults to [AppRadii.mdRadius]).
   final BorderRadius? borderRadius;
-
-  /// Corner radius while pressed. When set, the shape morphs towards it on
-  /// press (M3 Expressive shape change) and back on release.
-  final BorderRadius? pressedBorderRadius;
 
   /// Background color of the container.
   final Color? color;
@@ -170,9 +165,6 @@ class _TouchContainerState extends State<TouchContainer> {
     final BorderRadius effectiveRadius =
         widget.borderRadius ?? AppRadii.mdRadius;
     final bool reduceMotion = context.reduceMotion;
-    final BorderRadius shapeRadius = _isPressed
-        ? (widget.pressedBorderRadius ?? effectiveRadius)
-        : effectiveRadius;
     final Color stateLayerColor =
         widget.stateLayerColor ??
         Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
@@ -182,7 +174,7 @@ class _TouchContainerState extends State<TouchContainer> {
       height: widget.height,
       padding: widget.padding,
       margin: widget.margin,
-      // Colour, state layer and shape ride effects curves: no overshoot.
+      // Colour and state layer ride effects curves: no overshoot.
       duration: reduceMotion
           ? Duration.zero
           : _isPressed
@@ -193,14 +185,14 @@ class _TouchContainerState extends State<TouchContainer> {
           : M3SpringCurves.effectsDefault,
       decoration: BoxDecoration(
         color: widget.color,
-        borderRadius: shapeRadius,
+        borderRadius: effectiveRadius,
         border: widget.border,
         boxShadow: widget.boxShadow,
       ),
       // Foreground (not background) so the 8% press layer reads on top of the
       // tile/button fill exactly like an M3 InkWell highlight — without blur.
       foregroundDecoration: widget.stateLayer && _isPressed
-          ? BoxDecoration(color: stateLayerColor, borderRadius: shapeRadius)
+          ? BoxDecoration(color: stateLayerColor, borderRadius: effectiveRadius)
           : null,
       clipBehavior: widget.clipBehavior,
       child: widget.child,

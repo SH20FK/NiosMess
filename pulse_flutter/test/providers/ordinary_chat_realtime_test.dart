@@ -537,7 +537,7 @@ void main() {
         final sending = container
             .read(chatMessagesProvider(9142001).notifier)
             .send('old account');
-        await _flush();
+        await _waitUntil(() => socket.sentMessages.isNotEmpty);
         expect(socket.sentMessages, hasLength(1));
         (container.read(authProvider.notifier) as _Auth).switchAccount(2);
         for (var i = 0; i < 200 && socket.histories.length < 2; i++) {

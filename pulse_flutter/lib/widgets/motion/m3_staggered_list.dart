@@ -16,7 +16,7 @@ class M3StaggeredItem extends StatefulWidget {
     super.key,
     this.maxStaggerIndex = 8,
     this.itemDelay = const Duration(milliseconds: 30),
-    this.duration = const Duration(milliseconds: 280),
+    this.duration = M3Durations.medium2,
     this.curve = M3SpringCurves.spatialDefault,
     this.slideOffset = 18.0,
   });

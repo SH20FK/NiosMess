@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -216,8 +218,8 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
     if (key != null && key.currentContext != null) {
       Scrollable.ensureVisible(
         key.currentContext!,
-        duration: const Duration(milliseconds: 380),
-        curve: Curves.easeInOutCubic,
+        duration: context.motionDuration(M3Durations.medium4),
+        curve: M3SpringCurves.expressiveStandard,
         alignment: 0.08,
       );
     }

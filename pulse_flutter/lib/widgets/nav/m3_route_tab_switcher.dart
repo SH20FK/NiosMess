@@ -63,7 +63,7 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
   bool get _reduced =>
       !widget.animate || context.reduceMotion;
   Duration get _duration =>
-      widget.duration ?? const Duration(milliseconds: 320);
+      widget.duration ?? M3Durations.medium2;
   double get _scale => _phase == _Phase.incoming
       ? _scaleStart +
             (1 - _scaleStart) * _opacity.value

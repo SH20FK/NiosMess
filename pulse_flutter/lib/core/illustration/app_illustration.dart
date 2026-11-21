@@ -100,7 +100,7 @@ class _SubtleEntranceIllustrationState
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 320),
+      duration: M3Durations.medium2,
     );
 
     _scaleAnimation = Tween<double>(begin: 0.94, end: 1.0).animate(

@@ -92,7 +92,7 @@ class _SettingsAnchorState extends ConsumerState<SettingsAnchor> {
             context,
             duration: context.reduceMotion
                 ? Duration.zero
-                : const Duration(milliseconds: 320),
+                : M3Durations.medium2,
             curve: M3SpringCurves.expressiveStandard,
             alignment: 0.3,
           );
@@ -119,7 +119,7 @@ class _SettingsAnchorState extends ConsumerState<SettingsAnchor> {
 
     return AnimatedContainer(
       key: ValueKey<String>(widget.id),
-      duration: const Duration(milliseconds: 260),
+      duration: M3Durations.medium1,
       curve: M3SpringCurves.expressiveStandard,
       decoration: BoxDecoration(
         color: highlighted

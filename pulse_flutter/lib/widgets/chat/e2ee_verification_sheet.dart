@@ -152,7 +152,7 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
               AnimatedSize(
                 duration: context.reduceMotion
                     ? Duration.zero
-                    : const Duration(milliseconds: 280),
+                    : M3Durations.spatialDefault,
                 curve: M3SpringCurves.spatialDefault,
                 child: !_advanced || engine == null || status != 'secured'
                     ? const SizedBox.shrink()

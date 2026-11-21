@@ -462,7 +462,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               final bool active = index <= _step;
               return Expanded(
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 240),
+                  duration: M3Durations.effectsDefault,
                   curve: M3SpringCurves.effectsDefault,
                   margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
                   height: 4,
@@ -1292,7 +1292,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: M3Durations.effectsDefault,
         curve: M3SpringCurves.effectsDefault,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(

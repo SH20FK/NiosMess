@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -134,14 +135,13 @@ class _InteractiveMessageCardState
         chatMembersProvider(widget.message.chatId).future,
       );
       if (!mounted) return;
-      final selected = await showModalBottomSheet<int>(
+      final selected = await AppModal.showSheet<int>(
         context: context,
-        useSafeArea: true,
-        constraints: const BoxConstraints(maxWidth: 520),
+        maxWidth: 520,
+        title: 'Ответственный за пункт',
         builder: (context) => ListView(
           shrinkWrap: true,
           children: [
-            const ListTile(title: Text('Ответственный за пункт')),
             ListTile(
               title: const Text('Не назначен'),
               onTap: () => Navigator.pop(context, 0),
@@ -648,7 +648,7 @@ class _InteractiveMessageCardState
     final results = percentage != null;
     final duration = context.reduceMotion
         ? Duration.zero
-        : const Duration(milliseconds: 160);
+        : M3Durations.effectsFast;
     final icon = correct
         ? 'check'
         : wrong
@@ -785,7 +785,7 @@ class _InteractiveMessageCardState
   }) {
     final duration = context.reduceMotion
         ? Duration.zero
-        : const Duration(milliseconds: 180);
+        : M3Durations.effectsDefault;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(

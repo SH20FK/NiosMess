@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -408,7 +409,8 @@ class _AddStickerDialogState extends ConsumerState<AddStickerDialog> {
                         },
                         borderRadius: BorderRadius.circular(12),
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 160),
+                          duration: M3Durations.effectsFast,
+                          curve: M3SpringCurves.effectsFast,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(

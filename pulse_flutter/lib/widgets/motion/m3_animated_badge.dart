@@ -16,7 +16,7 @@ class M3AnimatedBadge extends StatefulWidget {
     this.textStyle,
     this.padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     this.minSize = 18.0,
-    this.duration = const Duration(milliseconds: 320),
+    this.duration = M3Durations.medium2,
     this.curve = M3SpringCurves.spatialFast,
   });
 

@@ -527,7 +527,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     AnimatedRotation(
                       turns: _isExplainerExpanded ? 0.5 : 0.0,
-                      duration: const Duration(milliseconds: 280),
+                      duration: M3Durations.spatialDefault,
                       curve: M3SpringCurves.spatialDefault,
                       child: Icon(
                         Icons.keyboard_arrow_down_rounded,
@@ -569,7 +569,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossFadeState: _isExplainerExpanded
                       ? CrossFadeState.showSecond
                       : CrossFadeState.showFirst,
-                  duration: const Duration(milliseconds: 280),
+                  duration: M3Durations.spatialDefault,
                   sizeCurve: M3SpringCurves.spatialDefault,
                 ),
               ],

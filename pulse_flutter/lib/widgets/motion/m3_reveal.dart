@@ -24,7 +24,7 @@ class M3Reveal extends StatefulWidget {
     required this.child,
     super.key,
     this.type = M3RevealType.expandY,
-    this.duration = const Duration(milliseconds: 280),
+    this.duration = M3Durations.medium2,
     this.curve = M3SpringCurves.spatialDefault,
     this.alignment = Alignment.center,
   });

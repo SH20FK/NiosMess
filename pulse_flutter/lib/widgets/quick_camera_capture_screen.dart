@@ -41,7 +41,7 @@ class _QuickCameraCaptureScreenState extends State<QuickCameraCaptureScreen>
     super.initState();
     _flipController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 320),
+      duration: M3Durations.medium2,
     );
     _flipAnim = CurvedAnimation(
       parent: _flipController,

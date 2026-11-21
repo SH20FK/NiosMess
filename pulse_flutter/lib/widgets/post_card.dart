@@ -393,7 +393,7 @@ class _PostCardState extends ConsumerState<PostCard>
         AnimatedSize(
           duration: context.reduceMotion
               ? Duration.zero
-              : const Duration(milliseconds: 260),
+              : M3Durations.medium1,
           curve: M3SpringCurves.expressiveDecel,
           alignment: Alignment.topCenter,
           child: _contentExpanded

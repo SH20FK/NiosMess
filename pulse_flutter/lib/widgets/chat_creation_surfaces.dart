@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/navigation/direct_chat_navigator.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -11,6 +10,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/create_chat_wizard_view.dart';
+import 'package:pulse_flutter/widgets/motion/m3_press_scale.dart';
 
 Future<void> showStartDirectChatDialog(BuildContext context) async {
   final ApiSearchUser? user = await showUserSearchPickerSheet(
@@ -329,10 +329,9 @@ class _PressableScaleState extends State<_PressableScale> {
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
       onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1.0,
-        duration: const Duration(milliseconds: 140),
-        curve: M3SpringCurves.spatialFast,
+      child: M3PressScale(
+        pressed: _pressed,
+        scale: 0.98,
         child: widget.child,
       ),
     );
