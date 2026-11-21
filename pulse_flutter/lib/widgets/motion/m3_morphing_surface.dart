@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Material 3 Expressive morphing surface container.
 ///
 /// Transitions shape, border radii, and tonal surface elevation smoothly
-/// using normalized spring motion ([M3SpringCurves.spatial]) with zero harsh
+/// using normalized spring motion ([M3SpringCurves.spatialDefault]) with zero harsh
 /// drop shadows and zero save-layer overhead.
 class M3MorphingSurface extends StatelessWidget {
   const M3MorphingSurface({
@@ -18,7 +19,7 @@ class M3MorphingSurface extends StatelessWidget {
     this.width,
     this.height,
     this.duration = const Duration(milliseconds: 260),
-    this.curve = M3SpringCurves.spatial,
+    this.curve = M3SpringCurves.spatialDefault,
     this.clipBehavior = Clip.none,
   });
 
@@ -60,8 +61,7 @@ class M3MorphingSurface extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color surfaceColor = color ?? scheme.surfaceContainerLow;
 
-    final bool disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final bool disableAnimations = context.reduceMotion;
 
     if (disableAnimations) {
       return Container(

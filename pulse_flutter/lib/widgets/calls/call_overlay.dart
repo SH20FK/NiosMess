@@ -1,6 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:motor/motor.dart' show SingleMotionController;
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
@@ -13,7 +17,9 @@ import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 /// Draggable Material 3 Expressive floating call overlay.
 ///
 /// Features:
-/// - Smooth draggable positioning with edge spring snapping (M3SpringCurves.spatial)
+/// - Draggable positioning; snaps to an edge on [M3Motion.spatialDefault],
+///   starting with the finger's velocity
+/// - Fades in and out instead of popping
 /// - Voice call: Compact tonal pill with participant avatar, timer, quick mute & end
 /// - Video call: Mini floating video PiP with live RTCVideoView
 /// - Tap to re-expand seamlessly to full-screen /call/:callId
@@ -26,50 +32,76 @@ class CallOverlay extends ConsumerStatefulWidget {
 
 class _CallOverlayState extends ConsumerState<CallOverlay>
     with SingleTickerProviderStateMixin {
-  double? _x;
-  double? _y;
+  static const double _edgeMargin = 16.0;
+  static const double _minFlingVelocity = 700.0;
 
-  late final AnimationController _snapController;
-  Animation<double>? _snapAnimation;
+  // The position lives in listenables: a drag moves the overlay without
+  // rebuilding the call tile or its live video.
+  late final SingleMotionController _x;
+  final ValueNotifier<double> _y = ValueNotifier<double>(0.0);
+  late final Listenable _position = Listenable.merge(<Listenable>[_x, _y]);
+  bool _placed = false;
 
   @override
   void initState() {
     super.initState();
-    _snapController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 320),
-    )..addListener(() {
-        final animation = _snapAnimation;
-        if (mounted && animation != null) {
-          setState(() => _x = animation.value);
-        }
-      });
+    _x = SingleMotionController(motion: M3Motion.spatialDefault, vsync: this);
   }
 
   @override
   void dispose() {
-    _snapController.dispose();
+    _x.dispose();
+    _y.dispose();
     super.dispose();
   }
 
-  void _onPanEnd(double screenWidth, double itemWidth) {
-    if (_x == null) return;
-    final double startX = _x!;
-    final double targetX =
-        (startX + itemWidth / 2 < screenWidth / 2) ? 16.0 : (screenWidth - itemWidth - 16.0);
+  /// Adopts the default position the first time the overlay is shown.
+  void _place(double x, double y) {
+    if (_placed) return;
+    _placed = true;
+    _x.value = x;
+    _y.value = y;
+  }
 
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _snapController.stop();
-      setState(() => _x = targetX);
+  /// Springs to the nearer edge, or to the edge a fling points at, starting
+  /// with the finger's velocity.
+  void _snapToEdge(
+    DragEndDetails details,
+    double screenWidth,
+    double itemWidth,
+  ) {
+    final double velocity = details.velocity.pixelsPerSecond.dx;
+    final bool toStart = velocity.abs() >= _minFlingVelocity
+        ? velocity < 0
+        : _x.value + itemWidth / 2 < screenWidth / 2;
+    _x.springTo(
+      toStart ? _edgeMargin : screenWidth - itemWidth - _edgeMargin,
+      velocity: velocity,
+      reduceMotion: context.reduceMotion,
+    );
+  }
+
+  Future<void> _endCall(CallSessionManager manager) async {
+    final CallSessionState state = manager.currentData.state;
+    // The tile stays tappable while it fades out after the call has ended.
+    if (state == CallSessionState.ended || state == CallSessionState.idle) {
       return;
     }
-
-    _snapAnimation = Tween<double>(begin: startX, end: targetX).animate(
-      CurvedAnimation(parent: _snapController, curve: M3SpringCurves.spatial),
-    );
-
-    _snapController.forward(from: 0.0);
+    HapticService.tap();
+    await manager.end();
   }
+
+  static const Widget _hidden = SizedBox.shrink(
+    key: ValueKey<String>('call-overlay-hidden'),
+  );
+
+  /// Fades the overlay in and out instead of popping it.
+  Widget _presence(Widget child) => AnimatedSwitcher(
+    duration: context.motionDuration(M3Durations.effectsDefault),
+    switchInCurve: M3SpringCurves.effectsDefault,
+    switchOutCurve: M3SpringCurves.effectsFast,
+    child: child,
+  );
 
   void _expandCall(int callId) {
     HapticService.tap();
@@ -82,105 +114,123 @@ class _CallOverlayState extends ConsumerState<CallOverlay>
 
   @override
   Widget build(BuildContext context) {
-    // Hide overlay completely when full-screen call screen is open
+    // Hidden while the full-screen call screen is open
     final bool isCallScreenOpen = ref.watch(isCallScreenOpenProvider);
-    if (isCallScreenOpen) return const SizedBox.shrink();
-
     final router = ref.watch(appRouterProvider);
-    final String currentPath =
-        router.routeInformationProvider.value.uri.path;
-    if (currentPath.startsWith('/call/')) {
-      return const SizedBox.shrink();
+    final String currentPath = router.routeInformationProvider.value.uri.path;
+    final manager = ref.watch(callSessionProvider);
+    if (isCallScreenOpen ||
+        currentPath.startsWith('/call/') ||
+        manager == null) {
+      return _presence(_hidden);
     }
 
-    final manager = ref.watch(callSessionProvider);
-    if (manager == null) return const SizedBox.shrink();
+    return _presence(
+      StreamBuilder<CallSessionData>(
+        key: ObjectKey(manager),
+        stream: manager.stateStream,
+        initialData: manager.currentData,
+        builder: (context, snapshot) {
+          final data = snapshot.data ?? manager.currentData;
+          final bool live =
+              data.state != CallSessionState.ended &&
+              data.state != CallSessionState.idle;
+          return _presence(live ? _buildTile(context, manager, data) : _hidden);
+        },
+      ),
+    );
+  }
 
-    return StreamBuilder<CallSessionData>(
-      stream: manager.stateStream,
-      initialData: manager.currentData,
-      builder: (context, snapshot) {
-        final data = snapshot.data ?? manager.currentData;
-        if (data.state == CallSessionState.ended ||
-            data.state == CallSessionState.idle) {
-          return const SizedBox.shrink();
-        }
+  Widget _buildTile(
+    BuildContext context,
+    CallSessionManager manager,
+    CallSessionData data,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+    final topInset = mediaQuery.padding.top;
+    final bottomInset = mediaQuery.padding.bottom;
 
-        final scheme = Theme.of(context).colorScheme;
-        final textTheme = Theme.of(context).textTheme;
-        final mediaQuery = MediaQuery.of(context);
-        final screenWidth = mediaQuery.size.width;
-        final screenHeight = mediaQuery.size.height;
-        final topInset = mediaQuery.padding.top;
-        final bottomInset = mediaQuery.padding.bottom;
+    final bool isVideo = data.isVideo && manager.remoteStreams.isNotEmpty;
+    final double itemWidth = isVideo ? CallTokens.videoPipWidth : 250.0;
+    final double itemHeight = isVideo ? CallTokens.videoPipHeight : 54.0;
 
-        final bool isVideo = data.isVideo && manager.remoteStreams.isNotEmpty;
-        final double itemWidth = isVideo ? CallTokens.videoPipWidth : 250.0;
-        final double itemHeight = isVideo ? CallTokens.videoPipHeight : 54.0;
+    _place(
+      screenWidth - itemWidth - _edgeMargin,
+      screenHeight - bottomInset - itemHeight - 96.0,
+    );
 
-        _x ??= screenWidth - itemWidth - 16.0;
-        _y ??= screenHeight - bottomInset - itemHeight - 96.0;
+    final participantName = data.remoteParticipants.isNotEmpty
+        ? data.remoteParticipants.first.nickname
+        : (data.peerName?.isNotEmpty == true ? data.peerName! : 'Собеседник');
 
-        final participantName = data.remoteParticipants.isNotEmpty
-            ? data.remoteParticipants.first.nickname
-            : (data.peerName?.isNotEmpty == true ? data.peerName! : 'Собеседник');
+    final m = data.durationSeconds ~/ 60;
+    final s = data.durationSeconds % 60;
+    final timerLabel =
+        '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 
-        final m = data.durationSeconds ~/ 60;
-        final s = data.durationSeconds % 60;
-        final timerLabel =
-            '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    final bool reduceMotion = context.reduceMotion;
+    // The spring may overshoot the edge margin but never leaves the screen.
+    final double maxLeft = math.max(0.0, screenWidth - itemWidth);
 
-        return Stack(
-          children: [
-            Positioned(
-              left: _x,
-              top: _y,
-              child: GestureDetector(
-                onPanStart: (_) => _snapController.stop(),
-                onPanUpdate: (details) {
-                  setState(() {
-                    _x = (_x! + details.delta.dx).clamp(
-                      8.0,
-                      screenWidth - itemWidth - 8.0,
-                    );
-                    _y = (_y! + details.delta.dy).clamp(
-                      topInset + 8.0,
-                      screenHeight - bottomInset - itemHeight - 8.0,
-                    );
-                  });
-                },
-                onPanEnd: (_) => _onPanEnd(screenWidth, itemWidth),
-                child: isVideo
-                    ? _VideoOverlayTile(
-                        manager: manager,
-                        data: data,
-                        scheme: scheme,
-                        participantName: participantName,
-                        timerLabel: timerLabel,
-                        onTap: () => _expandCall(data.callId),
-                        onEnd: () async {
-                          HapticService.tap();
-                          await manager.end();
-                        },
-                      )
-                    : _VoiceOverlayPill(
-                        manager: manager,
-                        data: data,
-                        scheme: scheme,
-                        textTheme: textTheme,
-                        participantName: participantName,
-                        timerLabel: timerLabel,
-                        onTap: () => _expandCall(data.callId),
-                        onEnd: () async {
-                          HapticService.tap();
-                          await manager.end();
-                        },
-                      ),
-              ),
+    return Stack(
+      key: const ValueKey<String>('call-overlay-tile'),
+      children: [
+        AnimatedBuilder(
+          animation: _position,
+          builder: (context, child) => Positioned(
+            left: _x.value.clamp(0.0, maxLeft),
+            top: _y.value,
+            child: child!,
+          ),
+          child: GestureDetector(
+            onPanStart: (_) => _x.stop(canceled: true),
+            onPanUpdate: (details) {
+              _x.value = (_x.value + details.delta.dx).clamp(
+                8.0,
+                screenWidth - itemWidth - 8.0,
+              );
+              _y.value = (_y.value + details.delta.dy).clamp(
+                topInset + 8.0,
+                screenHeight - bottomInset - itemHeight - 8.0,
+              );
+            },
+            onPanEnd: (details) =>
+                _snapToEdge(details, screenWidth, itemWidth),
+            // Entrance pop; the fade comes from [_presence].
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: reduceMotion ? 1.0 : 0.85, end: 1.0),
+              duration: reduceMotion ? Duration.zero : M3Durations.spatialFast,
+              curve: M3SpringCurves.spatialFast,
+              builder: (context, scale, child) =>
+                  Transform.scale(scale: scale, child: child),
+              child: isVideo
+                  ? _VideoOverlayTile(
+                      manager: manager,
+                      data: data,
+                      scheme: scheme,
+                      participantName: participantName,
+                      timerLabel: timerLabel,
+                      onTap: () => _expandCall(data.callId),
+                      onEnd: () => _endCall(manager),
+                    )
+                  : _VoiceOverlayPill(
+                      manager: manager,
+                      data: data,
+                      scheme: scheme,
+                      textTheme: textTheme,
+                      participantName: participantName,
+                      timerLabel: timerLabel,
+                      onTap: () => _expandCall(data.callId),
+                      onEnd: () => _endCall(manager),
+                    ),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:chewie/chewie.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:video_player/video_player.dart';
@@ -51,7 +52,7 @@ class M3VideoPlaybackBar extends StatelessWidget {
           },
           style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
           icon: AnimatedSwitcher(
-            duration: MediaQuery.disableAnimationsOf(context)
+            duration: context.reduceMotion
                 ? Duration.zero
                 : M3Durations.short2,
             switchInCurve: M3SpringCurves.expressiveDecel,
@@ -236,7 +237,7 @@ class _M3VideoOverlayControlsState extends State<M3VideoOverlayControls> {
             child: AnimatedOpacity(
               opacity: _visible ? 1 : 0,
               curve: M3SpringCurves.expressiveDecel,
-              duration: MediaQuery.disableAnimationsOf(context)
+              duration: context.reduceMotion
                   ? Duration.zero
                   : M3Durations.short3,
               child: Center(

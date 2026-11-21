@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -12,158 +12,6 @@ import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-
-/// Animated squash-and-stretch pill indicator that travels horizontally
-/// between navigation slots with M3 Expressive spatial spring physics.
-class TravelingNavIndicator extends StatefulWidget {
-  const TravelingNavIndicator({
-    required this.index,
-    required this.count,
-    required this.color,
-    required this.animate,
-    this.stretch = 0.22,
-    this.duration = const Duration(milliseconds: 220),
-    this.pillHeight = 34.0,
-    this.maxPillWidth = 72.0,
-    super.key,
-  });
-
-  final int index;
-  final int count;
-  final Color color;
-  final bool animate;
-  final double stretch;
-  final Duration duration;
-  final double pillHeight;
-  final double maxPillWidth;
-
-  @override
-  State<TravelingNavIndicator> createState() => _TravelingNavIndicatorState();
-}
-
-class _TravelingNavIndicatorState extends State<TravelingNavIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final CurvedAnimation _curveAnim;
-  double _from = 0.0;
-  double _fromStretch = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _from = widget.index.toDouble();
-    _controller = AnimationController(vsync: this, duration: widget.duration)
-      ..value = 1.0;
-    _curveAnim = CurvedAnimation(
-      parent: _controller,
-      curve: M3SpringCurves.spatial,
-    );
-  }
-
-  @override
-  void didUpdateWidget(covariant TravelingNavIndicator oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.duration != widget.duration) {
-      _controller.duration = widget.duration;
-    }
-    if (!widget.animate) {
-      _from = widget.index.toDouble();
-      _fromStretch = 0;
-      _controller.value = 1;
-      return;
-    }
-    if (oldWidget.index == widget.index) return;
-    final raw = _controller.value;
-    final oldTravel = ((oldWidget.index - _from).abs() / oldWidget.count).clamp(
-      0.0,
-      1.0,
-    );
-    _fromStretch =
-        _fromStretch * (1 - raw) +
-        oldWidget.stretch * 4 * raw * (1 - raw) * oldTravel;
-    if (_controller.isAnimating) {
-      final double currentT = _curveAnim.value;
-      _from =
-          ui.lerpDouble(_from, oldWidget.index.toDouble(), currentT) ??
-          oldWidget.index.toDouble();
-    } else {
-      _from = oldWidget.index.toDouble();
-    }
-    if (widget.animate) {
-      _controller.forward(from: 0.0);
-    } else {
-      _controller.value = 1.0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _curveAnim.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        if (widget.count <= 0 || constraints.maxWidth <= 0) {
-          return const SizedBox.shrink();
-        }
-        final double slot = constraints.maxWidth / widget.count;
-        final double baseWidth = (slot * 0.62).clamp(48.0, widget.maxPillWidth);
-        final double travel =
-            ((widget.index.toDouble() - _from).abs() / widget.count).clamp(
-              0.0,
-              1.0,
-            );
-
-        double slotCenterX(double i) =>
-            (Directionality.of(context) == TextDirection.rtl
-                ? widget.count - i - 0.5
-                : i + 0.5) *
-            slot;
-
-        return AnimatedBuilder(
-          animation: _controller,
-          builder: (BuildContext context, Widget? child) {
-            final double t = _curveAnim.value;
-            final raw = _controller.value;
-            final deformation =
-                _fromStretch * (1 - raw) +
-                widget.stretch * 4 * raw * (1 - raw) * travel;
-            final double pillW = baseWidth * (1 + deformation);
-            final double pillH = widget.pillHeight * (1 - deformation * .5);
-            final double fromX = slotCenterX(_from);
-            final double toX = slotCenterX(widget.index.toDouble());
-            final double currentCenterX = ui.lerpDouble(fromX, toX, t)!;
-            final double left = currentCenterX - pillW / 2;
-            final double top = (constraints.maxHeight - pillH) / 2;
-
-            return Stack(
-              clipBehavior: Clip.none,
-              children: <Widget>[
-                Positioned(
-                  left: left,
-                  top: top,
-                  width: pillW,
-                  height: pillH,
-                  child: DecoratedBox(
-                    decoration: ShapeDecoration(
-                      color: widget.color,
-                      shape: const StadiumBorder(),
-                    ),
-                    child: const SizedBox.expand(),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-}
 
 class AppBottomNav extends ConsumerStatefulWidget {
   const AppBottomNav({
@@ -202,10 +50,10 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
   Widget build(BuildContext context) {
     final int totalUnread = ref.watch(totalUnreadCountProvider);
     final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
-    final bool animate = !MediaQuery.disableAnimationsOf(context);
+    final bool animate = !context.reduceMotion;
     final scheme = Theme.of(context).colorScheme;
     final duration = animate
-        ? Duration(milliseconds: tier.isTierC ? 200 : 280)
+        ? (tier.isTierC ? M3Durations.short4 : M3Durations.medium2)
         : Duration.zero;
     final items = <_NavItem>[
       _NavItem(

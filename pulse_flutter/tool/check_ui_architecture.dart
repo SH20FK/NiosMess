@@ -168,8 +168,8 @@ void main() {
     hasDesktopSplitMotion,
   );
 
-  // 9. Check the active M3 NavigationBar, not the legacy traveling-indicator
-  // compatibility widget. The icon lift uses a sine for position/scale, never
+  // 9. Check the active M3 NavigationBar. The icon lift uses a sine for
+  // position/scale, never
   // opacity. Runtime reduced-motion and successive-tap tests live in
   // tab_shared_axis_switcher_test.dart.
   final File bottomNavFile = File('lib/widgets/app_bottom_nav.dart');
@@ -181,25 +181,27 @@ void main() {
       : '';
   final bool hasAccessibleM3Nav =
       activeNav.contains('child: NavigationBar(') &&
-      activeNav.contains('MediaQuery.disableAnimationsOf(context)') &&
+      activeNav.contains('context.reduceMotion') &&
       activeNav.contains('animationDuration: duration') &&
       activeNav.contains('Duration.zero') &&
-      !activeNav.contains('TravelingNavIndicator(') &&
       bottomNavContent.contains('M3SpringCurves.expressiveDecel');
   report(
     'Active bottom navigation uses M3 NavigationBar with reduced-motion support',
     hasAccessibleM3Nav,
   );
 
-  // 10. Chat Route Symmetrical Duration Check
+  // 10. Chat Route Themed Transition Check
   final File appRouterFile = File('lib/router/app_router.dart');
   final String appRouterContent = appRouterFile.readAsStringSync();
-  final bool hasSymmetricalChatRoute = appRouterContent.contains(
-    'reverseTransitionDuration: const Duration(milliseconds: 240)',
-  );
+  final String appThemeContent = File(
+    'lib/core/theme/app_theme.dart',
+  ).readAsStringSync();
+  final bool hasThemedChatRoute =
+      !appRouterContent.contains('_chatDetailPage') &&
+      appThemeContent.contains('M3SharedAxisPageTransitionsBuilder');
   report(
-    'Chat route uses symmetrical 240ms forward and reverse transitions',
-    hasSymmetricalChatRoute,
+    'Chat route uses the themed M3 shared axis page transition',
+    hasThemedChatRoute,
   );
 
   print('\n=== Summary ===');

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
@@ -20,10 +21,10 @@ class OrdinaryE2eeNotice extends ConsumerWidget {
         final bool visible = service.initialised && service.locked;
         return AnimatedSize(
           // The banner appears/disappears with key sync: grow, never pop.
-          duration: MediaQuery.disableAnimationsOf(context)
+          duration: context.reduceMotion
               ? Duration.zero
-              : const Duration(milliseconds: 200),
-          curve: M3SpringCurves.gentle,
+              : M3Durations.short4,
+          curve: M3SpringCurves.spatialDefault,
           alignment: Alignment.topCenter,
           child: visible
               ? _NoticeSurface(

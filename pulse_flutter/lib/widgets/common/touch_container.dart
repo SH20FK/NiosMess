@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/motion/m3_press_scale.dart';
 
 /// An expressive container with tactile micro-scale press feedback and haptics.
 ///
@@ -17,6 +20,7 @@ class TouchContainer extends StatefulWidget {
     this.onDoubleTap,
     this.onSecondaryTapDown,
     this.borderRadius,
+    this.pressedBorderRadius,
     this.color,
     this.border,
     this.padding,
@@ -54,6 +58,10 @@ class TouchContainer extends StatefulWidget {
   /// The corner radius for the container and clipping (defaults to [AppRadii.mdRadius]).
   final BorderRadius? borderRadius;
 
+  /// Corner radius while pressed. When set, the shape morphs towards it on
+  /// press (M3 Expressive shape change) and back on release.
+  final BorderRadius? pressedBorderRadius;
+
   /// Background color of the container.
   final Color? color;
 
@@ -72,7 +80,7 @@ class TouchContainer extends StatefulWidget {
   /// Optional fixed height.
   final double? height;
 
-  /// Clipping behavior (defaults to [Clip.antiAlias]).
+  /// Clipping behavior (defaults to [Clip.none]).
   final Clip clipBehavior;
 
   /// Whether user interaction is enabled.
@@ -161,7 +169,10 @@ class _TouchContainerState extends State<TouchContainer> {
   Widget build(BuildContext context) {
     final BorderRadius effectiveRadius =
         widget.borderRadius ?? AppRadii.mdRadius;
-    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final bool reduceMotion = context.reduceMotion;
+    final BorderRadius shapeRadius = _isPressed
+        ? (widget.pressedBorderRadius ?? effectiveRadius)
+        : effectiveRadius;
     final Color stateLayerColor =
         widget.stateLayerColor ??
         Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
@@ -171,24 +182,25 @@ class _TouchContainerState extends State<TouchContainer> {
       height: widget.height,
       padding: widget.padding,
       margin: widget.margin,
+      // Colour, state layer and shape ride effects curves: no overshoot.
       duration: reduceMotion
           ? Duration.zero
           : _isPressed
-          ? AppMotion.durationPress
-          : AppMotion.durationRelease,
+          ? M3Durations.effectsFast
+          : M3Durations.effectsDefault,
       curve: _isPressed
-          ? Curves.easeOutCubic
-          : (widget.releaseCurve ?? AppMotion.spring),
+          ? M3SpringCurves.effectsFast
+          : M3SpringCurves.effectsDefault,
       decoration: BoxDecoration(
         color: widget.color,
-        borderRadius: effectiveRadius,
+        borderRadius: shapeRadius,
         border: widget.border,
         boxShadow: widget.boxShadow,
       ),
       // Foreground (not background) so the 8% press layer reads on top of the
       // tile/button fill exactly like an M3 InkWell highlight — without blur.
       foregroundDecoration: widget.stateLayer && _isPressed
-          ? BoxDecoration(color: stateLayerColor, borderRadius: effectiveRadius)
+          ? BoxDecoration(color: stateLayerColor, borderRadius: shapeRadius)
           : null,
       clipBehavior: widget.clipBehavior,
       child: widget.child,
@@ -225,18 +237,10 @@ class _TouchContainerState extends State<TouchContainer> {
           ? null
           : widget.onLongPress,
       onDoubleTap: widget.onDoubleTap,
-      child: AnimatedScale(
-        scale: _isPressed && !MediaQuery.disableAnimationsOf(context)
-            ? widget.scaleDown
-            : 1.0,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : _isPressed
-            ? AppMotion.durationPress
-            : AppMotion.durationRelease,
-        curve: _isPressed
-            ? Curves.easeOutCubic
-            : (widget.releaseCurve ?? AppMotion.spring),
+      child: M3PressScale(
+        pressed: _isPressed,
+        scale: widget.scaleDown,
+        releaseCurve: widget.releaseCurve,
         child: container,
       ),
     );

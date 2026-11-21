@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Material 3 Expressive reaction particle burst effect.
@@ -32,7 +33,8 @@ class M3ReactionBurst extends StatefulWidget {
   /// Duration of the burst animation.
   final Duration duration;
 
-  /// Optional tap callback that triggers the burst.
+  /// Tap callback; a tap also fires the burst. Without it the burst is
+  /// started through [M3ReactionBurstState.fire].
   final VoidCallback? onTap;
 
   @override
@@ -59,7 +61,7 @@ class M3ReactionBurstState extends State<M3ReactionBurst>
       end: widget.burstRadius,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: M3SpringCurves.spatial,
+      curve: M3SpringCurves.spatialDefault,
     ));
 
     _sizeAnimation = Tween<double>(
@@ -85,8 +87,9 @@ class M3ReactionBurstState extends State<M3ReactionBurst>
     super.dispose();
   }
 
-  /// Triggers the burst animation.
+  /// Triggers the burst animation. Does nothing with reduced motion.
   void fire() {
+    if (context.reduceMotion) return;
     _controller.forward(from: 0.0);
   }
 
@@ -95,41 +98,45 @@ class M3ReactionBurstState extends State<M3ReactionBurst>
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color color = widget.particleColor ?? scheme.primary;
 
+    final Widget content = Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        widget.child,
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (BuildContext context, Widget? _) {
+            if (!_controller.isAnimating) {
+              return const SizedBox.shrink();
+            }
+
+            final double distance = _distanceAnimation.value;
+            final double size = _sizeAnimation.value;
+            final double opacity = _fadeAnimation.value.clamp(0.0, 1.0);
+
+            return CustomPaint(
+              painter: _BurstPainter(
+                distance: distance,
+                particleSize: size,
+                opacity: opacity,
+                count: widget.particleCount,
+                color: color,
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    final VoidCallback? onTap = widget.onTap;
+    if (onTap == null) return content;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
         fire();
-        widget.onTap?.call();
+        onTap();
       },
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          widget.child,
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (BuildContext context, Widget? _) {
-              if (!_controller.isAnimating) {
-                return const SizedBox.shrink();
-              }
-
-              final double distance = _distanceAnimation.value;
-              final double size = _sizeAnimation.value;
-              final double opacity = _fadeAnimation.value.clamp(0.0, 1.0);
-
-              return CustomPaint(
-                painter: _BurstPainter(
-                  distance: distance,
-                  particleSize: size,
-                  opacity: opacity,
-                  count: widget.particleCount,
-                  color: color,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      child: content,
     );
   }
 }

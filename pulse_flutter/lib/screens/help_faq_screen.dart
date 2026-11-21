@@ -318,8 +318,8 @@ class _ExpandableFaqTileState extends State<_ExpandableFaqTile> {
                 ),
                 AnimatedRotation(
                   turns: _expanded ? 0.5 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: M3SpringCurves.spatial,
+                  duration: M3Durations.short4,
+                  curve: M3SpringCurves.spatialDefault,
                   child: Icon(
                     Icons.expand_more_rounded,
                     size: 20,
@@ -344,9 +344,9 @@ class _ExpandableFaqTileState extends State<_ExpandableFaqTile> {
               crossFadeState: _expanded
                   ? CrossFadeState.showSecond
                   : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 200),
-              firstCurve: M3SpringCurves.spatial,
-              secondCurve: M3SpringCurves.spatial,
+              duration: M3Durations.short4,
+              firstCurve: M3SpringCurves.effectsDefault,
+              secondCurve: M3SpringCurves.effectsDefault,
             ),
           ],
         ),

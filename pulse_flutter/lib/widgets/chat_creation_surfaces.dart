@@ -332,7 +332,7 @@ class _PressableScaleState extends State<_PressableScale> {
       child: AnimatedScale(
         scale: _pressed ? 0.98 : 1.0,
         duration: const Duration(milliseconds: 140),
-        curve: M3SpringCurves.spatial,
+        curve: M3SpringCurves.spatialFast,
         child: widget.child,
       ),
     );

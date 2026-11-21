@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Presentation styles for [M3Reveal].
@@ -15,7 +16,7 @@ enum M3RevealType {
 
 /// Material 3 Expressive reveal animation widget.
 ///
-/// Smoothly reveals or hides content using normalized spring physics ([M3SpringCurves.spatial])
+/// Smoothly reveals or hides content using normalized spring physics ([M3SpringCurves.spatialDefault])
 /// and expressive alpha easing ([M3SpringCurves.expressiveDecel]).
 class M3Reveal extends StatefulWidget {
   const M3Reveal({
@@ -24,7 +25,7 @@ class M3Reveal extends StatefulWidget {
     super.key,
     this.type = M3RevealType.expandY,
     this.duration = const Duration(milliseconds: 280),
-    this.curve = M3SpringCurves.spatial,
+    this.curve = M3SpringCurves.spatialDefault,
     this.alignment = Alignment.center,
   });
 
@@ -86,7 +87,7 @@ class _M3RevealState extends State<M3Reveal>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final disabled =
-        (MediaQuery.maybeOf(context)?.disableAnimations ?? false) ||
+        context.reduceMotion ||
         !TickerMode.valuesOf(context).enabled;
     if (disabled != _motionDisabled) {
       _motionDisabled = disabled;
@@ -126,8 +127,7 @@ class _M3RevealState extends State<M3Reveal>
 
   @override
   Widget build(BuildContext context) {
-    final bool disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final bool disableAnimations = context.reduceMotion;
 
     if (disableAnimations) {
       return widget.revealed ? widget.child : const SizedBox.shrink();

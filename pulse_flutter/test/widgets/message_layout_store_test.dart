@@ -84,6 +84,7 @@ Widget _historyHarness(
             ({
               required messageId,
               required animate,
+              required staggerIndex,
               required isMine,
               required child,
             }) => child,
@@ -279,6 +280,7 @@ void main() {
                     ({
                       required messageId,
                       required animate,
+                      required staggerIndex,
                       required isMine,
                       required child,
                     }) => child,

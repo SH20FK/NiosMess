@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -345,7 +346,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
           _buildHeader(context, scheme, textTheme),
           Flexible(
             child: AnimatedSwitcher(
-              duration: MediaQuery.disableAnimationsOf(context)
+              duration: context.reduceMotion
                   ? Duration.zero
                   : M3Durations.medium1,
               switchInCurve: M3SpringCurves.expressiveDecel,
@@ -462,7 +463,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               return Expanded(
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 240),
-                  curve: M3SpringCurves.spatial,
+                  curve: M3SpringCurves.effectsDefault,
                   margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
                   height: 4,
                   decoration: BoxDecoration(
@@ -1292,7 +1293,7 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        curve: M3SpringCurves.spatial,
+        curve: M3SpringCurves.effectsDefault,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: selected

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -251,10 +252,10 @@ class _InlineButtonState extends ConsumerState<_InlineButton> {
       waitDuration: const Duration(milliseconds: 700),
       child: AnimatedScale(
         scale: _busy ? .98 : 1,
-        duration: MediaQuery.disableAnimationsOf(context)
+        duration: context.reduceMotion
             ? Duration.zero
             : M3Durations.short3,
-        curve: M3SpringCurves.gentle,
+        curve: M3SpringCurves.spatialFast,
         child: Material(
           color: colors.background,
           shape: RoundedRectangleBorder(

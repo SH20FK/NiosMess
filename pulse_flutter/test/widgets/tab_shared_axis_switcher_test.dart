@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
-import 'package:pulse_flutter/widgets/nav/tab_shared_axis_switcher.dart';
+import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
 
 class _NavTestSettings extends UiSettingsNotifier {
@@ -15,13 +15,13 @@ class _NavTestSettings extends UiSettingsNotifier {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('TabSharedAxisSwitcher Tests', () {
+  group('M3RouteTabSwitcher and bottom navigation tests', () {
     testWidgets('Steady state returns live IndexedStack without RawImage', (WidgetTester tester) async {
       final TabTransitionController controller = TabTransitionController();
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: TabSharedAxisSwitcher(
+            body: M3RouteTabSwitcher(
               index: 0,
               controller: controller,
               children: const <Widget>[
@@ -47,7 +47,7 @@ void main() {
           home: Scaffold(
             body: StatefulBuilder(
               builder: (BuildContext context, StateSetter setState) {
-                return TabSharedAxisSwitcher(
+                return M3RouteTabSwitcher(
                   index: activeIndex,
                   controller: controller,
                   children: const <Widget>[
@@ -62,15 +62,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Capture outgoing and switch index
-      controller.captureOutgoing();
       activeIndex = 1;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: StatefulBuilder(
               builder: (BuildContext context, StateSetter setState) {
-                return TabSharedAxisSwitcher(
+                return M3RouteTabSwitcher(
                   index: activeIndex,
                   controller: controller,
                   children: const <Widget>[
@@ -106,7 +104,7 @@ void main() {
           home: Scaffold(
             body: StatefulBuilder(
               builder: (BuildContext context, StateSetter setState) {
-                return TabSharedAxisSwitcher(
+                return M3RouteTabSwitcher(
                   index: activeIndex,
                   controller: controller,
                   animate: false,
@@ -128,7 +126,7 @@ void main() {
           home: Scaffold(
             body: StatefulBuilder(
               builder: (BuildContext context, StateSetter setState) {
-                return TabSharedAxisSwitcher(
+                return M3RouteTabSwitcher(
                   index: activeIndex,
                   controller: controller,
                   animate: false,
@@ -155,7 +153,7 @@ void main() {
       Widget buildHarness(int index) {
         return MaterialApp(
           home: Scaffold(
-            body: TabSharedAxisSwitcher(
+            body: M3RouteTabSwitcher(
               index: index,
               controller: controller,
               children: <Widget>[
@@ -172,13 +170,11 @@ void main() {
       expect(find.text('Persistent state'), findsOneWidget);
 
       // Switch 0 -> 1
-      controller.captureOutgoing();
       await tester.pumpWidget(buildHarness(1));
       await tester.pumpAndSettle();
       expect(find.text('Tab 1 Content'), findsOneWidget);
 
       // Switch 1 -> 0
-      controller.captureOutgoing();
       await tester.pumpWidget(buildHarness(0));
       await tester.pumpAndSettle();
 
@@ -218,27 +214,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('indicator retarget preserves its position and deformation', (tester) async {
-      Widget app(int index, {bool animate = true}) => MaterialApp(home: Scaffold(
-        body: SizedBox(width: 400, height: 80, child: TravelingNavIndicator(
-          index: index, count: 4, color: Colors.blue, animate: animate,
-        )),
-      ));
-      await tester.pumpWidget(app(0));
-      await tester.pumpWidget(app(3));
-      await tester.pump(const Duration(milliseconds: 70));
-      final before = tester.getRect(find.byType(DecoratedBox));
-      await tester.pumpWidget(app(1));
-      final after = tester.getRect(find.byType(DecoratedBox));
-      expect(after.center.dx, closeTo(before.center.dx, 0.001));
-      expect(after.width, closeTo(before.width, 0.001));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.pumpWidget(app(1, animate: false));
-      expect(tester.getCenter(find.byType(DecoratedBox)).dx, closeTo(150, 0.001));
-      expect(tester.binding.transientCallbackCount, 0);
-      expect(tester.takeException(), isNull);
-    });
-
     testWidgets('tab icon lifts and settles when motion is disabled mid-flight', (tester) async {
       Widget app(bool selected, {bool animate = true}) => MaterialApp(home: Scaffold(
         body: TabMorphIcon(outlineIcon: Icons.chat_bubble_outline_rounded,
@@ -254,51 +229,6 @@ void main() {
       await tester.pumpWidget(app(true, animate: false));
       expect(tester.binding.transientCallbackCount, 0);
       expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('TravelingNavIndicator animates horizontal position', (WidgetTester tester) async {
-      Widget buildIndicator(int index, {bool animate = true}) {
-        return MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 400,
-                height: 80,
-                child: TravelingNavIndicator(
-                  index: index,
-                  count: 4,
-                  color: Colors.blue,
-                  animate: animate,
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-
-      await tester.pumpWidget(buildIndicator(0));
-      await tester.pump();
-
-      // Find initial center position
-      final Finder pillFinder = find.byType(DecoratedBox);
-      expect(pillFinder, findsOneWidget);
-      final Finder navFinder = find.byType(TravelingNavIndicator);
-      double pillLocalCenterX() =>
-          tester.getCenter(pillFinder).dx - tester.getTopLeft(navFinder).dx;
-
-      // Container width 400, slot 0 of 4 -> center at (0 + 0.5) * 100 = 50.0
-      expect(pillLocalCenterX(), closeTo(50.0, 0.5));
-
-      // Move to index 1
-      await tester.pumpWidget(buildIndicator(1));
-      await tester.pump(const Duration(milliseconds: 100));
-
-      // Moving right towards slot 1 center (150.0)
-      expect(pillLocalCenterX(), greaterThan(50.0));
-
-      await tester.pumpAndSettle();
-      // Settled at slot 1 of 4 -> center at (1 + 0.5) * 100 = 150.0
-      expect(pillLocalCenterX(), closeTo(150.0, 0.5));
     });
   });
 }

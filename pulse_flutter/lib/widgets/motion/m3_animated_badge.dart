@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Material 3 Expressive animated badge with tactile spring pop.
 ///
-/// Triggers a bouncy spring pop ([M3SpringCurves.bouncy]) whenever the [count]
+/// Triggers a bouncy spring pop ([M3SpringCurves.spatialFast]) whenever the [count]
 /// or [label] updates. Seamlessly collapses to scale 0 when [count] is 0 or null.
 class M3AnimatedBadge extends StatefulWidget {
   const M3AnimatedBadge({
@@ -16,7 +17,7 @@ class M3AnimatedBadge extends StatefulWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     this.minSize = 18.0,
     this.duration = const Duration(milliseconds: 320),
-    this.curve = M3SpringCurves.bouncy,
+    this.curve = M3SpringCurves.spatialFast,
   });
 
   /// Numeric count displayed in the badge. If 0, badge collapses unless [label] is set.
@@ -110,8 +111,7 @@ class _M3AnimatedBadgeState extends State<M3AnimatedBadge>
 
   @override
   Widget build(BuildContext context) {
-    final bool disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final bool disableAnimations = context.reduceMotion;
 
     if (!_shouldShow && (_controller.isDismissed || disableAnimations)) {
       return const SizedBox.shrink();

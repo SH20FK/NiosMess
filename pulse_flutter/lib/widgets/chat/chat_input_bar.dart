@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/core/utils/expression_editing.dart';
@@ -357,10 +358,17 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
       PageRouteBuilder<String>(
         opaque: false,
         barrierDismissible: true,
+        transitionDuration: M3Durations.effectsSlow,
+        reverseTransitionDuration: M3Durations.effectsDefault,
         pageBuilder: (_, _, _) =>
             CircleVideoRecorderScreen(autoStart: autoStart),
         transitionsBuilder: (_, Animation<double> a, _, Widget child) =>
-            FadeTransition(opacity: a, child: child),
+            FadeTransition(
+              opacity: a.drive(
+                CurveTween(curve: M3SpringCurves.effectsDefault),
+              ),
+              child: child,
+            ),
       ),
     );
     if (result != null && mounted) {
@@ -513,7 +521,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                 // ── Edit panel ──
                 AnimatedSize(
                   key: const ValueKey('edit-context-transition'),
-                  duration: MediaQuery.disableAnimationsOf(context)
+                  duration: context.reduceMotion
                       ? Duration.zero
                       : M3Durations.short4,
                   curve: M3SpringCurves.expressiveDecel,
@@ -583,7 +591,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                 // ── Reply panel ──
                 AnimatedSize(
                   key: const ValueKey('reply-context-transition'),
-                  duration: MediaQuery.disableAnimationsOf(context)
+                  duration: context.reduceMotion
                       ? Duration.zero
                       : M3Durations.short4,
                   curve: M3SpringCurves.expressiveDecel,
@@ -686,7 +694,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                             maxHeight: 140,
                           ),
                           child: AnimatedContainer(
-                            duration: MediaQuery.disableAnimationsOf(context)
+                            duration: context.reduceMotion
                                 ? Duration.zero
                                 : M3Durations.short4,
                             curve: M3SpringCurves.expressiveStandard,
@@ -726,9 +734,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                       ),
                                       child: AnimatedSwitcher(
                                         duration:
-                                            MediaQuery.disableAnimationsOf(
-                                              context,
-                                            )
+                                            context.reduceMotion
                                             ? Duration.zero
                                             : M3Durations.medium1,
                                         switchInCurve:
@@ -961,7 +967,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                       const SizedBox(width: 8),
                       // ── Mic/Video or Send button (Animated Morph) ──
                       AnimatedSwitcher(
-                        duration: MediaQuery.disableAnimationsOf(context)
+                        duration: context.reduceMotion
                             ? Duration.zero
                             : M3Durations.short4,
                         switchInCurve: M3SpringCurves.expressiveDecel,
@@ -1001,11 +1007,11 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           ConstrainedBox(
             constraints: BoxConstraints(maxHeight: available),
             child: AnimatedContainer(
-              duration: MediaQuery.disableAnimationsOf(context)
+              duration: context.reduceMotion
                   ? Duration.zero
                   : M3Durations.medium1,
               // Height must stay non-negative while the panel settles at zero.
-              curve: M3SpringCurves.gentle,
+              curve: M3SpringCurves.effectsSlow,
               height: effectivePanelHeight,
               clipBehavior: Clip.hardEdge,
               decoration: BoxDecoration(
@@ -1178,10 +1184,10 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
           await _sendVoiceRecording();
         },
         child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
+          duration: context.reduceMotion
               ? Duration.zero
               : M3Durations.short4,
-          curve: M3SpringCurves.spatial,
+          curve: M3SpringCurves.effectsDefault,
           width: 48,
           height: 48,
           decoration: BoxDecoration(
@@ -1189,12 +1195,10 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             shape: BoxShape.circle,
           ),
           child: AnimatedSwitcher(
-            duration: MediaQuery.disableAnimationsOf(context)
+            duration: context.reduceMotion
                 ? Duration.zero
                 : M3Durations.short4,
-            transitionBuilder: (Widget child, Animation<double> anim) {
-              return ScaleTransition(scale: anim, child: child);
-            },
+            transitionBuilder: _iconSwapTransition,
             child: Icon(
               _isVideoMode ? Icons.videocam_rounded : Icons.mic_rounded,
               key: ValueKey<bool>(_isVideoMode),
@@ -1248,14 +1252,30 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     return mainRecordBtn;
   }
 
+  // Icon swap: opacity on an effects curve, scale from 0.6 on the fast
+  // spatial spring instead of a linear scale from zero.
+  static Widget _iconSwapTransition(Widget child, Animation<double> anim) {
+    return FadeTransition(
+      opacity: anim.drive(CurveTween(curve: M3SpringCurves.effectsDefault)),
+      child: ScaleTransition(
+        scale: anim.drive(
+          Tween<double>(
+            begin: 0.6,
+            end: 1.0,
+          ).chain(CurveTween(curve: M3SpringCurves.spatialFast)),
+        ),
+        child: child,
+      ),
+    );
+  }
+
   // ── Send / Commit edit button ──
   Widget _buildSendButton(ColorScheme scheme) {
     return AnimatedSwitcher(
-      duration: MediaQuery.disableAnimationsOf(context)
+      duration: context.reduceMotion
           ? Duration.zero
           : M3Durations.short4,
-      transitionBuilder: (Widget child, Animation<double> anim) =>
-          ScaleTransition(scale: anim, child: child),
+      transitionBuilder: _iconSwapTransition,
       child: TouchContainer(
         key: ValueKey<bool>(widget.editingMessageId != null),
         borderRadius: AppRadii.fullRadius,
@@ -1301,11 +1321,10 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             shape: BoxShape.circle,
           ),
           child: AnimatedSwitcher(
-            duration: MediaQuery.disableAnimationsOf(context)
+            duration: context.reduceMotion
                 ? Duration.zero
                 : M3Durations.short4,
-            transitionBuilder: (Widget child, Animation<double> anim) =>
-                ScaleTransition(scale: anim, child: child),
+            transitionBuilder: _iconSwapTransition,
             child: Icon(
               widget.editingMessageId != null
                   ? Icons.check_rounded

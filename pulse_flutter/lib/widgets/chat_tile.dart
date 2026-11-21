@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
@@ -165,6 +166,13 @@ class _ChatTileState extends State<ChatTile> {
     return context.l10n.chatTypingOne(names.first);
   }
 
+  /// The avatar flies into the chat header avatar when the chat opens.
+  Widget _avatarHero(Widget avatar) {
+    final int? chatId = widget.chatId;
+    if (chatId == null) return avatar;
+    return Hero(tag: 'chat_avatar_$chatId', child: avatar);
+  }
+
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
@@ -172,7 +180,7 @@ class _ChatTileState extends State<ChatTile> {
     final ApiBadge? statusBadge = _resolveStatusBadge(widget.partnerBadges);
 
     final bool hasUnread = widget.unreadCount > 0;
-    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final bool reduceMotion = context.reduceMotion;
     final Duration surfaceDuration = reduceMotion
         ? Duration.zero
         : M3Durations.short3;
@@ -221,7 +229,7 @@ class _ChatTileState extends State<ChatTile> {
           onSecondaryTapDown: widget.onSecondaryTapDown,
           borderRadius: AppRadii.lgRadius,
           scaleDown: 0.98,
-          releaseCurve: M3SpringCurves.spatial,
+          releaseCurve: M3SpringCurves.spatialFast,
           enableHaptics: widget.enableHaptics,
           child: ValueListenableBuilder<bool>(
             valueListenable: _isHoveredNotifier,
@@ -249,7 +257,7 @@ class _ChatTileState extends State<ChatTile> {
               return AnimatedContainer(
                 key: const ValueKey<String>('chat-tile-surface'),
                 duration: surfaceDuration,
-                curve: M3SpringCurves.gentle,
+                curve: M3SpringCurves.effectsFast,
                 decoration: BoxDecoration(
                   color: tileBg,
                   borderRadius: AppRadii.lgRadius,
@@ -275,7 +283,8 @@ class _ChatTileState extends State<ChatTile> {
                           Stack(
                             clipBehavior: Clip.none,
                             children: <Widget>[
-                              widget.isSaved
+                              _avatarHero(
+                                widget.isSaved
                                   ? SizedBox.square(
                                       key: const ValueKey<String>(
                                         'chat-tile-saved-avatar',
@@ -313,6 +322,7 @@ class _ChatTileState extends State<ChatTile> {
                                         ),
                                       ),
                                     ),
+                              ),
                               if (widget.isOnline && !widget.isSaved)
                                 Positioned(
                                   right: -1,
@@ -500,7 +510,7 @@ class _ChatTileState extends State<ChatTile> {
           // from popping while the row background is still animating.
           child: AnimatedDefaultTextStyle(
             duration: duration,
-            curve: M3SpringCurves.gentle,
+            curve: M3SpringCurves.effectsFast,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: titleStyle,
@@ -727,7 +737,7 @@ class _AnimatedBadge extends StatelessWidget {
         : scheme.onPrimary;
 
     return AnimatedSwitcher(
-      duration: MediaQuery.disableAnimationsOf(context)
+      duration: context.reduceMotion
           ? Duration.zero
           : M3Durations.short4,
       switchInCurve: M3SpringCurves.expressiveDecel,
@@ -795,7 +805,7 @@ class _TypingDotsState extends State<_TypingDots>
   }
 
   bool get _animate =>
-      !MediaQuery.disableAnimationsOf(context) &&
+      !context.reduceMotion &&
       TickerMode.valuesOf(context).enabled;
 
   @override
@@ -816,31 +826,35 @@ class _TypingDotsState extends State<_TypingDots>
     super.dispose();
   }
 
-  double _opacityAt(double t, int index) {
-    final double phase = (t + index * _stagger) % 1.0;
-    final double wave = 0.5 - 0.5 * math.cos(2 * math.pi * phase);
-    return 0.25 + 0.75 * wave;
-  }
+  // One opacity animation per dot: the dots repaint through FadeTransition
+  // and the row is not rebuilt on every frame.
+  late final List<Animation<double>> _dotOpacities = <Animation<double>>[
+    for (int i = 0; i < 3; i++) _controller.drive(_DotWave(i * _stagger)),
+  ];
 
   Widget _buildDots(double? staticOpacity) {
+    final Widget dot = Container(
+      width: _dotSize,
+      height: _dotSize,
+      decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+    );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         for (int i = 0; i < 3; i++)
           Padding(
             padding: EdgeInsets.only(left: i == 0 ? 0 : _dotGap),
-            child: Opacity(
-              key: ValueKey<String>('chat-typing-dot-$i'),
-              opacity: staticOpacity ?? _opacityAt(_controller.value, i),
-              child: Container(
-                width: _dotSize,
-                height: _dotSize,
-                decoration: BoxDecoration(
-                  color: widget.color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
+            child: staticOpacity != null
+                ? Opacity(
+                    key: ValueKey<String>('chat-typing-dot-$i'),
+                    opacity: staticOpacity,
+                    child: dot,
+                  )
+                : FadeTransition(
+                    key: ValueKey<String>('chat-typing-dot-$i'),
+                    opacity: _dotOpacities[i],
+                    child: dot,
+                  ),
           ),
       ],
     );
@@ -858,11 +872,22 @@ class _TypingDotsState extends State<_TypingDots>
     return SizedBox(
       key: const ValueKey<String>('chat-tile-typing-dots'),
       height: _dotSize,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (BuildContext context, Widget? _) => _buildDots(null),
-      ),
+      child: _buildDots(null),
     );
+  }
+}
+
+/// Opacity wave of one typing dot over the controller's cycle.
+class _DotWave extends Animatable<double> {
+  const _DotWave(this.offset);
+
+  final double offset;
+
+  @override
+  double transform(double t) {
+    final double phase = (t + offset) % 1.0;
+    final double wave = 0.5 - 0.5 * math.cos(2 * math.pi * phase);
+    return 0.25 + 0.75 * wave;
   }
 }
 

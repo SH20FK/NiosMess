@@ -1,6 +1,7 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -134,7 +135,7 @@ class _ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final progress = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
-    final reduced = MediaQuery.disableAnimationsOf(context);
+    final reduced = context.reduceMotion;
     // Geometry tracks the gesture directly; effects use a bounded M3 curve.
     final t = reduced ? (progress > .6 ? 1.0 : 0.0) : progress;
     final detailsOpacity =

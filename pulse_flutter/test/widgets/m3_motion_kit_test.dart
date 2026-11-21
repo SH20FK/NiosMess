@@ -4,33 +4,75 @@ import 'package:pulse_flutter/widgets/motion/motion.dart';
 
 void main() {
   group('M3 Expressive Motion Kit Primitives', () {
-    testWidgets('M3Pressable renders child and handles taps', (WidgetTester tester) async {
-      bool tapped = false;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
+    testWidgets('M3PressScale compresses while pressed and returns to rest', (WidgetTester tester) async {
+      Widget app({required bool pressed, bool reduced = false}) => MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(disableAnimations: reduced),
+          child: Scaffold(
             body: Center(
-              child: M3Pressable(
-                onPressed: () => tapped = true,
-                child: const Text('Press Me'),
+              child: M3PressScale(
+                pressed: pressed,
+                child: const SizedBox(width: 100, height: 40),
+              ),
+            ),
+          ),
+        ),
+      );
+      AnimatedScale scale() =>
+          tester.widget<AnimatedScale>(find.byType(AnimatedScale));
+
+      await tester.pumpWidget(app(pressed: false));
+      expect(scale().scale, 1.0);
+
+      await tester.pumpWidget(app(pressed: true));
+      expect(scale().scale, lessThan(1.0));
+      // The press never overshoots; the release rides the spatial spring.
+      expect(scale().curve, M3SpringCurves.effectsFast);
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(app(pressed: false));
+      expect(scale().curve, M3SpringCurves.spatialFast);
+      await tester.pumpAndSettle();
+      expect(scale().scale, 1.0);
+
+      await tester.pumpWidget(app(pressed: true, reduced: true));
+      expect(scale().scale, 1.0);
+      expect(scale().duration, Duration.zero);
+    });
+
+    testWidgets('M3SharedAxis moves children by pixels, not by their size', (WidgetTester tester) async {
+      Widget app(int step) => MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: M3SharedAxis(
+              slideDistance: 30,
+              child: SizedBox(
+                key: ValueKey<int>(step),
+                width: 300,
+                height: 40,
+                child: Text('Axis $step'),
               ),
             ),
           ),
         ),
       );
 
-      expect(find.text('Press Me'), findsOneWidget);
+      await tester.pumpWidget(app(1));
+      final double rest = tester.getTopLeft(find.text('Axis 1')).dx;
 
-      // Tap down triggers scale
-      final TestGesture gesture = await tester.startGesture(tester.getCenter(find.text('Press Me')));
-      await tester.pump(const Duration(milliseconds: 70));
+      await tester.pumpWidget(app(2));
+      await tester.pump();
+      // A 300 dp wide child starts 30 dp away, not 90 dp (30 % of its width).
+      expect(tester.getTopLeft(find.text('Axis 2')).dx, closeTo(rest + 30, 0.5));
+      // The outgoing child starts in place instead of jumping aside.
+      expect(tester.getTopLeft(find.text('Axis 1')).dx, closeTo(rest, 0.5));
 
-      // Release
-      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(tester.getTopLeft(find.text('Axis 1')).dx, lessThan(rest));
+
       await tester.pumpAndSettle();
-
-      expect(tapped, isTrue);
+      expect(find.text('Axis 1'), findsNothing);
+      expect(tester.getTopLeft(find.text('Axis 2')).dx, closeTo(rest, 0.001));
     });
 
     testWidgets('M3MorphingIcon renders initial icon and morphs on change', (WidgetTester tester) async {

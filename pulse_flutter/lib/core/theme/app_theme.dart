@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
+import 'package:pulse_flutter/core/motion/m3_page_transitions.dart';
 import 'package:pulse_flutter/core/motion/pulse_predictive_back_transition.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
@@ -485,11 +486,13 @@ class AppTheme {
               ? PulsePredictiveBackPageTransitionsBuilder(
                   strength: settings.predictiveBackStrength,
                 )
-              : const ZoomPageTransitionsBuilder(),
+              : const M3SharedAxisPageTransitionsBuilder(),
+          // Cupertino keeps the edge swipe-back gesture on iOS.
           TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS: const CupertinoPageTransitionsBuilder(),
-          TargetPlatform.windows: const ZoomPageTransitionsBuilder(),
-          TargetPlatform.linux: const ZoomPageTransitionsBuilder(),
+          TargetPlatform.macOS: const M3SharedAxisPageTransitionsBuilder(),
+          TargetPlatform.windows: const M3SharedAxisPageTransitionsBuilder(),
+          TargetPlatform.linux: const M3SharedAxisPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: const M3SharedAxisPageTransitionsBuilder(),
         },
       ),
     );

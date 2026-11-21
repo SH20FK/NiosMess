@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/constants/build_info.dart';
 import 'package:pulse_flutter/core/constants/team.dart';
@@ -108,7 +109,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     final l = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    final reduced = MediaQuery.disableAnimationsOf(context);
+    final reduced = context.reduceMotion;
     return SettingsShell(
       title: l.settingsV2About,
       isEmbedded: widget.isEmbedded,

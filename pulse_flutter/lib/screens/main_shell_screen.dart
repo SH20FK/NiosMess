@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
@@ -36,7 +37,6 @@ import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
-import 'package:pulse_flutter/widgets/nav/tab_shared_axis_switcher.dart';
 import 'package:pulse_flutter/widgets/update/app_update_dialog.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/core/services/background_service.dart';
@@ -501,7 +501,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                       ),
                       Expanded(
                         child: AnimatedSwitcher(
-                          duration: MediaQuery.disableAnimationsOf(context)
+                          duration: context.reduceMotion
                               ? Duration.zero
                               : M3Durations.medium1,
                           switchInCurve: M3SpringCurves.expressiveDecel,
@@ -568,7 +568,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               final PerformanceTier tier = ref.watch(
                 adaptivePerformanceProvider.select((s) => s.tier),
               );
-              final bool tabMotion = !MediaQuery.disableAnimationsOf(context);
+              final bool tabMotion = !context.reduceMotion;
 
               final Widget body = NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
@@ -595,13 +595,10 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   index: currentIndex,
                   controller: _tabTransition,
                   animate: tabMotion,
+                  // Same duration as the navigation bar indicator.
                   duration: tier.isTierC
-                      ? const Duration(milliseconds: 200)
-                      : tier.isTierA
-                      ? (isWide
-                            ? const Duration(milliseconds: 300)
-                            : const Duration(milliseconds: 320))
-                      : const Duration(milliseconds: 300),
+                      ? M3Durations.short4
+                      : M3Durations.medium2,
                   children: List<Widget>.generate(pages.length, (int index) {
                     if (!_activatedTabs.contains(index)) {
                       return const SizedBox.shrink();
@@ -609,7 +606,11 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                     final bool isActive = index == currentIndex;
                     return TickerMode(
                       enabled: isActive,
-                      child: RepaintBoundary(child: pages[index]),
+                      // Chat tiles of a hidden tab must not start Hero flights.
+                      child: HeroMode(
+                        enabled: isActive,
+                        child: RepaintBoundary(child: pages[index]),
+                      ),
                     );
                   }),
                 ),
@@ -819,7 +820,7 @@ class _InboxComposerScrim extends ConsumerWidget {
     return IgnorePointer(
       child: AnimatedOpacity(
         opacity: visible ? 1 : 0,
-        duration: MediaQuery.disableAnimationsOf(context)
+        duration: context.reduceMotion
             ? Duration.zero
             : M3Durations.short4,
         curve: M3SpringCurves.expressiveDecel,
@@ -880,7 +881,7 @@ class _DraggableSidebarDividerState extends State<_DraggableSidebarDivider> {
           color: Colors.transparent,
           alignment: Alignment.center,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: M3Durations.short3,
             width: isHighlighted ? 2.5 : 1.0,
             color: isHighlighted
                 ? scheme.primary

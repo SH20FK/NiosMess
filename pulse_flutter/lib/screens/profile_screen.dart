@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -567,7 +568,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   );
 
   Widget _animatedDetail(SettingsSectionId section) {
-    final reduced = MediaQuery.disableAnimationsOf(context);
+    final reduced = context.reduceMotion;
     return AnimatedSwitcher(
       duration: reduced ? Duration.zero : M3Durations.medium1,
       reverseDuration: reduced ? Duration.zero : M3Durations.short3,

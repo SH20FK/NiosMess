@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/screens/feed_post_screen.dart';
 import 'package:pulse_flutter/router/web_settings_location.dart';
 import 'package:pulse_flutter/core/services/incoming_app_route.dart';
@@ -71,62 +72,30 @@ Page<void> _m3eEntryPage(
   return CustomTransitionPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
-    transitionDuration: const Duration(milliseconds: 280),
-    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionDuration: M3Durations.spatialDefault,
+    reverseTransitionDuration: M3Durations.effectsSlow,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      if (MediaQuery.disableAnimationsOf(context)) return child;
-      final curvedAnimation = CurvedAnimation(
-        parent: animation,
-        curve: M3SpringCurves.expressiveDecel,
-        reverseCurve: Curves.easeInCubic,
-      );
+      if (context.reduceMotion) return child;
+      // Fade through: the entry screens have no spatial relationship.
       return FadeTransition(
-        opacity: CurvedAnimation(
-          parent: animation,
-          curve: const Interval(0.0, 0.75, curve: Curves.easeOut),
+        opacity: animation.drive(
+          CurveTween(
+            curve: const Interval(
+              0.0,
+              0.4,
+              curve: M3SpringCurves.effectsDefault,
+            ),
+          ),
         ),
         child: ScaleTransition(
-          scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnimation),
+          scale: animation.drive(
+            Tween<double>(
+              begin: 0.92,
+              end: 1.0,
+            ).chain(CurveTween(curve: M3SpringCurves.spatialDefault)),
+          ),
           child: child,
         ),
-      );
-    },
-  );
-}
-
-Page<void> _chatDetailPage(
-  GoRouterState state,
-  Widget child, {
-  LocalKey? pageKey,
-}) {
-  return CustomTransitionPage<void>(
-    key: pageKey ?? state.pageKey,
-    child: child,
-    transitionDuration: const Duration(milliseconds: 240),
-    reverseTransitionDuration: const Duration(milliseconds: 240),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      if (MediaQuery.disableAnimationsOf(context)) return child;
-      final Animation<Offset> slideAnim =
-          Tween<Offset>(
-            begin: const Offset(0.03, 0.0), // ~12dp subtle translation
-            end: Offset.zero,
-          ).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: M3SpringCurves.expressiveDecel,
-              reverseCurve: Curves.easeInCubic,
-            ),
-          );
-
-      final Animation<double> fadeAnim = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      );
-
-      return SlideTransition(
-        position: slideAnim,
-        child: FadeTransition(opacity: fadeAnim, child: child),
       );
     },
   );
@@ -382,7 +351,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
                 },
               ).toString()
             : null,
-        pageBuilder: (context, state) => _chatDetailPage(
+        pageBuilder: (context, state) => _page(
           state,
           ChatDetailScreen(
             chatId: state.pathParameters['chatId']!,
@@ -433,29 +402,17 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             key: state.pageKey,
             opaque: false,
             barrierColor: Colors.transparent,
-            transitionDuration: const Duration(milliseconds: 320),
-            reverseTransitionDuration: const Duration(milliseconds: 260),
+            transitionDuration: M3Durations.effectsSlow,
+            reverseTransitionDuration: M3Durations.effectsSlow,
+            // The Hero carries the spatial motion; the page itself only fades.
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-                  if (MediaQuery.disableAnimationsOf(context)) return child;
-                  final scaleAnimation = Tween<double>(begin: 0.90, end: 1.0).animate(
-                    CurvedAnimation(
-                      parent: animation,
-                      curve: M3SpringCurves.spatial,
-                      reverseCurve: M3SpringCurves.gentle,
-                    ),
-                  );
-                  final fadeAnimation = CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                    reverseCurve: Curves.easeInCubic,
-                  );
+                  if (context.reduceMotion) return child;
                   return FadeTransition(
-                    opacity: fadeAnimation,
-                    child: ScaleTransition(
-                      scale: scaleAnimation,
-                      child: child,
+                    opacity: animation.drive(
+                      CurveTween(curve: M3SpringCurves.effectsSlow),
                     ),
+                    child: child,
                   );
                 },
             child: MediaViewerScreen(

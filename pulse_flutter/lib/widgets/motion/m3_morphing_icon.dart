@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Material 3 Expressive morphing icon widget.
 ///
-/// Smoothly morphs between icons using normalized spring physics ([M3SpringCurves.spatial])
+/// Smoothly morphs between icons using normalized spring physics ([M3SpringCurves.spatialDefault])
 /// and expressive fade easing ([M3SpringCurves.expressiveDecel]).
 class M3MorphingIcon extends StatefulWidget {
   const M3MorphingIcon({
@@ -12,7 +13,7 @@ class M3MorphingIcon extends StatefulWidget {
     this.size = 24.0,
     this.color,
     this.duration = const Duration(milliseconds: 260),
-    this.curve = M3SpringCurves.spatial,
+    this.curve = M3SpringCurves.spatialDefault,
     this.semanticLabel,
   });
 
@@ -105,8 +106,7 @@ class _M3MorphingIconState extends State<M3MorphingIcon>
 
   @override
   Widget build(BuildContext context) {
-    final bool disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final bool disableAnimations = context.reduceMotion;
 
     if (disableAnimations) {
       return Icon(

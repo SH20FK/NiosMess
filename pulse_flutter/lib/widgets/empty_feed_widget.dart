@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 
@@ -56,17 +55,7 @@ class EmptyFeedWidget extends StatelessWidget {
                     ),
                   ),
                 )
-                    .animate(
-                      value: MediaQuery.disableAnimationsOf(context) ? 1 : null,
-                      autoPlay: !MediaQuery.disableAnimationsOf(context),
-                    )
-                    .scale(
-                      begin: const Offset(0.92, 0.92),
-                      end: const Offset(1.0, 1.0),
-                      duration: const Duration(milliseconds: 250),
-                      curve: M3SpringCurves.expressiveDecel,
-                    )
-                    .fade(duration: const Duration(milliseconds: 200))
+                    .entrance(scaleFrom: 0.92)
               else
                 const EmptyFeedIllustration(size: 160),
 

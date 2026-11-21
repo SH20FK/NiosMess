@@ -1,6 +1,7 @@
 import 'dart:ui' show clampDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/motion/m3_page_transitions.dart';
 
 /// The phases of a predictive back gesture.
 enum PulsePredictiveBackPhase {
@@ -30,24 +31,19 @@ typedef PulsePredictiveBackGestureDetectorWidgetBuilder = Widget Function(
 /// A customizable Material 3 Predictive Back page transitions builder that
 /// adapts its scale depth, corner radius, and translation by [strength].
 ///
-/// Supported on Android U (14+) and falls back to standard Material 3
-/// forward-fade or upwards fade transitions when predictive back is not active.
+/// Supported on Android U (14+). Outside of a back gesture the route uses
+/// [M3SharedAxisPageTransitionsBuilder].
 class PulsePredictiveBackPageTransitionsBuilder extends PageTransitionsBuilder {
-  const PulsePredictiveBackPageTransitionsBuilder({
-    this.strength = 1.0,
-    this.fallbackColor,
-  });
+  const PulsePredictiveBackPageTransitionsBuilder({this.strength = 1.0});
+
+  static const M3SharedAxisPageTransitionsBuilder _fallback =
+      M3SharedAxisPageTransitionsBuilder();
 
   /// Scale, corner radius, and spatial translation multiplier (0.5 to 1.5).
   final double strength;
 
-  /// Background scrim color when falling back to default page transitions.
-  final Color? fallbackColor;
-
   @override
-  Duration get transitionDuration => const Duration(
-        milliseconds: FadeForwardsPageTransitionsBuilder.kTransitionMilliseconds,
-      );
+  Duration get transitionDuration => _fallback.transitionDuration;
 
   @override
   Widget buildTransitions<T>(
@@ -77,9 +73,13 @@ class PulsePredictiveBackPageTransitionsBuilder extends PageTransitionsBuilder {
           );
         }
 
-        return FadeForwardsPageTransitionsBuilder(
-          backgroundColor: fallbackColor,
-        ).buildTransitions(route, context, animation, secondaryAnimation, child);
+        return _fallback.buildTransitions(
+          route,
+          context,
+          animation,
+          secondaryAnimation,
+          child,
+        );
       },
     );
   }
@@ -202,7 +202,7 @@ class _PulsePredictiveBackSharedElementPageTransitionState
   static const Interval _kCommitInterval = Interval(
     0.0,
     _kCommitMilliseconds /
-        FadeForwardsPageTransitionsBuilder.kTransitionMilliseconds,
+        M3SharedAxisPageTransitionsBuilder.kTransitionMilliseconds,
     curve: _kCurve,
   );
 

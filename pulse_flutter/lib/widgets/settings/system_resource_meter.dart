@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// A capacity measurement, not loading. The fill animates; labels stay truthful.
@@ -61,7 +62,7 @@ class SystemResourceMeter extends StatelessWidget {
               RepaintBoundary(
                 child: TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: ratio),
-                  duration: MediaQuery.disableAnimationsOf(context)
+                  duration: context.reduceMotion
                       ? Duration.zero
                       : M3Durations.medium4,
                   curve: M3SpringCurves.expressiveDecel,

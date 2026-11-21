@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 
 class OfflineBanner extends StatelessWidget {
@@ -13,11 +14,11 @@ class OfflineBanner extends StatelessWidget {
     final TextTheme textTheme = theme.textTheme;
 
     return AnimatedSize(
-      duration: const Duration(milliseconds: 250),
+      duration: M3Durations.medium1,
       curve: Curves.easeOutCubic,
       child: AnimatedOpacity(
         opacity: isOffline ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 200),
+        duration: M3Durations.short4,
         child: isOffline
             ? SafeArea(
                 bottom: false,

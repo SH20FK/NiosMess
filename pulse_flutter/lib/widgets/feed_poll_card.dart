@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -183,10 +184,10 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
                               alignment: Alignment.centerLeft,
                               child: TweenAnimationBuilder<double>(
                                 duration:
-                                    MediaQuery.disableAnimationsOf(context)
+                                    context.reduceMotion
                                     ? Duration.zero
-                                    : const Duration(milliseconds: 400),
-                                curve: M3SpringCurves.spatial,
+                                    : M3Durations.medium4,
+                                curve: M3SpringCurves.spatialDefault,
                                 tween: Tween(
                                   begin: 0,
                                   end:
@@ -198,7 +199,7 @@ class _FeedPollCardState extends ConsumerState<FeedPollCard> {
                                 ),
                                 builder: (context, value, child) =>
                                     FractionallySizedBox(
-                                      widthFactor: value,
+                                      widthFactor: value.clamp(0.0, 1.0),
                                       child: child,
                                     ),
                                 child: ColoredBox(

@@ -6,6 +6,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
@@ -291,7 +292,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                             shape: BoxShape.circle,
                           ),
                           child: AnimatedSwitcher(
-                            duration: MediaQuery.disableAnimationsOf(context)
+                            duration: context.reduceMotion
                                 ? Duration.zero
                                 : M3Durations.short3,
                             switchInCurve: M3SpringCurves.expressiveDecel,

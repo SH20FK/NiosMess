@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -15,7 +16,7 @@ class InboxComposeButton extends ConsumerWidget {
     final bool isVisible = ref.watch(chatListFabVisibleProvider);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final bool reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final bool reducedMotion = context.reduceMotion;
     final Duration motionDuration = reducedMotion
         ? Duration.zero
         : M3Durations.short4;
@@ -23,7 +24,7 @@ class InboxComposeButton extends ConsumerWidget {
     return AnimatedSlide(
       offset: isVisible ? Offset.zero : const Offset(0, 0.35),
       duration: motionDuration,
-      curve: M3SpringCurves.gentle,
+      curve: M3SpringCurves.spatialFast,
       child: AnimatedOpacity(
         opacity: isVisible ? 1.0 : 0.0,
         duration: motionDuration,

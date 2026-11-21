@@ -41,13 +41,15 @@ import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, compute;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, compute, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/smooth_text_streamer.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
@@ -255,10 +257,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       },
     );
     _inputController.addListener(_onInputChanged);
-    _inputFocusNode = FocusNode()
-      ..addListener(() {
-        if (mounted) setState(() {});
-      });
+    _inputFocusNode = FocusNode();
     final int? cid = _chatId;
     if (cid != null) PushNotificationService.setCurrentChat(cid);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2481,13 +2480,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     ],
                   ),
                   messagesBuilder:
-                      (BuildContext context, double composerHeight) {
+                      (
+                        BuildContext context,
+                        ValueListenable<double> bottomInset,
+                      ) {
                         return _ChatMessagesScope(
                           chatId: chatId,
                           highlightMessageId: widget.highlightMessageId,
                           scrollCoordinator: _scrollCoordinator,
                           inputFocusNode: _inputFocusNode,
-                          composerHeight: composerHeight,
+                          bottomInset: bottomInset,
                           onOpenComments: (ApiMessage msg) {
                             context.push(
                               '/channel/$chatId/post/${msg.id}/comments',
@@ -2802,7 +2804,7 @@ class _ChatMessagesScope extends ConsumerWidget {
     this.highlightMessageId,
     required this.scrollCoordinator,
     required this.inputFocusNode,
-    required this.composerHeight,
+    required this.bottomInset,
     required this.onOpenComments,
     required this.onReactionTap,
     required this.onOpenMedia,
@@ -2822,7 +2824,7 @@ class _ChatMessagesScope extends ConsumerWidget {
   final int? highlightMessageId;
   final ChatScrollCoordinator scrollCoordinator;
   final FocusNode inputFocusNode;
-  final double composerHeight;
+  final ValueListenable<double> bottomInset;
   final void Function(ApiMessage) onOpenComments;
   final void Function(ApiMessage, String) onReactionTap;
   final void Function(ApiMessage) onOpenMedia;
@@ -2915,7 +2917,7 @@ class _ChatMessagesScope extends ConsumerWidget {
           amAdminOrOwner: amAdminOrOwner,
           isChannel: isChannel,
           isGroup: isGroup,
-          bottomPadding: composerHeight + 8.0,
+          bottomPadding: bottomInset,
           topPadding: 48.0,
           onOpenComments: onOpenComments,
           onReactionTap: onReactionTap,
@@ -2939,12 +2941,14 @@ class _ChatMessagesScope extends ConsumerWidget {
               ({
                 required int messageId,
                 required bool animate,
+                required int staggerIndex,
                 required bool isMine,
                 required Widget child,
               }) {
                 return _AnimatedMessage(
                   key: ValueKey<int>(messageId),
                   animate: animate,
+                  staggerIndex: staggerIndex,
                   isMine: isMine,
                   child: child,
                 );
@@ -3145,11 +3149,15 @@ class _AnimatedMessage extends StatefulWidget {
     required this.animate,
     required this.isMine,
     required this.child,
+    this.staggerIndex = 0,
   });
 
   final bool animate;
   final bool isMine;
   final Widget child;
+
+  /// Place in a batch of messages that arrived together; delays the entrance.
+  final int staggerIndex;
 
   @override
   State<_AnimatedMessage> createState() => _AnimatedMessageState();
@@ -3161,6 +3169,9 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
   Animation<double>? _fade;
   Animation<double>? _scale;
   Animation<double>? _slideY;
+  Timer? _staggerTimer;
+
+  static const Duration _staggerStep = Duration(milliseconds: 40);
 
   @override
   void initState() {
@@ -3168,37 +3179,70 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
     if (widget.animate) {
       final ctrl = AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 200),
+        duration: M3Durations.spatialFast,
       );
       _controller = ctrl;
-      final CurvedAnimation curve = CurvedAnimation(
-        parent: ctrl,
-        curve: M3SpringCurves.gentle,
+      // Position and scale ride the spatial spring; opacity stays on an
+      // effects curve so it never overshoots.
+      _fade = ctrl.drive(
+        CurveTween(
+          curve: const Interval(
+            0.0,
+            0.5,
+            curve: M3SpringCurves.effectsDefault,
+          ),
+        ),
       );
-      _fade = Tween<double>(begin: 0.0, end: 1.0).animate(curve);
-      _scale = Tween<double>(begin: 0.98, end: 1.0).animate(curve);
-      _slideY = Tween<double>(begin: 10.0, end: 0.0).animate(curve);
-      ctrl.forward();
+      _scale = ctrl.drive(
+        Tween<double>(
+          begin: 0.94,
+          end: 1.0,
+        ).chain(CurveTween(curve: M3SpringCurves.spatialFast)),
+      );
+      _slideY = ctrl.drive(
+        Tween<double>(
+          begin: 16.0,
+          end: 0.0,
+        ).chain(CurveTween(curve: M3SpringCurves.spatialFast)),
+      );
+      final int stagger = widget.staggerIndex;
+      if (stagger > 0) {
+        // Until its turn the row stays at the start of the entrance.
+        _staggerTimer = Timer(_staggerStep * stagger, () {
+          if (mounted) ctrl.forward();
+        });
+      } else {
+        ctrl.forward();
+      }
     }
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (context.reduceMotion) _controller?.value = 1.0;
+  }
+
+  @override
   void dispose() {
+    _staggerTimer?.cancel();
     _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.animate || _controller == null) {
+    // Keyed on the controller, not on `animate`: the list stops asking for
+    // the entrance one frame after it starts, and it must still play out.
+    if (_controller == null) {
       return widget.child;
     }
-    return AnimatedBuilder(
-      animation: _controller!,
-      builder: (BuildContext context, Widget? child) {
-        return Opacity(
-          opacity: _fade!.value,
-          child: Transform.translate(
+    return FadeTransition(
+      opacity: _fade!,
+      child: AnimatedBuilder(
+        animation: _controller!,
+        builder: (BuildContext context, Widget? child) {
+          return Transform.translate(
             offset: Offset(0, _slideY!.value),
             child: Transform.scale(
               scale: _scale!.value,
@@ -3207,10 +3251,10 @@ class _AnimatedMessageState extends State<_AnimatedMessage>
                   : Alignment.bottomLeft,
               child: child,
             ),
-          ),
-        );
-      },
-      child: widget.child,
+          );
+        },
+        child: widget.child,
+      ),
     );
   }
 }
@@ -3229,10 +3273,38 @@ class _TypingSubtitle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final TypingState typing = ref.watch(typingProvider(chatId));
+    final int count = ref.watch(
+      typingProvider(chatId).select((TypingState s) => s.typingUserIds.length),
+    );
+    final String state = count == 1
+        ? 'typing'
+        : count > 1
+        ? 'typing-many'
+        : isDirect && isOnline
+        ? 'online'
+        : 'idle';
+
+    // Every state is a single bodySmall line, so the cross-fade keeps the
+    // header height fixed.
+    return AnimatedSwitcher(
+      duration: context.motionDuration(M3Durations.short4),
+      switchInCurve: M3SpringCurves.effectsDefault,
+      switchOutCurve: M3SpringCurves.effectsFast,
+      layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) =>
+          Stack(
+            alignment: AlignmentDirectional.centerStart,
+            children: <Widget>[...previousChildren, ?currentChild],
+          ),
+      child: KeyedSubtree(
+        key: ValueKey<String>(state),
+        child: _content(context, count),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, int count) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
-    final int count = typing.typingUserIds.length;
 
     if (count == 1) {
       return Text(

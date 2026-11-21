@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 
 enum AppIllustrationMotionPolicy {
   never,
@@ -7,10 +8,6 @@ enum AppIllustrationMotionPolicy {
 
   bool shouldAnimate(BuildContext context) {
     if (this == never) return false;
-    final MediaQueryData? data = MediaQuery.maybeOf(context);
-    if (data != null && data.disableAnimations) {
-      return false;
-    }
-    return true;
+    return !context.reduceMotion;
   }
 }

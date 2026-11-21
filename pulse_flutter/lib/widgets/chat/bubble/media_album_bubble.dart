@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:ui' as ui;
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -227,12 +228,12 @@ class _MediaAlbumBubbleState extends ConsumerState<MediaAlbumBubble> {
                   tooltip: context.l10n.chatAlbumPrevious,
                   onPressed: () {
                     if ((page.page ?? 0) > 0) {
-                      if (MediaQuery.disableAnimationsOf(context)) {
+                      if (context.reduceMotion) {
                         page.jumpToPage((page.page ?? 0).round() - 1);
                       } else {
                         page.previousPage(
-                        duration: const Duration(milliseconds: 250),
-                        curve: M3SpringCurves.gentle,
+                        duration: M3Durations.medium1,
+                        curve: M3SpringCurves.spatialDefault,
                         );
                       }
                     }
@@ -244,12 +245,12 @@ class _MediaAlbumBubbleState extends ConsumerState<MediaAlbumBubble> {
                   tooltip: context.l10n.chatAlbumNext,
                   onPressed: () {
                     if ((page.page ?? 0) < images.length - 1) {
-                      if (MediaQuery.disableAnimationsOf(context)) {
+                      if (context.reduceMotion) {
                         page.jumpToPage((page.page ?? 0).round() + 1);
                       } else {
                         page.nextPage(
-                        duration: const Duration(milliseconds: 250),
-                        curve: M3SpringCurves.gentle,
+                        duration: M3Durations.medium1,
+                        curve: M3SpringCurves.spatialDefault,
                         );
                       }
                     }

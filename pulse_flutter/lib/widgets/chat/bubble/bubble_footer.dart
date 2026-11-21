@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
@@ -136,7 +137,7 @@ class MessageBubbleFooter extends StatelessWidget {
                   width: 20,
                   height: 20,
                   child: AnimatedSwitcher(
-                    duration: MediaQuery.disableAnimationsOf(context)
+                    duration: context.reduceMotion
                         ? Duration.zero
                         : M3Durations.short3,
                     switchInCurve: M3SpringCurves.expressiveDecel,
@@ -176,33 +177,48 @@ class SelfDestructCountdownPill extends StatefulWidget {
       SelfDestructCountdownPillState();
 }
 
-class SelfDestructCountdownPillState extends State<SelfDestructCountdownPill> {
+/// One periodic timer shared by every countdown pill on screen. It runs only
+/// while at least one pill listens.
+class _SecondTicker extends ChangeNotifier {
+  _SecondTicker._();
+
+  static final _SecondTicker instance = _SecondTicker._();
+
   Timer? _timer;
+
+  @override
+  void addListener(VoidCallback listener) {
+    super.addListener(listener);
+    _timer ??= Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => notifyListeners(),
+    );
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    super.removeListener(listener);
+    if (!hasListeners) {
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
+}
+
+class SelfDestructCountdownPillState extends State<SelfDestructCountdownPill> {
+  void _onTick() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
-    _startTimer();
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant SelfDestructCountdownPill oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.expiresAt != widget.expiresAt) {
-      _startTimer();
-    }
+    _SecondTicker.instance.addListener(_onTick);
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _SecondTicker.instance.removeListener(_onTick);
     super.dispose();
   }
 

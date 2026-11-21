@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -94,14 +93,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             children: <Widget>[
               // Hero Brand Logo with unified tag and M3 spring motion
               Hero(tag: 'app_brand_logo', child: const AppLogoMark(size: 96))
-                  .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context))
-                  .scale(
-                    begin: const Offset(0.82, 0.82),
-                    end: const Offset(1, 1),
-                    duration: const Duration(milliseconds: 380),
-                    curve: M3SpringCurves.spatial,
-                  )
-                  .fade(duration: const Duration(milliseconds: 300)),
+                  .entrance(scaleFrom: 0.82),
               const SizedBox(height: 20),
 
               Text(
@@ -110,10 +102,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                 ),
-              ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
-                delay: const Duration(milliseconds: 80),
-                duration: const Duration(milliseconds: 280),
-              ),
+              ).entrance(delay: const Duration(milliseconds: 80)),
               const SizedBox(height: 8),
 
               Text(
@@ -122,10 +111,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   color: scheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
-              ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
-                delay: const Duration(milliseconds: 140),
-                duration: const Duration(milliseconds: 280),
-              ),
+              ).entrance(delay: const Duration(milliseconds: 140)),
               const SizedBox(height: 36),
 
               // Dynamic State: Error with Retry, or subtle M3 indicator if delayed
@@ -184,15 +170,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                       ),
                     ],
                   ),
-                ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(duration: const Duration(milliseconds: 250)),
+                ).entrance(),
               ] else if (_isRetrying) ...[
                 AppLoadingIndicator(
                   size: 28,
                   color: scheme.primary,
-                ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
-                  delay: const Duration(milliseconds: 500),
-                  duration: const Duration(milliseconds: 300),
-                ),
+                ).entrance(delay: const Duration(milliseconds: 500)),
               ],
             ],
           ),

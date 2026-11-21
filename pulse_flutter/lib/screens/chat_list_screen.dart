@@ -34,6 +34,8 @@ import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_filter_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
+import 'package:pulse_flutter/widgets/chat/reorder_slide.dart';
+import 'package:pulse_flutter/widgets/chat/swipe_action_row.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/chat/chat_actions_modal.dart';
@@ -412,27 +414,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           delegate: SliverChildBuilderDelegate(
             (BuildContext context, int index) {
               final ApiChatSummary chat = filtered[index];
-              final Widget item = Dismissible(
+              final Widget item = SwipeActionRow(
                 key: ValueKey<String>('chat_${chat.id}'),
-                direction: chat.unreadCount > 0
-                    ? DismissDirection.startToEnd
-                    : DismissDirection.none,
+                enabled: chat.unreadCount > 0,
                 // 35% (~119 dp on a 340 dp row) leaves room for the whole
                 // "Прочитано" label; 40% used to trigger on a clipped label.
-                dismissThresholds: const <DismissDirection, double>{
-                  DismissDirection.startToEnd: 0.35,
-                },
+                threshold: 0.35,
                 background: _swipeBackground(
                   context: context,
                   icon: Icons.done_all_rounded,
                   label: context.l10n.deliveryRead,
                 ),
-                confirmDismiss: (DismissDirection direction) async {
+                onTriggered: () {
                   if (ref.read(uiSettingsProvider).haptics) {
                     HapticService.tap();
                   }
-                  await _markRead(chat);
-                  return false;
+                  unawaited(_markRead(chat));
                 },
                 child: Consumer(
                   builder: (BuildContext context, WidgetRef ref, _) {
@@ -554,7 +551,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   padding: EdgeInsets.only(
                     bottom: index == filtered.length - 1 ? 0 : 2,
                   ),
-                  child: item,
+                  // A chat that changes place (new message, pin) slides to
+                  // its new slot; switching filter or folder does not.
+                  child: ReorderSlide(
+                    index: index,
+                    scope: (filter, selected),
+                    gap: 2,
+                    child: item,
+                  ),
                 ),
               );
             },

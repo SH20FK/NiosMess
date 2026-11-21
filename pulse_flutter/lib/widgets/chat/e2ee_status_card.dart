@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
@@ -75,10 +76,10 @@ class _E2eeStatusCardState extends ConsumerState<E2eeStatusCard> {
         ? secretStatusLabel(context, status)
         : context.l10n.secretQueued;
     return AnimatedSize(
-      duration: MediaQuery.disableAnimationsOf(context)
+      duration: context.reduceMotion
           ? Duration.zero
-          : const Duration(milliseconds: 250),
-      curve: M3SpringCurves.spatial,
+          : M3Durations.medium1,
+      curve: M3SpringCurves.spatialDefault,
       child: !visible
           ? const SizedBox.shrink()
           : Padding(

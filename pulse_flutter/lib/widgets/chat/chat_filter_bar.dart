@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -162,7 +163,12 @@ class ChatFilterBar extends ConsumerWidget {
           shaderCallback: (Rect bounds) => LinearGradient(
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
-            colors: const <Color>[Colors.white, Colors.white, Colors.transparent],
+            // Only the alpha matters for dstIn; any opaque tone works.
+            colors: <Color>[
+              scheme.surface,
+              scheme.surface,
+              scheme.surface.withValues(alpha: 0),
+            ],
             stops: const <double>[0.0, 0.92, 1.0],
           ).createShader(bounds),
           blendMode: BlendMode.dstIn,
@@ -258,7 +264,7 @@ class _FilterPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
-    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final bool reduceMotion = context.reduceMotion;
     final int? count = badgeCount;
     final bool showBadge = count != null && count > 0;
 
@@ -283,8 +289,8 @@ class _FilterPill extends StatelessWidget {
         child: AnimatedContainer(
           duration: reduceMotion
               ? Duration.zero
-              : const Duration(milliseconds: 200),
-          curve: M3SpringCurves.gentle,
+              : M3Durations.short4,
+          curve: M3SpringCurves.effectsDefault,
           constraints: BoxConstraints.tightFor(height: minHeight),
           padding: EdgeInsets.only(
             left: 14,

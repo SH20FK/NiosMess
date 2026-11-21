@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
@@ -396,7 +397,7 @@ class _ProfileSharedMediaTabViewState
 
         // ── Active Tab View with Smooth Transition (Unified Scrolling) ──
         AnimatedSwitcher(
-          duration: MediaQuery.disableAnimationsOf(context)
+          duration: context.reduceMotion
               ? Duration.zero
               : M3Durations.short4,
           switchInCurve: M3SpringCurves.expressiveDecel,
@@ -543,7 +544,7 @@ class _ProfileSharedMediaTabViewState
                 borderRadius: BorderRadius.circular(20),
                 child: AnimatedContainer(
                   duration: M3Durations.medium1,
-                  curve: M3SpringCurves.spatial,
+                  curve: M3SpringCurves.effectsDefault,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected
@@ -1136,7 +1137,7 @@ class _ProfileSharedMediaTabViewState
           ],
         ),
       ),
-    ).animate().fade(duration: 250.ms);
+    ).entrance();
   }
 
   String _formatDuration(int seconds) {

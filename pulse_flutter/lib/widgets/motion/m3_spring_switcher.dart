@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Available animation transition modes for [M3SpringSwitcher].
@@ -23,7 +24,7 @@ enum M3SwitcherType {
 ///
 /// Ensures strict mathematical normalization:
 /// - Opacity transitions NEVER use bouncy/overshoot curves; strictly [M3SpringCurves.expressiveDecel].
-/// - Spatial/scale transitions utilize normalized [M3SpringCurves.spatial].
+/// - Spatial/scale transitions utilize normalized [M3SpringCurves.spatialDefault].
 /// - Zero per-frame clipping or save-layers.
 class M3SpringSwitcher extends StatelessWidget {
   const M3SpringSwitcher({
@@ -32,7 +33,7 @@ class M3SpringSwitcher extends StatelessWidget {
     this.type = M3SwitcherType.fadeScale,
     this.duration = const Duration(milliseconds: 300),
     this.reverseDuration,
-    this.switchInCurve = M3SpringCurves.spatial,
+    this.switchInCurve = M3SpringCurves.spatialDefault,
     this.switchOutCurve = M3SpringCurves.expressiveDecel,
     this.layoutBuilder = AnimatedSwitcher.defaultLayoutBuilder,
   });
@@ -121,9 +122,14 @@ class M3SpringSwitcher extends StatelessWidget {
           curve: switchInCurve,
           reverseCurve: switchOutCurve,
         );
-        return ScaleTransition(
-          scale: scaleAnim,
-          child: child,
+        // Scales from 0.6, never from a point, and fades so the outgoing
+        // child does not pop.
+        return FadeTransition(
+          opacity: fadeAnim,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.6, end: 1.0).animate(scaleAnim),
+            child: child,
+          ),
         );
 
       case M3SwitcherType.fade:
@@ -136,8 +142,7 @@ class M3SpringSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final bool disableAnimations = context.reduceMotion;
 
     if (disableAnimations) {
       return child ?? const SizedBox.shrink();

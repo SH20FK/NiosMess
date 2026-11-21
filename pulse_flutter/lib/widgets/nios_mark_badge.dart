@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/identity/nios_mark.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
@@ -37,7 +39,7 @@ class _NiosMarkBadgeState extends ConsumerState<NiosMarkBadge>
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: M3Durations.medium1,
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeOutCubic),
@@ -54,7 +56,7 @@ class _NiosMarkBadgeState extends ConsumerState<NiosMarkBadge>
     if (!widget.interactive) return;
 
     TriSync.pop(ref: ref);
-    if (!MediaQuery.disableAnimationsOf(context)) {
+    if (!context.reduceMotion) {
       _pulseController.forward().then((_) {
         if (mounted) _pulseController.reverse();
       });

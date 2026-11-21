@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/widgets/chat/expression_picker_components.dart';
 import 'dart:async';
@@ -370,10 +371,10 @@ class _StickerTileState extends State<_StickerTile> {
           : widget.sticker.emoji,
       child: AnimatedScale(
         scale: _pressed ? .94 : 1,
-        duration: MediaQuery.disableAnimationsOf(context)
+        duration: context.reduceMotion
             ? Duration.zero
             : M3Durations.short4,
-        curve: M3SpringCurves.snappy,
+        curve: M3SpringCurves.spatialFast,
         child: Material(
           color: scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(24),

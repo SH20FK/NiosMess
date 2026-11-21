@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -387,14 +387,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             tag: 'app_brand_logo',
             child: const AppLogoMark(size: 80),
           )
-              .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context))
-              .scale(
-                begin: const Offset(0.85, 0.85),
-                end: const Offset(1, 1),
-                duration: const Duration(milliseconds: 380),
-                curve: M3SpringCurves.spatial,
-              )
-              .fade(duration: const Duration(milliseconds: 300)),
+              .entrance(scaleFrom: 0.85),
         ),
         const SizedBox(height: 20),
 
@@ -409,7 +402,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             color: scheme.onSurface,
           ),
           textAlign: TextAlign.center,
-        ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(duration: const Duration(milliseconds: 300)),
+        ).entrance(),
         const SizedBox(height: 8),
 
         // Slogan
@@ -423,10 +416,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             height: 1.4,
           ),
           textAlign: TextAlign.center,
-        ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
-              delay: const Duration(milliseconds: 80),
-              duration: const Duration(milliseconds: 300),
-            ),
+        ).entrance(delay: const Duration(milliseconds: 80)),
       ],
     );
   }
@@ -463,7 +453,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       ),
-    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(duration: const Duration(milliseconds: 250));
+    ).entrance();
   }
 
   Widget _buildPrimaryAction(ColorScheme scheme) {
@@ -472,10 +462,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       icon: Icons.all_inclusive_rounded,
       isLoading: _isStartingAuth,
       onPressed: (_isStartingAuth || _isExchanging) ? null : _startNiosIdAuth,
-    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
-          delay: const Duration(milliseconds: 120),
-          duration: const Duration(milliseconds: 300),
-        );
+    ).entrance(delay: const Duration(milliseconds: 120));
   }
 
   Widget _buildSecondaryAction() {
@@ -488,10 +475,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               HapticService.tap();
               OAuthNavigationHelper().openRegistration();
             },
-    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
-          delay: const Duration(milliseconds: 160),
-          duration: const Duration(milliseconds: 300),
-        );
+    ).entrance(delay: const Duration(milliseconds: 160));
   }
 
   Widget _buildExplainerSection(ColorScheme scheme) {
@@ -544,7 +528,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     AnimatedRotation(
                       turns: _isExplainerExpanded ? 0.5 : 0.0,
                       duration: const Duration(milliseconds: 280),
-                      curve: M3SpringCurves.spatial,
+                      curve: M3SpringCurves.spatialDefault,
                       child: Icon(
                         Icons.keyboard_arrow_down_rounded,
                         size: 20,
@@ -586,7 +570,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? CrossFadeState.showSecond
                       : CrossFadeState.showFirst,
                   duration: const Duration(milliseconds: 280),
-                  sizeCurve: M3SpringCurves.spatial,
+                  sizeCurve: M3SpringCurves.spatialDefault,
                 ),
               ],
             ),
@@ -594,10 +578,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ),
     ),
-  ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
-          delay: const Duration(milliseconds: 200),
-          duration: const Duration(milliseconds: 300),
-        );
+  ).entrance(delay: const Duration(milliseconds: 200));
   }
 
   Widget _buildExplainerPillar({
@@ -928,12 +909,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       ),
-    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).scale(
-          begin: const Offset(0.96, 0.96),
-          end: const Offset(1, 1),
-          duration: const Duration(milliseconds: 300),
-          curve: M3SpringCurves.spatial,
-        ).fade(duration: const Duration(milliseconds: 250));
+    ).entrance(scaleFrom: 0.96);
   }
 
   Widget _buildLegalFooter(ColorScheme scheme, TextTheme textTheme) {
@@ -1005,9 +981,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
         ),
       ],
-    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
-          delay: const Duration(milliseconds: 240),
-          duration: const Duration(milliseconds: 300),
-        );
+    ).entrance(delay: const Duration(milliseconds: 240));
   }
 }

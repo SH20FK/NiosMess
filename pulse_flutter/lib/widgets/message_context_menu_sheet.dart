@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/motion/m3_staggered_list.dart';
 
 enum MessageActionType {
   react,
@@ -506,8 +508,11 @@ class _ReactionsRow extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: <Widget>[
-          for (final reaction in MessageContextMenuSheet._quickReactions)
-            Semantics(
+          for (final (int index, _QuickReaction reaction)
+              in MessageContextMenuSheet._quickReactions.indexed)
+            _staggered(
+              index,
+              Semantics(
               button: true,
               label: 'Реакция ${reaction.emoji}',
               child: TouchContainer(
@@ -532,7 +537,10 @@ class _ReactionsRow extends ConsumerWidget {
                 ),
               ),
             ),
-          Semantics(
+            ),
+          _staggered(
+            MessageContextMenuSheet._quickReactions.length,
+            Semantics(
             button: true,
             label: 'Выбрать реакцию',
             child: TouchContainer(
@@ -551,10 +559,21 @@ class _ReactionsRow extends ConsumerWidget {
               ),
             ),
           ),
+          ),
         ],
       ),
     );
   }
+
+  /// Quick reactions pop in one after another when the sheet opens.
+  static Widget _staggered(int index, Widget child) => M3StaggeredItem(
+    index: index,
+    itemDelay: const Duration(milliseconds: 25),
+    duration: M3Durations.spatialFast,
+    curve: M3SpringCurves.spatialFast,
+    slideOffset: 10.0,
+    child: child,
+  );
 }
 
 class _ActionListTile extends StatelessWidget {

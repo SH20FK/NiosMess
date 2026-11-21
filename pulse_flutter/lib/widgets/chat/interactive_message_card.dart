@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -645,7 +646,7 @@ class _InteractiveMessageCardState
     double? percentage,
   }) {
     final results = percentage != null;
-    final duration = MediaQuery.disableAnimationsOf(context)
+    final duration = context.reduceMotion
         ? Duration.zero
         : const Duration(milliseconds: 160);
     final icon = correct
@@ -782,7 +783,7 @@ class _InteractiveMessageCardState
     bool helperIsPerson = false,
     VoidCallback? onAssign,
   }) {
-    final duration = MediaQuery.disableAnimationsOf(context)
+    final duration = context.reduceMotion
         ? Duration.zero
         : const Duration(milliseconds: 180);
     return Padding(

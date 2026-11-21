@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
@@ -42,7 +43,7 @@ class ChatTopBannerLayer extends StatelessWidget {
         ValueListenableBuilder<bool>(
           valueListenable: loadingOlderNotifier,
           builder: (BuildContext context, bool isLoading, _) => AnimatedSize(
-            duration: MediaQuery.disableAnimationsOf(context)
+            duration: context.reduceMotion
                 ? Duration.zero
                 : M3Durations.short4,
             curve: M3SpringCurves.expressiveDecel,

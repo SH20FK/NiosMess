@@ -1,7 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/motion/nios_motion.dart';
+import 'package:motor/motor.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
 
 /// Dismiss direction for [NiosDismissible].
@@ -18,7 +19,7 @@ enum NiosDismissDirection {
 /// Implements NF-1 (Velocity Handoff) and NF-4 (Interruptibility):
 /// - Tracks vertical drag gestures with rubber-band resistance.
 /// - At gesture release, feeds [DragEndDetails.primaryVelocity] directly into
-///   a [NiosMotion.spatial] spring simulation, preventing the "dead stop" stutter
+///   a [M3Motion.spatialDefault] spring, preventing the "dead stop" stutter
 ///   common in standard Flutter dismissibles.
 /// - Drives backdrop fade, content translation, and scale through [builder].
 class NiosDismissible extends StatefulWidget {
@@ -66,7 +67,7 @@ class NiosDismissible extends StatefulWidget {
 
 class _NiosDismissibleState extends State<NiosDismissible>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  late final SingleMotionController _controller;
   double _dragOffset = 0.0;
   bool _thresholdCrossed = false;
   int _dragGeneration = 0;
@@ -74,9 +75,9 @@ class _NiosDismissibleState extends State<NiosDismissible>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController.unbounded(
+    _controller = SingleMotionController(
+      motion: M3Motion.spatialDefault,
       vsync: this,
-      value: 0.0,
     )..addListener(_onAnimationTick);
   }
 
@@ -101,14 +102,26 @@ class _NiosDismissibleState extends State<NiosDismissible>
     return offset;
   }
 
+  // Raw finger offset that [_rubberBand] maps onto [effective], so a re-grab
+  // mid-flight continues from the visible position.
+  double _inverseRubberBand(double effective, double dimension) {
+    if (dimension <= 0.0) return effective;
+    if (widget.direction == NiosDismissDirection.down && effective < 0) {
+      final double fraction =
+          (-effective / (dimension * 0.25)).clamp(0.0, 1.0);
+      return -math.pow(fraction, 1 / 0.70).toDouble() * dimension;
+    }
+    return effective;
+  }
+
   void _onDragStart(DragStartDetails details) {
     // ND-1: Increment generation to invalidate any in-flight settlement callback
     _dragGeneration++;
-    _controller.stop();
+    _controller.stop(canceled: true);
 
     // ND-2: Use MediaQuery height instead of nullable context.size
     final double height = MediaQuery.sizeOf(context).height;
-    _dragOffset = _controller.value * height;
+    _dragOffset = _inverseRubberBand(_controller.value * height, height);
     _thresholdCrossed = false;
   }
 
@@ -137,7 +150,7 @@ class _NiosDismissibleState extends State<NiosDismissible>
     final double height = MediaQuery.sizeOf(context).height;
     final double pixelVelocity = details.primaryVelocity ?? 0.0;
     final double normalizedVelocity =
-        NiosMotion.normalizeVelocity(pixelVelocity, height);
+        M3Motion.normalizeVelocity(pixelVelocity, height);
 
     final double currentProgress = _controller.value;
     final bool isDown = currentProgress >= 0;
@@ -155,21 +168,20 @@ class _NiosDismissibleState extends State<NiosDismissible>
           normalizedVelocity.abs() >= widget.velocityThreshold;
     }
 
-    final double target = shouldDismiss ? (isDown ? 1.0 : -1.0) : 0.0;
+    final bool dismissDown =
+        widget.direction == NiosDismissDirection.down || isDown;
+    final double target = shouldDismiss ? (dismissDown ? 1.0 : -1.0) : 0.0;
 
     if (shouldDismiss) {
       TriSync.dismiss(ref: widget.ref, context: context);
     }
 
-    // NF-1: Hand off user velocity directly into the spatial spring simulation
+    // NF-1: Hand off user velocity directly into the spatial spring
     _controller
-        .animateWith(
-      NiosMotion.simulate(
-        spring: NiosMotion.spatial,
-        from: currentProgress,
-        to: target,
-        velocity: normalizedVelocity,
-      ),
+        .springTo(
+      target,
+      velocity: normalizedVelocity,
+      reduceMotion: context.reduceMotion,
     )
         .whenCompleteOrCancel(() {
       // ND-1: Only dismiss if generation hasn't changed (not interrupted by user catch)

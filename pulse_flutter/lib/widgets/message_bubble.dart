@@ -12,7 +12,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
@@ -36,6 +35,7 @@ import 'package:pulse_flutter/widgets/chat/bubble/bubble_circle_player.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_footer.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_gestures.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_header.dart';
+import 'package:pulse_flutter/widgets/chat/bubble/bubble_reaction_chip.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_upload_overlay.dart';
@@ -44,7 +44,6 @@ import 'package:pulse_flutter/widgets/chat/ordinary_encryption_settings_button.d
 import 'package:pulse_flutter/widgets/chat/noto_message_emoji.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_details_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
-import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:universal_io/io.dart';
@@ -562,64 +561,19 @@ class MessageBubble extends ConsumerWidget {
                   alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
                   children: reactions.entries
                       .map((MapEntry<String, int> item) {
-                        return TweenAnimationBuilder<double>(
-                          key: ValueKey<String>(
-                            'react_${item.key}_${item.value}',
-                          ),
-                          tween: Tween<double>(
-                            begin: MediaQuery.disableAnimationsOf(context) ? 1.0 : 0.90,
-                            end: 1.0,
-                          ),
-                          duration: MediaQuery.disableAnimationsOf(context)
-                              ? Duration.zero : M3Durations.medium1,
-                          curve: M3SpringCurves.snappy,
-                          builder:
-                              (
-                                BuildContext context,
-                                double scale,
-                                Widget? child,
-                              ) {
-                                return Transform.scale(
-                                  scale: scale,
-                                  child: child,
-                                );
-                              },
-                          child: TouchContainer(
-                            borderRadius: AppRadii.fullRadius,
-                            scaleDown: 0.96,
-                            releaseCurve: M3SpringCurves.snappy,
-                            onTap: onReactionTap != null
-                                ? () {
-                                    TriSync.reaction(
-                                      ref: ref,
-                                      context: context,
-                                    );
-                                    onReactionTap!(item.key);
-                                  }
-                                : null,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHigh,
-                                borderRadius: AppRadii.fullRadius,
-                                border: Border.all(
-                                  color: scheme.outlineVariant.withValues(
-                                    alpha: 0.25,
-                                  ),
-                                  width: 0.75,
-                                ),
-                              ),
-                              child: Text(
-                                '${normalizeReactionEmoji(item.key)} ${item.value}',
-                                style: textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
+                        return BubbleReactionChip(
+                          key: ValueKey<String>('react_${item.key}'),
+                          label: normalizeReactionEmoji(item.key),
+                          count: item.value,
+                          onTap: onReactionTap != null
+                              ? () {
+                                  TriSync.reaction(
+                                    ref: ref,
+                                    context: context,
+                                  );
+                                  onReactionTap!(item.key);
+                                }
+                              : null,
                         );
                       })
                       .toList(growable: false),

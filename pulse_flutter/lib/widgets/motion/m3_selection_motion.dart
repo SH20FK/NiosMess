@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Consistent, interruptible feedback for a compact selected filter or tab.
@@ -25,10 +26,10 @@ class M3SelectionMotion extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
     tween: Tween<double>(end: selected ? selectedScale : 1.0),
-    duration: MediaQuery.disableAnimationsOf(context)
+    duration: context.reduceMotion
         ? Duration.zero
         : M3Durations.short4,
-    curve: M3SpringCurves.snappy,
+    curve: M3SpringCurves.spatialFast,
     builder: (context, scale, child) =>
         Transform.scale(scale: scale, transformHitTests: false, child: child),
     child: child,

@@ -1,18 +1,43 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/physics.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
-void main() {
-  group('M3SpringCurves Normalized Mathematical Physics', () {
-    test('all 5 curves strictly satisfy f(0.0) == 0.0 and f(1.0) == 1.0 boundary conditions', () {
-      final curves = [
-        M3SpringCurves.spatial,
-        M3SpringCurves.emphasized,
-        M3SpringCurves.snappy,
-        M3SpringCurves.bouncy,
-        M3SpringCurves.gentle,
-      ];
+double _seconds(Duration duration) =>
+    duration.inMicroseconds / Duration.microsecondsPerSecond;
 
-      for (final curve in curves) {
+double _peak(Curve curve) {
+  double peak = 0.0;
+  for (int i = 0; i <= 1000; i++) {
+    final double value = curve.transform(i / 1000.0);
+    if (value > peak) peak = value;
+  }
+  return peak;
+}
+
+void main() {
+  group('M3 Expressive curve tokens', () {
+    const spatial = <(Curve, SpringDescription, Duration)>[
+      (M3SpringCurves.spatialFast, M3Spring.spatialFast, M3Durations.spatialFast),
+      (
+        M3SpringCurves.spatialDefault,
+        M3Spring.spatialDefault,
+        M3Durations.spatialDefault,
+      ),
+      (M3SpringCurves.spatialSlow, M3Spring.spatialSlow, M3Durations.spatialSlow),
+    ];
+    const effects = <(Curve, SpringDescription, Duration)>[
+      (M3SpringCurves.effectsFast, M3Spring.effectsFast, M3Durations.effectsFast),
+      (
+        M3SpringCurves.effectsDefault,
+        M3Spring.effectsDefault,
+        M3Durations.effectsDefault,
+      ),
+      (M3SpringCurves.effectsSlow, M3Spring.effectsSlow, M3Durations.effectsSlow),
+    ];
+
+    test('every token satisfies f(0.0) == 0.0 and f(1.0) == 1.0', () {
+      for (final (curve, _, _) in [...spatial, ...effects]) {
         expect(curve.transform(0.0), 0.0);
         expect(curve.transform(1.0), 1.0);
         expect(curve.transform(-0.5), 0.0);
@@ -20,45 +45,43 @@ void main() {
       }
     });
 
-    test('spatial curve moves smoothly throughout full duration interval', () {
-      final spatial = M3SpringCurves.spatial;
-
-      final double v25 = spatial.transform(0.25);
-      final double v50 = spatial.transform(0.50);
-      final double v75 = spatial.transform(0.75);
-      final double v100 = spatial.transform(1.0);
-
-      // Verify progression is spread across the entire duration (not collapsed into first 25%)
-      expect(v25, closeTo(0.47, 0.06));
-      expect(v50, closeTo(0.89, 0.06));
-      expect(v75, closeTo(1.00, 0.05));
-      expect(v100, 1.0);
-
-      // Must not settle prematurely at t=0.25
-      expect(v25 < 0.60, isTrue);
-      expect(v50 > v25, isTrue);
+    test('curves follow the physical spring over their settle time', () {
+      for (final (curve, spring, settle) in [...spatial, ...effects]) {
+        final double span = _seconds(settle);
+        final sim = SpringSimulation(spring, 0.0, 1.0, 0.0);
+        for (int i = 0; i <= 20; i++) {
+          final double t = i / 20.0;
+          expect(
+            curve.transform(t),
+            closeTo(sim.x(t * span), 0.005),
+            reason: '$spring diverged from its simulation at t=$t',
+          );
+        }
+      }
     });
 
-    test('bouncy curve provides perceptible overshoot near midpoint', () {
-      final bouncy = M3SpringCurves.bouncy;
-
-      final double v50 = bouncy.transform(0.50);
-
-      // With stiffness 58 and dampingRatio 0.55, overshoot is ~1.145 (14.5%)
-      expect(v50, greaterThan(1.05));
-      expect(v50, closeTo(1.145, 0.05));
+    test('springs have settled by the end of their duration token', () {
+      for (final (_, spring, settle) in [...spatial, ...effects]) {
+        final sim = SpringSimulation(spring, 0.0, 1.0, 0.0);
+        expect(sim.x(_seconds(settle)), closeTo(1.0, 0.005));
+      }
     });
 
-    test('gentle curve is strictly monotonic and never overshoots 1.0', () {
-      final gentle = M3SpringCurves.gentle;
+    test('spatial tokens overshoot by the amount their damping ratio gives', () {
+      expect(_peak(M3SpringCurves.spatialFast), closeTo(1.095, 0.01));
+      expect(_peak(M3SpringCurves.spatialDefault), closeTo(1.015, 0.005));
+      expect(_peak(M3SpringCurves.spatialSlow), closeTo(1.015, 0.005));
+    });
 
-      double previous = 0.0;
-      for (int i = 0; i <= 100; i++) {
-        final double t = i / 100.0;
-        final double val = gentle.transform(t);
-        expect(val, greaterThanOrEqualTo(previous));
-        expect(val, lessThanOrEqualTo(1.0));
-        previous = val;
+    test('effects tokens are monotonic and never leave [0.0, 1.0]', () {
+      for (final (curve, _, _) in effects) {
+        double previous = 0.0;
+        for (int i = 0; i <= 200; i++) {
+          final double value = curve.transform(i / 200.0);
+          expect(value, greaterThanOrEqualTo(previous));
+          expect(value, lessThanOrEqualTo(1.0));
+          previous = value;
+        }
       }
     });
   });

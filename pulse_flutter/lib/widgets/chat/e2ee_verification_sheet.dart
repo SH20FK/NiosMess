@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
@@ -149,10 +150,10 @@ class _E2eeVerificationSheetState extends ConsumerState<E2eeVerificationSheet> {
                 label: Text(context.l10n.secretAdvanced),
               ),
               AnimatedSize(
-                duration: MediaQuery.disableAnimationsOf(context)
+                duration: context.reduceMotion
                     ? Duration.zero
                     : const Duration(milliseconds: 280),
-                curve: M3SpringCurves.spatial,
+                curve: M3SpringCurves.spatialDefault,
                 child: !_advanced || engine == null || status != 'secured'
                     ? const SizedBox.shrink()
                     : FutureBuilder<String>(

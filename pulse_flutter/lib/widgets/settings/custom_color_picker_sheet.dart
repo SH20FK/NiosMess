@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -110,7 +111,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
               ),
               const SizedBox(height: 12),
               AnimatedContainer(
-                duration: MediaQuery.disableAnimationsOf(context)
+                duration: context.reduceMotion
                     ? Duration.zero : M3Durations.medium3,
                 curve: M3SpringCurves.expressiveStandard,
                 padding: const EdgeInsets.all(20),
@@ -131,7 +132,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                     Row(
                       children: [
                         AnimatedContainer(
-                          duration: MediaQuery.disableAnimationsOf(context)
+                          duration: context.reduceMotion
                               ? Duration.zero : M3Durations.medium3,
                           width: 56,
                           height: 56,
@@ -166,7 +167,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                           ])
                             Expanded(
                               child: AnimatedContainer(
-                                duration: MediaQuery.disableAnimationsOf(context)
+                                duration: context.reduceMotion
                                     ? Duration.zero : M3Durations.medium3,
                                 height: 32,
                                 margin: const EdgeInsets.symmetric(

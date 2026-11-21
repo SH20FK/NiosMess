@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:flutter/material.dart';
@@ -75,7 +76,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
     );
 
     _pulseScale = Tween<double>(begin: 1.0, end: 1.45).animate(
-      CurvedAnimation(parent: _pulseController, curve: M3SpringCurves.gentle),
+      CurvedAnimation(parent: _pulseController, curve: M3SpringCurves.expressiveDecel),
     );
     _pulseOpacity = Tween<double>(
       begin: 0.45,
@@ -97,7 +98,7 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _reducedMotion = MediaQuery.disableAnimationsOf(context);
+    _reducedMotion = context.reduceMotion;
     if (_reducedMotion) {
       if (_dismissing) {
         _transitionGeneration++;
@@ -430,20 +431,19 @@ class _PulsingCallIcon extends StatelessWidget {
       height: 48,
       child: Stack(
         alignment: Alignment.center,
+        // The pulse ring grows past the 48 dp box.
+        clipBehavior: Clip.none,
         children: [
-          AnimatedBuilder(
-            animation: pulseScale,
-            builder: (context, _) => Transform.scale(
-              scale: pulseScale.value,
-              child: Opacity(
-                opacity: pulseOpacity.value,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: scheme.primary.withValues(alpha: 0.30),
-                  ),
+          ScaleTransition(
+            scale: pulseScale,
+            child: FadeTransition(
+              opacity: pulseOpacity,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.primary.withValues(alpha: 0.30),
                 ),
               ),
             ),

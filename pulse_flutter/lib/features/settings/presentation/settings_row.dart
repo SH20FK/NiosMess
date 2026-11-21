@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/widgets/settings/settings_list_item.dart';
@@ -89,7 +90,7 @@ class _SettingsAnchorState extends ConsumerState<SettingsAnchor> {
           if (!mounted) return;
           Scrollable.ensureVisible(
             context,
-            duration: MediaQuery.disableAnimationsOf(context)
+            duration: context.reduceMotion
                 ? Duration.zero
                 : const Duration(milliseconds: 320),
             curve: M3SpringCurves.expressiveStandard,

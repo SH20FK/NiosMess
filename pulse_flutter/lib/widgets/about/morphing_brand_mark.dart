@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -115,11 +116,11 @@ class _MorphingBrandMarkState extends State<MorphingBrandMark>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
-    duration: M3Durations.long2,
+    duration: M3Durations.spatialFast,
   );
   late final Animation<double> _shape = CurvedAnimation(
     parent: _ctrl,
-    curve: M3SpringCurves.bouncy,
+    curve: M3SpringCurves.spatialFast,
   );
 
   int _prev = 0;
@@ -133,7 +134,7 @@ class _MorphingBrandMarkState extends State<MorphingBrandMark>
       _prev = _curr;
       _curr = (_curr + 1) % kBrandShapes.length;
     });
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (context.reduceMotion) {
       _ctrl.value = 1;
     } else {
       _ctrl.forward(from: 0);
@@ -181,7 +182,8 @@ class _MorphingBrandMarkState extends State<MorphingBrandMark>
                 painter: _MorphPainter(
                   from: kBrandShapes[_prev],
                   to: kBrandShapes[_curr],
-                  t: _shape.value.clamp(0.0, 1.0),
+                  // Unclamped: the spring overshoot is the bounce of the morph.
+                  t: _shape.value,
                   color: scheme.primary,
                 ),
                 child: child,

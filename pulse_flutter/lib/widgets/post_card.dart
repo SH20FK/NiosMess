@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -81,27 +82,33 @@ class _PostCardState extends ConsumerState<PostCard>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _heartScale = TweenSequence<double>(
-      <TweenSequenceItem<double>>[
-        TweenSequenceItem<double>(
-          tween: Tween<double>(begin: 0.0, end: 1.15),
-          weight: 25,
+    // The heart pops in on the fast spatial spring (its overshoot is the
+    // bounce) and leaves by fading: opacity never overshoots.
+    _heartScale = _heartController.drive(
+      Tween<double>(begin: 0.5, end: 1.0).chain(
+        CurveTween(
+          curve: const Interval(0.0, 0.6, curve: M3SpringCurves.spatialFast),
         ),
-        TweenSequenceItem<double>(
-          tween: Tween<double>(begin: 1.15, end: 1.0),
-          weight: 25,
-        ),
-        TweenSequenceItem<double>(
-          tween: Tween<double>(begin: 1.0, end: 0.0),
-          weight: 50,
-        ),
-      ],
-    ).animate(CurvedAnimation(parent: _heartController, curve: Curves.easeOut));
-    _heartOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _heartController,
-        curve: const Interval(0.0, 0.3, curve: Curves.easeIn),
       ),
+    );
+    _heartOpacity = _heartController.drive(
+      TweenSequence<double>(<TweenSequenceItem<double>>[
+        TweenSequenceItem<double>(
+          tween: Tween<double>(begin: 0.0, end: 1.0),
+          weight: 15,
+        ),
+        TweenSequenceItem<double>(
+          tween: ConstantTween<double>(1.0),
+          weight: 45,
+        ),
+        TweenSequenceItem<double>(
+          tween: Tween<double>(
+            begin: 1.0,
+            end: 0.0,
+          ).chain(CurveTween(curve: M3SpringCurves.effectsSlow)),
+          weight: 40,
+        ),
+      ]),
     );
   }
 
@@ -125,7 +132,7 @@ class _PostCardState extends ConsumerState<PostCard>
     if (settings.haptics) HapticService.reaction();
     _handleLike(triggerHaptic: false, ensureSelected: true);
     if (!mounted) return;
-    if (MediaQuery.disableAnimationsOf(context)) return;
+    if (context.reduceMotion) return;
     setState(() => _showHeart = true);
     _heartController.forward(from: 0.0).then((_) {
       if (mounted) setState(() => _showHeart = false);
@@ -384,7 +391,7 @@ class _PostCardState extends ConsumerState<PostCard>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AnimatedSize(
-          duration: MediaQuery.disableAnimationsOf(context)
+          duration: context.reduceMotion
               ? Duration.zero
               : const Duration(milliseconds: 260),
           curve: M3SpringCurves.expressiveDecel,
@@ -673,23 +680,14 @@ class _PostCardState extends ConsumerState<PostCard>
             if (_showHeart)
               Positioned.fill(
                 child: Center(
-                  child: AnimatedBuilder(
-                    animation: _heartController,
-                    builder: (_, Widget? anim) => Transform.scale(
-                      scale: _heartScale.value,
-                      child: Opacity(
-                        opacity: _heartOpacity.value,
-                        child: Icon(
-                          Icons.favorite_rounded,
-                          color: scheme.error,
-                          size: 100,
-                          shadows: <Shadow>[
-                            Shadow(
-                              blurRadius: 24,
-                              color: scheme.scrim.withValues(alpha: 0.45),
-                            ),
-                          ],
-                        ),
+                  child: FadeTransition(
+                    opacity: _heartOpacity,
+                    child: ScaleTransition(
+                      scale: _heartScale,
+                      child: Icon(
+                        Icons.favorite_rounded,
+                        color: scheme.error,
+                        size: 100,
                       ),
                     ),
                   ),
@@ -707,10 +705,12 @@ void _openFullScreen(BuildContext context, String url, int postId) {
     PageRouteBuilder<void>(
       opaque: true,
       barrierLabel: context.l10n.semanticsClose,
+      transitionDuration: M3Durations.effectsSlow,
+      reverseTransitionDuration: M3Durations.effectsDefault,
       pageBuilder: (_, _, _) => _FullScreenImage(url: url, postId: postId),
       transitionsBuilder: (_, Animation<double> a1, _, Widget child) {
         return FadeTransition(
-          opacity: CurvedAnimation(parent: a1, curve: Curves.easeOut),
+          opacity: a1.drive(CurveTween(curve: M3SpringCurves.effectsSlow)),
           child: child,
         );
       },
@@ -811,7 +811,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
                   child: Center(
                     child: AnimatedOpacity(
                       opacity: _visible ? 1.0 : 0.0,
-                      duration: MediaQuery.disableAnimationsOf(context)
+                      duration: context.reduceMotion
                           ? Duration.zero
                           : M3Durations.medium1,
                       child: CachedNetworkImage(
@@ -848,7 +848,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
                   child: AnimatedOpacity(
                     opacity: _showControls ? 1 : 0,
                     curve: M3SpringCurves.expressiveDecel,
-                    duration: MediaQuery.disableAnimationsOf(context)
+                    duration: context.reduceMotion
                         ? Duration.zero
                         : M3Durations.short3,
                     child: Material(
@@ -1047,7 +1047,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                           (int idx) {
                             final bool active = idx == _currentPage;
                             return AnimatedContainer(
-                              duration: MediaQuery.disableAnimationsOf(context)
+                              duration: context.reduceMotion
                                   ? Duration.zero
                                   : M3Durations.short4,
                               curve: M3SpringCurves.expressiveStandard,
@@ -1167,7 +1167,7 @@ class _ActionChipState extends State<_ActionChip>
         tween: Tween<double>(
           begin: 1.12,
           end: 1.0,
-        ).chain(CurveTween(curve: M3SpringCurves.snappy)),
+        ).chain(CurveTween(curve: M3SpringCurves.spatialFast)),
         weight: 65,
       ),
     ]).animate(_ctrl);
@@ -1178,7 +1178,7 @@ class _ActionChipState extends State<_ActionChip>
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.active &&
         widget.active &&
-        !MediaQuery.disableAnimationsOf(context)) {
+        !context.reduceMotion) {
       if (!_ctrl.isAnimating) _ctrl.forward(from: 0.0);
     }
   }
@@ -1191,7 +1191,7 @@ class _ActionChipState extends State<_ActionChip>
 
   void _handleTap() {
     _celebrate = widget.celebrateOnActivate && !widget.active;
-    if (!MediaQuery.disableAnimationsOf(context)) _ctrl.forward(from: 0.0);
+    if (!context.reduceMotion) _ctrl.forward(from: 0.0);
     widget.onTap();
   }
 
@@ -1223,11 +1223,11 @@ class _ActionChipState extends State<_ActionChip>
                       foregroundPainter:
                           _celebrate &&
                               _ctrl.isAnimating &&
-                              !MediaQuery.disableAnimationsOf(context)
+                              !context.reduceMotion
                           ? _LikeSparkPainter(_ctrl.value, widget.activeColor)
                           : null,
                       child: Transform.scale(
-                        scale: MediaQuery.disableAnimationsOf(context)
+                        scale: context.reduceMotion
                             ? 1
                             : _scale.value,
                         child: child,

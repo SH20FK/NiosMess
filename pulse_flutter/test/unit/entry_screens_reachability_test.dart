@@ -136,7 +136,7 @@ void main() {
 
       // AppRouter uses M3Expressive transitions for entry pages
       expect(routerContent.contains('_m3eEntryPage'), isTrue);
-      expect(routerContent.contains('M3SpringCurves.spatial'), isTrue);
+      expect(routerContent.contains('M3SpringCurves.spatialDefault'), isTrue);
       expect(routerContent.contains("path: '/register'"), isFalse);
     });
 

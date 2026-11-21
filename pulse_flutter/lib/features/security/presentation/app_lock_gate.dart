@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/features/security/application/app_lock_controller.dart';
 import 'package:pulse_flutter/features/security/domain/app_lock_policy.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class AppLockGate extends ConsumerStatefulWidget {
@@ -210,7 +211,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate> {
                         ),
                         const SizedBox(height: 16),
                       ],
-                    ),
+                      // Only the content animates in: the opaque surface
+                      // behind it covers the app from the first frame.
+                    ).entrance(scaleFrom: 0.94),
                   ),
                 ),
               ),

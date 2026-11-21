@@ -41,7 +41,7 @@ class ChatMessageList extends ConsumerStatefulWidget {
     this.initialScrollAnchor,
     this.onScrollAnchorChanged,
     this.canSaveScrollAnchor,
-    this.bottomPadding = 56.0,
+    this.bottomPadding = const AlwaysStoppedAnimation<double>(56.0),
     this.topPadding = 48.0,
     this.onOpenComments,
     this.onReactionTap,
@@ -73,7 +73,10 @@ class ChatMessageList extends ConsumerStatefulWidget {
   final ChatHistoryAnchor? initialScrollAnchor;
   final ValueChanged<ChatHistoryAnchor>? onScrollAnchorChanged;
   final bool Function()? canSaveScrollAnchor;
-  final double bottomPadding;
+
+  /// Space kept free under the newest message. A listenable, so a change
+  /// moves the list without rebuilding its rows.
+  final ValueListenable<double> bottomPadding;
   final double topPadding;
   final void Function(ApiMessage message, String emoji)? onReactionTap;
   final void Function(ApiMessage)? onOpenComments;
@@ -97,9 +100,13 @@ class ChatMessageList extends ConsumerStatefulWidget {
   final String? Function(ApiMessage, Map<int, ApiMessage> byId)
   replyPreviewBuilder;
   final Widget Function(DateTime date, DateTime now) dateSeparatorBuilder;
+
+  /// Wraps a row in its entrance animation. Messages that arrive together
+  /// enter oldest first: `staggerIndex` is the row's place in that batch.
   final Widget Function({
     required int messageId,
     required bool animate,
+    required int staggerIndex,
     required bool isMine,
     required Widget child,
   })
@@ -187,7 +194,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
       if (!row.attached || !row.hasSize) continue;
       final rect = row.localToGlobal(Offset.zero) & row.size;
       if (rect.bottom <= bounds.top ||
-          rect.top >= bounds.bottom - widget.bottomPadding) {
+          rect.top >= bounds.bottom - widget.bottomPadding.value) {
         continue;
       }
       final distance = (rect.top - bounds.top).abs();
@@ -247,7 +254,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
     // Reversed scrolling translates every retained row by the exact same delta.
     // Keep close/background snapshots current without measuring rows per frame.
     final fraction = anchor.followingLatest
-        ? widget.bottomPadding / height
+        ? widget.bottomPadding.value / height
         : anchor.fraction;
     _lastMeasuredAnchor = ChatHistoryAnchor(
       messageId: anchor.messageId,
@@ -342,7 +349,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         }
         final rect = row.localToGlobal(Offset.zero) & row.size;
         if (rect.bottom <= bounds.top ||
-            rect.top >= bounds.bottom - widget.bottomPadding) {
+            rect.top >= bounds.bottom - widget.bottomPadding.value) {
           continue;
         }
         final distance = (rect.top - bounds.top).abs();
@@ -373,6 +380,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
   GlobalKey? _activeTargetKey;
   int? _activeTargetMessageId;
   final Set<int> _animatedMessageIds = <int>{};
+
+  /// Newest rows that may play the entrance animation in one batch.
+  static const int _maxEntranceBatch = 4;
   Timer? _highlightTimer;
   Timer? _scrollIdleTimer;
   final Stopwatch _scrollClock = Stopwatch()..start();
@@ -612,6 +622,17 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
 
     final DateTime now = AppTimeSettings.now();
 
+    bool isFresh(ApiMessage message) =>
+        !_animatedMessageIds.contains(_rowId(message)) &&
+        now.difference(message.resolvedSentAt).inSeconds < 4;
+    // Consecutive new messages at the tail enter as one staggered batch.
+    int freshBatch = 0;
+    while (freshBatch < _maxEntranceBatch &&
+        freshBatch < messages.length &&
+        isFresh(messages[messages.length - 1 - freshBatch])) {
+      freshBatch++;
+    }
+
     Widget buildRow(BuildContext context, int index) {
       final int reversedIndex = messages.length - 1 - index;
       final ApiMessage message = messages[reversedIndex];
@@ -688,10 +709,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         );
       }
 
-      final bool shouldAnimate =
-          index == 0 &&
-          !_animatedMessageIds.contains(_rowId(message)) &&
-          now.difference(message.resolvedSentAt).inSeconds < 4;
+      final bool shouldAnimate = index < freshBatch && isFresh(message);
       if (shouldAnimate) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _animatedMessageIds.add(_rowId(message));
@@ -843,6 +861,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         child: widget.animatedMessageBuilder(
           messageId: _rowId(message),
           animate: shouldAnimate,
+          staggerIndex: shouldAnimate ? freshBatch - 1 - index : 0,
           isMine: isMine,
           child: bubble,
         ),
@@ -987,19 +1006,15 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         onNotification: _onScrollNotification,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final defaultAnchor = (widget.bottomPadding / constraints.maxHeight)
-                .clamp(0.0, 1.0);
-            return RepaintBoundary(
-              child: CustomScrollView(
-                controller: widget.scrollController,
-                reverse: true,
-                center: _centerSliverKey,
-                anchor: _anchorFraction ?? defaultAnchor,
-                // ignore: deprecated_member_use
-                cacheExtent: cacheExtent,
-                slivers: [
+            // The slivers are reused when only the bottom inset changes, so
+            // the rows are not rebuilt with it.
+            final List<Widget> slivers = <Widget>[
                   SliverToBoxAdapter(
-                    child: SizedBox(height: widget.bottomPadding),
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: widget.bottomPadding,
+                      builder: (context, bottomPadding, _) =>
+                          SizedBox(height: bottomPadding),
+                    ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1043,8 +1058,24 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
                   SliverToBoxAdapter(
                     child: SizedBox(height: widget.topPadding),
                   ),
-                ],
-              ),
+            ];
+            return ValueListenableBuilder<double>(
+              valueListenable: widget.bottomPadding,
+              builder: (context, bottomPadding, _) {
+                final defaultAnchor = (bottomPadding / constraints.maxHeight)
+                    .clamp(0.0, 1.0);
+                return RepaintBoundary(
+                  child: CustomScrollView(
+                    controller: widget.scrollController,
+                    reverse: true,
+                    center: _centerSliverKey,
+                    anchor: _anchorFraction ?? defaultAnchor,
+                    // ignore: deprecated_member_use
+                    cacheExtent: cacheExtent,
+                    slivers: slivers,
+                  ),
+                );
+              },
             );
           },
         ),

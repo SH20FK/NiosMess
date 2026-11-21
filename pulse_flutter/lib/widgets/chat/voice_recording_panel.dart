@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
@@ -49,7 +50,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final animate =
-        !MediaQuery.disableAnimationsOf(context) &&
+        !context.reduceMotion &&
         TickerMode.valuesOf(context).enabled;
     if (animate && !_pulseController.isAnimating) {
       _pulseController.repeat(reverse: true);
@@ -71,7 +72,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
     final textTheme = Theme.of(context).textTheme;
     final cancelProgress = (-widget.dragOffset.dx / 120).clamp(0.0, 1.0);
     final showCancel = !widget.isLocked && cancelProgress > 0.2;
-    final duration = MediaQuery.disableAnimationsOf(context)
+    final duration = context.reduceMotion
         ? Duration.zero
         : M3Durations.short3;
 
@@ -178,7 +179,7 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 1),
               child: AnimatedContainer(
-                duration: MediaQuery.disableAnimationsOf(context)
+                duration: context.reduceMotion
                     ? Duration.zero
                     : M3Durations.short2,
                 curve: M3SpringCurves.expressiveDecel,

@@ -59,7 +59,7 @@ class UploadProgressOverlay extends StatelessWidget {
     }
 
     return Container(
-      color: Colors.black.withValues(alpha: 0.38),
+      color: scheme.scrim.withValues(alpha: 0.38),
       child: Stack(
         children: [
           Center(

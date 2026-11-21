@@ -1,15 +1,16 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/motion/m3_morphing_icon.dart';
 
 /// Material 3 Expressive Speed Dial FloatingActionButton.
 ///
 /// Features:
 /// - Squircle shape (20dp radius) with tonal primary container styling.
-/// - Scroll-aware show/hide animation using [M3SpringCurves.spatial].
-/// - Tap expands into an expressive speed dial with rotating close icon and
+/// - Scroll-aware show/hide animation using [M3SpringCurves.spatialDefault].
+/// - Tap expands into an expressive speed dial with a morphing close icon and
 ///   staggered spring pop-up pills for "New Group" and "New Channel".
 /// - Touch outside / scrim dismisses the speed dial.
 /// - System back navigation dismisses overlay cleanly.
@@ -36,41 +37,30 @@ class M3SpeedDialFab extends StatefulWidget {
 class _M3SpeedDialFabState extends State<M3SpeedDialFab>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _expandAnimation;
   late final Animation<double> _fadeAnimation;
-  late final Animation<double> _rotationAnimation;
 
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
+
+  /// Share of the controller timeline between two neighbouring actions, and
+  /// the share each action takes to settle.
+  static const double _staggerStep = 0.12;
+  static const double _itemSpan = 0.64;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: M3Durations.medium2,
+      duration: M3Durations.spatialDefault,
       reverseDuration: M3Durations.short4,
-    );
-
-    _expandAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: M3SpringCurves.bouncy,
-      reverseCurve: M3SpringCurves.snappy,
     );
 
     _fadeAnimation = CurvedAnimation(
       parent: _controller,
       curve: M3SpringCurves.expressiveDecel,
       reverseCurve: M3SpringCurves.expressiveAccel,
-    );
-
-    _rotationAnimation = Tween<double>(begin: 0.0, end: 0.5).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: M3SpringCurves.bouncy,
-        reverseCurve: M3SpringCurves.snappy,
-      ),
     );
   }
 
@@ -104,7 +94,7 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
     _removeOverlay();
     _overlayEntry = _createOverlayEntry();
     Overlay.of(context).insert(_overlayEntry!);
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (context.reduceMotion) {
       _controller.value = 1;
     } else {
       _controller.forward();
@@ -116,7 +106,7 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
     if (!_isOpen) return;
     _isOpen = false;
     final closingEntry = _overlayEntry;
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (context.reduceMotion) {
       _controller.value = 0;
       _removeOverlay();
     } else {
@@ -177,7 +167,10 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                 child: AnimatedBuilder(
                   animation: _controller,
                   builder: (BuildContext context, Widget? child) {
-                    final double progress = _expandAnimation.value;
+                    // Actions closer to the FAB lead the stagger.
+                    final int firstOrder = widget.onSelectContacts != null
+                        ? 1
+                        : 0;
 
                     return Column(
                       mainAxisSize: MainAxisSize.min,
@@ -190,7 +183,7 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                           icon: Icons.campaign_rounded,
                           iconColor: scheme.onTertiaryContainer,
                           containerColor: scheme.tertiaryContainer,
-                          delayProgress: (progress - 0.3).clamp(0.0, 0.7) / 0.7,
+                          order: firstOrder + 1,
                           onTap: () {
                             HapticService.tap();
                             _close();
@@ -206,7 +199,7 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                           icon: Icons.groups_rounded,
                           iconColor: scheme.onPrimaryContainer,
                           containerColor: scheme.primaryContainer,
-                          delayProgress: (progress - 0.15).clamp(0.0, 0.85) / 0.85,
+                          order: firstOrder,
                           onTap: () {
                             HapticService.tap();
                             _close();
@@ -222,7 +215,7 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
                             icon: Icons.people_alt_rounded,
                             iconColor: scheme.onSecondaryContainer,
                             containerColor: scheme.secondaryContainer,
-                            delayProgress: progress.clamp(0.0, 1.0),
+                            order: 0,
                             onTap: () {
                               HapticService.tap();
                               _close();
@@ -260,17 +253,32 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
     required IconData icon,
     required Color iconColor,
     required Color containerColor,
-    required double delayProgress,
+    required int order,
     required VoidCallback onTap,
   }) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return Transform.scale(
-      scale: math.max(0.0, delayProgress),
+    // Real stagger: every action runs its own window of the controller.
+    final double t =
+        ((_controller.value - order * _staggerStep) / _itemSpan).clamp(0.0, 1.0);
+    final bool closing = _controller.status == AnimationStatus.reverse;
+    // The spring overshoot belongs to the entrance only.
+    final double spatial = closing
+        ? M3SpringCurves.expressiveStandard.transform(t)
+        : M3SpringCurves.spatialFast.transform(t);
+    // Opacity rides an effects curve, so it stays within [0.0, 1.0].
+    final double opacity = M3SpringCurves.effectsDefault.transform(
+      (t * 2.0).clamp(0.0, 1.0),
+    );
+
+    return Transform.translate(
+      offset: Offset(0.0, (1.0 - spatial) * 12.0),
+      child: Transform.scale(
+      scale: 0.7 + 0.3 * spatial,
       alignment: Alignment.centerRight,
       child: Opacity(
-        opacity: delayProgress.clamp(0.0, 1.0),
+        opacity: opacity,
         child: GestureDetector(
           onTap: onTap,
           behavior: HitTestBehavior.opaque,
@@ -319,6 +327,7 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -348,21 +357,15 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
               ),
             ),
             alignment: Alignment.center,
-            child: AnimatedBuilder(
-              animation: _rotationAnimation,
-              builder: (BuildContext context, Widget? child) {
-                final double t = _rotationAnimation.value;
-                final bool showClose = t > 0.25;
-
-                return Transform.rotate(
-                  angle: t * math.pi,
-                  child: Icon(
-                    showClose ? Icons.close_rounded : Icons.edit_rounded,
-                    color: scheme.onPrimaryContainer,
-                    size: 26,
-                  ),
-                );
-              },
+            child: M3MorphingIcon(
+              // The overlay copy starts as the pencil and morphs once the
+              // menu begins to open.
+              icon: isExpanded && _isOpen && _controller.value > 0.0
+                  ? Icons.close_rounded
+                  : Icons.edit_rounded,
+              color: scheme.onPrimaryContainer,
+              size: 26,
+              duration: M3Durations.short4,
             ),
           ),
         ),
@@ -384,13 +387,13 @@ class _M3SpeedDialFabState extends State<M3SpeedDialFab>
       link: _layerLink,
       child: AnimatedScale(
         scale: widget.visible ? 1.0 : 0.0,
-        duration: MediaQuery.disableAnimationsOf(context)
+        duration: context.reduceMotion
             ? Duration.zero
             : M3Durations.short4,
-        curve: M3SpringCurves.spatial,
+        curve: M3SpringCurves.spatialDefault,
         child: AnimatedOpacity(
           opacity: widget.visible ? 1.0 : 0.0,
-          duration: MediaQuery.disableAnimationsOf(context)
+          duration: context.reduceMotion
               ? Duration.zero
               : M3Durations.short4,
           curve: M3SpringCurves.expressiveStandard,

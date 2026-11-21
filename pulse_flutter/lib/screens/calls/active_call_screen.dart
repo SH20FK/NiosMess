@@ -308,7 +308,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
                         ),
                         color: callScheme.error,
                         scaleDown: 0.94,
-                        releaseCurve: M3SpringCurves.spatial,
+                        releaseCurve: M3SpringCurves.spatialFast,
                         enableHaptics: true,
                         onTap: () {
                           HapticService.confirm();

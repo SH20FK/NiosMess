@@ -9,11 +9,12 @@ void main() {
       'SpringCurve satisfies mathematical continuity without terminal step clamps',
       () {
         final curves = [
-          M3SpringCurves.spatial,
-          M3SpringCurves.emphasized,
-          M3SpringCurves.snappy,
-          M3SpringCurves.bouncy,
-          M3SpringCurves.gentle,
+          M3SpringCurves.spatialFast,
+          M3SpringCurves.spatialDefault,
+          M3SpringCurves.spatialSlow,
+          M3SpringCurves.effectsFast,
+          M3SpringCurves.effectsDefault,
+          M3SpringCurves.effectsSlow,
         ];
 
         for (final curve in curves) {
@@ -105,16 +106,22 @@ void main() {
     );
 
     test(
-      'Anti-pattern guard: ChatTile must NOT wrap avatar in Hero widget inside scroll list',
+      'ChatTile avatar Hero shares its tag with the chat header avatar',
       () {
-        final file = File('lib/widgets/chat_tile.dart');
-        expect(file.existsSync(), isTrue);
-        final content = file.readAsStringSync();
+        final tile = File('lib/widgets/chat_tile.dart').readAsStringSync();
+        final header = File(
+          'lib/widgets/chat/chat_detail_app_bar.dart',
+        ).readAsStringSync();
 
         expect(
-          content.contains("tag: 'chat_avatar_"),
-          isFalse,
-          reason: 'ChatTile must not create Hero tags inside list view items',
+          "tag: 'chat_avatar_".allMatches(tile).length,
+          1,
+          reason: 'ChatTile must create exactly one Hero, on the avatar',
+        );
+        expect(
+          header.contains("tag: 'chat_avatar_"),
+          isTrue,
+          reason: 'The chat header avatar is the landing point of the Hero',
         );
       },
     );

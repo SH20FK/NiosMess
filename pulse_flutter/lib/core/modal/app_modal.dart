@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/modal/app_side_sheet.dart';
 import 'package:pulse_flutter/core/modal/app_modal_content.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/modal/m3_modal_route.dart';
 import 'package:pulse_flutter/core/modal/m3_modal_surface.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
@@ -38,14 +40,16 @@ class AppModal {
       isDismissible: isDismissible,
       enableDrag: enableDrag,
       useSafeArea: true,
-      sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
+      // Edge-attached surface: a spring overshoot would open a gap under it.
+      sheetAnimationStyle: context.reduceMotion
           ? AnimationStyle.noAnimation
           : const AnimationStyle(
               curve: M3SpringCurves.expressiveDecel,
               reverseCurve: M3SpringCurves.expressiveAccel,
-              duration: Duration(milliseconds: 300),
-              reverseDuration: Duration(milliseconds: 250),
+              duration: M3Durations.medium4,
+              reverseDuration: M3Durations.short4,
             ),
+      barrierColor: modalScrimColor(context),
       backgroundColor: Colors.transparent,
       elevation: 0,
       builder: (BuildContext ctx) {
@@ -119,16 +123,10 @@ class AppModal {
     bool isScrollable = true,
     bool wrapSurface = true,
   }) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-
-    return showGeneralDialog<T>(
+    final M3ModalRoute<T> route = M3ModalRoute<T>(
       context: context,
       barrierDismissible: isDismissible,
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: scheme.scrim.withValues(alpha: 0.45),
-      transitionDuration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : const Duration(milliseconds: 280),
+      transitionBuilder: M3ModalRoute.scaleTransition,
       pageBuilder:
           (BuildContext ctx, Animation<double> anim1, Animation<double> anim2) {
             Widget content = builder(ctx);
@@ -187,27 +185,8 @@ class AppModal {
               ),
             );
           },
-      transitionBuilder:
-          (
-            BuildContext ctx,
-            Animation<double> anim1,
-            Animation<double> anim2,
-            Widget child,
-          ) {
-            return FadeTransition(
-              opacity: CurvedAnimation(
-                parent: anim1,
-                curve: M3SpringCurves.expressiveDecel,
-              ),
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.96, end: 1.0).animate(
-                  CurvedAnimation(parent: anim1, curve: M3SpringCurves.gentle),
-                ),
-                child: child,
-              ),
-            );
-          },
     );
+    return Navigator.of(context, rootNavigator: true).push<T>(route);
   }
 
   /// Displays a slide-in right side sheet on wide / desktop screens.

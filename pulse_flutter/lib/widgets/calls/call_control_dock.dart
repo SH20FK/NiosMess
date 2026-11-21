@@ -152,7 +152,7 @@ class CallControlDock extends StatelessWidget {
                 borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),
                 color: scheme.error,
                 scaleDown: 0.94,
-                releaseCurve: M3SpringCurves.spatial,
+                releaseCurve: M3SpringCurves.spatialFast,
                 enableHaptics: true,
                 onTap: () {
                   HapticService.confirm();
@@ -209,7 +209,7 @@ class _CallDockButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(CallTokens.buttonBorderRadius),
         color: bgColor,
         scaleDown: 0.92,
-        releaseCurve: M3SpringCurves.spatial,
+        releaseCurve: M3SpringCurves.spatialFast,
         enableHaptics: true,
         onTap: onTap,
         child: Center(

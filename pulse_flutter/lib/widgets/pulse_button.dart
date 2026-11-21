@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
-import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/motion/m3_press_scale.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 /// Expressive Material 3 action button with horizontal layout, tactile haptics,
@@ -55,14 +54,8 @@ class _PulseButtonState extends State<PulseButton> {
       label: widget.label,
       button: true,
       enabled: !widget.isLoading && widget.onPressed != null,
-      child: AnimatedScale(
-        scale: _isPressed && !MediaQuery.disableAnimationsOf(context)
-            ? AppMotion.scalePressed
-            : 1.0,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : _isPressed ? AppMotion.durationPress : AppMotion.durationRelease,
-        curve: M3SpringCurves.spatial,
+      child: M3PressScale(
+        pressed: _isPressed,
         child: FilledButton(
           statesController: _statesController,
           onPressed: widget.isLoading

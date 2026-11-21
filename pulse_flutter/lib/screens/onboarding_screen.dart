@@ -1,7 +1,8 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -110,14 +111,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _handleSkip() {
     HapticService.selection();
     if (_index < 3) {
-      if (MediaQuery.disableAnimationsOf(context)) {
+      if (context.reduceMotion) {
         _pageController.jumpToPage(3);
         return;
       }
       _pageController.animateToPage(
         3,
-        duration: const Duration(milliseconds: 350),
-        curve: M3SpringCurves.spatial,
+        duration: M3Durations.medium3,
+        curve: M3SpringCurves.spatialDefault,
       );
     } else {
       _handleGetStarted();
@@ -127,13 +128,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _handleNext() {
     HapticService.selection();
     if (_index < 3) {
-      if (MediaQuery.disableAnimationsOf(context)) {
+      if (context.reduceMotion) {
         _pageController.jumpToPage(_index + 1);
         return;
       }
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 350),
-        curve: M3SpringCurves.spatial,
+        duration: M3Durations.medium3,
+        curve: M3SpringCurves.spatialDefault,
       );
     } else {
       _handleGetStarted();
@@ -170,14 +171,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           tag: 'app_brand_logo',
                           child: const AppLogoMark(size: 72),
                         )
-                        .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context))
-                        .scale(
-                          begin: const Offset(0.85, 0.85),
-                          end: const Offset(1, 1),
-                          curve: M3SpringCurves.spatial,
-                          duration: const Duration(milliseconds: 400),
-                        )
-                        .fade(duration: const Duration(milliseconds: 300)),
+                        .entrance(scaleFrom: 0.85),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -212,10 +206,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ),
                         ),
                       ],
-                    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(
-                      delay: const Duration(milliseconds: 150),
-                      duration: const Duration(milliseconds: 300),
-                    ),
+                    ).entrance(delay: const Duration(milliseconds: 150)),
                   ],
                 );
 
@@ -244,13 +235,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     final active = dotIndex == _index;
                     void select() {
                       HapticService.selection();
-                      if (MediaQuery.disableAnimationsOf(context)) {
+                      if (context.reduceMotion) {
                         _pageController.jumpToPage(dotIndex);
                       } else {
                         _pageController.animateToPage(
                           dotIndex,
                           duration: M3Durations.medium2,
-                          curve: M3SpringCurves.spatial,
+                          curve: M3SpringCurves.spatialDefault,
                         );
                       }
                     }
@@ -270,10 +261,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           tapTargetSize: MaterialTapTargetSize.padded,
                         ),
                         child: AnimatedContainer(
-                          duration: MediaQuery.disableAnimationsOf(context)
+                          duration: context.reduceMotion
                               ? Duration.zero
                               : M3Durations.short4,
-                          curve: M3SpringCurves.spatial,
+                          curve: M3SpringCurves.spatialDefault,
                           width: active ? 26 : 10,
                           height: 10,
                           decoration: BoxDecoration(
@@ -452,6 +443,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               height: 140,
               fit: BoxFit.contain,
               repeat: true,
+              animate: !context.reduceMotion,
               frameRate: FrameRate.max,
               errorBuilder: (context, error, stackTrace) => Container(
                 width: 120,

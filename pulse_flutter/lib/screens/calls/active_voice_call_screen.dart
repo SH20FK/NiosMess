@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
@@ -46,7 +47,7 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final animate = !MediaQuery.disableAnimationsOf(context) &&
+    final animate = !context.reduceMotion &&
         TickerMode.valuesOf(context).enabled;
     if (animate && !_rippleController.isAnimating) {
       _rippleController.repeat();

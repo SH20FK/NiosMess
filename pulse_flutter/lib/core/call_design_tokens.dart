@@ -47,10 +47,7 @@ class CallTokens {
   static const Duration rippleAnimationDuration = Duration(milliseconds: 2000);
 
   // M3 Expressive Animation Curves
-  static const Curve incomingOverlayCurve = M3SpringCurves.spatial;
-  static const Curve exitCurve = M3SpringCurves.snappy;
+  static const Curve incomingOverlayCurve = M3SpringCurves.spatialDefault;
   // Normalized smooth curve for Opacity / FadeTransition
   static const Curve controlsFadeCurve = Curves.easeInOutCubic;
-  static const Curve controlsScaleCurve = M3SpringCurves.snappy;
-  static const Curve rippleCurve = M3SpringCurves.gentle;
 }

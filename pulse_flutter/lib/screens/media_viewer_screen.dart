@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/media/media_hero.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'dart:convert';
@@ -290,10 +291,10 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
 
             // ── Top Animated App Bar ─────────────────────────────────
             AnimatedPositioned(
-              duration: MediaQuery.disableAnimationsOf(context)
+              duration: context.reduceMotion
                   ? Duration.zero
-                  : const Duration(milliseconds: 200),
-              curve: M3SpringCurves.spatial,
+                  : M3Durations.short4,
+              curve: M3SpringCurves.spatialDefault,
               top: (_showChrome && !isInteractingWithDrag) ? 0 : -110,
               left: 0,
               right: 0,

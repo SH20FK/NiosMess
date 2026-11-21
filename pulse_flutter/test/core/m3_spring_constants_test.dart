@@ -1,21 +1,47 @@
+import 'dart:math' as math;
+
+import 'package:flutter/physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
-void main() {
-  group('M3Spring physics descriptions', () {
-    test('all presets have positive mass, stiffness, and damping', () {
-      final presets = [
-        M3Spring.spatial,
-        M3Spring.emphasized,
-        M3Spring.snappy,
-        M3Spring.bouncy,
-        M3Spring.gentle,
-      ];
+double _dampingRatio(SpringDescription spring) =>
+    spring.damping / (2.0 * math.sqrt(spring.stiffness * spring.mass));
 
-      for (final spring in presets) {
-        expect(spring.mass, greaterThan(0));
-        expect(spring.stiffness, greaterThan(0));
-        expect(spring.damping, greaterThan(0));
+void main() {
+  group('M3 Expressive spring tokens', () {
+    test('spatial tokens match the spec stiffness and damping ratio', () {
+      expect(M3Spring.spatialFast.stiffness, 800.0);
+      expect(_dampingRatio(M3Spring.spatialFast), closeTo(0.6, 1e-9));
+
+      expect(M3Spring.spatialDefault.stiffness, 380.0);
+      expect(_dampingRatio(M3Spring.spatialDefault), closeTo(0.8, 1e-9));
+
+      expect(M3Spring.spatialSlow.stiffness, 200.0);
+      expect(_dampingRatio(M3Spring.spatialSlow), closeTo(0.8, 1e-9));
+    });
+
+    test('effects tokens are critically damped', () {
+      expect(M3Spring.effectsFast.stiffness, 3800.0);
+      expect(_dampingRatio(M3Spring.effectsFast), closeTo(1.0, 1e-9));
+
+      expect(M3Spring.effectsDefault.stiffness, 1600.0);
+      expect(_dampingRatio(M3Spring.effectsDefault), closeTo(1.0, 1e-9));
+
+      expect(M3Spring.effectsSlow.stiffness, 800.0);
+      expect(_dampingRatio(M3Spring.effectsSlow), closeTo(1.0, 1e-9));
+    });
+
+    test('all tokens use unit mass', () {
+      final tokens = [
+        M3Spring.spatialFast,
+        M3Spring.spatialDefault,
+        M3Spring.spatialSlow,
+        M3Spring.effectsFast,
+        M3Spring.effectsDefault,
+        M3Spring.effectsSlow,
+      ];
+      for (final spring in tokens) {
+        expect(spring.mass, 1.0);
       }
     });
   });
@@ -33,16 +59,16 @@ void main() {
       expect(curve.transform(1.5), 1.0);
     });
 
-    test('bouncy curve exhibits characteristic spring overshoot', () {
+    test('spatialFast curve exhibits characteristic spring overshoot', () {
       bool sawOvershoot = false;
       for (double t = 0.0; t <= 1.0; t += 0.02) {
-        final val = M3SpringCurves.bouncy.transform(t);
+        final val = M3SpringCurves.spatialFast.transform(t);
         if (val > 1.0) {
           sawOvershoot = true;
           break;
         }
       }
-      expect(sawOvershoot, isTrue, reason: 'Bouncy curve should overshoot 1.0');
+      expect(sawOvershoot, isTrue, reason: 'spatialFast should overshoot 1.0');
     });
 
     test('critically damped or overdamped spring settles cleanly', () {
@@ -57,11 +83,12 @@ void main() {
 
     test('normalization guarantees continuity near t=1.0 without step jumps', () {
       final curves = [
-        M3SpringCurves.spatial,
-        M3SpringCurves.emphasized,
-        M3SpringCurves.snappy,
-        M3SpringCurves.bouncy,
-        M3SpringCurves.gentle,
+        M3SpringCurves.spatialFast,
+        M3SpringCurves.spatialDefault,
+        M3SpringCurves.spatialSlow,
+        M3SpringCurves.effectsFast,
+        M3SpringCurves.effectsDefault,
+        M3SpringCurves.effectsSlow,
       ];
       for (final curve in curves) {
         final valNearEnd = curve.transform(0.999);

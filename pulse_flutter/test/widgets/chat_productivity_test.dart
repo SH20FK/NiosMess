@@ -531,17 +531,19 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('Все'), findsOneWidget);
-        final moreButton = find.byKey(
-          const ValueKey<String>('chat-filter-more'),
-        );
-        await tester.ensureVisible(moreButton);
-        await tester.tap(moreButton);
-        await tester.pumpAndSettle();
+        // Folder management moved from the removed overflow menu to a
+        // long-press on the "Все" pill.
         expect(
-          find.widgetWithText(MenuItemButton, 'Папки чатов'),
-          findsOneWidget,
+          find.byKey(const ValueKey<String>('chat-filter-more')),
+          findsNothing,
         );
-        await tester.tapAt(const Offset(4, 4));
+        await tester.longPress(
+          find.byKey(const ValueKey<String>('chat-filter-all')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(ChatFoldersScreen), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        Navigator.of(tester.element(find.byType(ChatFoldersScreen))).pop();
         await tester.pumpAndSettle();
         await tester.pumpWidget(app(const Scaffold(body: ChatFolderEditor())));
         await tester.pumpAndSettle();

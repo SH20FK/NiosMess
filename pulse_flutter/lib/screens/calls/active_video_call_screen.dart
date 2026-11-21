@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -113,7 +114,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     _controlsAutoHideTimer = Timer(CallTokens.controlsAutoHideDuration, () {
       if (mounted && _areControlsVisible) {
         setState(() => _areControlsVisible = false);
-        if (MediaQuery.disableAnimationsOf(context)) {
+        if (context.reduceMotion) {
           _controlsFadeController.value = 0;
         } else {
           _controlsFadeController.reverse();
@@ -126,14 +127,14 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     setState(() {
       _areControlsVisible = !_areControlsVisible;
       if (_areControlsVisible) {
-        if (MediaQuery.disableAnimationsOf(context)) {
+        if (context.reduceMotion) {
           _controlsFadeController.value = 1;
         } else {
           _controlsFadeController.forward();
         }
         _resetControlsTimer();
       } else {
-        if (MediaQuery.disableAnimationsOf(context)) {
+        if (context.reduceMotion) {
           _controlsFadeController.value = 0;
         } else {
           _controlsFadeController.reverse();

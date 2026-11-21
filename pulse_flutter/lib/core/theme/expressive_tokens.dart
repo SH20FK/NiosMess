@@ -247,19 +247,7 @@ abstract final class AppHeights {
 /// Centralized motion tokens, springs, and press feedback parameters.
 abstract final class AppMotion {
   /// Default spring curve for user-facing transitions and touches.
-  static const Curve spring = M3SpringCurves.spatial;
-
-  /// Expressive spatial curve from M3 specifications.
-  static const Curve spatial = M3SpringCurves.spatial;
-
-  /// Emphasized curve for prominent reveals and hero elements.
-  static const Curve emphasized = M3SpringCurves.emphasized;
-
-  /// Snappy curve for quick tactile responses.
-  static const Curve snappy = M3SpringCurves.snappy;
-
-  /// Bouncy curve for playful feedback (badges, switches, reactions).
-  static const Curve bouncy = M3SpringCurves.bouncy;
+  static const Curve spring = M3SpringCurves.spatialFast;
 
   /// Tactile press scale down factor.
   static const double scalePressed = 0.975;
@@ -268,10 +256,13 @@ abstract final class AppMotion {
   static const Duration pressTimeout = Duration(milliseconds: 90);
 
   /// Standard duration for press scale animations.
-  static const Duration durationPress = Duration(milliseconds: 140);
+  static const Duration durationPress = M3Durations.effectsFast;
+
+  /// Curve of the press-down compression; never overshoots.
+  static const Curve pressCurve = M3SpringCurves.effectsFast;
 
   /// Standard duration for release spring animations.
-  static const Duration durationRelease = Duration(milliseconds: 240);
+  static const Duration durationRelease = M3Durations.spatialFast;
 }
 
 /// Position of a message within a message cluster/group.

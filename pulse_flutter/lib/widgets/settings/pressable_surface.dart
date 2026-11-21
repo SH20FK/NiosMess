@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/widgets/motion/m3_press_scale.dart';
 
 /// Unified tactile pressable container conforming to Material 3 Expressive standards.
-/// Uses [M3SpringCurves.spatial] and [AppRadii] without anti-alias saveLayers.
+/// Uses [M3SpringCurves.spatialDefault] and [AppRadii] without anti-alias saveLayers.
 class PressableSurface extends ConsumerStatefulWidget {
   const PressableSurface({
     required this.child,
@@ -83,7 +85,7 @@ class _PressableSurfaceState extends ConsumerState<PressableSurface> {
         widget.borderRadius ?? AppRadii.mdRadius;
 
     final Widget body = AnimatedContainer(
-      duration: MediaQuery.disableAnimationsOf(context)
+      duration: context.reduceMotion
           ? Duration.zero
           : M3Durations.short4,
       curve: M3SpringCurves.expressiveStandard,
@@ -134,20 +136,7 @@ class _PressableSurfaceState extends ConsumerState<PressableSurface> {
         onTap: _handleTap,
         onLongPress: widget.enabled ? widget.onLongPress : null,
         behavior: HitTestBehavior.opaque,
-        child: AnimatedScale(
-          scale: _isPressed && !MediaQuery.disableAnimationsOf(context)
-              ? 0.98
-              : 1.0,
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : Duration(
-                  milliseconds: _isPressed
-                      ? AppMotion.durationPress.inMilliseconds
-                      : AppMotion.durationRelease.inMilliseconds,
-                ),
-          curve: _isPressed ? M3SpringCurves.snappy : M3SpringCurves.spatial,
-          child: body,
-        ),
+        child: M3PressScale(pressed: _isPressed, scale: 0.98, child: body),
       ),
     );
   }

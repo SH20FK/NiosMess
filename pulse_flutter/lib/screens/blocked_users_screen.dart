@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -131,7 +132,7 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
               hintText: context.l10n.searchBlockedHint,
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: AnimatedSwitcher(
-                duration: MediaQuery.disableAnimationsOf(context)
+                duration: context.reduceMotion
                     ? Duration.zero
                     : M3Durations.short3,
                 child: _query.isEmpty

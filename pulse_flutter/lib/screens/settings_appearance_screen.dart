@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -103,7 +104,7 @@ class _AppearanceScreen extends ConsumerWidget {
 
         return AnimatedTheme(
           data: targetTheme,
-          duration: MediaQuery.disableAnimationsOf(context)
+          duration: context.reduceMotion
               ? Duration.zero
               : M3Durations.long2,
           curve: M3SpringCurves.expressiveStandard,
@@ -257,7 +258,9 @@ class _AppearanceScreen extends ConsumerWidget {
         themeCard,
         colorField,
         geometrySection,
-        if (!kIsWeb) navSection,
+        // Predictive back exists only on Android.
+        if (!kIsWeb && Theme.of(context).platform == TargetPlatform.android)
+          navSection,
       ],
     );
   }
@@ -394,13 +397,13 @@ class _PalettePagerState extends State<_PalettePager> {
 
   void _goTo(int page) {
     HapticService.selection();
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (context.reduceMotion) {
       _controller.jumpToPage(page);
     } else {
       _controller.animateToPage(
         page,
-        duration: M3Durations.long1,
-        curve: M3SpringCurves.bouncy,
+        duration: M3Durations.spatialDefault,
+        curve: M3SpringCurves.spatialDefault,
       );
     }
   }
@@ -428,7 +431,7 @@ class _PalettePagerState extends State<_PalettePager> {
               key: const ValueKey('appearance-palette-strip'),
               controller: _controller,
               itemCount: _pageCount,
-              physics: MediaQuery.disableAnimationsOf(context)
+              physics: context.reduceMotion
                   ? const PageScrollPhysics()
                   : const _PalettePagePhysics(),
               onPageChanged: (page) => setState(() => _page = page),
@@ -469,10 +472,10 @@ class _PalettePagerState extends State<_PalettePager> {
                       height: 48,
                       child: Center(
                         child: AnimatedContainer(
-                          duration: MediaQuery.disableAnimationsOf(context)
+                          duration: context.reduceMotion
                               ? Duration.zero
                               : M3Durations.medium2,
-                          curve: M3SpringCurves.snappy,
+                          curve: M3SpringCurves.spatialFast,
                           width: _page == page ? 20 : 8,
                           height: 8,
                           decoration: BoxDecoration(
@@ -498,7 +501,7 @@ class _PalettePagePhysics extends PageScrollPhysics {
   const _PalettePagePhysics({super.parent});
 
   @override
-  SpringDescription get spring => M3Spring.bouncy;
+  SpringDescription get spring => M3Spring.spatialDefault;
 
   @override
   _PalettePagePhysics applyTo(ScrollPhysics? ancestor) =>

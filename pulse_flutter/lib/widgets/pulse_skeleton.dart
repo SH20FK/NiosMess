@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 /// Geometry shared by the inbox placeholder and `ChatTile` itself. Keeping the
@@ -50,17 +51,17 @@ class ChatListSkeleton extends StatefulWidget {
   State<ChatListSkeleton> createState() => _ChatListSkeletonState();
 }
 
-class _ChatListSkeletonState extends State<ChatListSkeleton>
-    with SingleTickerProviderStateMixin {
-  /// One controller drives every row so all blocks breathe together. The
-  /// ping-pong is explicit (not `.repeat`) so the loop is unmistakably owned by
-  /// this widget and stops with it.
+/// Breathing pulse shared by the skeletons. One controller drives every block
+/// of a skeleton so they fade together. The ping-pong is explicit (not
+/// `.repeat`) so the loop is unmistakably owned by the widget and stops with
+/// it.
+mixin _SkeletonPulse<T extends StatefulWidget> on State<T>, TickerProvider {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1200),
   )..addStatusListener(_onPulseStatus);
 
-  late final Animation<double> _opacity = Tween<double>(
+  late final Animation<double> pulseOpacity = Tween<double>(
     begin: 1.0,
     end: 0.55,
   ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut));
@@ -80,7 +81,7 @@ class _ChatListSkeletonState extends State<ChatListSkeleton>
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Reduced motion wins over decoration: no ticking, fully opaque blocks.
-    _reduceMotion = MediaQuery.disableAnimationsOf(context);
+    _reduceMotion = context.reduceMotion;
     if (_reduceMotion) {
       _pulse.stop();
       _pulse.value = 0.0;
@@ -94,7 +95,12 @@ class _ChatListSkeletonState extends State<ChatListSkeleton>
     _pulse.dispose();
     super.dispose();
   }
+}
 
+class _ChatListSkeletonState extends State<ChatListSkeleton>
+    with
+        SingleTickerProviderStateMixin<ChatListSkeleton>,
+        _SkeletonPulse<ChatListSkeleton> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -112,7 +118,7 @@ class _ChatListSkeletonState extends State<ChatListSkeleton>
         index: index,
         inset: inset,
         scheme: scheme,
-        opacity: _opacity,
+        opacity: pulseOpacity,
       ),
     );
   }
@@ -249,18 +255,26 @@ class _SkeletonBlock extends StatelessWidget {
   }
 }
 
-class MessageListSkeleton extends StatelessWidget {
+class MessageListSkeleton extends StatefulWidget {
   const MessageListSkeleton({this.count = 8, super.key});
 
   final int count;
 
+  @override
+  State<MessageListSkeleton> createState() => _MessageListSkeletonState();
+}
+
+class _MessageListSkeletonState extends State<MessageListSkeleton>
+    with
+        SingleTickerProviderStateMixin<MessageListSkeleton>,
+        _SkeletonPulse<MessageListSkeleton> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: count,
+      itemCount: widget.count,
       itemBuilder: (BuildContext context, int index) {
         final bool isMine = index % 3 == 0;
         final double bubbleWidth = 120 + (index % 5) * 40.0;
@@ -281,7 +295,9 @@ class MessageListSkeleton extends StatelessWidget {
                 bottomRight: Radius.circular(isMine ? 6 : 18),
               ),
             ),
-            child: Column(
+            child: FadeTransition(
+              opacity: pulseOpacity,
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Container(
@@ -306,6 +322,7 @@ class MessageListSkeleton extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         );

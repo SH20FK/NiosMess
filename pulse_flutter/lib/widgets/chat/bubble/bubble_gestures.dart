@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:motor/motor.dart' show SingleMotionController;
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 class SwipeToReply extends StatefulWidget {
@@ -20,39 +23,63 @@ class SwipeToReply extends StatefulWidget {
 
 class SwipeToReplyState extends State<SwipeToReply>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  double _releaseStart = 0;
-  final ValueNotifier<double> _dragNotifier = ValueNotifier<double>(0.0);
   static const double _maxDrag = 64;
+
+  /// Extra travel the bubble can be stretched past the reply threshold.
+  static const double _stretch = 32;
+  static const double _stretchStiffness = 0.55;
+
+  /// Visible bubble offset in logical pixels, zero or negative while dragging.
+  late final SingleMotionController _controller;
+
+  /// Finger travel since the drag started, before rubber-banding.
+  double _rawDrag = 0;
   bool _triggered = false;
 
-  void _release() {
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _controller.stop();
-      _dragNotifier.value = 0;
-    } else {
-      _releaseStart = _dragNotifier.value;
-      _controller.forward(from: 0);
-    }
+  /// Follows the finger 1:1 up to the threshold, then stretches asymptotically.
+  static double _rubberBand(double raw) {
+    final double over = -raw - _maxDrag;
+    if (over <= 0) return raw;
+    final double eased = 1 - 1 / (over * _stretchStiffness / _stretch + 1);
+    return -(_maxDrag + eased * _stretch);
+  }
+
+  /// Finger offset that [_rubberBand] maps onto [visible], so a re-grab
+  /// mid-flight continues from where the bubble is.
+  static double _inverseRubberBand(double visible) {
+    final double over = -visible - _maxDrag;
+    if (over <= 0) return visible;
+    final double eased = (over / _stretch).clamp(0.0, 0.99);
+    return -(_maxDrag + (1 / (1 - eased) - 1) * _stretch / _stretchStiffness);
+  }
+
+  /// Ratio of bubble speed to finger speed at the finger offset [raw].
+  static double _rubberBandSlope(double raw) {
+    final double over = -raw - _maxDrag;
+    if (over <= 0) return 1;
+    final double divisor = over * _stretchStiffness / _stretch + 1;
+    return _stretchStiffness / (divisor * divisor);
+  }
+
+  void _release({double? velocity}) {
+    _controller.springTo(
+      0.0,
+      velocity: velocity,
+      reduceMotion: context.reduceMotion,
+    );
   }
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _controller = SingleMotionController(
+      motion: M3Motion.spatialFast,
       vsync: this,
-      duration: const Duration(milliseconds: 250),
     );
-    _controller.addListener(() {
-      _dragNotifier.value =
-          _releaseStart *
-          (1 - M3SpringCurves.expressiveDecel.transform(_controller.value));
-    });
   }
 
   @override
   void dispose() {
-    _dragNotifier.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -62,21 +89,14 @@ class SwipeToReplyState extends State<SwipeToReply>
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onHorizontalDragStart: (_) {
-        _controller.stop();
+        _controller.stop(canceled: true);
+        _rawDrag = _inverseRubberBand(math.min(_controller.value, 0.0));
         _triggered = false;
       },
       onHorizontalDragUpdate: (DragUpdateDetails details) {
-        double delta = details.delta.dx;
-        // Apply friction if pulled past the threshold
-        if (_dragNotifier.value < -_maxDrag && delta < 0) {
-          delta *= 0.3;
-        }
-
-        final double next = (_dragNotifier.value + delta).clamp(
-          -_maxDrag * 1.2,
-          0.0,
-        );
-        _dragNotifier.value = next;
+        _rawDrag = math.min(_rawDrag + details.delta.dx, 0.0);
+        final double next = _rubberBand(_rawDrag);
+        _controller.value = next;
 
         if (next <= -_maxDrag && !_triggered) {
           _triggered = true;
@@ -87,19 +107,22 @@ class SwipeToReplyState extends State<SwipeToReply>
         }
       },
       onHorizontalDragEnd: (DragEndDetails details) {
-        final double current = _dragNotifier.value;
-        if (current <= -_maxDrag) {
+        if (_controller.value <= -_maxDrag) {
           HapticService.tap();
           widget.onReply();
         }
 
-        // Snap back without overshooting past 0
-        _release();
+        // The spring continues with the speed the bubble had under the finger.
+        _release(
+          velocity:
+              (details.primaryVelocity ?? 0.0) * _rubberBandSlope(_rawDrag),
+        );
       },
       onHorizontalDragCancel: _release,
-      child: ValueListenableBuilder<double>(
-        valueListenable: _dragNotifier,
-        builder: (BuildContext context, double dragX, Widget? cachedChild) {
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (BuildContext context, Widget? cachedChild) {
+          final double dragX = _controller.value;
           return Stack(
             clipBehavior: Clip.none,
             children: <Widget>[

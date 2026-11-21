@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
@@ -24,15 +25,15 @@ class ChatDetailScrollToBottomFAB extends StatelessWidget {
       child: RepaintBoundary(
         child: AnimatedOpacity(
           opacity: show ? 1.0 : 0.0,
-          duration: MediaQuery.disableAnimationsOf(context)
+          duration: context.reduceMotion
               ? Duration.zero
               : M3Durations.short4,
           child: AnimatedScale(
             scale: show ? 1.0 : 0.7,
-            duration: MediaQuery.disableAnimationsOf(context)
+            duration: context.reduceMotion
                 ? Duration.zero
                 : M3Durations.medium1,
-            curve: M3SpringCurves.spatial,
+            curve: M3SpringCurves.spatialDefault,
             child: Badge(
               isLabelVisible: unreadCount > 0,
               label: Text(

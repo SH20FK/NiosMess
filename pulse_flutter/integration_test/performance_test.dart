@@ -146,6 +146,7 @@ class _ConversationState extends State<_Conversation> {
           ({
             required messageId,
             required animate,
+            required staggerIndex,
             required isMine,
             required child,
           }) => child,

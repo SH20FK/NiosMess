@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Material 3 Expressive staggered list entrance item.
@@ -16,7 +17,7 @@ class M3StaggeredItem extends StatefulWidget {
     this.maxStaggerIndex = 8,
     this.itemDelay = const Duration(milliseconds: 30),
     this.duration = const Duration(milliseconds: 280),
-    this.curve = M3SpringCurves.spatial,
+    this.curve = M3SpringCurves.spatialDefault,
     this.slideOffset = 18.0,
   });
 
@@ -101,8 +102,7 @@ class _M3StaggeredItemState extends State<M3StaggeredItem>
 
   @override
   Widget build(BuildContext context) {
-    final bool disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final bool disableAnimations = context.reduceMotion;
 
     if (!_shouldAnimate || disableAnimations || _controller == null) {
       return widget.child;

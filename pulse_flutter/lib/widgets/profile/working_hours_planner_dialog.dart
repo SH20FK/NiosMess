@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_time_picker.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -292,7 +293,7 @@ class _WorkingHoursPlannerDialogState extends State<WorkingHoursPlannerDialog> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
-    final reduced = MediaQuery.disableAnimationsOf(context);
+    final reduced = context.reduceMotion;
     final intervals = _schedule[_day]!;
     const presets = [
       TimeInterval(start: '09:00', end: '18:00'),

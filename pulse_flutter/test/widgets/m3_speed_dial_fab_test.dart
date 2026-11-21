@@ -112,6 +112,44 @@ void main() {
       expect(channelSelected, isTrue);
     });
 
+    testWidgets('actions enter with a real stagger and bounded opacity', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrapWidget(
+          child: M3SpeedDialFab(onSelectGroup: () {}, onSelectChannel: () {}),
+        ),
+      );
+      double opacityOf(IconData icon) => tester
+          .widget<Opacity>(
+            find
+                .ancestor(
+                  of: find.byIcon(icon),
+                  matching: find.byType(Opacity),
+                )
+                .first,
+          )
+          .opacity;
+
+      await tester.tap(find.byType(M3SpeedDialFab));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+
+      // The action next to the FAB is ahead of the one above it.
+      final double group = opacityOf(Icons.groups_rounded);
+      final double channel = opacityOf(Icons.campaign_rounded);
+      expect(group, greaterThan(channel));
+      expect(group, inInclusiveRange(0.0, 1.0));
+      expect(channel, inInclusiveRange(0.0, 1.0));
+      // The FAB icon morphs from the pencil into the close glyph.
+      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(opacityOf(Icons.groups_rounded), 1.0);
+      expect(opacityOf(Icons.campaign_rounded), 1.0);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('respects visible: false by scaling down', (
       WidgetTester tester,
     ) async {

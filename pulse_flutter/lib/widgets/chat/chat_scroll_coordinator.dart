@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/chat/chat_history_scroll_controller.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_fab.dart';
@@ -130,7 +131,7 @@ class ChatScrollCoordinator {
               chatId: chatId,
               unreadCount: unreadCount,
               onPressed: () => scrollToBottom(
-                animate: !MediaQuery.disableAnimationsOf(context),
+                animate: !context.reduceMotion,
               ),
             );
           },

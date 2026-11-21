@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/media/media_playback_visibility.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
@@ -162,7 +163,7 @@ class _NotoMessageEmojiState extends ConsumerState<NotoMessageEmoji>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _reducedMotion = MediaQuery.disableAnimationsOf(context);
+    _reducedMotion = context.reduceMotion;
     final position = Scrollable.maybeOf(context)?.position;
     if (_scrollPosition != position) {
       _scrollPosition?.isScrollingNotifier.removeListener(_syncPlayback);
@@ -338,7 +339,7 @@ class _NotoMessageEmojiState extends ConsumerState<NotoMessageEmoji>
             builder: (context, child) => Transform.scale(
               scale:
                   1 +
-                  0.12 * (1 - M3SpringCurves.snappy.transform(_spring.value)),
+                  0.12 * (1 - M3SpringCurves.spatialFast.transform(_spring.value)),
               child: child,
             ),
             child: SizedBox.square(

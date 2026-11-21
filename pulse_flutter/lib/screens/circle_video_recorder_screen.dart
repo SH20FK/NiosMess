@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -92,7 +93,7 @@ class _CircleVideoRecorderScreenState
   void didChangeDependencies() {
     super.didChangeDependencies();
     _motionAllowed =
-        !MediaQuery.disableAnimationsOf(context) &&
+        !context.reduceMotion &&
         TickerMode.valuesOf(context).enabled;
     _syncPulse();
   }
@@ -611,9 +612,7 @@ class _CircleVideoRecorderScreenState
                                           ),
                                       child: AnimatedContainer(
                                         duration:
-                                            MediaQuery.disableAnimationsOf(
-                                              context,
-                                            )
+                                            context.reduceMotion
                                             ? Duration.zero
                                             : M3Durations.short3,
                                         curve: M3SpringCurves.expressiveDecel,
@@ -628,9 +627,7 @@ class _CircleVideoRecorderScreenState
                                         child: Center(
                                           child: AnimatedContainer(
                                             duration:
-                                                MediaQuery.disableAnimationsOf(
-                                                  context,
-                                                )
+                                                context.reduceMotion
                                                 ? Duration.zero
                                                 : M3Durations.short3,
                                             curve:

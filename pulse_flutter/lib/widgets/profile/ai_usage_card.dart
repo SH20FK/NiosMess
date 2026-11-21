@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
@@ -102,7 +103,7 @@ class _M3QuotaMeter extends StatelessWidget {
       ),
       child: TweenAnimationBuilder<double>(
         tween: Tween(end: progress.clamp(0.0, 1.0)),
-        duration: MediaQuery.disableAnimationsOf(context)
+        duration: context.reduceMotion
             ? Duration.zero
             : M3Durations.medium2,
         curve: M3SpringCurves.expressiveStandard,

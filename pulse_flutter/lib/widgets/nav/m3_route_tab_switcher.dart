@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
-/// Compatibility hook and warm-up gate. No raster snapshots are retained.
+/// Warm-up gate. No raster snapshots are retained.
 class TabTransitionController {
   bool isTransitioning = false;
-  void captureOutgoing() {}
 }
 
 enum _Phase { idle, outgoing, incoming }
@@ -55,18 +55,18 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
       : 1 - _opacity.value / _exitStartOpacity;
   double get _distance => widget.slideDistance ?? 32;
   double get _offset => _phase == _Phase.incoming
-      ? _slideStart * (1 - M3SpringCurves.gentle.transform(_opacity.value))
+      ? _slideStart * (1 - _opacity.value)
       : _phase == _Phase.outgoing
       ? _heldOffset +
             (-_direction * _distance - _heldOffset) * _exitProgress
       : 0;
   bool get _reduced =>
-      !widget.animate || MediaQuery.maybeDisableAnimationsOf(context) == true;
+      !widget.animate || context.reduceMotion;
   Duration get _duration =>
       widget.duration ?? const Duration(milliseconds: 320);
   double get _scale => _phase == _Phase.incoming
       ? _scaleStart +
-            (1 - _scaleStart) * M3SpringCurves.gentle.transform(_opacity.value)
+            (1 - _scaleStart) * _opacity.value
       : _phase == _Phase.outgoing
       ? _heldScale + (.985 - _heldScale) * _exitProgress
       : _heldScale;
@@ -121,7 +121,7 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
         // Return to the page still on screen, retaining its current scale.
         final currentScale = _scale;
         final currentOffset = _offset;
-        final progress = M3SpringCurves.gentle.transform(_opacity.value);
+        final progress = _opacity.value;
         _scaleStart = progress == 1
             ? 1
             : (currentScale - progress) / (1 - progress);

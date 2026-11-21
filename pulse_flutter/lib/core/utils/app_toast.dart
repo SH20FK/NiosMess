@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -31,7 +32,7 @@ class AppToast {
     messenger.showSnackBar(
       snackBar,
       snackBarAnimationStyle:
-          MediaQuery.maybeDisableAnimationsOf(context) == true
+          context.reduceMotion
           ? AnimationStyle.noAnimation
           : const AnimationStyle(
               duration: M3Durations.medium1,

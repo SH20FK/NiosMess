@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_edge_fade.dart';
@@ -65,14 +66,20 @@ class ChatViewport extends StatefulWidget {
     this.composerSurfaceColor,
     this.bottomFadeHeight = 64.0,
     this.topFadeHeight = 44.0,
+    this.messagesGap = 8.0,
   });
 
   /// Fullscreen wallpaper filling the viewport
   final Widget wallpaper;
 
-  /// Builder for messages scrollable view. Receives effective composer height.
-  final Widget Function(BuildContext context, double composerHeight)
-      messagesBuilder;
+  /// Builder for messages scrollable view. `bottomInset` is the composer
+  /// height plus [messagesGap]; the list listens to it instead of being
+  /// rebuilt when the composer grows or shrinks.
+  final Widget Function(
+    BuildContext context,
+    ValueListenable<double> bottomInset,
+  )
+  messagesBuilder;
 
   /// Unified composer surface (input, reply bar, attachments/dock)
   final Widget composer;
@@ -92,20 +99,42 @@ class ChatViewport extends StatefulWidget {
   /// Height of top edge fade
   final double topFadeHeight;
 
+  /// Gap between the newest message and the composer surface
+  final double messagesGap;
+
   @override
   State<ChatViewport> createState() => _ChatViewportState();
 }
 
 class _ChatViewportState extends State<ChatViewport> {
-  double _composerHeight = 72.0;
+  // The composer height lives in notifiers: opening the emoji panel or a reply
+  // bar moves the inset, the fade and the FAB without rebuilding the messages.
+  final ValueNotifier<double> _composerHeight = ValueNotifier<double>(72.0);
+  late final ValueNotifier<double> _messagesInset = ValueNotifier<double>(
+    _composerHeight.value + widget.messagesGap,
+  );
 
   void _onComposerSizeChanged(Size size) {
     if (!mounted) return;
-    if ((_composerHeight - size.height).abs() > 0.5) {
-      setState(() {
-        _composerHeight = size.height;
-      });
+    if ((_composerHeight.value - size.height).abs() > 0.5) {
+      _composerHeight.value = size.height;
+      _messagesInset.value = size.height + widget.messagesGap;
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatViewport oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.messagesGap != widget.messagesGap) {
+      _messagesInset.value = _composerHeight.value + widget.messagesGap;
+    }
+  }
+
+  @override
+  void dispose() {
+    _composerHeight.dispose();
+    _messagesInset.dispose();
+    super.dispose();
   }
 
   @override
@@ -125,27 +154,26 @@ class _ChatViewportState extends State<ChatViewport> {
 
         // 2. Messages scroll view (full viewport, bottom padding = composerHeight)
         Positioned.fill(
-          child: widget.messagesBuilder(context, _composerHeight),
+          child: widget.messagesBuilder(context, _messagesInset),
         ),
 
         // 3. Top edge fade (short, neat dissolution at top)
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
+        // ChatMessageTopFade positions itself inside the Stack.
+        ChatMessageTopFade(
           height: widget.topFadeHeight,
-          child: ChatMessageTopFade(
-            height: widget.topFadeHeight,
-            color: scheme.surface,
-          ),
+          color: scheme.surface,
         ),
 
         // 4. Dynamic bottom edge fade (anchored to bottom 0, extending behind composer)
-        ChatMessageBottomFade(
-          bottom: 0.0,
-          height: _composerHeight + widget.bottomFadeHeight,
-          fadeOverhang: widget.bottomFadeHeight,
-          color: composerSurface,
+        ValueListenableBuilder<double>(
+          valueListenable: _composerHeight,
+          builder: (BuildContext context, double height, _) =>
+              ChatMessageBottomFade(
+                bottom: 0.0,
+                height: height + widget.bottomFadeHeight,
+                fadeOverhang: widget.bottomFadeHeight,
+                color: composerSurface,
+              ),
         ),
 
         // 5. Unified floating composer surface
@@ -167,10 +195,11 @@ class _ChatViewportState extends State<ChatViewport> {
 
         // 6. Scroll-to-bottom FAB (anchored to composer surface + 16dp)
         if (widget.floatingActionButton != null)
-          Positioned(
-            right: 16,
-            bottom: _composerHeight + 16,
-            child: widget.floatingActionButton!,
+          ValueListenableBuilder<double>(
+            valueListenable: _composerHeight,
+            builder: (BuildContext context, double height, Widget? child) =>
+                Positioned(right: 16, bottom: height + 16, child: child!),
+            child: widget.floatingActionButton,
           ),
 
         // 7. Security / system banner (pinned to top)

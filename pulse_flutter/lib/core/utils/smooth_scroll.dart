@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// A custom [ScrollPositionWithSingleContext] that animates mouse wheel events
 /// with smooth cubic easing instead of abrupt instantaneous jumps.
@@ -29,7 +30,7 @@ class SmoothScrollPosition extends ScrollPositionWithSingleContext {
     if (newTarget != pixels) {
       animateTo(
         newTarget,
-        duration: const Duration(milliseconds: 200),
+        duration: M3Durations.short4,
         curve: Curves.easeOutCubic,
       ).whenComplete(() {
         if (_target == newTarget) {

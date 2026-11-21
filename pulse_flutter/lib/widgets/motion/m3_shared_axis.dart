@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Material 3 Expressive shared axis transition widget.
@@ -12,7 +13,7 @@ class M3SharedAxis extends StatelessWidget {
     this.axis = Axis.horizontal,
     this.forward = true,
     this.duration = const Duration(milliseconds: 320),
-    this.curve = M3SpringCurves.spatial,
+    this.curve = M3SpringCurves.spatialDefault,
     this.slideDistance = 30.0,
   });
 
@@ -36,8 +37,7 @@ class M3SharedAxis extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final bool disableAnimations = context.reduceMotion;
 
     if (disableAnimations) {
       return child;
@@ -73,26 +73,27 @@ class M3SharedAxis extends StatelessWidget {
         );
 
         final double direction = forward ? 1.0 : -1.0;
-        final Offset beginOffset;
-        final Offset endOffset;
+        // Travel in logical pixels, independent of the child's size.
+        final Offset travel = axis == Axis.horizontal
+            ? Offset(direction * slideDistance, 0.0)
+            : Offset(0.0, direction * slideDistance);
 
-        if (axis == Axis.horizontal) {
-          beginOffset = Offset(direction * (slideDistance / 100.0), 0.0);
-          endOffset = Offset(-direction * (slideDistance / 100.0), 0.0);
-        } else {
-          beginOffset = Offset(0.0, direction * (slideDistance / 100.0));
-          endOffset = Offset(0.0, -direction * (slideDistance / 100.0));
-        }
-
+        // The incoming child arrives from +travel. The outgoing child's
+        // animation runs backwards (1.0 -> 0.0), so it leaves towards -travel.
         final Animation<Offset> offsetAnimation = Tween<Offset>(
-          begin: isIncoming ? beginOffset : Offset.zero,
-          end: isIncoming ? Offset.zero : endOffset,
+          begin: isIncoming ? travel : -travel,
+          end: Offset.zero,
         ).animate(slideAnim);
 
         return FadeTransition(
           opacity: fadeAnim,
-          child: SlideTransition(
-            position: offsetAnimation,
+          child: AnimatedBuilder(
+            animation: offsetAnimation,
+            builder: (BuildContext context, Widget? child) =>
+                Transform.translate(
+                  offset: offsetAnimation.value,
+                  child: child,
+                ),
             child: child,
           ),
         );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
@@ -166,7 +167,7 @@ class _ProfileDetailsGroupState extends State<ProfileDetailsGroup> {
       backgroundColor: scheme.surfaceContainerHigh,
       collapsedBackgroundColor: scheme.surfaceContainerHigh,
       expansionAnimationStyle: AnimationStyle(
-        duration: MediaQuery.disableAnimationsOf(context)
+        duration: context.reduceMotion
             ? Duration.zero
             : M3Durations.medium2,
         curve: M3SpringCurves.expressiveDecel,

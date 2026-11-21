@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/features/chats/application/create_group_controller.dart';
@@ -89,7 +90,7 @@ class _CreateGroupMembersScreenState
 
         // Selected Members Horizontal Strip
         AnimatedSize(
-          duration: const Duration(milliseconds: 250),
+          duration: M3Durations.medium1,
           curve: Curves.fastOutSlowIn,
           child: selected.isNotEmpty
               ? Container(
@@ -400,7 +401,7 @@ class _MemberSelectionTile extends StatelessWidget {
             )
           : null,
       trailing: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: M3Durations.short4,
         width: 26,
         height: 26,
         decoration: BoxDecoration(

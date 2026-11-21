@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 /// Comprehensive vector illustration library for NiosMess.
@@ -44,7 +45,7 @@ class EmptyFeedIllustration extends StatelessWidget {
       colorFilter: ColorFilter.mode(primary, BlendMode.srcIn),
     );
 
-    final bool shouldAnimate = animate && !MediaQuery.disableAnimationsOf(context);
+    final bool shouldAnimate = animate && !context.reduceMotion;
 
     if (!shouldAnimate) {
       return SizedBox(
@@ -75,18 +76,7 @@ class EmptyFeedIllustration extends StatelessWidget {
             primary: primary,
             accent: accent,
           ),
-          svgGraphic
-              .animate()
-              .scaleXY(
-                begin: 0.94,
-                end: 1.0,
-                duration: const Duration(milliseconds: 320),
-                curve: Curves.easeOutCubic,
-              )
-              .fadeIn(
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeOut,
-              ),
+          M3Entrance(scaleFrom: 0.94, child: svgGraphic),
         ],
       ),
     );

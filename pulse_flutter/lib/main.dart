@@ -376,7 +376,7 @@ class _PulseAppState extends ConsumerState<PulseApp> {
                   .accessibilityFeatures
                   .disableAnimations
               ? Duration.zero
-              : const Duration(milliseconds: 500),
+              : M3Durations.long2,
           themeAnimationCurve: M3SpringCurves.expressiveStandard,
           debugShowCheckedModeBanner: false,
           showPerformanceOverlay: showPerformanceOverlay,

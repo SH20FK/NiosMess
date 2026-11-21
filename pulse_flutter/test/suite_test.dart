@@ -229,7 +229,16 @@ import 'widgets/tab_shared_axis_switcher_test.dart'
     as widgets_tab_shared_axis_switcher;
 import 'widgets/vector_illustrations_test.dart' as widgets_vector_illustrations;
 import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
+import 'unit/m3_motion_test.dart' as unit_m3_motion;
+import 'unit/m3_spring_curves_test.dart' as unit_m3_spring_curves;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
+import 'widgets/m3_modal_route_test.dart' as widgets_m3_modal_route;
+import 'widgets/m3_page_transitions_test.dart' as widgets_m3_page_transitions;
+import 'widgets/chat_viewport_test.dart' as widgets_chat_viewport;
+import 'widgets/bubble_reaction_chip_test.dart' as widgets_bubble_reaction_chip;
+import 'widgets/swipe_action_row_test.dart' as widgets_swipe_action_row;
+import 'widgets/reorder_slide_test.dart' as widgets_reorder_slide;
+import 'widgets/m3_entrance_test.dart' as widgets_m3_entrance;
 import 'widgets/media_hero_test.dart' as media_hero_motion;
 import 'widgets/swipe_reply_motion_test.dart' as swipe_reply_motion;
 import 'widgets/theme_reveal_motion_test.dart' as theme_reveal_motion;
@@ -306,6 +315,8 @@ void main() {
     unit_tri_sync.main();
     unit_nios_link_and_blob_store.main();
     unit_m3_motion_kit.main();
+    unit_m3_motion.main();
+    unit_m3_spring_curves.main();
 
     // Performance lifecycle, storage and resource regressions. No device FPS assertions.
     group('perf_lifecycle', perf_lifecycle.main);
@@ -475,6 +486,13 @@ void main() {
     niosgram_video.main();
     widgets_vector_illustrations.main();
     widgets_m3_motion_kit.main();
+    widgets_m3_modal_route.main();
+    widgets_m3_page_transitions.main();
+    widgets_chat_viewport.main();
+    widgets_bubble_reaction_chip.main();
+    widgets_swipe_action_row.main();
+    widgets_reorder_slide.main();
+    widgets_m3_entrance.main();
 
     // End-to-End & Integration Suites
     e2e_niosgram_and_settings.main();

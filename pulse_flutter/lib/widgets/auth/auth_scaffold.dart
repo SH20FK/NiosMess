@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -211,14 +210,7 @@ class AuthScaffold extends StatelessWidget {
               ),
             ),
           )
-              .animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context))
-              .scale(
-                begin: const Offset(0.8, 0.8),
-                end: const Offset(1, 1),
-                duration: const Duration(milliseconds: 360),
-                curve: M3SpringCurves.spatial,
-              )
-              .fadeIn(duration: const Duration(milliseconds: 280)),
+              .entrance(scaleFrom: 0.8),
         if (badgeIcon != null) const SizedBox(height: 20),
         if (title != null)
           Text(
@@ -231,7 +223,7 @@ class AuthScaffold extends StatelessWidget {
               letterSpacing: -0.5,
               color: scheme.onSurface,
             ),
-          ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fadeIn(duration: const Duration(milliseconds: 300)),
+          ).entrance(),
         if (subtitle != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -241,10 +233,7 @@ class AuthScaffold extends StatelessWidget {
               color: scheme.onSurfaceVariant,
               height: 1.4,
             ),
-          ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fadeIn(
-                delay: const Duration(milliseconds: 100),
-                duration: const Duration(milliseconds: 300),
-              ),
+          ).entrance(delay: const Duration(milliseconds: 100)),
         ],
       ],
     );
@@ -282,6 +271,6 @@ class AuthScaffold extends StatelessWidget {
           ),
         ),
       ),
-    ).animate(value: MediaQuery.disableAnimationsOf(context) ? 1 : null, autoPlay: !MediaQuery.disableAnimationsOf(context)).fade(duration: const Duration(milliseconds: 200));
+    ).entrance();
   }
 }

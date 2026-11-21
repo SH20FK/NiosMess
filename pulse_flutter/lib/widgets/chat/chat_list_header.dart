@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
@@ -70,7 +71,7 @@ class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
     final ColorScheme scheme = theme.colorScheme;
     final l10n = context.l10n;
     final bool scrolled = ref.watch(chatListScrolledProvider);
-    final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final bool reduceMotion = context.reduceMotion;
 
     final profile = ref.watch(authProvider.select((s) => s.profile));
     final sessionName = ref.watch(
@@ -89,7 +90,7 @@ class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
         return TweenAnimationBuilder<double>(
           tween: Tween<double>(begin: 0, end: scrolled ? 1 : 0),
           duration: reduceMotion ? Duration.zero : _scrimDuration,
-          curve: M3SpringCurves.gentle,
+          curve: M3SpringCurves.effectsDefault,
           builder: (BuildContext context, double t, Widget? child) {
             return DecoratedBox(
               decoration: BoxDecoration(

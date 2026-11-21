@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/notifications/notification_center.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/smooth_scroll.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/widgets/motion/m3_animated_badge.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -110,12 +112,12 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
               foregroundColor: scheme.onSurfaceVariant,
               elevation: 0,
               onPressed: () {
-                if (MediaQuery.disableAnimationsOf(context)) {
+                if (context.reduceMotion) {
                   _scrollController.jumpTo(0);
                 } else {
                   _scrollController.animateTo(
                     0,
-                    duration: const Duration(milliseconds: 300),
+                    duration: M3Durations.medium2,
                     curve: M3SpringCurves.expressiveDecel,
                   );
                 }
@@ -299,44 +301,28 @@ class _NotificationsBell extends ConsumerWidget {
             _showNotificationsSheet(context, ref);
           },
         ),
-        if (count > 0)
-          Positioned(
-            right: 6,
-            top: 6,
-            child: AnimatedScale(
-              scale: 1.0,
-              duration: const Duration(milliseconds: 200),
-              curve: M3SpringCurves.bouncy,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 5,
-                  vertical: 1.5,
-                ),
-                decoration: BoxDecoration(
-                  color: scheme.error,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: scheme.surface, width: 1.5),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: scheme.error.withValues(alpha: 0.35),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 16),
-                child: Text(
-                  count > 99 ? '99+' : '$count',
-                  style: TextStyle(
-                    color: scheme.onError,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+        Positioned(
+          right: 6,
+          top: 6,
+          // The badge must not swallow taps meant for the bell.
+          child: IgnorePointer(
+            child: M3AnimatedBadge(
+              count: count,
+              label: count > 99 ? '99+' : null,
+              backgroundColor: scheme.error,
+              textColor: scheme.onError,
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              minSize: 16,
+              duration: M3Durations.spatialFast,
+              textStyle: TextStyle(
+                color: scheme.onError,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                height: 1.0,
               ),
             ),
           ),
+        ),
       ],
     );
   }

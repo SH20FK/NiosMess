@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -679,7 +680,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
     leading: const Icon(Icons.info_outline_rounded),
     shape: const Border(),
     collapsedShape: const Border(),
-    expansionAnimationStyle: MediaQuery.disableAnimationsOf(context)
+    expansionAnimationStyle: context.reduceMotion
         ? AnimationStyle.noAnimation
         : const AnimationStyle(
             duration: M3Durations.medium2,
@@ -689,7 +690,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
   );
 
   Widget _reveal(String key, Widget? child) => AnimatedSize(
-    duration: MediaQuery.disableAnimationsOf(context)
+    duration: context.reduceMotion
         ? Duration.zero
         : M3Durations.medium2,
     curve: M3SpringCurves.expressiveStandard,

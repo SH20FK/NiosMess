@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 
 /// Identifies a particular attachment, even when several messages share a URL.
 String chatMediaHeroTag(int chatId, int messageId) =>
@@ -12,7 +13,7 @@ class MediaHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (tag == null || MediaQuery.disableAnimationsOf(context)) return child;
+    if (tag == null || context.reduceMotion) return child;
     return Hero(
       tag: tag!,
       transitionOnUserGestures: true,

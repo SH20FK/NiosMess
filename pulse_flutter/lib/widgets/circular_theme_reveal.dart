@@ -1,12 +1,13 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 
 /// Optimized Animated Theme Toggler wrapper.
 /// Smoothly reveals the new theme via an expanding circular cutout from tap coordinates
-/// using an ultra-efficient 1.0 pixel-ratio snapshot with hardware-accelerated rendering.
+/// using a snapshot capped at a 2.0 pixel ratio with hardware-accelerated rendering.
 class CircularThemeSwitcher extends StatefulWidget {
   const CircularThemeSwitcher({super.key, required this.child});
 
@@ -42,7 +43,7 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
+      duration: M3Durations.long1,
     );
     _animController.addStatusListener((AnimationStatus status) {
       if (status == AnimationStatus.completed) {
@@ -71,7 +72,7 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     GlobalKey? buttonKey,
   }) async {
     if (_isAnimating) return;
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (context.reduceMotion) {
       changeThemeCallback();
       return;
     }
@@ -90,7 +91,9 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
       offset = Offset(size.width / 2, size.height / 2);
     }
 
-    // 1. Capture lightweight 1.0 pixel-ratio snapshot of OLD theme before change
+    // 1. Capture a snapshot of the OLD theme before the change. The pixel
+    // ratio is capped at 2.0: at 1.0 the old theme visibly blurs for the
+    // length of the reveal, above 2.0 the texture only costs memory.
     ui.Image? snapshotImage;
     try {
       final RenderRepaintBoundary? boundary =
@@ -98,7 +101,11 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
               as RenderRepaintBoundary?;
       if (boundary != null && boundary.attached && boundary.hasSize) {
         // Synchronous GPU texture capture to prevent pipeline stalls and per-frame CPU rasterization (ЛАГ-12)
-        snapshotImage = boundary.toImageSync(pixelRatio: 1.0);
+        snapshotImage = boundary.toImageSync(
+          pixelRatio: MediaQuery.devicePixelRatioOf(
+            context,
+          ).clamp(1.0, 2.0).toDouble(),
+        );
       }
     } catch (_) {
       snapshotImage = null;
