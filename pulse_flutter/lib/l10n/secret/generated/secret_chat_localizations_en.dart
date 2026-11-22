@@ -1338,7 +1338,7 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsV2BackgroundOff =>
-      'The background connection is off. Push notifications still use FCM.';
+      'The background connection is off. Notifications still arrive through the system.';
 
   @override
   String get settingsV2Preview => 'Show message text';
@@ -1970,7 +1970,10 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get settingsDeviceAvailable => 'Available';
 
   @override
-  String get settingsDeviceUnknown => 'Unavailable';
+  String get settingsDeviceUnknown => 'No data';
+
+  @override
+  String get settingsStorageClearAction => 'Clear';
 
   @override
   String get settingsAboutSupport => 'Help and feedback';

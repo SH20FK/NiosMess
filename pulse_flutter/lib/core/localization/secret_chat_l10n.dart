@@ -685,6 +685,7 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsDeviceFrontCamera => _secret.settingsDeviceFrontCamera;
   String get settingsDeviceAvailable => _secret.settingsDeviceAvailable;
   String get settingsDeviceUnknown => _secret.settingsDeviceUnknown;
+  String get settingsStorageClearAction => _secret.settingsStorageClearAction;
   String get settingsAboutSupport => _secret.settingsAboutSupport;
   String get settingsAboutLinks => _secret.settingsAboutLinks;
   String get settingsE2eeOrdinaryTitle => _secret.settingsE2eeOrdinaryTitle;

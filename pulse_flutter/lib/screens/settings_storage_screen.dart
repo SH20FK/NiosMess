@@ -109,7 +109,8 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
       context: context,
       title: title,
       subtitle: body,
-      confirmLabel: context.l10n.commonDelete,
+      // Temporary files and drafts are cleared, not deleted like a chat.
+      confirmLabel: context.l10n.settingsStorageClearAction,
       cancelLabel: context.l10n.commonCancel,
       destructive: true,
     );

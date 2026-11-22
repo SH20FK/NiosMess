@@ -2498,7 +2498,7 @@ abstract class SecretChatLocalizations {
   /// No description provided for @settingsV2BackgroundOff.
   ///
   /// In en, this message translates to:
-  /// **'The background connection is off. Push notifications still use FCM.'**
+  /// **'The background connection is off. Notifications still arrive through the system.'**
   String get settingsV2BackgroundOff;
 
   /// No description provided for @settingsV2Preview.
@@ -3680,8 +3680,14 @@ abstract class SecretChatLocalizations {
   /// No description provided for @settingsDeviceUnknown.
   ///
   /// In en, this message translates to:
-  /// **'Unavailable'**
+  /// **'No data'**
   String get settingsDeviceUnknown;
+
+  /// No description provided for @settingsStorageClearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get settingsStorageClearAction;
 
   /// No description provided for @settingsAboutSupport.
   ///

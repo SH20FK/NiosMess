@@ -1357,7 +1357,7 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsV2BackgroundOff =>
-      'Фоновое соединение отключено. Push продолжает работать через FCM.';
+      'Фоновое соединение выключено. Уведомления по-прежнему приходят через систему.';
 
   @override
   String get settingsV2Preview => 'Показывать текст';
@@ -1991,7 +1991,10 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get settingsDeviceAvailable => 'Доступно';
 
   @override
-  String get settingsDeviceUnknown => 'Недоступно';
+  String get settingsDeviceUnknown => 'Нет данных';
+
+  @override
+  String get settingsStorageClearAction => 'Очистить';
 
   @override
   String get settingsAboutSupport => 'Помощь и обратная связь';

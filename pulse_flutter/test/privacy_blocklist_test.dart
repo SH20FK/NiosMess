@@ -211,7 +211,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.bySemanticsLabel('Заблокированные пользователи'), findsOneWidget);
-      expect(find.text('Вы еще никого не заблокировали'), findsOneWidget);
+      expect(find.text('Вы ещё никого не заблокировали'), findsOneWidget);
       semantics.dispose();
     });
   });

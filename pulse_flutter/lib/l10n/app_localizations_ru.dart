@@ -837,11 +837,11 @@ class AppLocalizationsRu extends AppLocalizations {
       'Показывать, когда вы печатаете сообщение';
 
   @override
-  String get settingsSpamBlockTitle => 'Ваш аккаунт на спам-блоке';
+  String get settingsSpamBlockTitle => 'Аккаунт ограничен из-за спама';
 
   @override
   String get settingsSpamBlockSubtitle =>
-      'Вы не можете начинать новые ЛС, вступать в группы или получать приглашения. Если это ошибка — обратитесь в поддержку.';
+      'Вы не можете начинать новые личные чаты, вступать в группы и получать приглашения. Если это ошибка, обратитесь в поддержку.';
 
   @override
   String get settingsServerLimitsTitle => 'Серверные ограничения';
@@ -2297,11 +2297,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get appearanceOptimizeWeakDevices =>
-      'Оптимизация для слабых устройств';
+      'Экономить ресурсы устройства';
 
   @override
   String get appearanceOptimizeWeakDevicesSubtitle =>
-      'Отключает размытие фона и тяжелые BackdropFilter эффекты для повышения FPS';
+      'Выключает размытие фона и тяжёлые эффекты, чтобы интерфейс работал плавнее';
 
   @override
   String get searchSemantic => 'Семантический поиск';
@@ -2757,10 +2757,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsStorageBannerSubtitle =>
-      'Использование памяти, кеша и черновиков приложения.';
+      'Использование памяти, кэша и черновиков приложения.';
 
   @override
-  String get settingsStorageLegendCache => 'Кеш';
+  String get settingsStorageLegendCache => 'Кэш';
 
   @override
   String get settingsStorageLegendDrafts => 'Черновики';
@@ -2769,7 +2769,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsStorageCategoryAppData => 'Данные';
 
   @override
-  String get settingsStorageCategoryCache => 'Кеш';
+  String get settingsStorageCategoryCache => 'Кэш';
 
   @override
   String get settingsStorageCategoryDrafts => 'Черновики';
@@ -3236,7 +3236,23 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String e2eeEraseDone(int chats, int files) {
-    return 'Удалено $chats чатов и $files файлов';
+    String _temp0 = intl.Intl.pluralLogic(
+      chats,
+      locale: localeName,
+      one: '$chats чат',
+      few: '$chats чата',
+      many: '$chats чатов',
+      other: '$chats чата',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      files,
+      locale: localeName,
+      one: '$files файл',
+      few: '$files файла',
+      many: '$files файлов',
+      other: '$files файла',
+    );
+    return 'Удалено: $_temp0 и $_temp1';
   }
 
   @override
@@ -3494,14 +3510,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsBackgroundEconomyDesc =>
-      'Без уведомлений, но система может редко закрывать приложение';
+      'Без постоянного уведомления. Система иногда может закрыть приложение';
 
   @override
   String get settingsBackgroundReliable => 'Надёжный';
 
   @override
   String get settingsBackgroundReliableDesc =>
-      'С милым уведомлением для поддержания связи';
+      'Постоянное уведомление не даёт системе закрыть приложение';
 
   @override
   String get settingsBackgroundNotAvailable => 'Режимы фона';
@@ -3587,10 +3603,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutShareAction => 'Поделиться';
 
   @override
-  String get aboutSystemUpdateTitle => 'Обновление системы';
+  String get aboutSystemUpdateTitle => 'Обновление приложения';
 
   @override
-  String get aboutOtaSubtitle => 'OTA-обновления NiosMess';
+  String get aboutOtaSubtitle => 'Проверить, есть ли новая версия';
 
   @override
   String aboutReadyToInstall(String version) => 'Готово к установке (v$version)';
@@ -3836,7 +3852,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutFaqA9 =>
-      'Обычные сообщения хранятся на сервере в зашифрованном виде. Секретные чаты — только на ваших устройствах. Локальный кеш сообщений шифруется AES-256-GCM с ключом, хранящимся в безопасном хранилище устройства (Keystore/Keychain).';
+      'Обычные сообщения хранятся на сервере в зашифрованном виде. Секретные чаты — только на ваших устройствах. Локальный кэш сообщений шифруется AES-256-GCM с ключом, хранящимся в безопасном хранилище устройства (Keystore/Keychain).';
 
   @override
   String get aboutFaqQ10 => 'Как сообщить о баге или предложить улучшение?';
@@ -4167,7 +4183,7 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get noBlockedUsersFound => 'По запросу ничего не найдено';
   @override
-  String get noBlockedUsersDesc => 'Вы еще никого не заблокировали';
+  String get noBlockedUsersDesc => 'Вы ещё никого не заблокировали';
   @override
   String get blockedBannerTitle => 'Вы заблокировали этого пользователя';
   @override
@@ -4369,7 +4385,7 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get privacyCategorySecurity => 'Безопасность и блокировки';
   @override
-  String get privacyBlacklist => 'Черный список';
+  String get privacyBlacklist => 'Заблокированные';
   @override
   String get privacyNoBlocked => 'Нет заблокированных пользователей';
   @override

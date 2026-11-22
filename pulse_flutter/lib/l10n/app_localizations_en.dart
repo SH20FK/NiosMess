@@ -836,11 +836,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show when you are typing a message';
 
   @override
-  String get settingsSpamBlockTitle => 'Spam block active';
+  String get settingsSpamBlockTitle => 'Account restricted for spam';
 
   @override
   String get settingsSpamBlockSubtitle =>
-      'You cannot start new DMs, join groups, or be invited. Contact support if this is a mistake.';
+      'You cannot start new direct chats, join groups or be invited. Contact support if this is a mistake.';
 
   @override
   String get settingsServerLimitsTitle => 'Server-side limits';
@@ -2272,11 +2272,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatScrollLoadingEarlier => 'Loading messages...';
 
   @override
-  String get appearanceOptimizeWeakDevices => 'Optimize for weak devices';
+  String get appearanceOptimizeWeakDevices => 'Save device resources';
 
   @override
   String get appearanceOptimizeWeakDevicesSubtitle =>
-      'Disables background blur and heavy BackdropFilter effects to increase FPS';
+      'Turns off background blur and heavy effects so the interface runs smoother';
 
   @override
   String get searchSemantic => 'Semantic search';
@@ -3175,7 +3175,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String e2eeEraseDone(int chats, int files) {
-    return 'Deleted $chats chats and $files files';
+    String _temp0 = intl.Intl.pluralLogic(
+      chats,
+      locale: localeName,
+      one: '$chats chat',
+      other: '$chats chats',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      files,
+      locale: localeName,
+      one: '$files file',
+      other: '$files files',
+    );
+    return 'Deleted $_temp0 and $_temp1';
   }
 
   @override
@@ -3470,14 +3482,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsBackgroundEconomyDesc =>
-      'No notification, but system may close app rarely';
+      'No persistent notification. The system may occasionally close the app';
 
   @override
   String get settingsBackgroundReliable => 'Reliable mode';
 
   @override
   String get settingsBackgroundReliableDesc =>
-      'With a cute notification to keep app alive';
+      'A persistent notification keeps the system from closing the app';
 
   @override
   String get settingsBackgroundNotAvailable => 'Background modes';
@@ -3563,10 +3575,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutShareAction => 'Share';
 
   @override
-  String get aboutSystemUpdateTitle => 'System Update';
+  String get aboutSystemUpdateTitle => 'App update';
 
   @override
-  String get aboutOtaSubtitle => 'NiosMess OTA Updates';
+  String get aboutOtaSubtitle => 'Check for a new version';
 
   @override
   String aboutReadyToInstall(String version) => 'Ready to install (v$version)';
@@ -4344,7 +4356,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get privacyCategorySecurity => 'Security & blocks';
   @override
-  String get privacyBlacklist => 'Blocked list';
+  String get privacyBlacklist => 'Blocked users';
   @override
   String get privacyNoBlocked => 'No blocked users';
   @override
