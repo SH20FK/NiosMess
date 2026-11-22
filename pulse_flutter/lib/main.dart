@@ -45,6 +45,7 @@ import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/app_startup_gate.dart';
 import 'package:pulse_flutter/features/security/application/app_lock_controller.dart';
 import 'package:pulse_flutter/features/security/presentation/app_lock_gate.dart';
+import 'package:pulse_flutter/features/settings/presentation/settings_save_failure_listener.dart';
 
 Future<void> main() async {
   await runZonedGuarded<Future<void>>(
@@ -425,7 +426,9 @@ class _PulseAppState extends ConsumerState<PulseApp> {
                         fit: StackFit.expand,
                         children: [
                           SizedBox.expand(
-                            child: child ?? const SizedBox.shrink(),
+                            child: SettingsSaveFailureListener(
+                              child: child ?? const SizedBox.shrink(),
+                            ),
                           ),
                           Consumer(
                             builder:

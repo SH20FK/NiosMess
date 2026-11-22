@@ -48,7 +48,7 @@ class SettingsChatsScreen extends ConsumerWidget {
             ),
             SettingsAnchor(
               id: 'chats.sendOnEnter',
-              child: SettingsSwitchTile(
+              child: SettingsListItem.toggle(
                 icon: Icons.keyboard_return_rounded,
                 title: context.l10n.settingsChatsSendOnEnter,
                 subtitle: context.l10n.settingsChatsSendOnEnterDesc,

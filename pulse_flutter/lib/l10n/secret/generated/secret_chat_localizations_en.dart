@@ -2752,4 +2752,8 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   @override
   String get settingsNiosIdSecurityHint =>
       'Password, sessions and connected apps on ni-os.ru';
+
+  @override
+  String get settingsSaveFailed =>
+      'Could not save this setting. The previous value is back.';
 }

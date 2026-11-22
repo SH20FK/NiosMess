@@ -45,7 +45,7 @@ void main() {
               SettingsSection(
                 title: 'Секция 1',
                 children: <Widget>[
-                  SettingsTile(
+                  SettingsListItem.nav(
                     icon: Icons.person_rounded,
                     title: 'Профиль',
                     onTap: () {},
@@ -55,7 +55,7 @@ void main() {
               SettingsSection(
                 title: 'Секция 2',
                 children: <Widget>[
-                  SettingsTile(
+                  SettingsListItem.nav(
                     icon: Icons.shield_rounded,
                     title: 'Безопасность',
                     onTap: () {},
@@ -65,7 +65,7 @@ void main() {
               SettingsSection(
                 title: 'Секция 3',
                 children: <Widget>[
-                  SettingsTile(
+                  SettingsListItem.nav(
                     icon: Icons.storage_rounded,
                     title: 'Память',
                     onTap: () {},

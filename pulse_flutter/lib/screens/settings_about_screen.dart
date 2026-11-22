@@ -289,9 +289,11 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   Widget _changelog(BuildContext context) {
     final l = context.l10n;
     if (_loadingChangelog) {
-      return const Padding(
-        padding: EdgeInsets.all(32),
-        child: Center(child: AppLoadingIndicator()),
+      return Padding(
+        padding: const EdgeInsets.all(32),
+        child: Center(
+          child: AppLoadingIndicator(semanticsLabel: l.commonLoading),
+        ),
       );
     }
     final release = _releases?.isNotEmpty == true ? _releases!.first : null;

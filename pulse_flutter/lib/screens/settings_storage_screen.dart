@@ -146,9 +146,13 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
       children: [
         snapshotAsync.when(
           data: (data) => _buildContent(context, scheme, textTheme, data),
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 48),
-            child: Center(child: AppLoadingIndicator()),
+          loading: () => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 48),
+            child: Center(
+              child: AppLoadingIndicator(
+                semanticsLabel: context.l10n.commonLoading,
+              ),
+            ),
           ),
           error: (_, _) => SettingsSection(
             children: [

@@ -61,7 +61,7 @@ class _NotificationSettingsSectionState
     Widget toggle(String key, IconData icon, String title, {String? hint}) =>
         SettingsAnchor(
           id: 'notifications.$key',
-          child: SettingsSwitchTile(
+          child: SettingsListItem.toggle(
             icon: icon,
             title: title,
             subtitle: hint,
@@ -133,7 +133,7 @@ class _NotificationSettingsSectionState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SettingsSwitchTile(
+              SettingsListItem.toggle(
                 icon: Icons.notifications_rounded,
                 title: l10n.settingsPushNotifications,
                 subtitle: denied

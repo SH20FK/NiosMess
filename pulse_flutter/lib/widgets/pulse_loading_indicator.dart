@@ -9,6 +9,7 @@ class AppLoadingIndicator extends StatelessWidget {
     this.value,
     this.minHeight = 6,
     this.backgroundColor,
+    this.semanticsLabel,
     super.key,
   });
 
@@ -27,6 +28,10 @@ class AppLoadingIndicator extends StatelessWidget {
   /// Track color behind the deterministic progress.
   final Color? backgroundColor;
 
+  /// What a screen reader says while the indicator is on screen. Without it
+  /// the indicator stays silent, as it always was.
+  final String? semanticsLabel;
+
   @override
   Widget build(BuildContext context) {
     final Color effectiveColor = color ?? Theme.of(context).colorScheme.primary;
@@ -36,6 +41,7 @@ class AppLoadingIndicator extends StatelessWidget {
         height: minHeight,
         child: LinearProgressIndicator(
           value: value!.clamp(0.0, 1.0),
+          semanticsLabel: semanticsLabel,
           color: effectiveColor,
           backgroundColor:
               backgroundColor ?? effectiveColor.withValues(alpha: 0.15),
@@ -49,16 +55,18 @@ class AppLoadingIndicator extends StatelessWidget {
 
     final LoadingIndicatorM3E indicator =
         LoadingIndicatorM3E(color: effectiveColor, variant: variant);
+    final Widget sized = size != null
+        ? SizedBox.square(dimension: size!, child: FittedBox(child: indicator))
+        : indicator;
 
-    if (size != null) {
-      return Center(
-        child: SizedBox.square(
-          dimension: size!,
-          child: FittedBox(child: indicator),
-        ),
-      );
-    }
-
-    return Center(child: indicator);
+    return Center(
+      child: semanticsLabel == null
+          ? sized
+          : Semantics(
+              label: semanticsLabel,
+              liveRegion: true,
+              child: ExcludeSemantics(child: sized),
+            ),
+    );
   }
 }

@@ -192,12 +192,17 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
           title: context.l10n.e2eeDeviceKey,
           children: [
             if (_loading)
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: Center(child: AppLoadingIndicator(size: 28)),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Center(
+                  child: AppLoadingIndicator(
+                    size: 28,
+                    semanticsLabel: context.l10n.commonLoading,
+                  ),
+                ),
               )
             else if (!_hasKey)
-              SettingsTile(
+              SettingsListItem.nav(
                 icon: Icons.vpn_key_outlined,
                 title: context.l10n.e2eeNoKeyPair,
                 subtitle: context.l10n.e2eeGenerateKeyPair,
@@ -230,7 +235,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
           SettingsSection(
             title: context.l10n.settingsDangerZone,
             children: [
-              SettingsTile(
+              SettingsListItem.nav(
                 icon: Icons.delete_sweep_rounded,
                 title: context.l10n.e2eeEraseTitle,
                 subtitle: context.l10n.e2eeEraseSubtitle,

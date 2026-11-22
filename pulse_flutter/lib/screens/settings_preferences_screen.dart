@@ -89,7 +89,7 @@ class _SettingsPreferencesScreenState
           child: SettingsSection(
             title: context.l10n.settingsPreferencesSoundHaptics,
             children: [
-              SettingsSwitchTile(
+              SettingsListItem.toggle(
                 icon: Icons.volume_up_rounded,
                 title: context.l10n.appearanceSoundEffects,
                 subtitle: context.l10n.noticeUiSoundsHint,
@@ -153,7 +153,7 @@ class _SettingsPreferencesScreenState
                 ),
               ),
               if (ref.watch(clientCapabilitiesProvider).haptics)
-                SettingsSwitchTile(
+                SettingsListItem.toggle(
                   icon: Icons.vibration_rounded,
                   title: context.l10n.settingsHapticFeedback,
                   subtitle: context.l10n.settingsHapticFeedbackSubtitle,

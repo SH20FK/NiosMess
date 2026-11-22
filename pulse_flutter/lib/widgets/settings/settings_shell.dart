@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pulse_flutter/core/constants/app_constants.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 /// Compact web pages already receive a title from their persistent app bar.
 class SettingsHeadingScope extends InheritedWidget {
@@ -58,16 +58,18 @@ class SettingsShell extends ConsumerWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool isWide = constraints.maxWidth >= 840;
-        final double horizontalPadding = isEmbedded
-            ? (isWide ? 28.0 : 16.0)
-            : (isWide ? 28.0 : AppConstants.screenHorizontalPadding);
+        // One gutter for the hub and every section under it.
+        final double horizontalPadding = isWide ? 28.0 : AppSpacing.lg;
+        // What the system still covers here: the gesture bar below, a cutout
+        // at the side in landscape. The app bar handles the top itself.
+        final EdgeInsets safe = MediaQuery.paddingOf(context);
 
         final Widget contentSliver = SliverPadding(
           padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            isEmbedded ? 12.0 : 4.0,
-            horizontalPadding,
-            32.0,
+            horizontalPadding + safe.left,
+            isEmbedded ? AppSpacing.md : AppSpacing.xs,
+            horizontalPadding + safe.right,
+            AppSpacing.xxl + safe.bottom,
           ),
           // Settings are short forms. Mount their anchors together so search
           // can reveal a control below the viewport on its first frame.
@@ -123,10 +125,10 @@ class SettingsShell extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  horizontalPadding,
-                  16,
-                  horizontalPadding,
-                  16,
+                  horizontalPadding + safe.left,
+                  AppSpacing.lg,
+                  horizontalPadding + safe.right,
+                  AppSpacing.lg,
                 ),
                 child: Row(
                   children: [

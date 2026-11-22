@@ -42,7 +42,7 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
           children: [
             SettingsAnchor(
               id: 'motion.stickers',
-              child: SettingsSwitchTile(
+              child: SettingsListItem.toggle(
                 icon: Icons.auto_awesome_motion_rounded,
                 title: context.l10n.settingsV2Stickers,
                 subtitle: context.l10n.settingsV2StickersHint,
@@ -53,7 +53,7 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
             ),
             SettingsAnchor(
               id: 'motion.emoji',
-              child: SettingsSwitchTile(
+              child: SettingsListItem.toggle(
                 icon: Icons.mood_rounded,
                 title: context.l10n.settingsV2Emoji,
                 subtitle: context.l10n.settingsV2EmojiHint,
@@ -69,7 +69,7 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
           children: [
             SettingsAnchor(
               id: 'motion.optimization',
-              child: SettingsSwitchTile(
+              child: SettingsListItem.toggle(
                 icon: Icons.speed_rounded,
                 title: context.l10n.appearanceOptimizeWeakDevices,
                 subtitle: context.l10n.settingsV2OptimizeHint,

@@ -188,7 +188,7 @@ class _AppearanceScreen extends ConsumerWidget {
         ),
         SettingsAnchor(
           id: 'appearance.compact',
-          child: SettingsSwitchTile(
+          child: SettingsListItem.toggle(
             icon: Icons.density_small_rounded,
             title: context.l10n.appearanceCompactMode,
             subtitle: context.l10n.appearanceCompactModeSubtitle,
@@ -298,19 +298,12 @@ class NiosColorField extends StatelessWidget {
       subtitle: context.l10n.appearancePaletteSubtitle,
       children: [
         if (!kIsWeb)
-          Material(
-            type: MaterialType.transparency,
-            child: SwitchListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              secondary: const Icon(Icons.wallpaper_rounded),
-              title: Text(context.l10n.appearanceSystemColors),
-              subtitle: Text(context.l10n.appearanceSystemColorsSubtitle),
-              value: useSystemDynamic,
-              onChanged: onToggleDynamic,
-            ),
+          SettingsListItem.toggle(
+            icon: Icons.wallpaper_rounded,
+            title: context.l10n.appearanceSystemColors,
+            subtitle: context.l10n.appearanceSystemColorsSubtitle,
+            value: useSystemDynamic,
+            onChanged: onToggleDynamic,
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
@@ -783,7 +776,7 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      SettingsInfoTile(
+      SettingsListItem.value(
         icon: widget.icon,
         title: widget.title,
         subtitle: widget.subtitle,
@@ -823,7 +816,7 @@ class _FontScaleSliderTile extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      SettingsInfoTile(
+      SettingsListItem.value(
         icon: Icons.format_size_rounded,
         title: context.l10n.appearanceTextScale,
         subtitle: context.l10n.appearanceTextScaleDesc,
@@ -868,13 +861,10 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Material(
-        type: MaterialType.transparency,
-        child: ListTile(
-          leading: const Icon(Icons.palette_outlined),
-          title: Text(context.l10n.appearancePaletteStyle),
-          subtitle: Text(context.l10n.appearanceContrastColorsDesc),
-        ),
+      SettingsListItem.value(
+        icon: Icons.palette_outlined,
+        title: context.l10n.appearancePaletteStyle,
+        subtitle: context.l10n.appearanceContrastColorsDesc,
       ),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

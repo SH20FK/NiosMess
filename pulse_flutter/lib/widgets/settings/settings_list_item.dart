@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
@@ -8,9 +9,8 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 enum SettingsListItemType { nav, toggle, value, action, danger }
 
-/// Unified Material 3 Expressive row for settings lists and grouped cards.
-/// Replaces fragmented SettingsTile, SettingsSwitchTile, and SettingsInfoTile
-/// with a consistent 40x40 icon slot, 68dp text alignment, and spring touch physics.
+/// The one Material 3 Expressive row for settings lists and grouped cards:
+/// a 40x40 icon slot, 68dp text alignment, and spring touch physics.
 class SettingsListItem extends ConsumerWidget {
   const SettingsListItem({
     required this.icon,
@@ -139,8 +139,10 @@ class SettingsListItem extends ConsumerWidget {
   final bool showIcon;
   final bool pending;
 
-  /// Standard indent for divider matching text start: 16 (padding) + 40 (icon) + 12 (gap) = 68.
-  static const double dividerIndent = 68.0;
+  /// Indent of a divider that starts where the text does: row padding, icon
+  /// slot and the gap after it (68 dp).
+  static const double dividerIndent =
+      AppSpacing.lg + AppHeights.sm + AppSpacing.md;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -166,11 +168,14 @@ class SettingsListItem extends ConsumerWidget {
         ? Icon((leading as Icon).icon, size: 22, color: iconForeground)
         : leading ?? Icon(icon, size: 22, color: iconForeground);
     final toggle = type == SettingsListItemType.toggle;
+    // A short value sits at the trailing edge, with or without a hint under
+    // the title. A long one, or any value at a large text size, would be cut
+    // there, so it wraps under the title instead.
     final inlineValue =
-        type == SettingsListItemType.nav &&
+        (type == SettingsListItemType.nav ||
+            type == SettingsListItemType.value) &&
         value?.trim().isNotEmpty == true &&
         value!.length <= 18 &&
-        subtitle?.trim().isNotEmpty != true &&
         MediaQuery.textScalerOf(context).scale(14) <= 18;
     void change(bool next) {
       if (!interactive || onChanged == null) return;
@@ -200,9 +205,13 @@ class SettingsListItem extends ConsumerWidget {
                       : scheme.onSurfaceVariant,
                   size: 22,
                 ),
-                SettingsListItemType.toggle => Switch(
-                  value: boolValue ?? false,
-                  onChanged: interactive && onChanged != null ? change : null,
+                // The row is the control: one Tab stop, not a row and then
+                // its switch.
+                SettingsListItemType.toggle => ExcludeFocus(
+                  child: Switch(
+                    value: boolValue ?? false,
+                    onChanged: interactive && onChanged != null ? change : null,
+                  ),
                 ),
                 _ => null,
               };
@@ -222,20 +231,25 @@ class SettingsListItem extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(width: 4),
-          ?action,
+          if (action != null) ...[
+            const SizedBox(width: AppSpacing.xs),
+            action,
+          ],
         ],
       );
     }
     final content = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 64),
+      constraints: const BoxConstraints(minHeight: AppHeights.rowCompact),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
           children: [
             if (showIcon) ...[
               SizedBox.square(
-                dimension: 40,
+                dimension: AppHeights.sm,
                 child: isSection
                     ? DecoratedBox(
                         decoration: BoxDecoration(
@@ -248,7 +262,7 @@ class SettingsListItem extends ConsumerWidget {
                       )
                     : Center(child: iconWidget),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
             ],
             Expanded(
               child: Column(
@@ -292,13 +306,30 @@ class SettingsListItem extends ConsumerWidget {
                 ],
               ),
             ),
-            if (action != null) ...[const SizedBox(width: 12), action],
+            if (action != null) ...[
+              const SizedBox(width: AppSpacing.md),
+              action,
+            ],
           ],
         ),
       ),
     );
-    final row = Semantics(
+    // One node per row: title, hint and value are read once, and the switch
+    // inside is not offered as a second control. The focus state and the tap
+    // come from the surface above the label and land on the same node. A
+    // custom trailing widget keeps a node of its own.
+    final bool oneNode = toggle || trailing == null;
+    final String semanticsLabel = <String>[
+      title,
+      if (subtitle?.trim().isNotEmpty == true) subtitle!,
+      if (value?.trim().isNotEmpty == true && value != subtitle) value!,
+      // The spinner in the trailing slot is hidden with the other children.
+      if (pending) context.l10n.commonLoading,
+    ].join(', ');
+    return Semantics(
+      container: true,
       button: toggle ? null : tap != null,
+      toggled: toggle ? (boolValue ?? false) : null,
       enabled: interactive,
       selected: isSelected,
       child: PressableSurface(
@@ -306,14 +337,16 @@ class SettingsListItem extends ConsumerWidget {
         onLongPress: interactive ? onLongPress : null,
         enabled: interactive && (tap != null || onLongPress != null),
         playFeedback: !toggle,
-        keyboardFocusable: !toggle,
         borderRadius: group?.borderRadius ?? AppRadii.mdRadius,
         color: isSelected ? scheme.secondaryContainer : group?.color,
-        child: content,
+        child: oneNode
+            ? Semantics(
+                label: semanticsLabel,
+                excludeSemantics: true,
+                child: content,
+              )
+            : content,
       ),
     );
-    // Switch and its label form one control. Do not add the title a second
-    // time or expose both the row and its switch as separate toggles.
-    return toggle ? MergeSemantics(child: row) : row;
   }
 }

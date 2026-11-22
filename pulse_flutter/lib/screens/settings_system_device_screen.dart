@@ -31,9 +31,13 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
       children: [
         hardware.when(
           data: (info) => _DeviceDetails(info: info),
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 48),
-            child: Center(child: AppLoadingIndicator()),
+          loading: () => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 48),
+            child: Center(
+              child: AppLoadingIndicator(
+                semanticsLabel: context.l10n.commonLoading,
+              ),
+            ),
           ),
           error: (_, _) => SettingsSection(
             children: [

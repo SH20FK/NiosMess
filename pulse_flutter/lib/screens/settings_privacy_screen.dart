@@ -43,9 +43,14 @@ class SettingsPrivacyScreen extends ConsumerWidget {
       onRefresh: () => ref.read(privacyProvider.notifier).refresh(),
       children: <Widget>[
         if (privacy.isLoading && privacy.rules.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: AppLoadingIndicator(size: 28)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: AppLoadingIndicator(
+                size: 28,
+                semanticsLabel: context.l10n.commonLoading,
+              ),
+            ),
           ),
         if (privacy.error != null)
           SettingsSection(

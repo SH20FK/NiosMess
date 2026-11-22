@@ -2777,4 +2777,8 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   @override
   String get settingsNiosIdSecurityHint =>
       'Пароль, сеансы и подключённые приложения на портале ni-os.ru';
+
+  @override
+  String get settingsSaveFailed =>
+      'Не удалось сохранить настройку. Вернули прежнее значение.';
 }

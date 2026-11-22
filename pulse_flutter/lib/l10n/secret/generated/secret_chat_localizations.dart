@@ -5050,6 +5050,12 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Password, sessions and connected apps on ni-os.ru'**
   String get settingsNiosIdSecurityHint;
+
+  /// No description provided for @settingsSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save this setting. The previous value is back.'**
+  String get settingsSaveFailed;
 }
 
 class _SecretChatLocalizationsDelegate

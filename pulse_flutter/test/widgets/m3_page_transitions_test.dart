@@ -47,6 +47,28 @@ void main() {
     );
   });
 
+  test('going back is quicker than arriving', () {
+    expect(
+      const M3SharedAxisPageTransitionsBuilder().reverseTransitionDuration,
+      M3Durations.spatialFast,
+    );
+  });
+
+  testWidgets('a pushed route takes both durations from the builder', (
+    tester,
+  ) async {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(app(navigatorKey));
+    final route = MaterialPageRoute<void>(
+      builder: (_) => const Scaffold(body: Text('chat')),
+    );
+    navigatorKey.currentState!.push(route);
+    await tester.pumpAndSettle();
+
+    expect(route.transitionDuration, M3Durations.spatialDefault);
+    expect(route.reverseTransitionDuration, M3Durations.spatialFast);
+  });
+
   testWidgets('push moves both pages along X and pop mirrors it', (
     tester,
   ) async {

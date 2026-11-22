@@ -198,7 +198,7 @@ void main() {
             SettingsSection(
               title: 'Section Group',
               children: <Widget>[
-                SettingsTile(
+                SettingsListItem.nav(
                   icon: Icons.star_rounded,
                   title: 'Tile 1',
                   onTap: () {},
@@ -232,13 +232,13 @@ void main() {
           _wrapWithApp(
             Column(
               children: <Widget>[
-                SettingsTile(
+                SettingsListItem.nav(
                   icon: Icons.person_rounded,
                   title: 'Active Tile',
                   isSelected: true,
                   onTap: () {},
                 ),
-                SettingsTile(
+                SettingsListItem.nav(
                   icon: Icons.settings_rounded,
                   title: 'Inactive Tile',
                   isSelected: false,
@@ -252,7 +252,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
 
         final Finder activeTileFinder = find.byWidgetPredicate((Widget w) {
-          return w is SettingsTile && w.isSelected == true;
+          return w is SettingsListItem && w.isSelected == true;
         });
         expect(activeTileFinder, findsOneWidget);
       },
@@ -268,7 +268,7 @@ void main() {
             StatefulBuilder(
               builder: (BuildContext context, StateSetter setState) {
                 return Scaffold(
-                  body: SettingsSwitchTile(
+                  body: SettingsListItem.toggle(
                     icon: Icons.notifications_rounded,
                     title: 'Adaptive Switch',
                     value: toggleValue,
@@ -300,7 +300,7 @@ void main() {
       (WidgetTester tester) async {
         await tester.pumpWidget(
           _wrapWithApp(
-            const SettingsInfoTile(
+            const SettingsListItem.value(
               icon: Icons.info_outline_rounded,
               title: 'Info Title',
               subtitle: 'Info Subtitle',

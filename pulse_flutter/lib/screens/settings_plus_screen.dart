@@ -258,7 +258,7 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
                 context.l10n.settingsPlusGracePeriodHint,
               ),
             ])
-              SettingsInfoTile(icon: row.$1, title: row.$2, subtitle: row.$3),
+              SettingsListItem.value(icon: row.$1, title: row.$2, subtitle: row.$3),
           ],
         ),
         M3Reveal(

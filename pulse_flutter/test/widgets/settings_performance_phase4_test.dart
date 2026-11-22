@@ -99,7 +99,7 @@ void main() {
                 SettingsSection(
                   title: 'Раздел',
                   children: <Widget>[
-                    SettingsTile(
+                    SettingsListItem.nav(
                       icon: Icons.speed_rounded,
                       title: 'Плавность 120 FPS',
                       onTap: () {},

@@ -31,6 +31,11 @@ class M3SharedAxisPageTransitionsBuilder extends PageTransitionsBuilder {
   Duration get transitionDuration =>
       const Duration(milliseconds: kTransitionMilliseconds);
 
+  /// Going back is quicker than arriving: the page leaves in the time of the
+  /// fast spatial spring.
+  @override
+  Duration get reverseTransitionDuration => M3Durations.spatialFast;
+
   @override
   DelegatedTransitionBuilder? get delegatedTransition =>
       (context, animation, secondaryAnimation, allowSnapshotting, child) =>

@@ -195,7 +195,7 @@ class _LocalTimePreviewState extends State<_LocalTimePreview> {
   }
 
   @override
-  Widget build(BuildContext context) => SettingsInfoTile(
+  Widget build(BuildContext context) => SettingsListItem.value(
     icon: Icons.access_time_rounded,
     title: context.l10n.settingsLanguageLocalTime,
     subtitle: formatFullDateTime(AppTimeSettings.now()),

@@ -108,7 +108,7 @@ void main() {
             ),
           ),
         );
-        await tester.pumpWidget(app());
+        await tester.pumpWidget(ProviderScope(child: app()));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         final plane = find.byKey(const ValueKey('custom-color-plane'));
@@ -130,7 +130,7 @@ void main() {
         final output = Platform.environment['NIOS_PALETTE_CAPTURE_DIR'];
         if (output != null) {
           fontScale = 1;
-          await tester.pumpWidget(app());
+          await tester.pumpWidget(ProviderScope(child: app()));
           await tester.pumpAndSettle();
           tester
               .state<ScrollableState>(
@@ -234,7 +234,7 @@ void main() {
           ),
         ),
       );
-      await tester.pumpWidget(app());
+      await tester.pumpWidget(ProviderScope(child: app()));
       await tester.pumpAndSettle();
       expect(find.byType(RawImage), findsNothing);
       expect(tester.takeException(), isNull);
@@ -278,7 +278,7 @@ void main() {
       if (directory != null) {
         fontScale = 1.0;
         selected = const Color(0xFF6750A4);
-        await tester.pumpWidget(app());
+        await tester.pumpWidget(ProviderScope(child: app()));
         await tester.pumpAndSettle();
         final strip = find.byKey(const ValueKey('appearance-palette-strip'));
         tester.widget<PageView>(strip).controller!.jumpToPage(0);
@@ -330,19 +330,22 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
       );
-      await tester.pumpWidget(card(const Color(0xFF6750A4), false));
+      // The palette rows are settings rows: they reach for sound and haptics.
+      Widget scoped(Color seed, bool disableMotion) =>
+          ProviderScope(child: card(seed, disableMotion));
+      await tester.pumpWidget(scoped(const Color(0xFF6750A4), false));
       await tester.pumpAndSettle();
       expect(find.byType(RawImage), findsNothing);
-      await tester.pumpWidget(card(const Color(0xFF006C5B), false));
+      await tester.pumpWidget(scoped(const Color(0xFF006C5B), false));
       expect(find.byType(RawImage), findsNothing);
       // Rapid accent changes must not recreate the disabled wallpaper renderer.
       await tester.pump(const Duration(milliseconds: 90));
-      await tester.pumpWidget(card(const Color(0xFF475569), false));
+      await tester.pumpWidget(scoped(const Color(0xFF475569), false));
       await tester.pump(const Duration(milliseconds: 60));
-      await tester.pumpWidget(card(const Color(0xFF6750A4), false));
+      await tester.pumpWidget(scoped(const Color(0xFF6750A4), false));
       await tester.pumpAndSettle();
       expect(find.byType(RawImage), findsNothing);
-      await tester.pumpWidget(card(const Color(0xFF984061), true));
+      await tester.pumpWidget(scoped(const Color(0xFF984061), true));
       await tester.pump();
       expect(find.byType(RawImage), findsNothing);
       expect(find.byType(ChoiceChip), findsWidgets);

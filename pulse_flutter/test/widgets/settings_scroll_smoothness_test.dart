@@ -37,7 +37,7 @@ void main() {
                 title: 'Секция 1',
                 children: List.generate(
                   15,
-                  (index) => SettingsTile(
+                  (index) => SettingsListItem.nav(
                     icon: Icons.star_rounded,
                     title: 'Элемент $index',
                     onTap: () => tappedCount++,
@@ -85,7 +85,7 @@ void main() {
             children: <Widget>[
               SettingsSection(
                 children: <Widget>[
-                  SettingsTile(
+                  SettingsListItem.nav(
                     icon: Icons.palette_rounded,
                     title: 'Тема оформления',
                     value: 'Тёмная',
@@ -119,7 +119,7 @@ void main() {
                 children: <Widget>[
                   SettingsSection(
                     children: <Widget>[
-                      SettingsSwitchTile(
+                      SettingsListItem.toggle(
                         icon: Icons.vibration_rounded,
                         title: 'Тактильный отклик',
                         value: switchVal,
@@ -155,7 +155,7 @@ void main() {
             children: <Widget>[
               SettingsSection(
                 children: <Widget>[
-                  SettingsInfoTile(
+                  SettingsListItem.value(
                     icon: Icons.info_outline_rounded,
                     title: 'Версия клиента',
                     subtitle: 'Официальная сборка',

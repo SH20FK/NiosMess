@@ -3,7 +3,7 @@ import 'package:pulse_flutter/features/security/domain/app_lock_policy.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/widgets/settings/account_security_section.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui' show Tristate;
+import 'dart:ui' show PointerDeviceKind, Tristate;
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +16,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
+import 'package:pulse_flutter/features/settings/presentation/settings_save_failure_listener.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/services/settings/settings_registry.dart';
@@ -24,6 +25,7 @@ import 'package:pulse_flutter/l10n/app_localizations_en.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
 
 class _Performance extends AdaptivePerformanceNotifier {
@@ -161,6 +163,79 @@ void main() {
       expect(taps, 1);
     });
 
+    testWidgets('a loading indicator speaks only when it is given a label', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _app(
+          const Column(
+            children: [
+              AppLoadingIndicator(size: 28, semanticsLabel: 'Loading data'),
+              AppLoadingIndicator(size: 28),
+            ],
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.bySemanticsLabel('Loading data'), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(find.bySemanticsLabel('Loading data'))
+            .getSemanticsData()
+            .flagsCollection
+            .isLiveRegion,
+        isTrue,
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('a pending row says it is loading', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _app(
+          const SettingsListItem(
+            type: SettingsListItemType.value,
+            icon: Icons.workspace_premium_rounded,
+            title: 'Nios+',
+            pending: true,
+          ),
+        ),
+      );
+      await tester.pump();
+      final label = tester
+          .getSemantics(find.byType(SettingsListItem))
+          .getSemanticsData()
+          .label;
+      expect(label, startsWith('Nios+, '));
+      expect(label.length, greaterThan('Nios+, '.length));
+      semantics.dispose();
+    });
+
+    testWidgets('a refused save is announced and can be asked again', (
+      tester,
+    ) async {
+      var retries = 0;
+      await tester.pumpWidget(
+        _app(const SettingsSaveFailureListener(child: SizedBox.expand())),
+      );
+      ProviderScope.containerOf(
+            tester.element(find.byType(SettingsSaveFailureListener)),
+          )
+          .read(settingsSaveFailureProvider.notifier)
+          .report(SettingsSaveFailure(() => retries++));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        find.textContaining('Не удалось сохранить настройку'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byType(SnackBarAction));
+      await tester.pump();
+      expect(retries, 1);
+    });
+
     setUp(() async {
       SharedPreferences.setMockInitialValues({
         'ui.haptics': false,
@@ -226,6 +301,141 @@ void main() {
         semantics.dispose();
       },
     );
+
+    testWidgets('a switch row is one Tab stop and Space flips it once', (
+      tester,
+    ) async {
+      var changes = 0;
+      var taps = 0;
+      var value = false;
+      await tester.pumpWidget(
+        _app(
+          StatefulBuilder(
+            builder: (context, update) => Column(
+              children: [
+                SettingsListItem.toggle(
+                  icon: Icons.notifications_outlined,
+                  title: 'Notification setting',
+                  value: value,
+                  onChanged: (next) => update(() {
+                    value = next;
+                    changes++;
+                  }),
+                ),
+                SettingsListItem.nav(
+                  icon: Icons.palette_outlined,
+                  title: 'Appearance',
+                  onTap: () => taps++,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(changes, 1);
+      expect(value, isTrue);
+      // The switch is not a stop of its own: the next Tab is the next row.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(taps, 1);
+      expect(changes, 1);
+    });
+
+    testWidgets('a row reads its title, hint and value as one label', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _app(
+          SettingsListItem.nav(
+            icon: Icons.palette_outlined,
+            title: 'Theme',
+            subtitle: 'Follows the system',
+            value: 'Dark',
+            onTap: () {},
+          ),
+        ),
+      );
+      final data = tester
+          .getSemantics(find.byType(SettingsListItem))
+          .getSemanticsData();
+      expect(data.label, 'Theme, Follows the system, Dark');
+      expect(data.flagsCollection.isButton, isTrue);
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
+      semantics.dispose();
+    });
+
+    testWidgets('a row answers the pointer with a hover tone', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          SettingsListItem.nav(
+            icon: Icons.palette_outlined,
+            title: 'Theme',
+            onTap: () {},
+          ),
+        ),
+      );
+      Color? fill() =>
+          (tester
+                      .widget<AnimatedContainer>(
+                        find
+                            .descendant(
+                              of: find.byType(PressableSurface),
+                              matching: find.byType(AnimatedContainer),
+                            )
+                            .first,
+                      )
+                      .decoration
+                  as BoxDecoration)
+              .color;
+      expect(fill(), const Color(0x00000000));
+
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.addPointer(location: const Offset(400, 500));
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(tester.getCenter(find.text('Theme')));
+      await tester.pump();
+      expect(fill(), isNot(const Color(0x00000000)));
+
+      await gesture.moveTo(const Offset(400, 500));
+      await tester.pump();
+      expect(fill(), const Color(0x00000000));
+    });
+
+    testWidgets('the shell keeps content clear of the gesture bar and cutout', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                padding: const EdgeInsets.only(left: 12, bottom: 34),
+              ),
+              child: const SettingsShell(
+                title: 'Section',
+                isEmbedded: true,
+                children: [SizedBox(height: 10)],
+              ),
+            ),
+          ),
+        ),
+      );
+      final padding =
+          tester.widget<SliverPadding>(find.byType(SliverPadding)).padding
+              as EdgeInsets;
+      expect(padding.left, 16 + 12);
+      expect(padding.right, 16);
+      expect(padding.bottom, 32 + 34);
+    });
 
     testWidgets(
       'ordinary icons are neutral and selected rows use paired tonal colors',

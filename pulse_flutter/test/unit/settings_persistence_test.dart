@@ -187,6 +187,45 @@ final List<_Case> _cases = <_Case>[
   ),
 ];
 
+/// Preferences whose writes can be refused, the way a full or read-only disk
+/// refuses them.
+class _RefusingPrefs extends Fake implements SharedPreferences {
+  _RefusingPrefs(this.accept);
+
+  bool Function(String key, Object? value) accept;
+  final Map<String, Object> stored = <String, Object>{};
+
+  Future<bool> _write(String key, Object value) async {
+    if (!accept(key, value)) return false;
+    stored[key] = value;
+    return true;
+  }
+
+  @override
+  Future<bool> setBool(String key, bool value) => _write(key, value);
+  @override
+  Future<bool> setDouble(String key, double value) => _write(key, value);
+  @override
+  Future<bool> setInt(String key, int value) => _write(key, value);
+  @override
+  Future<bool> setString(String key, String value) => _write(key, value);
+  @override
+  Future<bool> remove(String key) async {
+    if (!accept(key, null)) return false;
+    stored.remove(key);
+    return true;
+  }
+
+  @override
+  bool? getBool(String key) => stored[key] as bool?;
+  @override
+  double? getDouble(String key) => stored[key] as double?;
+  @override
+  int? getInt(String key) => stored[key] as int?;
+  @override
+  String? getString(String key) => stored[key] as String?;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -302,6 +341,97 @@ void main() {
 
       expect(prefs.containsKey('ui.cornerRadius'), isFalse);
       expect(container.read(uiSettingsProvider).uiCornerRadius, 20.0);
+    });
+
+    test('a refused write returns the stored value and offers a retry', () async {
+      final _RefusingPrefs prefs = _RefusingPrefs(
+        (String key, Object? value) => false,
+      );
+      UiSettingsNotifier.cachedPrefs = prefs;
+      final ProviderContainer container = ProviderContainer();
+      addTearDown(container.dispose);
+      final UiSettingsNotifier notifier = container.read(
+        uiSettingsProvider.notifier,
+      );
+      final bool before = container.read(uiSettingsProvider).sendOnEnter;
+
+      notifier.setSendOnEnter(!before);
+      expect(container.read(uiSettingsProvider).sendOnEnter, !before);
+      expect(container.read(settingsSaveFailureProvider), isNull);
+      await settle(notifier);
+
+      expect(container.read(uiSettingsProvider).sendOnEnter, before);
+      final SettingsSaveFailure? failure = container.read(
+        settingsSaveFailureProvider,
+      );
+      expect(failure, isNotNull);
+
+      prefs.accept = (String key, Object? value) => true;
+      failure!.retry();
+      await settle(notifier);
+
+      expect(container.read(uiSettingsProvider).sendOnEnter, !before);
+      expect(prefs.stored['ui.sendOnEnter'], !before);
+    });
+
+    test('an older refused write does not undo a newer value', () async {
+      final _RefusingPrefs prefs = _RefusingPrefs(
+        (String key, Object? value) => value != 37,
+      );
+      UiSettingsNotifier.cachedPrefs = prefs;
+      final ProviderContainer container = ProviderContainer();
+      addTearDown(container.dispose);
+      final UiSettingsNotifier notifier = container.read(
+        uiSettingsProvider.notifier,
+      );
+
+      notifier.setEnergySavingThreshold(37);
+      notifier.setEnergySavingThreshold(41);
+      await settle(notifier);
+
+      expect(container.read(uiSettingsProvider).energySavingThreshold, 41);
+      expect(prefs.stored['ui.energySavingThreshold'], 41);
+      expect(container.read(settingsSaveFailureProvider), isNotNull);
+    });
+
+    test('picking an accent leaves system colours in one state change', () async {
+      final (ProviderContainer container, SharedPreferences prefs) =
+          await boot(<String, Object>{'ui.useSystemDynamic': true});
+      final UiSettingsNotifier notifier = container.read(
+        uiSettingsProvider.notifier,
+      );
+      final List<UiSettingsState> updates = <UiSettingsState>[];
+      final ProviderSubscription<UiSettingsState> subscription = container
+          .listen(uiSettingsProvider, (_, UiSettingsState s) => updates.add(s));
+      addTearDown(subscription.close);
+
+      notifier.setSeedColor(const Color(0xFF006C5B));
+      expect(updates, hasLength(1));
+      expect(updates.single.useSystemDynamic, isFalse);
+
+      await settle(notifier);
+      expect(prefs.getInt('ui.seedColor'), 0xFF006C5B);
+      expect(prefs.getBool('ui.useSystemDynamic'), isFalse);
+    });
+
+    test('a refused slider write returns the stored radius', () async {
+      final _RefusingPrefs prefs = _RefusingPrefs(
+        (String key, Object? value) => false,
+      );
+      UiSettingsNotifier.cachedPrefs = prefs;
+      final ProviderContainer container = ProviderContainer();
+      addTearDown(container.dispose);
+      final UiSettingsNotifier notifier = container.read(
+        uiSettingsProvider.notifier,
+      );
+      final double before = container.read(uiSettingsProvider).uiCornerRadius;
+
+      notifier.setUiCornerRadius(12);
+      expect(container.read(uiSettingsProvider).uiCornerRadius, 12);
+      await settle(notifier);
+
+      expect(container.read(uiSettingsProvider).uiCornerRadius, before);
+      expect(container.read(settingsSaveFailureProvider), isNotNull);
     });
   });
 }
