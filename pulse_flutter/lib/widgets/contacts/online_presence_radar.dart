@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/services/favorite_contacts_service.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
@@ -27,7 +27,7 @@ class OnlinePresenceRadar extends ConsumerWidget {
     final bool isFav =
         ref.read(favoriteContactsProvider).contains(chat.id);
 
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext ctx) {
         return Padding(

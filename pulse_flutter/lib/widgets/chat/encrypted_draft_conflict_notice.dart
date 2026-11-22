@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/encrypted_draft_sync_provider.dart';
 
@@ -20,7 +20,7 @@ class EncryptedDraftConflictNotice extends ConsumerWidget {
     try {
       final versions = await sync.conflictVersions(chatId);
       if (!context.mounted) return;
-      final choice = await AppBottomSheets.show<bool>(
+      final choice = await AppModal.showSheet<bool>(
         context: context,
         isScrollControlled: true,
         builder: (ctx) => SafeArea(

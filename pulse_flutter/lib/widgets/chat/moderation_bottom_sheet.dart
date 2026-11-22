@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
@@ -26,7 +26,7 @@ class ModerationBottomSheet extends ConsumerStatefulWidget {
     required ApiChatMember member,
     String callerRole = 'member',
   }) {
-    return AppBottomSheets.show<void>(
+    return AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext ctx) => ModerationBottomSheet(
         chatId: chatId,

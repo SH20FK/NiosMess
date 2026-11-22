@@ -32,7 +32,6 @@ import 'package:pulse_flutter/widgets/chat/desktop_drag_drop_area.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/bot_detector.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -386,7 +385,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   void _showE2eeVerification() {
     final int? chatId = _chatId;
     if (chatId == null) return;
-    AppBottomSheets.show(
+    AppModal.showSheet(
       context: context,
       showDragHandle: false,
       builder: (_) => E2eeVerificationSheet(chatId: chatId),
@@ -1489,7 +1488,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         chatsAsync.value ?? const <ApiChatSummary>[];
     if (chats.isEmpty) return;
 
-    final ApiChatSummary? target = await AppBottomSheets.show<ApiChatSummary>(
+    final ApiChatSummary? target = await AppModal.showSheet<ApiChatSummary>(
       context: context,
       builder: (BuildContext ctx) {
         return Column(
@@ -1577,7 +1576,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     required bool amAdminOrOwner,
   }) async {
     final MessageActionResult?
-    result = await AppBottomSheets.show<MessageActionResult>(
+    result = await AppModal.showSheet<MessageActionResult>(
       context: context,
       isScrollControlled: true,
       builder: (BuildContext ctx) => Padding(
@@ -1653,7 +1652,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   void _showReportMessageDialog(ApiMessage message) {
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
 
       builder: (BuildContext ctx) {
@@ -1793,7 +1792,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final int? chatId = _chatId;
     if (chatId == null) return;
 
-    final String? emoji = await AppBottomSheets.show<String>(
+    final String? emoji = await AppModal.showSheet<String>(
       context: context,
       builder: (BuildContext ctx) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
@@ -1959,7 +1958,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         ? message.mediaName!.trim()
         : _mediaLabel(message, mediaUrl);
 
-    await AppBottomSheets.show<void>(
+    await AppModal.showSheet<void>(
       context: context,
 
       builder: (BuildContext ctx) {

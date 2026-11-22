@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/services/sticker_set_resolver.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
@@ -36,7 +36,7 @@ class StickerSetDetailsSheet extends ConsumerStatefulWidget {
     int? knownSetId,
     void Function(ApiSticker sticker)? onStickerSelected,
   }) {
-    return AppBottomSheets.show<void>(
+    return AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext ctx) => StickerSetDetailsSheet(
         setId: knownSetId,
@@ -53,7 +53,7 @@ class StickerSetDetailsSheet extends ConsumerStatefulWidget {
     int? stickerId,
     void Function(ApiSticker sticker)? onStickerSelected,
   }) {
-    return AppBottomSheets.show<void>(
+    return AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext ctx) => StickerSetDetailsSheet(
         stickerSet: stickerSet,

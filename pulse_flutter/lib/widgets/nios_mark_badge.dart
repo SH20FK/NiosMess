@@ -7,7 +7,7 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/identity/nios_mark.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 
 /// Interactive Material 3 Expressive generative identity badge.
@@ -69,7 +69,7 @@ class _NiosMarkBadgeState extends ConsumerState<NiosMarkBadge>
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext sheetContext) {
         return SafeArea(

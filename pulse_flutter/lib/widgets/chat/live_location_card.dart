@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/live_location.dart';
 import 'package:pulse_flutter/providers/live_location_provider.dart';
@@ -30,7 +30,7 @@ Future<void> showLiveLocationComposer(
 ) async {
   final service = ref.read(liveLocationProvider);
   if (service == null) return;
-  final duration = await AppBottomSheets.show<Duration>(
+  final duration = await AppModal.showSheet<Duration>(
     context: context,
     builder: (ctx) => SafeArea(
       child: Padding(

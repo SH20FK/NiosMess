@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -72,7 +72,7 @@ Future<List<M3FilePickerResult>?> showM3FilePicker(
       return null;
     }
   }
-  return AppBottomSheets.show<List<M3FilePickerResult>>(
+  return AppModal.showSheet<List<M3FilePickerResult>>(
     context: context,
     showDragHandle: true,
     builder: (BuildContext ctx) => M3AttachmentBottomSheet(
@@ -452,7 +452,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
     }
 
     final List<MediaGridPickerResult>? results =
-        await AppBottomSheets.show<List<MediaGridPickerResult>?>(
+        await AppModal.showSheet<List<MediaGridPickerResult>?>(
           context: context,
           showDragHandle: true,
           builder: (BuildContext ctx) => SizedBox(

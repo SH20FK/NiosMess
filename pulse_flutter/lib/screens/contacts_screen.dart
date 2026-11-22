@@ -8,7 +8,7 @@ import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/services/call_history_service.dart';
 import 'package:pulse_flutter/core/services/favorite_contacts_service.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/bot_detector.dart';
@@ -134,7 +134,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext ctx) {
         return Padding(

@@ -16,7 +16,7 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 
 class M3FilePreviewBottomSheet extends StatelessWidget {
   const M3FilePreviewBottomSheet({
@@ -433,7 +433,7 @@ Future<void> showM3FilePreview({
   String? e2eeFileKey,
   Future<void> Function()? onForward,
 }) async {
-  await AppBottomSheets.show<void>(
+  await AppModal.showSheet<void>(
     context: context,
     
     isScrollControlled: true,

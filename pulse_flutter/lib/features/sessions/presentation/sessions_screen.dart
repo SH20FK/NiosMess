@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/features/sessions/application/sessions_controller.dart';
 import 'package:pulse_flutter/features/sessions/domain/session_model.dart';
@@ -49,7 +49,7 @@ class SessionsScreen extends ConsumerWidget {
     AccountSession session,
   ) {
     final account = ref.read(authProvider).session;
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
       builder: (_) => SessionDetailsSheet(
         session: session,

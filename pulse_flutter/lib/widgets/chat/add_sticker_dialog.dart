@@ -4,7 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/sticker_formatter.dart';
@@ -45,7 +45,7 @@ class AddStickerDialog extends ConsumerStatefulWidget {
     required int setId,
     String? setTitle,
   }) {
-    return AppBottomSheets.show<bool>(
+    return AppModal.showSheet<bool>(
       context: context,
       builder: (BuildContext ctx) => AddStickerDialog(
         setId: setId,

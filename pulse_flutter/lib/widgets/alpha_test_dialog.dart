@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_modal_content.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/app_logo_mark.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -27,7 +27,7 @@ class AlphaTestDialog {
   static Future<void> show(
     BuildContext context, {
     bool requireAcknowledgement = false,
-  }) => AppBottomSheets.show<void>(
+  }) => AppModal.showSheet<void>(
     context: context,
     isDismissible: !requireAcknowledgement,
     enableDrag: !requireAcknowledgement,

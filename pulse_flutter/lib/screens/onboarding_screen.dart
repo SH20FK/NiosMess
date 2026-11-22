@@ -11,7 +11,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_typography.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -746,7 +746,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final TextEditingController searchController = TextEditingController();
     String query = '';
 
-    await AppBottomSheets.show<void>(
+    await AppModal.showSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (BuildContext sheetContext) {

@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/features/security/application/app_lock_controller.dart';
 import 'package:pulse_flutter/features/security/domain/app_lock_policy.dart';
@@ -33,7 +33,7 @@ class _AccountSecuritySectionState
   }
 
   Future<void> _showTimeoutPicker(AppLockTimeout currentTimeout) async {
-    final selected = await AppBottomSheets.show<AppLockTimeout>(
+    final selected = await AppModal.showSheet<AppLockTimeout>(
       context: context,
       builder: (sheetContext) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),

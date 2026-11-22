@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
@@ -16,7 +16,7 @@ class AppUpdateDialog extends ConsumerWidget {
 
   /// Shows the update bottom sheet sliding up smoothly from the bottom.
   static Future<void> show(BuildContext context, AppUpdateInfo updateInfo) {
-    return AppBottomSheets.show<void>(
+    return AppModal.showSheet<void>(
       context: context,
       isDismissible: true,
       enableDrag: true,

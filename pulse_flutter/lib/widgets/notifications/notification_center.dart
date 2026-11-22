@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/providers/notifications_provider.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 
 Future<void> showNotificationCenter(BuildContext context) async {
@@ -25,7 +25,7 @@ Future<void> showNotificationCenter(BuildContext context) async {
       ),
     );
   } else {
-    await AppBottomSheets.show<void>(
+    await AppModal.showSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => const FractionallySizedBox(

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -72,7 +72,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
 
   Future<void> _inviteUser() async {
     final TextEditingController searchController = TextEditingController();
-    final ApiSearchUser? picked = await AppBottomSheets.show<ApiSearchUser>(
+    final ApiSearchUser? picked = await AppModal.showSheet<ApiSearchUser>(
       context: context,
       builder: (BuildContext ctx) {
         return Consumer(

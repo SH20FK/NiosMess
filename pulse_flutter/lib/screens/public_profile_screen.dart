@@ -10,7 +10,7 @@ import 'package:pulse_flutter/core/navigation/direct_chat_navigator.dart';
 import 'package:pulse_flutter/core/services/favorite_contacts_service.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
@@ -243,7 +243,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
 
   void _handleShareQrTap(ApiProfile profile) {
     HapticService.tap();
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext ctx) => MyQrCodeSheet(
         username: profile.username,
@@ -921,7 +921,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         ? (ref.read(chatMutedProvider(effectiveChatId)).value ?? false)
         : _isMutedLocally;
 
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext ctx) {
         final ColorScheme sheetScheme = Theme.of(ctx).colorScheme;
@@ -1102,7 +1102,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     // Truthfully display empty state when no verified mutual groups exist (ППРФ-2)
     const List<ApiChatSummary> commonGroups = <ApiChatSummary>[];
 
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext ctx) {
         final TextTheme dialogTheme = Theme.of(ctx).textTheme;
@@ -1191,7 +1191,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }
 
   void _showReportUserDialog(ApiProfile profile) {
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
       builder: (BuildContext ctx) {
         final ColorScheme sheetScheme = Theme.of(ctx).colorScheme;

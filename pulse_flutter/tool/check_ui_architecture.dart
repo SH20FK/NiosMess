@@ -42,8 +42,7 @@ void main() {
   final List<String> rawModalSheetViolations = <String>[];
   for (final File file in dartFiles) {
     final String normalized = file.path.replaceAll(r'\', '/');
-    if (normalized.contains('/core/modal/') ||
-        normalized.endsWith('app_bottom_sheets.dart')) {
+    if (normalized.contains('/core/modal/')) {
       continue;
     }
     final String content = file.readAsStringSync();

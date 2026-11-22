@@ -14,7 +14,7 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -130,7 +130,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted || !ownsSession()) return;
     setState(() => _uploadingAvatar = true);
     try {
-      final choice = await AppBottomSheets.show<String>(
+      final choice = await AppModal.showSheet<String>(
         context: context,
         builder: (sheetContext) => Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),

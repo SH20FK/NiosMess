@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -27,7 +27,7 @@ class AutoDeleteBottomSheet extends ConsumerStatefulWidget {
     int? currentAutoDeleteSeconds,
     bool isSecret = false,
   }) {
-    return AppBottomSheets.show<int?>(
+    return AppModal.showSheet<int?>(
       context: context,
       builder: (BuildContext ctx) => AutoDeleteBottomSheet(
         chatId: chatId,

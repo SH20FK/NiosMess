@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -192,7 +192,7 @@ class _PostCardState extends ConsumerState<PostCard>
       return;
     }
     final account = ref.read(authProvider).session;
-    final choice = await AppBottomSheets.show<int>(
+    final choice = await AppModal.showSheet<int>(
       context: context,
       builder: (sheetContext) => SafeArea(
         child: Column(
@@ -251,7 +251,7 @@ class _PostCardState extends ConsumerState<PostCard>
         AppToast.showInfo(context, context.l10n.niosgramNoChats);
         return;
       }
-      final target = await AppBottomSheets.show<ApiChatSummary>(
+      final target = await AppModal.showSheet<ApiChatSummary>(
         context: context,
         isScrollControlled: true,
         builder: (sheetContext) => SafeArea(
@@ -1418,7 +1418,7 @@ class _PostMenu extends ConsumerWidget {
   }
 
   void _showEditSheet(BuildContext context) {
-    AppBottomSheets.show<void>(
+    AppModal.showSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => _EditPostSheet(post: post, onChanged: onChanged),

@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pulse_flutter/core/utils/app_bottom_sheets.dart';
+import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/sticker_formatter.dart';
@@ -16,7 +16,7 @@ class CreateStickerSetDialog extends ConsumerStatefulWidget {
   const CreateStickerSetDialog({super.key});
 
   static Future<ApiStickerSet?> show(BuildContext context) {
-    return AppBottomSheets.show<ApiStickerSet>(
+    return AppModal.showSheet<ApiStickerSet>(
       context: context,
       builder: (BuildContext ctx) => const CreateStickerSetDialog(),
     );
