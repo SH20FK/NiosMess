@@ -142,7 +142,6 @@ import 'widgets/recording_motion_test.dart' as recording_motion;
 import 'widgets/media_controls_redesign_test.dart' as media_controls_redesign;
 import 'widgets/circle_recorder_design_test.dart' as circle_recorder_design;
 import 'widgets/inbox_saved_search_test.dart' as inbox_saved_search;
-import 'widgets/m3_speed_dial_fab_test.dart' as speed_dial_motion;
 import 'widgets/chat_input_bar_test.dart' as chat_input_motion;
 import 'widgets/niosgram_video_test.dart' as niosgram_video;
 import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
@@ -254,6 +253,7 @@ import 'widgets/chat_tile_inbox_regressions_test.dart'
     as chat_tile_inbox_regressions;
 import 'widgets/wave_a_visual_tokens_test.dart' as wave_a_visual_tokens;
 import 'widgets/app_bottom_nav_badge_test.dart' as app_bottom_nav_badge;
+import 'widgets/inbox_inline_search_test.dart' as inbox_inline_search;
 
 void main() {
   group('Motion regressions', () {
@@ -493,7 +493,6 @@ void main() {
     media_controls_redesign.main();
     circle_recorder_design.main();
     inbox_saved_search.main();
-    speed_dial_motion.main();
     chat_input_motion.main();
     niosgram_video.main();
     widgets_vector_illustrations.main();
@@ -512,6 +511,7 @@ void main() {
     group('chat_tile_inbox_regressions', chat_tile_inbox_regressions.main);
     group('wave_a_visual_tokens', wave_a_visual_tokens.main);
     group('app_bottom_nav_badge', app_bottom_nav_badge.main);
+    group('inbox_inline_search', inbox_inline_search.main);
 
     // End-to-End & Integration Suites
     e2e_niosgram_and_settings.main();

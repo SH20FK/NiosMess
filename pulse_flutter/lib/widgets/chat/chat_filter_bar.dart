@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/features/chats/application/inbox_search_controller.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/chat_productivity.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
@@ -45,6 +46,10 @@ class ChatFilterBar extends ConsumerWidget {
     final List<ChatFolder> folders = foldersValue.value ?? const <ChatFolder>[];
     final String? selectedFolderId = ref.watch(selectedChatFolderProvider);
     final bool hasFolders = folders.isNotEmpty;
+    // While the header is a search field, the same rail scopes the results.
+    final (bool searching, InboxSearchScope scope) = ref.watch(
+      inboxSearchProvider.select((InboxSearchState s) => (s.active, s.scope)),
+    );
 
     // Chat data is only needed for the per-folder unread badge; without folders
     // the strip must not subscribe to the chat list at all.
@@ -78,7 +83,7 @@ class ChatFilterBar extends ConsumerWidget {
     final double segmentHeight = _resolveRowHeight(context);
     final double trackHeight = segmentHeight + 8;
 
-    final List<Widget> items = <Widget>[
+    final List<Widget> filterItems = <Widget>[
       _FilterPill(
         key: const ValueKey<String>('chat-filter-all'),
         label: Text(l.chatListFilterAll),
@@ -142,6 +147,28 @@ class ChatFilterBar extends ConsumerWidget {
         ),
       ],
     ];
+    final List<Widget> items = !searching
+        ? filterItems
+        : <Widget>[
+            for (final (InboxSearchScope value, String label)
+                in <(InboxSearchScope, String)>[
+                  (InboxSearchScope.all, l.chatListFilterAll),
+                  (InboxSearchScope.chats, l.tabChats),
+                  (InboxSearchScope.messages, l.noticeMessages),
+                  (InboxSearchScope.people, l.inboxSearchPeople),
+                ])
+              _FilterPill(
+                key: ValueKey<String>('inbox-search-scope-${value.name}'),
+                label: Text(label),
+                selected: scope == value,
+                minHeight: segmentHeight,
+                onTap: () {
+                  if (scope == value) return;
+                  if (haptics) HapticService.tap();
+                  ref.read(inboxSearchProvider.notifier).setScope(value);
+                },
+              ),
+          ];
 
     return Container(
       height: trackHeight,
@@ -175,13 +202,26 @@ class ChatFilterBar extends ConsumerWidget {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: Row(
-              children: <Widget>[
-                for (int i = 0; i < items.length; i++) ...<Widget>[
-                  if (i > 0) const SizedBox(width: 2),
-                  items[i],
+            // Filters and search scopes swap inside the same rail.
+            child: AnimatedSwitcher(
+              duration: context.reduceMotion
+                  ? Duration.zero
+                  : M3Durations.short4,
+              switchInCurve: M3SpringCurves.expressiveDecel,
+              switchOutCurve: M3SpringCurves.expressiveAccel,
+              layoutBuilder: (Widget? current, List<Widget> previous) => Stack(
+                alignment: AlignmentDirectional.centerStart,
+                children: <Widget>[...previous, ?current],
+              ),
+              child: Row(
+                key: ValueKey<bool>(searching),
+                children: <Widget>[
+                  for (int i = 0; i < items.length; i++) ...<Widget>[
+                    if (i > 0) const SizedBox(width: 2),
+                    items[i],
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

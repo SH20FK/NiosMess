@@ -11,6 +11,7 @@ import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/providers/chat_list_scroll_provider.dart';
+import 'package:pulse_flutter/features/chats/application/inbox_search_controller.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
@@ -421,6 +422,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
             ref.read(desktopSelectedChatProvider) != null) {
           _lastBackPressTime = null;
           ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(null);
+          return;
+        }
+
+        // An open inbox search closes first.
+        if (ref.read(inboxSearchProvider).active) {
+          _lastBackPressTime = null;
+          ref.read(inboxSearchProvider.notifier).close();
           return;
         }
 
@@ -836,7 +844,9 @@ class _InboxComposerScrim extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool visible = ref.watch(chatListFabVisibleProvider);
+    final bool visible =
+        ref.watch(chatListFabVisibleProvider) &&
+        !ref.watch(inboxSearchProvider.select((s) => s.active));
     final Color backdrop = AppSurfaces.of(context);
 
     return IgnorePointer(

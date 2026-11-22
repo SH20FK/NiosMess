@@ -81,7 +81,6 @@ class UiSettingsState {
     required this.backgroundMode,
     required this.useSystemDynamic,
     required this.fontScale,
-    required this.navBarFloating,
     this.sendOnEnter = true,
     this.doubleTapReactionEmoji = '❤️',
     this.autoDownloadWifi = true,
@@ -95,7 +94,6 @@ class UiSettingsState {
     this.paletteStyle = PaletteStyle.expressive,
     this.hideBubbleTails = false,
     this.replaceEditedWithIcon = false,
-    this.chatListDensity = 'standard',
     this.videoSeekSeconds = 10,
     this.autoPauseVideoOnBackground = true,
     this.energySavingThreshold = 20,
@@ -138,7 +136,6 @@ class UiSettingsState {
       backgroundMode = BackgroundMode.reliable,
       useSystemDynamic = false,
       fontScale = AppFontScale.normal,
-      navBarFloating = false,
       sendOnEnter = true,
       doubleTapReactionEmoji = '❤️',
       autoDownloadWifi = true,
@@ -152,7 +149,6 @@ class UiSettingsState {
       paletteStyle = PaletteStyle.expressive,
       hideBubbleTails = false,
       replaceEditedWithIcon = false,
-      chatListDensity = 'standard',
       videoSeekSeconds = 10,
       autoPauseVideoOnBackground = true,
       energySavingThreshold = 20,
@@ -185,7 +181,6 @@ class UiSettingsState {
   final BackgroundMode backgroundMode;
   final bool useSystemDynamic;
   final AppFontScale fontScale;
-  final bool navBarFloating;
   final bool sendOnEnter;
   final String doubleTapReactionEmoji;
   final bool autoDownloadWifi;
@@ -199,7 +194,6 @@ class UiSettingsState {
   final PaletteStyle paletteStyle;
   final bool hideBubbleTails;
   final bool replaceEditedWithIcon;
-  final String chatListDensity;
   final int videoSeekSeconds;
   final bool autoPauseVideoOnBackground;
   final int energySavingThreshold;
@@ -235,7 +229,6 @@ class UiSettingsState {
     BackgroundMode? backgroundMode,
     bool? useSystemDynamic,
     AppFontScale? fontScale,
-    bool? navBarFloating,
     bool? sendOnEnter,
     String? doubleTapReactionEmoji,
     bool? autoDownloadWifi,
@@ -249,7 +242,6 @@ class UiSettingsState {
     PaletteStyle? paletteStyle,
     bool? hideBubbleTails,
     bool? replaceEditedWithIcon,
-    String? chatListDensity,
     int? videoSeekSeconds,
     bool? autoPauseVideoOnBackground,
     int? energySavingThreshold,
@@ -284,7 +276,6 @@ class UiSettingsState {
       backgroundMode: backgroundMode ?? this.backgroundMode,
       useSystemDynamic: useSystemDynamic ?? this.useSystemDynamic,
       fontScale: fontScale ?? this.fontScale,
-      navBarFloating: navBarFloating ?? this.navBarFloating,
       sendOnEnter: sendOnEnter ?? this.sendOnEnter,
       doubleTapReactionEmoji:
           doubleTapReactionEmoji ?? this.doubleTapReactionEmoji,
@@ -303,7 +294,6 @@ class UiSettingsState {
       paletteStyle: paletteStyle ?? this.paletteStyle,
       hideBubbleTails: hideBubbleTails ?? this.hideBubbleTails,
       replaceEditedWithIcon: replaceEditedWithIcon ?? this.replaceEditedWithIcon,
-      chatListDensity: chatListDensity ?? this.chatListDensity,
       videoSeekSeconds: videoSeekSeconds ?? this.videoSeekSeconds,
       autoPauseVideoOnBackground:
           autoPauseVideoOnBackground ?? this.autoPauseVideoOnBackground,
@@ -354,7 +344,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _backgroundModeKey = 'ui.backgroundMode';
   static const String _useSystemDynamicKey = 'ui.useSystemDynamic';
   static const String _fontScaleKey = 'ui.fontScale';
-  static const String _navBarFloatingKey = 'ui.navBarFloating';
   static const String _sendOnEnterKey = 'ui.sendOnEnter';
   static const String _doubleTapReactionEmojiKey = 'ui.doubleTapReactionEmoji';
   static const String _autoDownloadWifiKey = 'ui.autoDownloadWifi';
@@ -365,7 +354,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _camera2ApiKey = 'ui.camera2Api';
   static const String _hideBubbleTailsKey = 'ui.hideBubbleTails';
   static const String _replaceEditedWithIconKey = 'ui.replaceEditedWithIcon';
-  static const String _chatListDensityKey = 'ui.chatListDensity';
   static const String _videoSeekSecondsKey = 'ui.videoSeekSeconds';
   static const String _autoPauseVideoKey = 'ui.autoPauseVideo';
   static const String _energySavingThresholdKey = 'ui.energySavingThreshold';
@@ -433,7 +421,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
         (AppFontScale fs) => fs.name == prefs.getString(_fontScaleKey),
         orElse: () => AppFontScale.normal,
       ),
-      navBarFloating: prefs.getBool(_navBarFloatingKey) ?? defaults.navBarFloating,
       sendOnEnter: prefs.getBool(_sendOnEnterKey) ?? defaults.sendOnEnter,
       doubleTapReactionEmoji:
           prefs.getString(_doubleTapReactionEmojiKey) ?? defaults.doubleTapReactionEmoji,
@@ -452,8 +439,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
           prefs.getBool(_hideBubbleTailsKey) ?? defaults.hideBubbleTails,
       replaceEditedWithIcon:
           prefs.getBool(_replaceEditedWithIconKey) ?? defaults.replaceEditedWithIcon,
-      chatListDensity:
-          prefs.getString(_chatListDensityKey) ?? defaults.chatListDensity,
       videoSeekSeconds:
           prefs.getInt(_videoSeekSecondsKey) ?? defaults.videoSeekSeconds,
       autoPauseVideoOnBackground:
@@ -674,11 +659,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _persistKey(_fontScaleKey, value.name);
   }
 
-  void setNavBarFloating(bool value) {
-    state = state.copyWith(navBarFloating: value);
-    _persistKey(_navBarFloatingKey, value);
-  }
-
   void setSendOnEnter(bool value) {
     state = state.copyWith(sendOnEnter: value);
     _persistKey(_sendOnEnterKey, value);
@@ -730,11 +710,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   void setReplaceEditedWithIcon(bool value) {
     state = state.copyWith(replaceEditedWithIcon: value);
     _persistKey(_replaceEditedWithIconKey, value);
-  }
-
-  void setChatListDensity(String value) {
-    state = state.copyWith(chatListDensity: value);
-    _persistKey(_chatListDensityKey, value);
   }
 
   void setVideoSeekSeconds(int value) {
@@ -843,7 +818,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.remove(_backgroundModeKey),
       prefs.remove(_useSystemDynamicKey),
       prefs.remove(_fontScaleKey),
-      prefs.remove(_navBarFloatingKey),
       prefs.remove(_sendOnEnterKey),
       prefs.remove(_doubleTapReactionEmojiKey),
       prefs.remove(_autoDownloadWifiKey),
@@ -854,7 +828,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.remove(_camera2ApiKey),
       prefs.remove(_hideBubbleTailsKey),
       prefs.remove(_replaceEditedWithIconKey),
-      prefs.remove(_chatListDensityKey),
       prefs.remove(_videoSeekSecondsKey),
       prefs.remove(_autoPauseVideoKey),
       prefs.remove(_energySavingThresholdKey),

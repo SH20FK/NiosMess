@@ -7,7 +7,6 @@ import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_filter_bar.dart';
-import 'package:pulse_flutter/widgets/chat/chat_search_bar.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
 
 class MockChatsNotifier extends ChatsNotifier {
@@ -319,33 +318,6 @@ void main() {
       // Chat scope pills never echo the global unread total: only folder pills
       // (absent here) carry a VK-style counter.
       expect(find.text('3'), findsNothing);
-    });
-  });
-
-  group('Milestone 1: ChatSearchBar Tests', () {
-    testWidgets('renders floating search bar with embedded profile avatar', (
-      WidgetTester tester,
-    ) async {
-      bool avatarTapped = false;
-
-      await tester.pumpWidget(
-        _buildTestApp(
-          child: ChatSearchBar(onAvatarTap: () => avatarTapped = true),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ChatSearchBar), findsOneWidget);
-      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
-
-      final avatarFinder = find.descendant(
-        of: find.byType(ChatSearchBar),
-        matching: find.byType(GestureDetector),
-      );
-      expect(avatarFinder, findsWidgets);
-
-      await tester.tap(avatarFinder.last);
-      expect(avatarTapped, isTrue);
     });
   });
 }

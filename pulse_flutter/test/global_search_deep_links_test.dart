@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -7,7 +6,6 @@ import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/widgets/chat/chat_search_bar.dart';
 import 'package:universal_io/io.dart';
 
 class _FakeAuthNotifier extends AuthNotifier {
@@ -150,7 +148,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final notifier = container.read(chatListSearchProvider.notifier);
+      final notifier = container.read(debouncedSearchProvider.notifier);
       notifier.search('announcement');
 
       // Wait for debounce timer (300ms)
@@ -161,7 +159,7 @@ void main() {
       expect(req['action'], 'search');
       expect(req['payload']['q'], 'announcement');
 
-      final result = container.read(chatListSearchProvider).value;
+      final result = container.read(debouncedSearchProvider).value;
       expect(result, isNotNull);
       expect(result!.posts.length, 1);
       expect(result.posts.first.content, 'NiosGram announcement');
@@ -196,23 +194,6 @@ void main() {
         }
       }
       expect(path3, '/g/creator_username');
-    });
-  });
-
-  group('ChatSearchBar Widget', () {
-    testWidgets('renders search anchor bar with category chips', (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: Scaffold(
-              body: ChatSearchBar(),
-            ),
-          ),
-        ),
-      );
-
-      expect(find.byType(ChatSearchBar), findsOneWidget);
-      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
     });
   });
 }

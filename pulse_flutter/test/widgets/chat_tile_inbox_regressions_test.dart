@@ -51,7 +51,6 @@ ChatTile _tile({
   int unreadCount = 0,
   bool isMuted = false,
   bool isSelected = false,
-  bool isPinned = false,
   bool isSecret = false,
   bool isSaved = false,
   bool isOnline = false,
@@ -75,7 +74,6 @@ ChatTile _tile({
     draftLabel: draftLabel,
     isMuted: isMuted,
     isSelected: isSelected,
-    isPinned: isPinned,
     isSecret: isSecret,
     isSaved: isSaved,
     isOnline: isOnline,
@@ -595,7 +593,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      _app(_narrow(_tile(isSecret: true, isMuted: true, isPinned: true))),
+      _app(_narrow(_tile(isSecret: true, isMuted: true))),
     );
     await tester.pumpAndSettle();
 
@@ -603,7 +601,6 @@ void main() {
     for (final IconData icon in <IconData>[
       Icons.lock_rounded,
       Icons.notifications_off_outlined,
-      Icons.push_pin_rounded,
     ]) {
       final Icon widgetIcon = tester.widget<Icon>(find.byIcon(icon));
       expect(widgetIcon.size, 16, reason: '$icon must be 16dp');
@@ -611,10 +608,6 @@ void main() {
     expect(
       tester.widget<Icon>(find.byIcon(Icons.lock_rounded)).color,
       scheme.primary,
-    );
-    expect(
-      tester.widget<Icon>(find.byIcon(Icons.push_pin_rounded)).color,
-      scheme.onSurfaceVariant,
     );
     expect(
       tester.widget<Icon>(find.byIcon(Icons.notifications_off_outlined)).color,
@@ -703,7 +696,6 @@ void main() {
         _narrow(
           _tile(
             unreadCount: 2,
-            isPinned: true,
             isMuted: true,
             isSecret: true,
             isSelected: true,
@@ -726,7 +718,6 @@ void main() {
     expect(label, contains('Ирина'));
     expect(label, contains('2'));
     expect(label, contains('выбран'));
-    expect(label, contains('закреплён'));
     expect(label, contains('без звука'));
     expect(label, contains('Прочитано'));
     expect(semantics.properties.selected, isTrue);

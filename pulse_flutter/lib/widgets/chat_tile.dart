@@ -43,13 +43,12 @@ const double _kIndicatorInset = 8;
 const double _kIndicatorWidth = 3;
 const double _kIndicatorHeight = 20;
 
-/// TODO(l10n): the `keyMismatch`, `pinned`, `muted` and `selected` inbox state
+/// TODO(l10n): the `keyMismatch`, `muted` and `selected` inbox state
 /// markers have no `.arb` entries yet (the repo ships only generated
 /// `app_localizations*.dart`, the source .arb files are absent). Replace these
 /// hardcoded Russian labels with `context.l10n.*` once the keys land.
 const String _kKeyMismatchLabel = 'Ключи не совпадают';
 const String _kSelectedSemantics = 'выбран';
-const String _kPinnedSemantics = 'закреплён';
 const String _kMutedSemantics = 'без звука';
 
 /// Google Messages / M3 Expressive Chat List Tile with unread pills,
@@ -71,7 +70,6 @@ class ChatTile extends StatefulWidget {
     this.deliveryLabel,
     this.isMuted = false,
     this.enableHaptics = true,
-    this.isPinned = false,
     this.compact = false,
     this.isOnline = false,
     this.isSecret = false,
@@ -115,7 +113,6 @@ class ChatTile extends StatefulWidget {
   final String? deliveryLabel;
   final bool isMuted;
   final bool enableHaptics;
-  final bool isPinned;
   final bool compact;
   final bool isOnline;
   final bool isSecret;
@@ -206,7 +203,6 @@ class _ChatTileState extends State<ChatTile> {
         '${context.l10n.inboxDraftSemantics}: ${widget.draftLabel}',
       if (hasUnread) context.l10n.chatListUnreadCount(widget.unreadCount),
       if (widget.isSelected) _kSelectedSemantics,
-      if (widget.isPinned) _kPinnedSemantics,
       if (widget.isMuted) _kMutedSemantics,
       if (widget.isSecret) context.l10n.secretTitle,
       if (widget.keyMismatch) _kKeyMismatchLabel,
@@ -550,13 +546,6 @@ class _ChatTileState extends State<ChatTile> {
           const SizedBox(width: _kTitleIconGap),
           _TitleIcon(
             icon: Icons.notifications_off_outlined,
-            color: scheme.onSurfaceVariant,
-          ),
-        ],
-        if (widget.isPinned) ...<Widget>[
-          const SizedBox(width: _kTitleIconGap),
-          _TitleIcon(
-            icon: Icons.push_pin_rounded,
             color: scheme.onSurfaceVariant,
           ),
         ],

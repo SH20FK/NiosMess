@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
-import 'package:pulse_flutter/features/chats/presentation/inbox_search_screen.dart';
+import 'package:pulse_flutter/features/chats/application/inbox_search_controller.dart';
+import 'package:pulse_flutter/features/chats/presentation/inbox_search_results.dart';
+import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/features/chats/presentation/saved_messages_search.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
@@ -130,6 +132,36 @@ class _SearchSocket extends WebSocketClient {
   }
 }
 
+/// The inbox search surface without the chat list: the real header (search
+/// field) above the real results sliver.
+class _SearchHost extends ConsumerWidget {
+  const _SearchHost();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool hasQuery = ref.watch(
+      inboxSearchProvider.select((InboxSearchState s) => s.hasQuery),
+    );
+    return Scaffold(
+      appBar: const ChatListHeader(),
+      body: CustomScrollView(
+        slivers: <Widget>[
+          if (hasQuery)
+            const InboxSearchResults()
+          else
+            const SliverToBoxAdapter(child: SizedBox.shrink()),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _openSearch(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey<String>('inbox-search-open')));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 void main() {
   testWidgets('late search from another account is discarded', (tester) async {
     final socket = _DelayedSearchSocket();
@@ -148,11 +180,12 @@ void main() {
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: InboxSearchScreen(),
+          home: _SearchHost(),
         ),
       ),
     );
     await tester.pump();
+    await _openSearch(tester);
     await tester.enterText(find.byType(TextField), 'my_user');
     await tester.pump(const Duration(milliseconds: 250));
     expect(socket.calls, 1);
@@ -197,7 +230,7 @@ void main() {
       final router = GoRouter(
         initialLocation: '/',
         routes: [
-          GoRoute(path: '/', builder: (_, _) => const InboxSearchScreen()),
+          GoRoute(path: '/', builder: (_, _) => const _SearchHost()),
           GoRoute(
             path: '/chat/:id',
             builder: (_, state) => Text('chat ${state.pathParameters['id']}'),
@@ -220,6 +253,7 @@ void main() {
         ),
       );
       await tester.pump();
+      await _openSearch(tester);
       await tester.enterText(find.byType(TextField), '@my_user');
       await tester.pump();
       expect(find.text('Saved Messages'), findsOneWidget);
@@ -228,7 +262,7 @@ void main() {
       expect(find.text('Saved Messages'), findsOneWidget);
       expect(
         find.descendant(
-          of: find.byType(ListTile),
+          of: find.byType(InboxSearchResults),
           matching: find.text('@my_user'),
         ),
         findsNothing,
@@ -256,18 +290,19 @@ void main() {
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: InboxSearchScreen(),
+          home: _SearchHost(),
         ),
       ),
     );
     await tester.pump();
+    await _openSearch(tester);
     await tester.enterText(find.byType(TextField), 'my_user');
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
     expect(find.text('Saved Messages'), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byType(ListTile),
+        of: find.byType(InboxSearchResults),
         matching: find.text('my_user'),
       ),
       findsNothing,
@@ -282,7 +317,7 @@ void main() {
     final router = GoRouter(
       initialLocation: '/',
       routes: [
-        GoRoute(path: '/', builder: (_, _) => const InboxSearchScreen()),
+        GoRoute(path: '/', builder: (_, _) => const _SearchHost()),
         GoRoute(
           path: '/chat/:id',
           builder: (_, state) => Text('chat ${state.pathParameters['id']}'),
@@ -305,13 +340,14 @@ void main() {
       ),
     );
     await tester.pump();
+    await _openSearch(tester);
     await tester.enterText(find.byType(TextField), 'my_user');
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
     expect(find.text('Saved Messages'), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byType(ListTile),
+        of: find.byType(InboxSearchResults),
         matching: find.text('my_user'),
       ),
       findsNothing,

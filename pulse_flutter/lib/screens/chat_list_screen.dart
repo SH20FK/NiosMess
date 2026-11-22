@@ -40,6 +40,8 @@ import 'package:pulse_flutter/widgets/chat/swipe_action_row.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/providers/chat_list_scroll_provider.dart';
 import 'package:pulse_flutter/features/chats/presentation/compose_action_sheet.dart';
+import 'package:pulse_flutter/features/chats/application/inbox_search_controller.dart';
+import 'package:pulse_flutter/features/chats/presentation/inbox_search_results.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -68,6 +70,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       if (before != after) _previewFormatter.clear();
     });
     ref.listenManual(chatListScrollToTopProvider, (_, _) => _scrollToTop());
+    ref.listenManual(
+      inboxSearchProvider.select((InboxSearchState s) => s.hasQuery),
+      (_, _) {
+        // Results and the chat list are different content: start at the top,
+        // once the new slivers are laid out.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _scrollController.hasClients) {
+            _scrollController.jumpTo(0);
+          }
+        });
+      },
+    );
     // The provider already fetches on first build and WebSocket push keeps data fresh.
   }
 
@@ -200,13 +214,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         : ref.watch(desktopSelectedChatProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool fabVisible = ref.watch(chatListFabVisibleProvider);
+    // With a query typed into the header, results replace the chat list.
+    final bool searching = ref.watch(
+      inboxSearchProvider.select((InboxSearchState s) => s.hasQuery),
+    );
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
         const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
-            context.push('/chats/search'),
+            ref.read(inboxSearchProvider.notifier).open(),
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
-            context.push('/chats/search'),
+            ref.read(inboxSearchProvider.notifier).open(),
       },
       child: Focus(
         child: Scaffold(
@@ -240,15 +258,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       ],
                     ),
                   ),
-                  const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
-                  ..._buildChatSlivers(
-                    isAuthenticated,
-                    chatsAsync,
-                    compact,
-                    scheme,
-                    filter,
-                    desktopChatId,
-                  ),
+                  if (searching)
+                    const InboxSearchResults()
+                  else ...<Widget>[
+                    const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
+                    ..._buildChatSlivers(
+                      isAuthenticated,
+                      chatsAsync,
+                      compact,
+                      scheme,
+                      filter,
+                      desktopChatId,
+                    ),
+                  ],
                   SliverPadding(
                     padding: EdgeInsets.only(
                       // 24 resting + the 56 dp FAB and its 16 dp gap when the

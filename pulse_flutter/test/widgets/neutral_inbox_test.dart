@@ -35,7 +35,6 @@ import 'package:universal_io/io.dart';
 class _Settings extends UiSettingsNotifier {
   @override
   UiSettingsState build() => const UiSettingsState.defaults().copyWith(
-    navBarFloating: true,
     soundEffects: false,
     haptics: false,
   );
@@ -344,11 +343,6 @@ void main() {
                       const Scaffold(body: Text('compose-person')),
                 ),
                 GoRoute(
-                  path: '/chats/search',
-                  builder: (_, _) =>
-                      const Scaffold(body: Text('search-destination')),
-                ),
-                GoRoute(
                   path: '/chat/:id',
                   builder: (_, state) => Scaffold(
                     body: Text('chat-${state.pathParameters['id']}'),
@@ -600,11 +594,23 @@ void main() {
             expect(find.text('chat-1'), findsOneWidget);
             router.pop();
             await tester.pumpAndSettle();
+            // Search opens in place: the header becomes the field and the
+            // chat list stays until a query is typed.
             await tester.tap(find.byIcon(Icons.search_rounded));
             await tester.pumpAndSettle();
-            expect(find.text('search-destination'), findsOneWidget);
-            router.pop();
+            expect(
+              find.byKey(const ValueKey<String>('inbox-search-field')),
+              findsOneWidget,
+            );
+            expect(find.byType(ChatTile), findsWidgets);
+            await tester.tap(
+              find.byKey(const ValueKey<String>('inbox-search-close')),
+            );
             await tester.pumpAndSettle();
+            expect(
+              find.byKey(const ValueKey<String>('inbox-search-field')),
+              findsNothing,
+            );
             await tester.tap(
               find.byKey(const ValueKey('inbox-profile-settings')),
             );

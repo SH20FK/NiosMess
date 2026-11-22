@@ -199,9 +199,3 @@ debouncedSearchProvider =
       DebouncedSearchNotifier.new,
     );
 
-final AsyncNotifierProvider<DebouncedSearchNotifier, ApiSearchResult>
-chatListSearchProvider =
-    AsyncNotifierProvider<DebouncedSearchNotifier, ApiSearchResult>(
-      DebouncedSearchNotifier.new,
-    );
-

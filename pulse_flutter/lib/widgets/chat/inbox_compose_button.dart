@@ -6,6 +6,7 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/features/chats/presentation/compose_action_sheet.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
+import 'package:pulse_flutter/features/chats/application/inbox_search_controller.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 class InboxComposeButton extends ConsumerWidget {
@@ -13,7 +14,10 @@ class InboxComposeButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool isVisible = ref.watch(chatListFabVisibleProvider);
+    // The composer steps aside while the header is a search field.
+    final bool isVisible =
+        ref.watch(chatListFabVisibleProvider) &&
+        !ref.watch(inboxSearchProvider.select((s) => s.active));
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final bool reducedMotion = context.reduceMotion;

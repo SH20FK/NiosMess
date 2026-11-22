@@ -440,7 +440,6 @@ const Set<int> _typingChatIds = <int>{5};
 class _Settings extends UiSettingsNotifier {
   @override
   UiSettingsState build() => const UiSettingsState.defaults().copyWith(
-    navBarFloating: true,
     soundEffects: false,
     haptics: false,
   );
@@ -596,10 +595,6 @@ void main() {
             GoRoute(
               path: '/new-message',
               builder: (_, _) => const Scaffold(body: Text('compose')),
-            ),
-            GoRoute(
-              path: '/chats/search',
-              builder: (_, _) => const Scaffold(body: Text('search')),
             ),
             GoRoute(
               path: '/chat/:id',

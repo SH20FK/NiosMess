@@ -57,7 +57,6 @@ import 'package:pulse_flutter/features/chats/application/people_picker_controlle
 import 'package:pulse_flutter/features/chats/presentation/create_group_members_screen.dart';
 import 'package:pulse_flutter/features/chats/presentation/create_group_details_screen.dart';
 import 'package:pulse_flutter/features/chats/presentation/create_channel_screen.dart';
-import 'package:pulse_flutter/features/chats/presentation/inbox_search_screen.dart';
 
 class AppRouter {
   static final incomingRoute = IncomingAppRoute();
@@ -265,11 +264,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               ? state.pageKey
               : const ValueKey<String>('main-shell'),
         ),
-      ),
-      GoRoute(
-        path: '/chats/search',
-        pageBuilder: (context, state) =>
-            _page(state, const InboxSearchScreen()),
       ),
       GoRoute(
         path: '/chats/folders',
