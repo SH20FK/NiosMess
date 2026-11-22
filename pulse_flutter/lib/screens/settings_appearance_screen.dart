@@ -102,25 +102,30 @@ class _AppearanceScreen extends ConsumerWidget {
               )
             : ref.watch(_appearanceThemeProvider(brightness));
 
-        return AnimatedTheme(
-          data: targetTheme,
-          duration: context.reduceMotion
-              ? Duration.zero
-              : M3Durations.long2,
-          curve: M3SpringCurves.expressiveStandard,
-          child: Builder(
-            builder: (animatedContext) => _buildContent(
-              animatedContext,
-              ref,
-              Theme.of(animatedContext).colorScheme,
-              themeMode: themeMode,
-              seedColor: seedColor,
-              uiCornerRadius: uiCornerRadius,
-              fontScale: fontScale,
-              paletteStyle: paletteStyle,
-              useSystemDynamic: useSystemDynamic,
-              predictiveBackEnabled: predictiveBackEnabled,
-              predictiveBackStrength: predictiveBackStrength,
+        return ValueListenableBuilder<bool>(
+          valueListenable: CircularThemeSwitcher.revealing,
+          builder: (context, revealing, _) => AnimatedTheme(
+            data: targetTheme,
+            // Under a circular reveal the theme switches at once: the
+            // snapshot of the old theme already carries the transition.
+            duration: context.reduceMotion || revealing
+                ? Duration.zero
+                : M3Durations.long2,
+            curve: M3SpringCurves.expressiveStandard,
+            child: Builder(
+              builder: (animatedContext) => _buildContent(
+                animatedContext,
+                ref,
+                Theme.of(animatedContext).colorScheme,
+                themeMode: themeMode,
+                seedColor: seedColor,
+                uiCornerRadius: uiCornerRadius,
+                fontScale: fontScale,
+                paletteStyle: paletteStyle,
+                useSystemDynamic: useSystemDynamic,
+                predictiveBackEnabled: predictiveBackEnabled,
+                predictiveBackStrength: predictiveBackStrength,
+              ),
             ),
           ),
         );

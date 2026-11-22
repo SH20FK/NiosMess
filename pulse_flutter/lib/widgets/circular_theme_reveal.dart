@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -12,6 +13,11 @@ class CircularThemeSwitcher extends StatefulWidget {
   const CircularThemeSwitcher({super.key, required this.child});
 
   final Widget child;
+
+  /// True while a reveal covers the screen. The snapshot of the old theme
+  /// carries the transition, so anything that animates theme changes should
+  /// switch at once while this is set.
+  static final ValueNotifier<bool> revealing = ValueNotifier<bool>(false);
 
   static CircularThemeSwitcherState of(BuildContext context) {
     final state = context.findAncestorStateOfType<CircularThemeSwitcherState>();
@@ -47,6 +53,7 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     );
     _animController.addStatusListener((AnimationStatus status) {
       if (status == AnimationStatus.completed) {
+        CircularThemeSwitcher.revealing.value = false;
         if (mounted) {
           setState(() {
             _isAnimating = false;
@@ -60,6 +67,10 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
 
   @override
   void dispose() {
+    if (_isAnimating) {
+      // Listeners rebuild, which is not allowed while the tree is locked.
+      scheduleMicrotask(() => CircularThemeSwitcher.revealing.value = false);
+    }
     _animController.dispose();
     _oldImage?.dispose();
     super.dispose();
@@ -113,6 +124,8 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
 
     _oldImage = snapshotImage;
     _tapOffset = offset;
+    // Without a snapshot there is no reveal and the theme animates as usual.
+    if (snapshotImage != null) CircularThemeSwitcher.revealing.value = true;
 
     try {
       HapticService.lightImpact();

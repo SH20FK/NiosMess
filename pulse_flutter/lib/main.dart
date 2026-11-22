@@ -131,6 +131,7 @@ class _PulseAppState extends ConsumerState<PulseApp> {
   @override
   void initState() {
     super.initState();
+    CircularThemeSwitcher.revealing.addListener(_onThemeReveal);
     _lifecycleListener = AppLifecycleListener(
       onResume: () {
         try {
@@ -292,10 +293,15 @@ class _PulseAppState extends ConsumerState<PulseApp> {
 
   @override
   void dispose() {
+    CircularThemeSwitcher.revealing.removeListener(_onThemeReveal);
     PushNotificationService.onCallAccepted = null;
     PushNotificationService.onCallDeclined = null;
     _lifecycleListener.dispose();
     super.dispose();
+  }
+
+  void _onThemeReveal() {
+    if (mounted) setState(() {});
   }
 
   void _syncTimeSettings(
@@ -369,12 +375,15 @@ class _PulseAppState extends ConsumerState<PulseApp> {
         final double contrastLevel = isHighContrast ? 1.0 : 0.0;
         return MaterialApp.router(
           title: 'NiosMess',
+          // Under a circular reveal the theme switches at once: the snapshot
+          // of the old theme already carries the transition.
           themeAnimationDuration:
-              WidgetsBinding
-                  .instance
-                  .platformDispatcher
-                  .accessibilityFeatures
-                  .disableAnimations
+              CircularThemeSwitcher.revealing.value ||
+                  WidgetsBinding
+                      .instance
+                      .platformDispatcher
+                      .accessibilityFeatures
+                      .disableAnimations
               ? Duration.zero
               : M3Durations.long2,
           themeAnimationCurve: M3SpringCurves.expressiveStandard,
