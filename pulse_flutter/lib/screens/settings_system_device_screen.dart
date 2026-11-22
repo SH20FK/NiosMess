@@ -10,6 +10,7 @@ import 'package:pulse_flutter/providers/device_hardware_provider.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/services/system/device_hardware_service.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/settings/settings_async_switcher.dart';
 import 'package:pulse_flutter/widgets/settings/system_resource_meter.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -30,7 +31,8 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
         await ref.read(deviceHardwareProvider.future);
       },
       children: [
-        hardware.when(
+        SettingsAsyncSwitcher(
+          value: hardware,
           data: (info) => _DeviceDetails(info: info),
           loading: () => Padding(
             padding: const EdgeInsets.symmetric(vertical: 48),

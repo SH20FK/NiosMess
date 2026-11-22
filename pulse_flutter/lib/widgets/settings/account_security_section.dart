@@ -11,6 +11,7 @@ import 'package:pulse_flutter/features/security/domain/app_lock_policy.dart';
 import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
+import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class AccountSecuritySection extends ConsumerStatefulWidget {
@@ -106,44 +107,58 @@ class _AccountSecuritySectionState
         SettingsSection(
           title: context.l10n.settingsProtectionTitle,
           children: <Widget>[
-            if (!isBrowser && appLock.isSupported) ...<Widget>[
-              SettingsRow(
-                anchor: SettingId.securityAppLock.value,
-                leading: Icon(
-                  appLock.isEnabled
-                      ? Icons.fingerprint_rounded
-                      : Icons.fingerprint_outlined,
-                  color: appLock.isEnabled
-                      ? scheme.primary
-                      : scheme.onSurfaceVariant,
-                ),
-                title: context.l10n.biometricTitle,
-                subtitle: appLock.isEnabled
-                    ? context.l10n.biometricEnabled
-                    : context.l10n.biometricDisabled,
-                control: ToggleControl(
-                  value: appLock.isEnabled,
-                  pending: _changingLock,
-                  onChanged:
-                      _changingLock ||
-                          appLock.isInitializing ||
-                          appLock.hasInitializationError
-                      ? null
-                      : _changeLock,
-                ),
-              ),
-              if (appLock.isEnabled)
-                SettingsRow(
-                  anchor: SettingId.securityAppLockTimeout.value,
-                  leading: Icon(Icons.timer_outlined, color: scheme.primary),
-                  title: context.l10n.settingsV2LockTimeout,
-                  subtitle: context.l10n.settingsV2LockTimeoutHint,
-                  control: NavigationControl(
-                    value: _timeoutLabel(context.l10n, appLock.timeout),
+            // One group child: the timeout unfolds under the switch it
+            // depends on instead of jumping in as a new row.
+            if (!isBrowser && appLock.isSupported)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  SettingsRow(
+                    anchor: SettingId.securityAppLock.value,
+                    leading: Icon(
+                      appLock.isEnabled
+                          ? Icons.fingerprint_rounded
+                          : Icons.fingerprint_outlined,
+                      color: appLock.isEnabled
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                    ),
+                    title: context.l10n.biometricTitle,
+                    subtitle: appLock.isEnabled
+                        ? context.l10n.biometricEnabled
+                        : context.l10n.biometricDisabled,
+                    control: ToggleControl(
+                      value: appLock.isEnabled,
+                      pending: _changingLock,
+                      onChanged:
+                          _changingLock ||
+                              appLock.isInitializing ||
+                              appLock.hasInitializationError
+                          ? null
+                          : _changeLock,
+                    ),
                   ),
-                  onTap: () => _showTimeoutPicker(appLock.timeout),
-                ),
-            ],
+                  M3Reveal(
+                    revealed: appLock.isEnabled,
+                    child: IgnorePointer(
+                      ignoring: !appLock.isEnabled,
+                      child: SettingsRow(
+                        anchor: SettingId.securityAppLockTimeout.value,
+                        leading: Icon(
+                          Icons.timer_outlined,
+                          color: scheme.primary,
+                        ),
+                        title: context.l10n.settingsV2LockTimeout,
+                        subtitle: context.l10n.settingsV2LockTimeoutHint,
+                        control: NavigationControl(
+                          value: _timeoutLabel(context.l10n, appLock.timeout),
+                        ),
+                        onTap: () => _showTimeoutPicker(appLock.timeout),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             SettingsRow(
               anchor: SettingId.securityNiosId.value,
               leading: Icon(Icons.shield_outlined, color: scheme.primary),

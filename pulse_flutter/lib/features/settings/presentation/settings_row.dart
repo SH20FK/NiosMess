@@ -119,7 +119,7 @@ class _SettingsAnchorState extends ConsumerState<SettingsAnchor> {
 
     return AnimatedContainer(
       key: ValueKey<String>(widget.id),
-      duration: M3Durations.medium1,
+      duration: context.reduceMotion ? Duration.zero : M3Durations.medium1,
       curve: M3SpringCurves.expressiveStandard,
       decoration: BoxDecoration(
         color: highlighted

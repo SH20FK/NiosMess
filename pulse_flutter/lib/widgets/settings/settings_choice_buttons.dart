@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
+import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 /// Single-choice M3 controls that keep labels intact at large text sizes.
-class SettingsChoiceButtons<T> extends StatelessWidget {
+/// The answer to a pick (tick and haptic click) lives here, so every screen
+/// that offers a choice sounds and feels the same.
+class SettingsChoiceButtons<T> extends ConsumerWidget {
   const SettingsChoiceButtons({
     required this.segments,
     required this.selected,
@@ -14,7 +20,7 @@ class SettingsChoiceButtons<T> extends StatelessWidget {
   final ValueChanged<Set<T>>? onSelectionChanged;
   final bool showSelectedIcon;
   @override
-  Widget build(BuildContext context) => Material(
+  Widget build(BuildContext context, WidgetRef ref) => Material(
     type: MaterialType.transparency,
     child: Wrap(
       spacing: 8,
@@ -32,7 +38,17 @@ class SettingsChoiceButtons<T> extends StatelessWidget {
             materialTapTargetSize: MaterialTapTargetSize.padded,
             onSelected: !segment.enabled || onSelectionChanged == null
                 ? null
-                : (_) => onSelectionChanged!({segment.value}),
+                : (_) {
+                    // Tapping the answer that is already chosen changes
+                    // nothing, so it stays quiet.
+                    if (!selected.contains(segment.value)) {
+                      ref.read(appSoundProvider).playUiTick();
+                      if (ref.read(uiSettingsProvider).haptics) {
+                        HapticService.selection();
+                      }
+                    }
+                    onSelectionChanged!({segment.value});
+                  },
           ),
       ],
     ),

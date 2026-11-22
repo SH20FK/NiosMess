@@ -12,6 +12,7 @@ import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/settings/settings_async_switcher.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class SettingsStorageScreen extends ConsumerStatefulWidget {
@@ -172,7 +173,8 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
       isEmbedded: widget.isEmbedded,
       onRefresh: _refresh,
       children: [
-        snapshotAsync.when(
+        SettingsAsyncSwitcher(
+          value: snapshotAsync,
           data: (data) => _buildContent(context, scheme, textTheme, data),
           loading: () => Padding(
             padding: const EdgeInsets.symmetric(vertical: 48),

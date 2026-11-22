@@ -143,7 +143,6 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           selected: {_tab},
           showSelectedIcon: false,
           onSelectionChanged: (selection) {
-            HapticService.selection();
             setState(() => _tab = selection.first);
           },
         ),

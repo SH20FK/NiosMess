@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/widgets/motion/m3_spring_switcher.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
@@ -238,13 +240,19 @@ class SettingsListItem extends ConsumerWidget {
         children: [
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 88),
-            child: Text(
-              value!,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.end,
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+            // A new value fades in over the old one instead of snapping.
+            child: M3SpringSwitcher(
+              type: M3SwitcherType.fade,
+              duration: M3Durations.short4,
+              child: Text(
+                value!,
+                key: ValueKey<String>(value!),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),

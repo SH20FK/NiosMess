@@ -169,7 +169,6 @@ class _AppearanceScreen extends ConsumerWidget {
             tapOffset: tapOffset,
           );
         } else {
-          HapticService.lightImpact();
           ref.read(uiSettingsProvider.notifier).setThemeMode(newMode);
         }
       },
@@ -834,10 +833,7 @@ class _FontScaleSliderTile extends StatelessWidget {
               ),
           ],
           selected: {currentScale},
-          onSelectionChanged: (selected) {
-            HapticService.selection();
-            onChanged(selected.first);
-          },
+          onSelectionChanged: (selected) => onChanged(selected.first),
         ),
       ),
     ],
@@ -878,10 +874,7 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
               ),
           ],
           selected: {currentStyle},
-          onSelectionChanged: (selected) {
-            HapticService.selection();
-            onChanged(selected.first);
-          },
+          onSelectionChanged: (selected) => onChanged(selected.first),
         ),
       ),
     ],

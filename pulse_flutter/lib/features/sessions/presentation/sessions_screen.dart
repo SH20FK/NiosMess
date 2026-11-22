@@ -9,6 +9,7 @@ import 'package:pulse_flutter/features/sessions/domain/session_model.dart';
 import 'package:pulse_flutter/features/sessions/presentation/session_details_sheet.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -81,11 +82,19 @@ class SessionsScreen extends ConsumerWidget {
         ),
       ],
       children: [
-        if (state is SessionsLoading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 48),
-            child: Center(child: AppLoadingIndicator()),
+        // Folds away when the list arrives, so the devices slide up into
+        // its place instead of replacing it in one frame.
+        M3Reveal(
+          revealed: state is SessionsLoading,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 48),
+            child: Center(
+              child: AppLoadingIndicator(
+                semanticsLabel: context.l10n.commonLoading,
+              ),
+            ),
           ),
+        ),
         if (state is SessionsFailure)
           SettingsSection(
             children: [

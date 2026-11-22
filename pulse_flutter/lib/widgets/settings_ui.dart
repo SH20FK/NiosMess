@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/motion/m3_staggered_list.dart';
 import 'package:pulse_flutter/widgets/settings/settings_group_scope.dart';
 
 export 'package:pulse_flutter/widgets/vector_illustrations.dart';
@@ -16,12 +17,17 @@ class SettingsSection extends StatelessWidget {
     this.title,
     this.subtitle,
     this.isCard = true,
+    this.stagger = false,
     super.key,
   });
   final String? title;
   final String? subtitle;
   final List<Widget> children;
   final bool isCard;
+
+  /// The first rows rise into place one after another when the group first
+  /// appears. For a list that is the screen itself, such as the hub.
+  final bool stagger;
 
   /// Outer corner of a group. Follows the corner radius setting across its
   /// whole 8-28 range; the default 20 gives 24.
@@ -87,7 +93,7 @@ class SettingsSection extends StatelessWidget {
                 final color = isCard
                     ? scheme.surfaceContainerLow
                     : scheme.surface;
-                return SettingsGroupScope(
+                final Widget row = SettingsGroupScope(
                   borderRadius: radius,
                   color: color,
                   child: Material(
@@ -97,6 +103,9 @@ class SettingsSection extends StatelessWidget {
                     child: items[index],
                   ),
                 );
+                return stagger
+                    ? M3StaggeredItem(index: index, child: row)
+                    : row;
               },
             ),
           ],

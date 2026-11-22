@@ -29,6 +29,9 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/widgets/settings/privacy_rule_row.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
+import 'package:pulse_flutter/widgets/motion/m3_staggered_list.dart';
+import 'package:pulse_flutter/widgets/settings/settings_async_switcher.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
 
 class _Performance extends AdaptivePerformanceNotifier {
@@ -68,6 +71,15 @@ class _Privacy extends PrivacyNotifier {
         key: PrivacyRule(key: key, policy: policy),
       },
     );
+  }
+}
+
+class _Sound extends SoundService {
+  final List<SoundEvent> events = <SoundEvent>[];
+
+  @override
+  Future<void> playEvent(SoundEvent event, {double? volume}) async {
+    events.add(event);
   }
 }
 
@@ -220,6 +232,106 @@ void main() {
         isTrue,
       );
       semantics.dispose();
+    });
+
+    testWidgets('a choice ticks once for a new answer and not for the same', (
+      tester,
+    ) async {
+      final sound = _Sound();
+      var value = 1;
+      await tester.pumpWidget(
+        _app(
+          ProviderScope(
+            overrides: [appSoundProvider.overrideWithValue(sound)],
+            child: StatefulBuilder(
+              builder: (context, update) => SettingsChoiceButtons<int>(
+                segments: const [
+                  ButtonSegment<int>(value: 1, label: Text('One')),
+                  ButtonSegment<int>(value: 2, label: Text('Two')),
+                ],
+                selected: {value},
+                onSelectionChanged: (picked) =>
+                    update(() => value = picked.first),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Two'));
+      await tester.pumpAndSettle();
+      expect(value, 2);
+      expect(sound.events, [SoundEvent.uiTap]);
+
+      await tester.tap(find.text('Two'));
+      await tester.pumpAndSettle();
+      expect(sound.events, hasLength(1));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('loading gives way to data with a cross-fade', (tester) async {
+      Widget form(AsyncValue<int> value) => _app(
+        SettingsAsyncSwitcher<int>(
+          value: value,
+          data: (loaded) => Text('Loaded $loaded'),
+          loading: () => const Text('Loading form'),
+          error: (_, _) => const Text('Error form'),
+        ),
+      );
+      await tester.pumpWidget(form(const AsyncLoading<int>()));
+      expect(find.text('Loading form'), findsOneWidget);
+
+      await tester.pumpWidget(form(const AsyncData<int>(7)));
+      await tester.pump(const Duration(milliseconds: 60));
+      // Mid-flight both forms are on screen: one leaving, one arriving.
+      expect(find.text('Loading form'), findsOneWidget);
+      expect(find.text('Loaded 7'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(find.text('Loading form'), findsNothing);
+      expect(find.text('Loaded 7'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('rows of a staggered group rise one after another', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          SettingsSection(
+            stagger: true,
+            children: [
+              for (var i = 0; i < 3; i++)
+                SettingsListItem.nav(
+                  icon: Icons.tune_rounded,
+                  title: 'Row $i',
+                  onTap: () {},
+                ),
+            ],
+          ),
+        ),
+      );
+      expect(find.byType(M3StaggeredItem), findsNWidgets(3));
+      // The third row has not started yet while the first is on its way.
+      expect(
+        tester
+            .widget<Opacity>(
+              find
+                  .ancestor(
+                    of: find.text('Row 2'),
+                    matching: find.byType(Opacity),
+                  )
+                  .first,
+            )
+            .opacity,
+        lessThan(1),
+      );
+
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 3; i++) {
+        expect(find.text('Row $i').hitTestable(), findsOneWidget);
+      }
+      expect(tester.binding.transientCallbackCount, 0);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('a privacy rule is chosen from a menu on its own row', (

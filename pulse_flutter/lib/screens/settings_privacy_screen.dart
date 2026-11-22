@@ -15,6 +15,7 @@ import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
 
 class SettingsPrivacyScreen extends ConsumerWidget {
   const SettingsPrivacyScreen({this.isEmbedded = false, super.key});
@@ -40,8 +41,11 @@ class SettingsPrivacyScreen extends ConsumerWidget {
       isEmbedded: isEmbedded,
       onRefresh: () => ref.read(privacyProvider.notifier).refresh(),
       children: <Widget>[
-        if (privacy.isLoading && privacy.rules.isEmpty)
-          Padding(
+        // Folds away when the rules arrive, so the list below slides up
+        // instead of jumping.
+        M3Reveal(
+          revealed: privacy.isLoading && privacy.rules.isEmpty,
+          child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
             child: Center(
               child: AppLoadingIndicator(
@@ -50,6 +54,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               ),
             ),
           ),
+        ),
         if (privacy.error != null)
           SettingsSection(
             children: [

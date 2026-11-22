@@ -275,6 +275,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     SettingsSectionId? selected,
   }) => [
     SettingsSection(
+      stagger: true,
       children: [
         for (final node in SettingsRegistry.getTopLevelSections())
           SettingsListItem.nav(
