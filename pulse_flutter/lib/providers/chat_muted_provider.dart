@@ -67,6 +67,39 @@ class ChatMuteHub extends AsyncNotifier<Set<int>> {
     }
   }
 
+  /// Mutes or unmutes several chats at once: every preference is written
+  /// first, then the device token is registered a single time.
+  Future<void> setMutedAll(Iterable<int> chatIds, bool muted) async {
+    final int? account = ref.read(authProvider).session?.userId;
+    final Set<int> current = await future;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final Set<int> next = <int>{...(state.value ?? current)};
+    try {
+      for (final int chatId in chatIds) {
+        if (chatId <= 0) continue;
+        if (!await prefs.setBool(_key(account, chatId), muted)) {
+          throw StateError('Notification preference write failed');
+        }
+        if (muted) {
+          next.add(chatId);
+        } else {
+          next.remove(chatId);
+        }
+      }
+    } finally {
+      // A write that failed halfway still leaves the earlier ones on disk:
+      // the state follows what was actually stored.
+      if (ref.mounted && ref.read(authProvider).session?.userId == account) {
+        state = AsyncData<Set<int>>(Set<int>.unmodifiable(next));
+      }
+    }
+    if (account != null &&
+        ref.mounted &&
+        ref.read(authProvider).session?.userId == account) {
+      await ref.read(authProvider.notifier).refreshFcmTokenRegistration();
+    }
+  }
+
   /// Applies a mute flag that came from the server (e.g. a `chat_updated`
   /// payload). No-op while the server sends no such field, and no-op when the
   /// value already matches so a stream of pushes cannot re-register the token.

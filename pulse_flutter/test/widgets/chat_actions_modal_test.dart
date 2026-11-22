@@ -19,7 +19,7 @@ Widget _app(Widget child) {
   );
 }
 
-Widget _opener({int unreadCount = 0, Offset? anchor}) {
+Widget _opener({int unreadCount = 0}) {
   return Builder(
     builder: (BuildContext context) => Center(
       child: TextButton(
@@ -33,7 +33,6 @@ Widget _opener({int unreadCount = 0, Offset? anchor}) {
             membersCount: 2,
           ),
           avatarColor: const Color(0xFF6750A4),
-          anchor: anchor,
         ),
         child: const Text('open'),
       ),
@@ -144,17 +143,25 @@ void main() {
     expect(dividerY, lessThan(tester.getCenter(find.text('Удалить')).dy));
   });
 
-  testWidgets('anchor is accepted for a cursor-anchored presenter', (
+  testWidgets('folder and select rows are safe actions above the divider', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      _app(_opener(unreadCount: 1, anchor: const Offset(24, 48))),
-    );
+    await tester.pumpWidget(_app(_opener(unreadCount: 1)));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Удалить'), findsOneWidget);
-    expect(find.byType(Divider), findsOneWidget);
+    final double dividerY = tester.getCenter(find.byType(Divider)).dy;
+    for (final ChatActionResult result in <ChatActionResult>[
+      ChatActionResult.addToFolder,
+      ChatActionResult.select,
+    ]) {
+      final Finder row = find.byKey(ValueKey<ChatActionResult>(result));
+      expect(row, findsOneWidget, reason: '$result');
+      expect(tester.getSize(row).height, 48, reason: '$result');
+      expect(tester.getCenter(row).dy, lessThan(dividerY), reason: '$result');
+    }
+    expect(find.text('В папку'), findsOneWidget);
+    expect(find.text('Выбрать'), findsOneWidget);
   });
 
   testWidgets('rows use the M3 control shape, not hardcoded 12dp corners', (

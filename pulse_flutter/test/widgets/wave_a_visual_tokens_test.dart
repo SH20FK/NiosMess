@@ -93,8 +93,8 @@ void main() {
   });
 
   group('ChatListSkeleton metrics', () {
-    testWidgets('row mirrors ChatTile: 76dp tall, 48dp avatar, 22dp inset, '
-        '2dp gap, 28x12 timestamp pinned to the top-right', (tester) async {
+    testWidgets('row mirrors ChatTile: 76dp tall, 48dp avatar, 20dp inset, '
+        '2dp gap, 28x12 timestamp at the end of the title line', (tester) async {
       await _pump(tester, const ChatListSkeleton(count: 2, outerInset: 0));
 
       final Finder row0 = find.byKey(
@@ -116,9 +116,9 @@ void main() {
           .descendant(of: row0, matching: find.byType(Container))
           .first;
       expect(tester.getSize(avatar), const Size(48, 48));
-      // Real rows sit at 10 (list padding) + 12 (tile padding) = 22dp horizontally
+      // Real rows sit at 8 (list padding) + 12 (tile padding) = 20dp horizontally
       // and 14dp vertically around the avatar.
-      expect(tester.getTopLeft(avatar).dx, rowRect.left + 22);
+      expect(tester.getTopLeft(avatar).dx, rowRect.left + 20);
       expect(tester.getTopLeft(avatar).dy, rowRect.top + 14);
 
       final Finder timestamp = find.descendant(
@@ -132,8 +132,29 @@ void main() {
       );
       expect(timestamp, findsOneWidget);
       final Rect timeRect = tester.getRect(timestamp);
-      expect(timeRect.top, rowRect.top + 14); // same 14dp vertical padding
-      expect(timeRect.right, rowRect.right - 22);
+      // Centred in the 24dp title line, like the real time label.
+      expect(timeRect.top, rowRect.top + 14 + 6);
+      expect(timeRect.right, rowRect.right - 20);
+    });
+
+    testWidgets('compact placeholder mirrors the 64dp row and paints no card', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const ChatListSkeleton(count: 1, outerInset: 0, compact: true),
+      );
+
+      final Finder row = find.byKey(
+        const ValueKey<String>('chat_skeleton_row_0'),
+      );
+      expect(tester.getSize(row).height, 64);
+      final Finder avatar = find
+          .descendant(of: row, matching: find.byType(Container))
+          .first;
+      expect(tester.getSize(avatar), const Size(44, 44));
+      // A resting chat row is transparent, so the placeholder has no fill.
+      expect(tester.widget(row), isA<Padding>());
     });
 
     testWidgets('pulse runs by default and is static with reduced motion', (

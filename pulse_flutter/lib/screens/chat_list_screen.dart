@@ -35,6 +35,7 @@ import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_filter_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
+import 'package:pulse_flutter/widgets/chat/inbox_compose_button.dart';
 import 'package:pulse_flutter/widgets/chat/reorder_slide.dart';
 import 'package:pulse_flutter/widgets/chat/swipe_action_row.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
@@ -47,6 +48,10 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/chat/chat_actions_modal.dart';
 import 'package:pulse_flutter/providers/chat_muted_provider.dart';
+import 'package:pulse_flutter/features/chats/application/inbox_selection_controller.dart';
+import 'package:pulse_flutter/models/chat_productivity.dart';
+import 'package:pulse_flutter/widgets/common/app_action_menu_item.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 
 enum _LastMessageKind { photo, video, audio, file }
 
@@ -59,18 +64,13 @@ class _ComposerClearance extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool composerVisible =
-        ref.watch(chatListFabVisibleProvider) &&
-        !ref.watch(
-          inboxSearchProvider.select((InboxSearchState s) => s.active),
-        );
+    final bool composerVisible = ref.watch(inboxComposerVisibleProvider);
     return SliverPadding(
       padding: EdgeInsets.only(
-        // 24 resting + the 56 dp FAB and its 16 dp gap when the floating
-        // button is visible + the system inset.
+        // The strip the composer button and its scrim occupy, or 24 dp of
+        // resting room without the button, + the system inset.
         bottom:
-            24 +
-            (composerVisible ? 72 : 0) +
+            (composerVisible ? kInboxComposerClearance : 24) +
             MediaQuery.viewPaddingOf(context).bottom,
       ),
     );
@@ -110,6 +110,98 @@ class _PresenceBlindChats {
   int get hashCode => 0;
 }
 
+/// Action painted behind a row that is being swiped.
+///
+/// No vertical margin: the 2 dp gap lives between the tiles, so the backdrop
+/// must not shrink behind them. The radius is the tile radius, and the text
+/// is `labelLarge` so the label fits the 35% reveal. Once the pull is far
+/// enough to trigger, the backdrop takes the accent tone and the icon springs
+/// up: letting go now does the action.
+class _SwipeBackdrop extends StatelessWidget {
+  const _SwipeBackdrop({
+    required this.icon,
+    required this.label,
+    this.atEnd = false,
+  });
+
+  final IconData icon;
+  final String label;
+
+  /// Revealed at the end edge: content hugs that edge, icon outermost.
+  final bool atEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final bool armed = SwipeActionRow.armedOf(context);
+    final bool animate = !context.reduceMotion;
+    final Color foreground = armed
+        ? scheme.onPrimaryContainer
+        : scheme.onSecondaryContainer;
+
+    final List<Widget> content = <Widget>[
+      // Scale may overshoot on the spatial spring; colour rides an effects
+      // curve and never does.
+      AnimatedScale(
+        scale: armed ? 1.25 : 1,
+        duration: animate ? M3Durations.spatialFast : Duration.zero,
+        curve: M3SpringCurves.spatialFast,
+        child: Icon(icon, size: 20, color: foreground),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        label,
+        maxLines: 1,
+        style: theme.textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: foreground,
+        ),
+      ),
+    ];
+
+    return AnimatedContainer(
+      duration: animate ? M3Durations.short3 : Duration.zero,
+      curve: M3SpringCurves.effectsFast,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: armed ? scheme.primaryContainer : scheme.secondaryContainer,
+        borderRadius: AppRadii.of(context).lgRadius,
+      ),
+      alignment: atEnd
+          ? AlignmentDirectional.centerEnd
+          : AlignmentDirectional.centerStart,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: atEnd ? content.reversed.toList(growable: false) : content,
+      ),
+    );
+  }
+}
+
+/// End-edge backdrop of a chat row: offers the opposite of the chat's current
+/// mute state. Built only while the row is pulled, so a resting list holds no
+/// extra subscriptions.
+class _MuteSwipeBackdrop extends ConsumerWidget {
+  const _MuteSwipeBackdrop({required this.chatId});
+
+  final int chatId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool muted = ref.watch(chatMutedProvider(chatId)).value ?? false;
+    return _SwipeBackdrop(
+      icon: muted
+          ? Icons.notifications_active_rounded
+          : Icons.notifications_off_rounded,
+      label: muted
+          ? context.l10n.inboxSwipeUnmute
+          : context.l10n.inboxSwipeMute,
+      atEnd: true,
+    );
+  }
+}
+
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
 
@@ -130,6 +222,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       if (before != after) _previewFormatter.clear();
     });
     ref.listenManual(chatListScrollToTopProvider, (_, _) => _scrollToTop());
+    // A picked chat that left the list (deleted, left on another device)
+    // leaves the selection too.
+    ref.listenManual(visibleChatsProvider, (_, next) {
+      final List<ApiChatSummary>? chats = next.value;
+      if (chats == null || ref.read(inboxSelectionProvider).isEmpty) return;
+      ref.read(inboxSelectionProvider.notifier).retainAll(<int>{
+        for (final ApiChatSummary chat in chats) chat.id,
+      });
+    });
     ref.listenManual(
       inboxSearchProvider.select((InboxSearchState s) => s.hasQuery),
       (_, _) {
@@ -148,10 +249,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _cursorMenuChat.dispose();
     super.dispose();
   }
 
   final ScrollController _scrollController = ScrollController();
+
+  // One menu anchor serves every row: a right click opens it at the pointer
+  // with the actions of the chat under it.
+  final MenuController _cursorMenu = MenuController();
+  final GlobalKey _cursorMenuKey = GlobalKey(debugLabel: 'inbox-cursor-menu');
+  final ValueNotifier<ApiChatSummary?> _cursorMenuChat =
+      ValueNotifier<ApiChatSummary?>(null);
 
   void _scrollToTop() {
     if (!_scrollController.hasClients) return;
@@ -279,9 +388,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final bool searching = ref.watch(
       inboxSearchProvider.select((InboxSearchState s) => s.hasQuery),
     );
+    final bool selecting = ref.watch(
+      inboxSelectionProvider.select((Set<int> s) => s.isNotEmpty),
+    );
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
+        // Bound only while picking, so Escape is not swallowed otherwise.
+        if (selecting)
+          const SingleActivator(LogicalKeyboardKey.escape): _endSelection,
         const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
             ref.read(inboxSearchProvider.notifier).open(),
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
@@ -293,47 +408,63 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             preferredSize: Size.fromHeight(
               ChatListHeader.heightFor(context, compact: compact),
             ),
-            child: const ChatListHeader(),
+            child: ChatListHeader(
+              selectionBar: InboxSelectionBar(
+                onMarkRead: _markSelectedRead,
+                onToggleMute: _toggleSelectedMute,
+                onDelete: _deleteSelected,
+              ),
+            ),
           ),
           backgroundColor: Colors.transparent,
-          body: AppRefreshIndicator(
-            onRefresh: () async {
-              if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
-              await _retryChats();
-            },
-            child: NotificationListener<ScrollNotification>(
-              onNotification: _handleScrollNotification,
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: <Widget>[
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        // 8 above the 40 dp control row, 12 below it: the row
-                        // holds its own 16 dp horizontal inset.
-                        const SizedBox(height: 8),
-                        RepaintBoundary(child: ChatFilterBar(compact: compact)),
-                        const SizedBox(height: 12),
-                      ],
+          // The list is the builder's child: opening the menu for another
+          // chat rebuilds the anchor, not the rows.
+          body: ValueListenableBuilder<ApiChatSummary?>(
+            valueListenable: _cursorMenuChat,
+            builder: _buildCursorMenu,
+            child: AppRefreshIndicator(
+              onRefresh: () async {
+                if (ref.read(uiSettingsProvider).haptics) {
+                  HapticService.confirm();
+                }
+                await _retryChats();
+              },
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _handleScrollNotification,
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: <Widget>[
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          // 8 dp around the 48 dp rail; its pills start on
+                          // the 16 dp column of the header title.
+                          const SizedBox(height: 8),
+                          RepaintBoundary(
+                            child: ChatFilterBar(compact: compact),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
                     ),
-                  ),
-                  if (searching)
-                    const InboxSearchResults()
-                  else ...<Widget>[
-                    const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
-                    ..._buildChatSlivers(
-                      isAuthenticated,
-                      chatsAsync,
-                      compact,
-                      scheme,
-                      filter,
-                      desktopChatId,
-                    ),
+                    if (searching)
+                      const InboxSearchResults()
+                    else ...<Widget>[
+                      const SliverToBoxAdapter(child: OrdinaryE2eeNotice()),
+                      ..._buildChatSlivers(
+                        isAuthenticated,
+                        chatsAsync,
+                        compact,
+                        scheme,
+                        filter,
+                        desktopChatId,
+                      ),
+                    ],
+                    const _ComposerClearance(),
                   ],
-                  const _ComposerClearance(),
-                ],
+                ),
               ),
             ),
           ),
@@ -342,10 +473,113 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
   }
 
+  Widget _buildCursorMenu(
+    BuildContext context,
+    ApiChatSummary? chat,
+    Widget? list,
+  ) {
+    return MenuAnchor(
+      key: _cursorMenuKey,
+      controller: _cursorMenu,
+      menuChildren: chat == null
+          ? const <Widget>[]
+          : _cursorMenuItems(context, chat),
+      child: list,
+    );
+  }
+
+  /// The same five actions as the long-press sheet, in the same order.
+  List<Widget> _cursorMenuItems(BuildContext context, ApiChatSummary chat) {
+    final l10n = context.l10n;
+    final bool muted = ref.read(chatMutedProvider(chat.id)).value ?? false;
+    final bool isDirect =
+        chat.chatType != 'group' && chat.chatType != 'channel';
+    final List<(ChatActionResult, String, IconData, bool)> rows =
+        <(ChatActionResult, String, IconData, bool)>[
+          (
+            ChatActionResult.markRead,
+            l10n.chatListMarkRead,
+            Icons.done_all_rounded,
+            chat.unreadCount > 0,
+          ),
+          (
+            ChatActionResult.toggleMute,
+            muted
+                ? l10n.profileUnmuteNotifications
+                : l10n.profileMuteNotifications,
+            muted
+                ? Icons.notifications_active_rounded
+                : Icons.notifications_off_rounded,
+            true,
+          ),
+          (
+            ChatActionResult.addToFolder,
+            l10n.inboxAddToFolder,
+            Icons.folder_outlined,
+            true,
+          ),
+          (
+            ChatActionResult.select,
+            l10n.inboxSelect,
+            Icons.check_circle_outline_rounded,
+            true,
+          ),
+          (
+            ChatActionResult.leave,
+            isDirect ? l10n.chatDelete : l10n.chatListLeave,
+            isDirect ? Icons.delete_outline_rounded : Icons.logout_rounded,
+            true,
+          ),
+        ];
+    return <Widget>[
+      for (final (
+            int index,
+            (
+              ChatActionResult action,
+              String label,
+              IconData icon,
+              bool enabled,
+            ),
+          )
+          in rows.indexed) ...<Widget>[
+        if (action == ChatActionResult.leave) const Divider(height: 8),
+        // The menu is mounted anew on every opening, so the rows rise into
+        // place one after another each time.
+        M3Entrance(
+          key: ValueKey<String>('chat-cursor-menu-${action.name}'),
+          delay: Duration(milliseconds: 20 * index),
+          offsetY: 6,
+          child: AppActionMenuItem(
+            label: label,
+            icon: icon,
+            isDisabled: !enabled,
+            isDestructive: action == ChatActionResult.leave,
+            onPressed: () => unawaited(_runChatAction(chat, action)),
+          ).toMenuItem(context),
+        ),
+      ],
+    ];
+  }
+
+  /// Opens the menu of [chat] at [globalPosition]. Returns `false` when the
+  /// anchor is not laid out yet, so the caller can fall back to the sheet.
+  bool _openCursorMenu(ApiChatSummary chat, Offset globalPosition) {
+    final RenderObject? box = _cursorMenuKey.currentContext
+        ?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return false;
+    _cursorMenuChat.value = chat;
+    _cursorMenu.open(position: box.globalToLocal(globalPosition));
+    return true;
+  }
+
   double _scrollDistance = 0.0;
   static const double _kScrollHysteresis = 28.0;
 
   bool _handleScrollNotification(ScrollNotification notification) {
+    // The cursor menu belongs to a row that is about to move away.
+    if (notification is ScrollStartNotification && _cursorMenu.isOpen) {
+      _cursorMenu.close();
+    }
     ref
         .read(chatListScrolledProvider.notifier)
         .setScrolled(notification.metrics.pixels > ChatListHeader.scrimOffset);
@@ -437,11 +671,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         if (filter == ChatFilter.all &&
             ref.watch(selectedChatFolderProvider) == null)
           _savedShortcut(scheme, compact),
-        const SliverFillRemaining(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: ChatListSkeleton(),
-          ),
+        SliverFillRemaining(
+          child: ChatListSkeleton(outerInset: 0, compact: compact),
         ),
       ],
       error: (Object error, StackTrace stack) => <Widget>[
@@ -479,6 +710,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
     final bool hasActiveFolder = folder != null;
     final bool canResetFilters = filter != ChatFilter.all || hasActiveFolder;
+    // Each row watches its own pick; the list only follows the mode itself.
+    final bool selecting = ref.watch(
+      inboxSelectionProvider.select((Set<int> s) => s.isNotEmpty),
+    );
 
     // The self-chat is always the first pinned item in the main inbox.
     if (!hasActiveFolder && filter == ChatFilter.all) {
@@ -498,6 +733,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         if (showSavedShortcut) _savedShortcut(scheme, compact),
         SliverFillRemaining(
           child: EmptyStateWidget(
+            // A filter that matched nothing is a passing state and gets the
+            // quiet variant; the full-size one is for an account without chats.
+            compact: !noChatsAtAll,
             title: noChatsAtAll
                 ? context.l10n.inboxEmptyTitle
                 : filter == ChatFilter.unread
@@ -536,21 +774,40 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               final ApiChatSummary chat = filtered[index];
               final Widget item = SwipeActionRow(
                 key: ValueKey<String>('chat_${chat.id}'),
-                enabled: chat.unreadCount > 0,
+                // Rows do not travel while chats are being picked.
+                enabled: !selecting,
                 // 35% (~119 dp on a 340 dp row) leaves room for the whole
-                // "Прочитано" label; 40% used to trigger on a clipped label.
+                // label; 40% used to trigger on a clipped label.
                 threshold: 0.35,
-                background: _swipeBackground(
-                  context: context,
+                onArmed: () {
+                  if (ref.read(uiSettingsProvider).haptics) {
+                    HapticService.selection();
+                  }
+                },
+                // Towards the end edge: read. Nothing to read, no travel.
+                background: _SwipeBackdrop(
                   icon: Icons.done_all_rounded,
                   label: context.l10n.deliveryRead,
                 ),
-                onTriggered: () {
-                  if (ref.read(uiSettingsProvider).haptics) {
-                    HapticService.tap();
-                  }
-                  unawaited(_markRead(chat));
-                },
+                onTriggered: chat.unreadCount > 0
+                    ? () {
+                        if (ref.read(uiSettingsProvider).haptics) {
+                          HapticService.tap();
+                        }
+                        unawaited(_markRead(chat));
+                      }
+                    : null,
+                // Towards the start edge: mute or unmute. The saved chat
+                // never notifies, so it has nothing to mute.
+                endBackground: _MuteSwipeBackdrop(chatId: chat.id),
+                onEndTriggered: chat.isSaved
+                    ? null
+                    : () {
+                        if (ref.read(uiSettingsProvider).haptics) {
+                          HapticService.tap();
+                        }
+                        unawaited(_toggleMute(chat));
+                      },
                 child: Consumer(
                   builder: (BuildContext context, WidgetRef ref, _) {
                     final int typingCount = chat.isSaved
@@ -577,6 +834,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       );
                     }
                     final hasDraft = draft?.trim().isNotEmpty == true;
+                    final bool picked = ref.watch(
+                      inboxSelectionProvider.select(
+                        (Set<int> s) => s.contains(chat.id),
+                      ),
+                    );
                     return ChatTile(
                       title: chat.isSaved
                           ? context.l10n.savedMessagesTitle
@@ -623,6 +885,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       subtitleIcon: hasDraft || isTyping
                           ? null
                           : _chatPreviewIcon(chat),
+                      subtitlePrefix: hasDraft || isTyping
+                          ? null
+                          : _chatPreviewAuthor(chat),
                       compact: compact,
                       // Presence has its own subscription: the list snapshot
                       // this row was built from is blind to it.
@@ -648,7 +913,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       chatId: chat.id,
                       keyMismatch: chat.keyMismatch,
                       isSelected: desktopChatId == chat.id,
+                      isPicked: picked,
                       onTap: () {
+                        if (selecting) {
+                          _togglePick(chat.id);
+                          return;
+                        }
                         if (ref
                             .read(clientCapabilitiesProvider)
                             .browserWorkspace) {
@@ -663,9 +933,28 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           context.push('/chat/${chat.id}');
                         }
                       },
-                      onLongPress: () => _showChatContextMenu(context, chat),
-                      onSecondaryTapDown: (Offset position) =>
-                          _showChatContextMenu(context, chat, anchor: position),
+                      // While chats are being picked, any press on a row
+                      // picks it; the menu returns when the mode ends.
+                      onLongPress: () {
+                        if (selecting) {
+                          _togglePick(chat.id);
+                        } else {
+                          unawaited(_showChatContextMenu(context, chat));
+                        }
+                      },
+                      onSecondaryTapDown: (Offset position) {
+                        if (selecting) {
+                          _togglePick(chat.id);
+                        } else {
+                          unawaited(
+                            _showChatContextMenu(
+                              context,
+                              chat,
+                              anchor: position,
+                            ),
+                          );
+                        }
+                      },
                     );
                   },
                 ),
@@ -789,10 +1078,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
     final bool hasMessage = (lastMessage?.content ?? '').trim().isNotEmpty;
     final _LastMessageKind? kind = _lastMessageKind(lastMessage);
-    final String typedPreview = kind == null
+    // The icon before the preview already names the media type. The word is
+    // used only when there is no caption to show.
+    final String typedPreview = kind == null || hasMessage
         ? preview
-        : hasMessage
-        ? '${_lastMessageKindLabel(kind)} · $preview'
         : _lastMessageKindLabel(kind);
     final String description = chat.description.trim();
     if (chat.chatType == 'channel') {
@@ -806,10 +1095,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     }
     if (chat.chatType == 'group') {
       if (lastMessage != null) {
-        final author = lastMessage.senderDisplayName.trim().isNotEmpty
-            ? lastMessage.senderDisplayName.trim()
-            : lastMessage.senderUsername.trim();
-        return author.isEmpty ? typedPreview : '$author: $typedPreview';
+        // The tile paints the author itself, see [_chatPreviewAuthor].
+        return typedPreview;
       }
       if (description.isNotEmpty) {
         return description;
@@ -819,46 +1106,53 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     return typedPreview;
   }
 
+  /// Author of the last message of a group, shown before its preview.
+  String? _chatPreviewAuthor(ApiChatSummary chat) {
+    final ApiMessage? message = chat.lastMessage;
+    if (chat.chatType != 'group' || chat.isSecret || message == null) {
+      return null;
+    }
+    // An undecrypted message shows a neutral notice without a name.
+    if (!message.isDecrypted &&
+        (message.e2eeContent != null || message.isE2ee)) {
+      return null;
+    }
+    final String author = message.senderDisplayName.trim().isNotEmpty
+        ? message.senderDisplayName.trim()
+        : message.senderUsername.trim();
+    return author.isEmpty ? null : author;
+  }
+
   Color _avatarColor(int seed, ColorScheme scheme) {
     return NiosMark.resolveColor('$seed', scheme);
   }
 
-  /// Action painted behind a row that is being swiped towards the start.
-  ///
-  /// No vertical margin: the 2 dp gap lives between the tiles, so the backdrop
-  /// must not shrink behind them. The radius is the tile radius, and the text
-  /// is `labelLarge` so the label fits the 35% reveal.
-  Widget _swipeBackground({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-  }) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final BorderRadius radius = AppRadii.of(context).lgRadius;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: scheme.secondaryContainer,
-        borderRadius: radius,
-      ),
-      alignment: AlignmentDirectional.centerStart,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 20, color: scheme.onSecondaryContainer),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            maxLines: 1,
-            style: textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: scheme.onSecondaryContainer,
-            ),
-          ),
-        ],
-      ),
+  /// Mutes or unmutes [chat] and says which of the two happened.
+  Future<void> _toggleMute(ApiChatSummary chat) async {
+    final bool wasMuted = ref.read(chatMutedProvider(chat.id)).value ?? false;
+    try {
+      await ref.read(chatMutedProvider(chat.id).notifier).toggle();
+    } catch (error) {
+      if (mounted) AppToast.showError(context, error);
+      return;
+    }
+    if (!mounted) return;
+    AppToast.showInfo(
+      context,
+      wasMuted ? context.l10n.inboxUnmutedToast : context.l10n.inboxMutedToast,
     );
+  }
+
+  /// Deletes a direct or secret conversation, or leaves a group or channel.
+  /// No confirmation and no list refresh: the callers own both.
+  Future<void> _removeChat(ApiChatSummary chat) async {
+    if (chat.isSecret && !chat.keyMismatch) {
+      final secret = await ref.read(secretChatCoordinatorProvider.future);
+      if (secret == null) throw StateError('Secret account unavailable');
+      await secret.deleteConversation(chat.id);
+    } else {
+      await ref.read(chatRepositoryProvider).leaveChat(chat.id);
+    }
   }
 
   Future<void> _leaveChat(BuildContext context, ApiChatSummary chat) async {
@@ -884,13 +1178,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     if (confirmed != true) return;
 
     try {
-      if (chat.isSecret && !chat.keyMismatch) {
-        final secret = await ref.read(secretChatCoordinatorProvider.future);
-        if (secret == null) throw StateError('Secret account unavailable');
-        await secret.deleteConversation(chat.id);
-      } else {
-        await ref.read(chatRepositoryProvider).leaveChat(chat.id);
-      }
+      await _removeChat(chat);
       await ref.read(chatsProvider.notifier).refresh();
       if (!context.mounted) return;
       AppToast.showSuccess(
@@ -903,17 +1191,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     }
   }
 
-  /// Opens the chat action modal.
-  ///
-  /// [anchor] carries the desktop pointer position captured by
-  /// `TouchContainer.onSecondaryTapDown`; it is kept in the signature so the
-  /// modal can be swapped for a cursor-anchored MenuAnchor without another
-  /// wiring pass through the tile.
+  /// Opens the actions of [chat]: a menu at the pointer for a right click
+  /// ([anchor] is its global position), the action sheet for a long press.
   Future<void> _showChatContextMenu(
     BuildContext context,
     ApiChatSummary chat, {
     Offset? anchor,
   }) async {
+    if (anchor != null && _openCursorMenu(chat, anchor)) return;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool isMuted = ref.read(chatMutedProvider(chat.id)).value ?? false;
     final ChatActionResult? action = await ChatActionsModal.show(
@@ -924,30 +1209,178 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
 
     if (action == null || !context.mounted) return;
+    await _runChatAction(chat, action);
+  }
 
+  /// Runs one action of the sheet or of the cursor menu on [chat].
+  Future<void> _runChatAction(
+    ApiChatSummary chat,
+    ChatActionResult action,
+  ) async {
+    if (!mounted) return;
     switch (action) {
       case ChatActionResult.markRead:
         await _markRead(chat);
         return;
       case ChatActionResult.toggleMute:
-        try {
-          await ref.read(chatMutedProvider(chat.id).notifier).toggle();
-        } catch (error) {
-          if (context.mounted) AppToast.showError(context, error);
-          return;
-        }
-        if (context.mounted) {
-          AppToast.showInfo(
-            context,
-            isMuted
-                ? context.l10n.profileUnmuteNotifications
-                : context.l10n.profileMuteNotifications,
-          );
-        }
+        await _toggleMute(chat);
+        return;
+      case ChatActionResult.addToFolder:
+        await _addToFolder(context, chat);
+        return;
+      case ChatActionResult.select:
+        _togglePick(chat.id);
         return;
       case ChatActionResult.leave:
         await _leaveChat(context, chat);
         return;
+    }
+  }
+
+  /// Adds [chat] to a folder's own list, or takes it out of it.
+  Future<void> _addToFolder(BuildContext context, ApiChatSummary chat) async {
+    final List<ChatFolder> folders =
+        ref.read(chatFoldersProvider).value ?? const <ChatFolder>[];
+    if (folders.isEmpty) {
+      // Nothing to add to yet: folder management creates the first one.
+      await openChatFolders(context);
+      return;
+    }
+    final ChatFolder? folder = await ChatActionsModal.pickFolder(
+      context,
+      chat: chat,
+      folders: folders,
+    );
+    if (folder == null || !context.mounted) return;
+
+    final bool remove = folder.chatIds.contains(chat.id);
+    final List<int> chatIds = remove
+        ? folder.chatIds.where((int id) => id != chat.id).toList()
+        : <int>[...folder.chatIds, chat.id];
+    if (chatIds.isEmpty && folder.types.isEmpty) {
+      // A folder cannot be left without a single rule: taking out its last
+      // chat is a decision about the folder itself.
+      await openChatFolders(context);
+      return;
+    }
+    try {
+      await ref
+          .read(chatFoldersProvider.notifier)
+          .save(
+            ChatFolder(
+              id: folder.id,
+              title: folder.title,
+              chatIds: chatIds,
+              types: folder.types,
+              unreadOnly: folder.unreadOnly,
+              position: folder.position,
+              version: folder.version,
+            ),
+          );
+    } on ChatFolderVersionConflict {
+      if (context.mounted) {
+        AppToast.showError(context, context.l10n.inboxFolderConflict);
+      }
+      return;
+    } catch (error) {
+      if (context.mounted) AppToast.showError(context, error);
+      return;
+    }
+    if (!context.mounted) return;
+    AppToast.showSuccess(
+      context,
+      remove
+          ? context.l10n.inboxFolderRemoved(folder.title)
+          : context.l10n.inboxFolderAdded(folder.title),
+    );
+  }
+
+  /// Picks or unpicks [chatId]. The first pick enters multi-select, unpicking
+  /// the last chat leaves it.
+  void _togglePick(int chatId) {
+    ref.read(inboxSelectionProvider.notifier).toggle(chatId);
+  }
+
+  void _endSelection() => ref.read(inboxSelectionProvider.notifier).clear();
+
+  /// Picked chats that are still in the list.
+  List<ApiChatSummary> _selectedChats() {
+    final Set<int> ids = ref.read(inboxSelectionProvider);
+    final List<ApiChatSummary> chats =
+        ref.read(visibleChatsProvider).value ?? const <ApiChatSummary>[];
+    return chats
+        .where((ApiChatSummary chat) => ids.contains(chat.id))
+        .toList(growable: false);
+  }
+
+  Future<void> _markSelectedRead() async {
+    final List<ApiChatSummary> unread = _selectedChats()
+        .where((ApiChatSummary chat) => chat.unreadCount > 0)
+        .toList(growable: false);
+    _endSelection();
+    // Each chat reports its own failure, with a retry.
+    await Future.wait(unread.map(_markRead));
+  }
+
+  /// Mutes every picked chat; when all of them are muted already, unmutes.
+  Future<void> _toggleSelectedMute() async {
+    final List<int> ids = _selectedChats()
+        .where((ApiChatSummary chat) => !chat.isSaved)
+        .map((ApiChatSummary chat) => chat.id)
+        .toList(growable: false);
+    _endSelection();
+    if (ids.isEmpty) return;
+    try {
+      final Set<int> muted = await ref.read(chatMuteHubProvider.future);
+      final bool mute = !ids.every(muted.contains);
+      await ref.read(chatMuteHubProvider.notifier).setMutedAll(ids, mute);
+      if (!mounted) return;
+      AppToast.showInfo(
+        context,
+        mute ? context.l10n.inboxMutedToast : context.l10n.inboxUnmutedToast,
+      );
+    } catch (error) {
+      if (mounted) AppToast.showError(context, error);
+    }
+  }
+
+  /// Deletes the picked direct chats and leaves the picked groups and
+  /// channels, after one confirmation for all of them.
+  Future<void> _deleteSelected() async {
+    final List<ApiChatSummary> chats = _selectedChats();
+    if (chats.isEmpty) {
+      _endSelection();
+      return;
+    }
+    final bool? confirmed = await showAppConfirmDialog(
+      context: context,
+      title: context.l10n.inboxDeleteSelectedTitle(chats.length),
+      subtitle: context.l10n.inboxDeleteSelectedBody,
+      confirmLabel: context.l10n.commonDelete,
+      cancelLabel: context.l10n.commonCancel,
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+    _endSelection();
+
+    int removed = 0;
+    Object? failure;
+    for (final ApiChatSummary chat in chats) {
+      try {
+        await _removeChat(chat);
+        removed++;
+      } catch (error) {
+        // One chat that refuses does not stop the rest.
+        failure ??= error;
+      }
+    }
+    await ref.read(chatsProvider.notifier).refresh();
+    if (!mounted) return;
+    final Object? error = failure;
+    if (error != null) AppToast.showError(context, error);
+    if (removed > 0) {
+      AppToast.showSuccess(context, context.l10n.inboxDeletedCount(removed));
     }
   }
 }

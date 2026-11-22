@@ -11,6 +11,7 @@ class EmptyStateWidget extends StatelessWidget {
     this.onAction,
     this.isBusy = false,
     this.iconColor,
+    this.compact = false,
     super.key,
   });
 
@@ -30,6 +31,11 @@ class EmptyStateWidget extends StatelessWidget {
   /// softened primary: the neutral "nothing here yet" tone.
   final Color? iconColor;
 
+  /// Quiet variant for a passing state, such as a filter that matched
+  /// nothing: a 56 dp glyph tile and a `titleMedium` title. The full-size one
+  /// is for screens that are empty for good.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -44,20 +50,27 @@ class EmptyStateWidget extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Container(
-              width: 80,
-              height: 80,
+              width: compact ? 56 : 80,
+              height: compact ? 56 : 80,
               decoration: ShapeDecoration(
                 color: scheme.surfaceContainerHigh,
                 // Expressive squircle, not a circle: matches the shape language
                 // of the other hero/empty containers in the app.
-                shape: AppRadii.xlSuperellipse(),
+                shape: compact
+                    ? AppRadii.lgSuperellipse()
+                    : AppRadii.xlSuperellipse(),
               ),
-              child: Icon(icon, size: 40, color: effectiveIconColor),
+              child: Icon(
+                icon,
+                size: compact ? 28 : 40,
+                color: effectiveIconColor,
+              ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: compact ? AppSpacing.md : AppSpacing.lg),
             Text(
               title,
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: (compact ? textTheme.titleMedium : textTheme.titleLarge)
+                  ?.copyWith(fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
             if (subtitle != null) ...<Widget>[

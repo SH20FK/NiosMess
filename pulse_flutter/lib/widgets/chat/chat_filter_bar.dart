@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
@@ -15,7 +17,9 @@ import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart'
     show openChatFolders;
 
-/// Inbox scope strip: exactly one 40 dp row, no overflow menu.
+/// Inbox scope strip: one 48 dp rail on a tonal backdrop, no overflow menu.
+/// Pills are 36 dp tall inside a 48 dp touch target; the mouse wheel scrolls
+/// the rail sideways.
 ///
 /// The row shows every folder immediately (horizontally scrollable), so the
 /// user never has to open a menu to reach a folder:
@@ -24,8 +28,9 @@ import 'package:pulse_flutter/widgets/chat_productivity.dart'
 /// * no folders → `[Все] [Непрочитанные] [Группы] [Каналы] [Личные] [Боты]`.
 ///
 /// "Все" resets both axes (folder + type), so it can never advertise a wider
-/// result set than the list actually shows. Long-press on "Все" (or on any
-/// folder) opens folder management, which replaces the old menu entry.
+/// result set than the list actually shows. The trailing folders chip opens
+/// folder management; a long-press on "Все" or on a folder is the shortcut to
+/// the same screen.
 class ChatFilterBar extends ConsumerWidget {
   const ChatFilterBar({super.key, this.compact = false});
 
@@ -72,7 +77,7 @@ class ChatFilterBar extends ConsumerWidget {
     }
 
     final double segmentHeight = _resolveRowHeight(context);
-    final double trackHeight = segmentHeight + 8;
+    final double trackHeight = segmentHeight + 2 * _kPillTouchInset;
 
     final List<Widget> filterItems = <Widget>[
       _FilterPill(
@@ -81,8 +86,8 @@ class ChatFilterBar extends ConsumerWidget {
         selected: filter == ChatFilter.all && selectedFolderId == null,
         minHeight: segmentHeight,
         onTap: resetAll,
-        // Folder management lives behind a long-press on "Все" once the
-        // overflow menu is gone.
+        // Shortcut to folder management; the visible entry is the trailing
+        // chip.
         onLongPress: () => openChatFolders(context),
       ),
       _FilterPill(
@@ -133,6 +138,23 @@ class ChatFilterBar extends ConsumerWidget {
           onTap: () => selectFilter(ChatFilter.bots),
         ),
       ],
+      Tooltip(
+        message: l.inboxFolders,
+        child: _FilterPill(
+          key: const ValueKey<String>('chat-filter-folders'),
+          label: Icon(
+            Icons.create_new_folder_outlined,
+            size: 18,
+            color: scheme.onSurfaceVariant,
+          ),
+          selected: false,
+          minHeight: segmentHeight,
+          onTap: () {
+            if (haptics) HapticService.tap();
+            openChatFolders(context);
+          },
+        ),
+      ),
     ];
     final List<Widget> items = !searching
         ? filterItems
@@ -160,67 +182,148 @@ class ChatFilterBar extends ConsumerWidget {
     return Container(
       height: trackHeight,
       margin: const EdgeInsets.symmetric(horizontal: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: ShapeDecoration(
-        color: scheme.surfaceContainerLow,
-        shape: StadiumBorder(
-          side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.28),
-          ),
-        ),
+        // One clear step above the pane backdrop, so the rail reads as a
+        // single control; the selected pill sits on it in `secondaryContainer`.
+        color: scheme.surfaceContainerHigh,
+        shape: const StadiumBorder(),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(trackHeight),
-        child: ShaderMask(
-          // Soft right-edge fade so a scrolled row reads as "more to the
-          // right" instead of a chopped pill.
-          shaderCallback: (Rect bounds) => LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            // Only the alpha matters for dstIn; any opaque tone works.
-            colors: <Color>[
-              scheme.surface,
-              scheme.surface,
-              scheme.surface.withValues(alpha: 0),
+      child: _FilterRail(
+        // Filters and search scopes swap inside the same rail.
+        child: AnimatedSwitcher(
+          duration: context.reduceMotion ? Duration.zero : M3Durations.short4,
+          switchInCurve: M3SpringCurves.expressiveDecel,
+          switchOutCurve: M3SpringCurves.expressiveAccel,
+          layoutBuilder: (Widget? current, List<Widget> previous) => Stack(
+            alignment: AlignmentDirectional.centerStart,
+            children: <Widget>[...previous, ?current],
+          ),
+          child: Row(
+            key: ValueKey<bool>(searching),
+            children: <Widget>[
+              for (int i = 0; i < items.length; i++) ...<Widget>[
+                if (i > 0) const SizedBox(width: 2),
+                items[i],
+              ],
             ],
-            stops: const <double>[0.0, 0.92, 1.0],
-          ).createShader(bounds),
-          blendMode: BlendMode.dstIn,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            // Filters and search scopes swap inside the same rail.
-            child: AnimatedSwitcher(
-              duration: context.reduceMotion
-                  ? Duration.zero
-                  : M3Durations.short4,
-              switchInCurve: M3SpringCurves.expressiveDecel,
-              switchOutCurve: M3SpringCurves.expressiveAccel,
-              layoutBuilder: (Widget? current, List<Widget> previous) => Stack(
-                alignment: AlignmentDirectional.centerStart,
-                children: <Widget>[...previous, ?current],
-              ),
-              child: Row(
-                key: ValueKey<bool>(searching),
-                children: <Widget>[
-                  for (int i = 0; i < items.length; i++) ...<Widget>[
-                    if (i > 0) const SizedBox(width: 2),
-                    items[i],
-                  ],
-                ],
-              ),
-            ),
           ),
         ),
       ),
     );
   }
 
-  /// 36 dp segment (32 dp compact) inside a 44 dp rail; grows with text scale.
+  /// 36 dp segment (32 dp compact) inside a 48 dp rail; grows with text scale.
   double _resolveRowHeight(BuildContext context) {
     final double base = compact ? 32 : 36;
     final double scaledLabel = MediaQuery.textScalerOf(context).scale(18);
     return math.max(base, scaledLabel + 6);
+  }
+}
+
+/// Room above and below a pill that still belongs to its touch target: a
+/// 36 dp pill is tapped through 48 dp.
+const double _kPillTouchInset = 6;
+
+/// Scrolling body of the rail.
+///
+/// The mouse wheel scrolls it sideways until it reaches an edge, and the end
+/// edge fades only while more pills wait past it, so the last chip of a rail
+/// scrolled to its end is shown whole.
+class _FilterRail extends StatefulWidget {
+  const _FilterRail({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_FilterRail> createState() => _FilterRailState();
+}
+
+class _FilterRailState extends State<_FilterRail> {
+  final ScrollController _controller = ScrollController();
+  final ValueNotifier<bool> _moreAhead = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _moreAhead.dispose();
+    super.dispose();
+  }
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    if ((metrics.extentAfter > 1) != _moreAhead.value) {
+      // Metrics also change during layout; the rebuild waits for it to end.
+      scheduleMicrotask(() {
+        if (!mounted || !_controller.hasClients) return;
+        _moreAhead.value = _controller.position.extentAfter > 1;
+      });
+    }
+    // The rail's scrolling is not the chat list's: the screen above must not
+    // take it for a list scroll and raise the header scrim.
+    return true;
+  }
+
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || !_controller.hasClients) return;
+    final Offset delta = event.scrollDelta;
+    // A sideways wheel or a trackpad already scrolls the rail by itself.
+    if (delta.dx != 0 || delta.dy == 0) return;
+    final ScrollPosition position = _controller.position;
+    final double target = (position.pixels + delta.dy).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    // Nothing left in that direction: the wheel goes to the chat list.
+    if (target == position.pixels) return;
+    GestureBinding.instance.pointerSignalResolver.register(
+      event,
+      (PointerSignalEvent _) => position.pointerScroll(delta.dy),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Only the alpha matters for dstIn; any opaque tone works.
+    final Color mask = Theme.of(context).colorScheme.surface;
+    final TextDirection direction = Directionality.of(context);
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.all(Radius.circular(999)),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _moreAhead,
+        builder: (BuildContext context, bool more, Widget? child) => ShaderMask(
+          shaderCallback: (Rect bounds) => LinearGradient(
+            begin: AlignmentDirectional.centerStart,
+            end: AlignmentDirectional.centerEnd,
+            colors: <Color>[
+              mask,
+              mask,
+              more ? mask.withValues(alpha: 0) : mask,
+            ],
+            stops: const <double>[0.0, 0.92, 1.0],
+          ).createShader(bounds, textDirection: direction),
+          blendMode: BlendMode.dstIn,
+          child: child,
+        ),
+        child: Listener(
+          onPointerSignal: _onPointerSignal,
+          child: NotificationListener<ScrollMetricsNotification>(
+            onNotification: (ScrollMetricsNotification n) =>
+                _onMetrics(n.metrics),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (ScrollNotification n) => _onMetrics(n.metrics),
+              child: SingleChildScrollView(
+                controller: _controller,
+                scrollDirection: Axis.horizontal,
+                // 8 margin + 4 rail + 4 here: pills start on the 16 dp column.
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: widget.child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -315,6 +418,8 @@ class _FilterPill extends StatelessWidget {
               : M3Durations.short4,
           curve: M3SpringCurves.effectsDefault,
           constraints: BoxConstraints.tightFor(height: minHeight),
+          // Outside the painted pill, inside the gesture: the touch target.
+          margin: const EdgeInsets.symmetric(vertical: _kPillTouchInset),
           padding: EdgeInsets.only(
             left: 14,
             right: showBadge ? 10 : 14,

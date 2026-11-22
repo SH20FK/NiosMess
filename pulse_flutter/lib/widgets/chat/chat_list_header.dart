@@ -9,8 +9,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/features/chats/application/inbox_search_controller.dart';
-import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/widgets/pulse_avatar.dart';
+import 'package:pulse_flutter/features/chats/application/inbox_selection_controller.dart';
 
 /// Whether the inbox list is scrolled past the header scrim threshold.
 ///
@@ -33,6 +32,9 @@ final chatListScrolledProvider =
 
 const ValueKey<String> _kTitleBarKey = ValueKey<String>('inbox-title-bar');
 const ValueKey<String> _kSearchBarKey = ValueKey<String>('inbox-search-bar');
+const ValueKey<String> _kSelectionBarKey = ValueKey<String>(
+  'inbox-selection-bar',
+);
 
 /// Inbox app bar: 64 dp (56 dp compact), 16 dp title column, and a scrim that
 /// fades in once the list moves under the bar.
@@ -40,7 +42,11 @@ const ValueKey<String> _kSearchBarKey = ValueKey<String>('inbox-search-bar');
 /// The search action turns the bar into a search field in place; the results
 /// replace the chat list below it, so search never leaves the inbox.
 class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
-  const ChatListHeader({super.key});
+  const ChatListHeader({this.selectionBar, super.key});
+
+  /// Shown instead of the title while chats are being picked. Without it the
+  /// header ignores the multi-select mode.
+  final Widget? selectionBar;
 
   /// Scroll distance after which the bar paints its scrim.
   static const double scrimOffset = 8;
@@ -82,12 +88,11 @@ class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
     final bool searching = ref.watch(
       inboxSearchProvider.select((InboxSearchState s) => s.active),
     );
-    final bool reduceMotion = context.reduceMotion;
-
-    final profile = ref.watch(authProvider.select((s) => s.profile));
-    final sessionName = ref.watch(
-      authProvider.select((s) => s.session?.displayName),
+    final bool selecting = ref.watch(
+      inboxSelectionProvider.select((Set<int> s) => s.isNotEmpty),
     );
+    final Widget? selectionBar = this.selectionBar;
+    final bool reduceMotion = context.reduceMotion;
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -129,23 +134,22 @@ class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
               ),
               icon: const Icon(Icons.search_rounded),
             ),
+            // Contacts and calls. Settings has its own tab, so the header
+            // does not repeat it.
             IconButton(
-              key: const ValueKey('inbox-profile-settings'),
-              tooltip: l10n.tabSettings,
-              onPressed: () => context.go('/main/settings'),
+              key: const ValueKey<String>('inbox-people'),
+              tooltip: l10n.inboxSearchPeople,
+              onPressed: () => context.push('/contacts'),
+              iconSize: 24,
               constraints: const BoxConstraints.tightFor(
                 width: AppHeights.md,
                 height: AppHeights.md,
               ),
-              icon: PulseAvatar(
-                avatarUrl: profile?.avatarUrl,
-                name: profile?.displayName ?? sessionName ?? '',
-                radius: 16,
-              ),
+              icon: const Icon(Icons.people_alt_outlined),
             ),
-            // 8 dp + the 8 dp the 48 dp target leaves around the 32 dp
-            // avatar = the 16 dp right inset of the title column.
-            const SizedBox(width: 8),
+            // 4 dp + the 12 dp the 48 dp target leaves around the 24 dp
+            // glyph = the 16 dp right inset of the title column.
+            const SizedBox(width: 4),
           ],
         );
 
@@ -177,12 +181,134 @@ class ChatListHeader extends ConsumerWidget implements PreferredSizeWidget {
               fit: StackFit.expand,
               children: <Widget>[...previous, ?current],
             ),
-            child: searching
+            child: selectionBar != null && selecting
+                ? KeyedSubtree(key: _kSelectionBarKey, child: selectionBar)
+                : searching
                 ? const _InboxSearchBar(key: _kSearchBarKey)
                 : titleBar,
           ),
         );
       },
+    );
+  }
+}
+
+/// The header in multi-select mode: close, the number of picked chats, and
+/// the actions that apply to all of them.
+class InboxSelectionBar extends ConsumerStatefulWidget {
+  const InboxSelectionBar({
+    required this.onMarkRead,
+    required this.onToggleMute,
+    required this.onDelete,
+    super.key,
+  });
+
+  final VoidCallback onMarkRead;
+  final VoidCallback onToggleMute;
+  final VoidCallback onDelete;
+
+  @override
+  ConsumerState<InboxSelectionBar> createState() => _InboxSelectionBarState();
+}
+
+class _InboxSelectionBarState extends ConsumerState<InboxSelectionBar> {
+  // The bar fades out after the last chat is unpicked. Until then it keeps
+  // the last real count instead of showing a zero.
+  int _count = 1;
+
+  Widget _action({
+    required String id,
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onPressed,
+    Color? color,
+  }) {
+    return IconButton(
+      key: ValueKey<String>(id),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      color: color,
+      iconSize: 24,
+      constraints: const BoxConstraints.tightFor(
+        width: AppHeights.md,
+        height: AppHeights.md,
+      ),
+      icon: Icon(icon),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final l10n = context.l10n;
+    final int live = ref.watch(
+      inboxSelectionProvider.select((Set<int> s) => s.length),
+    );
+    if (live > 0) _count = live;
+
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        // 4 dp + the 12 dp a 48 dp target leaves around its 24 dp glyph: the
+        // close icon stands on the 16 dp column of the title it replaces.
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          children: <Widget>[
+            _action(
+              id: 'inbox-selection-close',
+              tooltip: l10n.commonCancel,
+              icon: Icons.close_rounded,
+              onPressed: () =>
+                  ref.read(inboxSelectionProvider.notifier).clear(),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: context.reduceMotion
+                    ? Duration.zero
+                    : M3Durations.short3,
+                switchInCurve: M3SpringCurves.expressiveDecel,
+                switchOutCurve: M3SpringCurves.expressiveAccel,
+                layoutBuilder: (Widget? current, List<Widget> previous) =>
+                    Stack(
+                      alignment: AlignmentDirectional.centerStart,
+                      children: <Widget>[...previous, ?current],
+                    ),
+                child: Text(
+                  l10n.inboxSelectedCount(_count),
+                  key: ValueKey<int>(_count),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            _action(
+              id: 'inbox-selection-read',
+              tooltip: l10n.chatListMarkRead,
+              icon: Icons.done_all_rounded,
+              onPressed: widget.onMarkRead,
+            ),
+            _action(
+              id: 'inbox-selection-mute',
+              tooltip: l10n.inboxSwipeMute,
+              icon: Icons.notifications_off_outlined,
+              onPressed: widget.onToggleMute,
+            ),
+            _action(
+              id: 'inbox-selection-delete',
+              tooltip: l10n.chatDelete,
+              icon: Icons.delete_outline_rounded,
+              onPressed: widget.onDelete,
+              color: scheme.error,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

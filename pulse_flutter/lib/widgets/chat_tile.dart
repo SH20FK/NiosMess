@@ -20,14 +20,10 @@ import 'package:pulse_flutter/widgets/status_emoji_badge.dart';
 /// message preview out of the row.
 const double _kDraftLabelMaxWidth = 110;
 
-/// Unscaled width of the time / delivery-status slot. The rendered cap is
+/// Unscaled width of the time slot. The rendered cap is
 /// `min(textScaler.scale(this), rowWidth * 0.42)` so a 200% text scale cannot
 /// clip "12.11.2025" into a single ellipsis.
 const double _kTimeBaseMaxWidth = 72;
-
-/// Unscaled width of the delivery-status slot. A localized status ("Ожидает
-/// отправки") is longer than a clock, so it gets a wider — still bounded — cap.
-const double _kStatusBaseMaxWidth = 112;
 
 /// Title-row glyph size and the gap between every trailing marker.
 const double _kTitleIconSize = 16;
@@ -66,6 +62,7 @@ class ChatTile extends StatefulWidget {
     this.onLongPress,
     this.onSecondaryTapDown,
     this.subtitleIcon,
+    this.subtitlePrefix,
     this.deliveryIcon,
     this.deliveryLabel,
     this.isMuted = false,
@@ -75,6 +72,7 @@ class ChatTile extends StatefulWidget {
     this.isSecret = false,
     this.isSaved = false,
     this.isSelected = false,
+    this.isPicked = false,
     this.keyMismatch = false,
     this.isTyping = false,
     this.typingNames,
@@ -85,8 +83,9 @@ class ChatTile extends StatefulWidget {
     super.key,
   });
 
-  /// Row height at 1.0 text scale. The delivery status is painted inside the
-  /// time slot, so every tile state keeps [rowHeight] (or [compactRowHeight]).
+  /// Row height at 1.0 text scale. A failed delivery takes the preview slot,
+  /// never a third line, so every tile state keeps [rowHeight] (or
+  /// [compactRowHeight]).
   static const double rowHeight = 76;
   static const double compactRowHeight = 64;
 
@@ -106,10 +105,15 @@ class ChatTile extends StatefulWidget {
   final ValueChanged<Offset>? onSecondaryTapDown;
 
   final IconData? subtitleIcon;
+
+  /// Author of the last message in a group. Painted before the preview in a
+  /// stronger tone, so the name and the text do not read as one sentence.
+  final String? subtitlePrefix;
   final IconData? deliveryIcon;
 
-  /// Delivery status copy ("Sending…", "Not sent"). It is rendered inside the
-  /// time slot instead of a third text line, so the row height never changes.
+  /// Delivery status copy ("Waiting to send", "Not sent"). The message time
+  /// always stays visible: a pending send is shown by [deliveryIcon] alone and
+  /// read out by the screen reader, a failed one replaces the preview.
   final String? deliveryLabel;
   final bool isMuted;
   final bool enableHaptics;
@@ -123,8 +127,12 @@ class ChatTile extends StatefulWidget {
   /// is `secondaryContainer` plus a 3x20dp leading `primary` indicator.
   final bool isSelected;
 
-  /// E2EE key drift for this conversation: renders a `gpp_maybe_rounded` lock,
-  /// an error-tinted warning in the preview slot and an `error@0.35` frame.
+  /// Picked in the inbox multi-select: the selected tone without the leading
+  /// indicator, and a check mark over the avatar corner.
+  final bool isPicked;
+
+  /// E2EE key drift for this conversation: renders a `gpp_maybe_rounded` lock
+  /// and an `errorContainer` warning pill in the preview slot.
   final bool keyMismatch;
 
   /// Partner is typing: accents the preview in `primary` and appends three
@@ -202,7 +210,7 @@ class _ChatTileState extends State<ChatTile> {
       if (widget.draftLabel != null)
         '${context.l10n.inboxDraftSemantics}: ${widget.draftLabel}',
       if (hasUnread) context.l10n.chatListUnreadCount(widget.unreadCount),
-      if (widget.isSelected) _kSelectedSemantics,
+      if (widget.isSelected || widget.isPicked) _kSelectedSemantics,
       if (widget.isMuted) _kMutedSemantics,
       if (widget.isSecret) context.l10n.secretTitle,
       if (widget.keyMismatch) _kKeyMismatchLabel,
@@ -220,7 +228,7 @@ class _ChatTileState extends State<ChatTile> {
       onExit: (_) => _isHoveredNotifier.value = false,
       child: Semantics(
         button: true,
-        selected: widget.isSelected,
+        selected: widget.isSelected || widget.isPicked,
         label: semanticsLabel,
         // The tile paints its own title, preview, badge and icons: without
         // excludeSemantics TalkBack reads the label plus every child twice.
@@ -243,8 +251,10 @@ class _ChatTileState extends State<ChatTile> {
               // Explicit, measurable levels instead of invisible alpha washes:
               // resting transparent -> hover high -> selected secondaryContainer.
               // Unread is signalled by weight + pill only (M3 never tints rows).
-              final bool hasSurface = widget.isSelected || isHovered;
-              final Color tileBg = widget.isSelected
+              // A picked row shares the selected tone.
+              final bool toned = widget.isSelected || widget.isPicked;
+              final bool hasSurface = toned || isHovered;
+              final Color tileBg = toned
                   ? (isHovered
                         ? Color.alphaBlend(
                             scheme.onSurface.withValues(alpha: 0.05),
@@ -265,12 +275,6 @@ class _ChatTileState extends State<ChatTile> {
                 decoration: BoxDecoration(
                   color: tileBg,
                   borderRadius: rowRadius,
-                  border: widget.keyMismatch
-                      ? Border.all(
-                          color: scheme.error.withValues(alpha: 0.35),
-                          width: 1,
-                        )
-                      : null,
                 ),
                 child: Stack(
                   // The indicator lives in the leading padding, never in the
@@ -327,7 +331,54 @@ class _ChatTileState extends State<ChatTile> {
                                       ),
                                     ),
                               ),
-                              if (widget.isOnline && !widget.isSaved)
+                              // Pick mark of the multi-select. It springs in over the
+                              // corner the presence dot gives up meanwhile, and
+                              // is mounted only while the row is picked: a
+                              // resting avatar carries no overlay at all.
+                              if (widget.isPicked)
+                              Positioned(
+                                right: -3,
+                                bottom: -3,
+                                child: TweenAnimationBuilder<double>(
+                                  key: const ValueKey<String>(
+                                    'chat-tile-pick-mark',
+                                  ),
+                                  tween: Tween<double>(begin: 0, end: 1),
+                                  duration: reduceMotion
+                                      ? Duration.zero
+                                      : M3Durations.spatialFast,
+                                  curve: M3SpringCurves.spatialFast,
+                                  builder:
+                                      (
+                                        BuildContext context,
+                                        double scale,
+                                        Widget? mark,
+                                      ) => Transform.scale(
+                                        scale: scale,
+                                        child: mark,
+                                      ),
+                                  child: Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      color: scheme.primary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: dotBorder,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.check_rounded,
+                                      size: 14,
+                                      color: scheme.onPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (widget.isOnline &&
+                                  !widget.isSaved &&
+                                  !widget.isPicked)
                                 Positioned(
                                   right: -1,
                                   bottom: -1,
@@ -360,8 +411,6 @@ class _ChatTileState extends State<ChatTile> {
                                   scheme: scheme,
                                   hasUnread: hasUnread,
                                   statusBadge: statusBadge,
-                                  statusLabel: statusLabel,
-                                  statusIsError: statusIsError,
                                   duration: surfaceDuration,
                                 ),
                                 const SizedBox(height: 4),
@@ -370,6 +419,9 @@ class _ChatTileState extends State<ChatTile> {
                                   textTheme: textTheme,
                                   scheme: scheme,
                                   hasUnread: hasUnread,
+                                  failureLabel: statusIsError
+                                      ? statusLabel
+                                      : null,
                                 ),
                               ],
                             ),
@@ -409,28 +461,22 @@ class _ChatTileState extends State<ChatTile> {
     );
   }
 
-  /// Title line plus the trailing time / delivery-status slot. The slot is
-  /// bounded by the text scale instead of the screen width so a 200% scale can
-  /// still render "12.11.2025".
+  /// Title line plus the trailing time slot. The slot is bounded by the text
+  /// scale instead of the screen width so a 200% scale can still render
+  /// "12.11.2025".
   Widget _buildTitleRow(
     BuildContext context, {
     required TextTheme textTheme,
     required ColorScheme scheme,
     required bool hasUnread,
     required ApiBadge? statusBadge,
-    required String? statusLabel,
-    required bool statusIsError,
     required Duration duration,
   }) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        // A delivery status is a short sentence, not a timestamp: it gets a
-        // wider cap than the clock but still never grows past half the row.
         final double slotCap = math.min(
-          MediaQuery.textScalerOf(context).scale(
-            statusLabel != null ? _kStatusBaseMaxWidth : _kTimeBaseMaxWidth,
-          ),
-          constraints.maxWidth * (statusLabel != null ? 0.5 : 0.42),
+          MediaQuery.textScalerOf(context).scale(_kTimeBaseMaxWidth),
+          constraints.maxWidth * 0.42,
         );
         return Row(
           children: <Widget>[
@@ -453,31 +499,21 @@ class _ChatTileState extends State<ChatTile> {
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: slotCap),
                 child: Text(
-                  statusLabel ?? widget.formattedTime,
+                  widget.formattedTime,
                   maxLines: 1,
                   softWrap: false,
                   textAlign: TextAlign.end,
                   overflow: TextOverflow.ellipsis,
-                  style: statusLabel != null
-                      ? textTheme.labelSmall?.copyWith(
-                          color: statusIsError
-                              ? scheme.error
-                              : scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w400,
-                          fontFeatures: const <FontFeature>[
-                            FontFeature.tabularFigures(),
-                          ],
-                        )
-                      : textTheme.labelMedium?.copyWith(
-                          // Time is never an accent: the pill and the title
-                          // carry the state.
-                          color: scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0.2,
-                          fontFeatures: const <FontFeature>[
-                            FontFeature.tabularFigures(),
-                          ],
-                        ),
+                  style: textTheme.labelMedium?.copyWith(
+                    // Time is never an accent: the pill and the title carry
+                    // the state.
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.2,
+                    fontFeatures: const <FontFeature>[
+                      FontFeature.tabularFigures(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -507,6 +543,14 @@ class _ChatTileState extends State<ChatTile> {
           ],
         );
 
+    // No more than three markers follow the title. Lock, mute and the status
+    // badge are state; the status emoji is decoration and yields first.
+    final int stateMarkers =
+        (statusBadge != null ? 1 : 0) +
+        (widget.isSecret || widget.keyMismatch ? 1 : 0) +
+        (widget.isMuted ? 1 : 0);
+    final bool showEmoji = widget.statusEmoji != null && stateMarkers < 3;
+
     return Row(
       children: <Widget>[
         Flexible(
@@ -525,7 +569,7 @@ class _ChatTileState extends State<ChatTile> {
             ),
           ),
         ),
-        if (widget.statusEmoji != null) ...<Widget>[
+        if (showEmoji) ...<Widget>[
           const SizedBox(width: _kTitleIconGap),
           StatusEmojiBadge(emoji: widget.statusEmoji!, size: _kTitleIconSize),
         ],
@@ -558,6 +602,7 @@ class _ChatTileState extends State<ChatTile> {
     required TextTheme textTheme,
     required ColorScheme scheme,
     required bool hasUnread,
+    required String? failureLabel,
   }) {
     final TextStyle previewStyle = (textTheme.bodyMedium ?? const TextStyle())
         .copyWith(
@@ -596,16 +641,12 @@ class _ChatTileState extends State<ChatTile> {
           );
         }
 
+        // A warning or a failed send owns the slot: no author, no media icon.
+        final bool plain = !widget.keyMismatch && failureLabel == null;
+        final String? author = widget.subtitlePrefix;
+
         return Row(
           children: <Widget>[
-            if (widget.subtitleIcon != null) ...<Widget>[
-              Icon(
-                widget.subtitleIcon,
-                size: 16,
-                color: scheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 4),
-            ],
             if (widget.draftLabel != null) ...<Widget>[
               ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: draftMaxWidth),
@@ -622,12 +663,66 @@ class _ChatTileState extends State<ChatTile> {
               ),
               const SizedBox(width: 6),
             ],
+            if (plain && author != null) ...<Widget>[
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: constraints.maxWidth * 0.4,
+                ),
+                child: Text(
+                  '$author:',
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: previewStyle.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+            if (plain && widget.subtitleIcon != null) ...<Widget>[
+              Icon(
+                widget.subtitleIcon,
+                size: 16,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+            ],
             Expanded(
               child: widget.keyMismatch
                   // A broken E2EE handshake must not look like a healthy chat:
-                  // the warning replaces the preview in the error tone.
+                  // a filled pill replaces the preview.
+                  ? Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: DecoratedBox(
+                        key: const ValueKey<String>('chat-tile-key-mismatch'),
+                        decoration: ShapeDecoration(
+                          color: scheme.errorContainer,
+                          shape: const StadiumBorder(),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 1,
+                          ),
+                          child: Text(
+                            _kKeyMismatchLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                (textTheme.labelMedium ?? const TextStyle())
+                                    .copyWith(
+                                      color: scheme.onErrorContainer,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : failureLabel != null
                   ? Text(
-                      _kKeyMismatchLabel,
+                      failureLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: previewStyle.copyWith(
@@ -723,11 +818,11 @@ class _AnimatedBadge extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    // M3: muted chats keep their counter, but it must not compete with the
-    // accent-colored counters of chats that actually notify the user — a tonal
-    // pill with an outline instead of a second primary accent.
+    // Muted chats keep their counter, but it must not compete with the
+    // accent-coloured counters of chats that actually notify the user. It is
+    // the same neutral pill as a muted-only folder in the filter rail.
     final Color background = isMuted
-        ? scheme.surfaceContainerHigh
+        ? scheme.surfaceContainerHighest
         : scheme.primary;
     final Color foreground = isMuted
         ? scheme.onSurfaceVariant
@@ -752,7 +847,6 @@ class _AnimatedBadge extends StatelessWidget {
         decoration: BoxDecoration(
           color: background,
           borderRadius: BorderRadius.circular(12),
-          border: isMuted ? Border.all(color: scheme.outlineVariant) : null,
         ),
         alignment: Alignment.center,
         child: Text(

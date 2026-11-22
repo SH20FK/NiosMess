@@ -437,6 +437,78 @@ abstract class SecretChatLocalizations {
   /// **'All chats'**
   String get inboxResetFilters;
 
+  /// No description provided for @inboxDeleteSelectedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Delete {count} chat?} other{Delete {count} chats?}}'**
+  String inboxDeleteSelectedTitle(int count);
+
+  /// No description provided for @inboxDeleteSelectedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct chats will be deleted, and you will leave groups and channels.'**
+  String get inboxDeleteSelectedBody;
+
+  /// No description provided for @inboxDeletedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} chat removed} other{{count} chats removed}}'**
+  String inboxDeletedCount(int count);
+
+  /// No description provided for @inboxSwipeMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get inboxSwipeMute;
+
+  /// No description provided for @inboxSwipeUnmute.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute'**
+  String get inboxSwipeUnmute;
+
+  /// No description provided for @inboxMutedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are off'**
+  String get inboxMutedToast;
+
+  /// No description provided for @inboxUnmutedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are on'**
+  String get inboxUnmutedToast;
+
+  /// No description provided for @inboxSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get inboxSelect;
+
+  /// No description provided for @inboxSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String inboxSelectedCount(int count);
+
+  /// No description provided for @inboxAddToFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to folder'**
+  String get inboxAddToFolder;
+
+  /// No description provided for @inboxFolderAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to “{name}”'**
+  String inboxFolderAdded(String name);
+
+  /// No description provided for @inboxFolderRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from “{name}”'**
+  String inboxFolderRemoved(String name);
+
   /// No description provided for @inboxSearchEmpty.
   ///
   /// In en, this message translates to:

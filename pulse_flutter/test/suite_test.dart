@@ -256,6 +256,11 @@ import 'widgets/app_bottom_nav_badge_test.dart' as app_bottom_nav_badge;
 import 'widgets/inbox_inline_search_test.dart' as inbox_inline_search;
 import 'widgets/inbox_presence_rebuild_test.dart' as inbox_presence_rebuild;
 import 'providers/inbox_cold_start_test.dart' as inbox_cold_start;
+import 'providers/chat_filter_persistence_test.dart' as chat_filter_persistence;
+import 'widgets/chat_filter_bar_folders_test.dart'
+    as widgets_chat_filter_bar_folders;
+import 'widgets/chat_actions_modal_test.dart' as widgets_chat_actions_modal;
+import 'widgets/inbox_selection_test.dart' as widgets_inbox_selection;
 
 void main() {
   group('Motion regressions', () {
@@ -516,6 +521,10 @@ void main() {
     group('inbox_inline_search', inbox_inline_search.main);
     group('inbox_presence_rebuild', inbox_presence_rebuild.main);
     group('inbox_cold_start', inbox_cold_start.main);
+    group('chat_filter_persistence', chat_filter_persistence.main);
+    group('chat_filter_bar_folders', widgets_chat_filter_bar_folders.main);
+    group('chat_actions_modal', widgets_chat_actions_modal.main);
+    group('inbox_selection', widgets_inbox_selection.main);
 
     // End-to-End & Integration Suites
     e2e_niosgram_and_settings.main();

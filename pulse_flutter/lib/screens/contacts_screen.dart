@@ -30,6 +30,7 @@ import 'package:pulse_flutter/widgets/contacts/online_presence_radar.dart';
 import 'package:pulse_flutter/widgets/profile/my_qr_code_sheet.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
 import 'package:pulse_flutter/widgets/profile/responsive_profile_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -309,7 +310,9 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
     });
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      // The screen is a route of its own now, not a tab painted over the
+      // shell backdrop.
+      backgroundColor: AppSurfaces.of(context),
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
@@ -357,7 +360,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
       ),
       body: SafeArea(
         bottom: false,
-        child: Column(
+        // A wide window does not stretch contacts edge to edge.
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Column(
           children: <Widget>[
             // Top Segmented Switcher
             Padding(
@@ -457,6 +465,8 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
               ),
             ),
           ],
+            ),
+          ),
         ),
       ),
     );
@@ -566,7 +576,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     const SizedBox(width: 8),
                     _quickActionCard(
                       icon: Icons.person_add_alt_1_rounded,
-                      label: 'Добавить',
+                      label: context.l10n.callsQuickAdd,
                       scheme: scheme,
                       textTheme: textTheme,
                       onTap: () {
@@ -575,7 +585,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                         }
                         UserSearchPickerSheet.show(
                           context,
-                          title: 'Поиск пользователя',
+                          title: context.l10n.addToContacts,
                           onUserSelected: (ApiSearchUser user) {
                             _openDirectChat(user.username);
                           },
@@ -585,7 +595,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                     const SizedBox(width: 8),
                     _quickActionCard(
                       icon: Icons.call_outlined,
-                      label: 'Звонки',
+                      label: context.l10n.tabCalls,
                       scheme: scheme,
                       textTheme: textTheme,
                       onTap: () {

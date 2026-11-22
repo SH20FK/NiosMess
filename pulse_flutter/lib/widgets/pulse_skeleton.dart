@@ -6,19 +6,27 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 /// numbers in one place is what stops the list from jumping when data lands.
 abstract final class _ChatRowMetrics {
   /// Outer list padding around real rows (`SliverPadding` in the inbox).
-  static const double externalInset = 10.0;
+  static const double externalInset = AppSpacing.sm;
 
   /// Inner horizontal padding painted by `ChatTile`.
   static const double innerInset = AppSpacing.md;
 
-  /// Total horizontal inset of a real row: 10 + 12 = 22 dp.
+  /// Total horizontal inset of a real row: 8 + 12 = 20 dp.
   static const double rowInset = externalInset + innerInset;
 
-  /// `ChatTile` vertical padding (14dp) around the 48dp avatar.
-  static const double verticalInset = 14.0;
+  /// Row heights of `ChatTile`, regular and compact.
+  static const double rowHeight = AppHeights.row;
+  static const double compactRowHeight = AppHeights.rowCompact;
 
-  /// Avatar diameter (48dp).
+  /// Text block of `ChatTile`: title line 24 + gap 4 + preview line 20.
+  static const double textBlock = 48.0;
+  static const double titleLine = 24.0;
+  static const double lineGap = 4.0;
+  static const double previewLine = 20.0;
+
+  /// Avatar diameter: 48 dp, 44 dp in compact rows.
   static const double avatar = 48.0;
+  static const double compactAvatar = 44.0;
 
   /// Gap between consecutive rows (Dismissible rows sit flush, 2dp reads better).
   static const double rowGap = 2.0;
@@ -29,23 +37,27 @@ abstract final class _ChatRowMetrics {
 
   static const double titleHeight = 16.0;
   static const double subtitleHeight = 12.0;
-  static const double titleGap = AppSpacing.sm;
 }
 
 class ChatListSkeleton extends StatefulWidget {
   const ChatListSkeleton({
     this.count = 6,
     this.outerInset = AppSpacing.lg,
+    this.compact = false,
     super.key,
   });
 
   final int count;
 
   /// Horizontal padding the caller already wraps around this widget. Real rows
-  /// sit at 22dp (10dp list padding + 12dp tile padding), so the skeleton
+  /// sit at 20dp (8dp list padding + 12dp tile padding), so the skeleton
   /// subtracts [outerInset] from that and paints exactly the same inset — the
-  /// placeholder lines up with the loaded list instead of sitting 6dp deeper.
+  /// placeholder lines up with the loaded list.
   final double outerInset;
+
+  /// Compact density (`UiSettingsState.compactMode`): 64 dp rows with a 44 dp
+  /// avatar, like the compact `ChatTile`.
+  final bool compact;
 
   @override
   State<ChatListSkeleton> createState() => _ChatListSkeletonState();
@@ -119,111 +131,114 @@ class _ChatListSkeletonState extends State<ChatListSkeleton>
         inset: inset,
         scheme: scheme,
         opacity: pulseOpacity,
+        compact: widget.compact,
       ),
     );
   }
 }
 
-/// A single placeholder row painted on the same tonal base as a real tile:
-/// `surfaceContainerLow` + a hairline `outlineVariant` frame, content blocks on
-/// `surfaceContainerHighest`.
+/// A single placeholder row with the geometry of a resting `ChatTile`: no
+/// fill and no frame, content blocks on `surfaceContainerHighest`.
 class _ChatRowPlaceholder extends StatelessWidget {
   const _ChatRowPlaceholder({
     required this.index,
     required this.inset,
     required this.scheme,
     required this.opacity,
+    required this.compact,
   });
 
   final int index;
   final double inset;
   final ColorScheme scheme;
   final Animation<double> opacity;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     // Deterministic variety so the placeholder does not look like a barcode.
     final double titleFactor = 0.42 + (index % 3) * 0.11;
     final double subtitleFactor = 0.58 + (index % 4) * 0.10;
-    // Same user-tunable radius as the real row.
-    final BorderRadius radius = AppRadii.of(context).lgRadius;
+    final double avatar = compact
+        ? _ChatRowMetrics.compactAvatar
+        : _ChatRowMetrics.avatar;
+    final double rowHeight = compact
+        ? _ChatRowMetrics.compactRowHeight
+        : _ChatRowMetrics.rowHeight;
 
-    return Container(
+    // No fill and no frame: a resting chat row is transparent, and a tinted
+    // placeholder showed a card that the loaded list never has.
+    return Padding(
       key: ValueKey<String>('chat_skeleton_row_$index'),
       padding: EdgeInsets.symmetric(
         horizontal: inset,
-        vertical: _ChatRowMetrics.verticalInset,
-      ),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: radius,
-      ),
-      // A layout border would add 1dp on every side (76 → 78 and a shifted
-      // avatar); painting it in the foreground keeps ChatTile's exact metrics.
-      foregroundDecoration: BoxDecoration(
-        borderRadius: radius,
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.18),
-        ),
+        vertical: (rowHeight - _ChatRowMetrics.textBlock) / 2,
       ),
       child: FadeTransition(
         opacity: opacity,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            _SkeletonBlock(
-              width: _ChatRowMetrics.avatar,
-              height: _ChatRowMetrics.avatar,
-              radius: _ChatRowMetrics.avatar / 2,
-              color: scheme.surfaceContainerHighest,
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: titleFactor,
-                            child: _SkeletonBlock(
-                              height: _ChatRowMetrics.titleHeight,
-                              radius: AppRadii.sm,
-                              color: scheme.surfaceContainerHighest,
+        child: SizedBox(
+          height: _ChatRowMetrics.textBlock,
+          child: Row(
+            children: <Widget>[
+              _SkeletonBlock(
+                width: avatar,
+                height: avatar,
+                radius: avatar / 2,
+                color: scheme.surfaceContainerHighest,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    // Title line: the name and, at its end, the time.
+                    SizedBox(
+                      height: _ChatRowMetrics.titleLine,
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: FractionallySizedBox(
+                                widthFactor: titleFactor,
+                                child: _SkeletonBlock(
+                                  height: _ChatRowMetrics.titleHeight,
+                                  radius: AppRadii.sm,
+                                  color: scheme.surfaceContainerHighest,
+                                ),
+                              ),
                             ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          _SkeletonBlock(
+                            width: _ChatRowMetrics.timeWidth,
+                            height: _ChatRowMetrics.timeHeight,
+                            radius: 6,
+                            color: scheme.surfaceContainerHighest,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: _ChatRowMetrics.lineGap),
+                    SizedBox(
+                      height: _ChatRowMetrics.previewLine,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: subtitleFactor,
+                          child: _SkeletonBlock(
+                            height: _ChatRowMetrics.subtitleHeight,
+                            radius: 6,
+                            color: scheme.surfaceContainerHighest,
                           ),
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      // Timestamp sits in the top-right corner of a real tile.
-                      _SkeletonBlock(
-                        width: _ChatRowMetrics.timeWidth,
-                        height: _ChatRowMetrics.timeHeight,
-                        radius: 6,
-                        color: scheme.surfaceContainerHighest,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: _ChatRowMetrics.titleGap),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: subtitleFactor,
-                      child: _SkeletonBlock(
-                        height: _ChatRowMetrics.subtitleHeight,
-                        radius: 6,
-                        color: scheme.surfaceContainerHighest,
-                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

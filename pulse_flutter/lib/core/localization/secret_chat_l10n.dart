@@ -348,6 +348,19 @@ extension SecretChatL10n on AppLocalizations {
   String get inboxEmptyTitle => _secret.inboxEmptyTitle;
   String get inboxEmptyHint => _secret.inboxEmptyHint;
   String get inboxResetFilters => _secret.inboxResetFilters;
+  String inboxDeleteSelectedTitle(int count) =>
+      _secret.inboxDeleteSelectedTitle(count);
+  String get inboxDeleteSelectedBody => _secret.inboxDeleteSelectedBody;
+  String inboxDeletedCount(int count) => _secret.inboxDeletedCount(count);
+  String get inboxSwipeMute => _secret.inboxSwipeMute;
+  String get inboxSwipeUnmute => _secret.inboxSwipeUnmute;
+  String get inboxMutedToast => _secret.inboxMutedToast;
+  String get inboxUnmutedToast => _secret.inboxUnmutedToast;
+  String get inboxSelect => _secret.inboxSelect;
+  String inboxSelectedCount(int count) => _secret.inboxSelectedCount(count);
+  String get inboxAddToFolder => _secret.inboxAddToFolder;
+  String inboxFolderAdded(String name) => _secret.inboxFolderAdded(name);
+  String inboxFolderRemoved(String name) => _secret.inboxFolderRemoved(name);
   String get inboxSearchEmpty => _secret.inboxSearchEmpty;
   String get inboxSearchEmptyHint => _secret.inboxSearchEmptyHint;
   String get inboxSearchPeople => _secret.inboxSearchPeople;

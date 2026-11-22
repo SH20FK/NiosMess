@@ -5,7 +5,6 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
-import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 Widget _buildTestHarness({
   required Widget child,
@@ -73,7 +72,7 @@ void main() {
         expect(find.byIcon(Icons.search_rounded).hitTestable(), findsOneWidget);
         expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
         expect(
-          find.byKey(const ValueKey('inbox-profile-settings')).hitTestable(),
+          find.byKey(const ValueKey<String>('inbox-people')).hitTestable(),
           findsOneWidget,
         );
         expect(tester.takeException(), isNull);
@@ -126,17 +125,22 @@ void main() {
         tester.widget<Text>(find.text('Чаты')).style?.fontWeight,
         FontWeight.w700,
       );
-      // 32 dp avatar inside a 48 dp target, 8 dp gutter -> 16 dp right inset.
-      final avatar = find.byKey(const ValueKey('inbox-profile-settings'));
-      expect(tester.getSize(avatar), const Size(48, 48));
-      final avatarCircle = find.descendant(
-        of: avatar,
-        matching: find.byType(PulseAvatar),
+      // 24 dp glyph inside a 48 dp target, 4 dp gutter -> 16 dp right inset.
+      final people = find.byKey(const ValueKey<String>('inbox-people'));
+      expect(tester.getSize(people), const Size(48, 48));
+      final peopleGlyph = find.descendant(
+        of: people,
+        matching: find.byType(Icon),
       );
       final double screenWidth =
           tester.view.physicalSize.width / tester.view.devicePixelRatio;
-      expect(tester.getSize(avatarCircle), const Size(32, 32));
-      expect(screenWidth - tester.getTopRight(avatarCircle).dx, 16);
+      expect(tester.getSize(peopleGlyph), const Size(24, 24));
+      expect(screenWidth - tester.getTopRight(peopleGlyph).dx, 16);
+      // Settings has its own tab: the header does not repeat it.
+      expect(
+        find.byKey(const ValueKey('inbox-profile-settings')),
+        findsNothing,
+      );
     });
 
     testWidgets('scrim and hairline fade in once the list is scrolled', (

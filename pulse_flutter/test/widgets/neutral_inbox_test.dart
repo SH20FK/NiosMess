@@ -350,9 +350,9 @@ void main() {
                   ),
                 ),
                 GoRoute(
-                  path: '/main/settings',
+                  path: '/contacts',
                   builder: (_, _) =>
-                      const Scaffold(body: Text('settings-destination')),
+                      const Scaffold(body: Text('people-destination')),
                 ),
               ],
             );
@@ -459,9 +459,9 @@ void main() {
                     find.byKey(const ValueKey<String>('chat-filter-all')),
                   )
                   .height,
-              // 40 dp at the default scale; the pill only grows when the
-              // scaled label needs the room.
-              scale == 1 ? 36 : greaterThanOrEqualTo(36),
+              // 48 dp touch target at the default scale; the pill only grows
+              // when the scaled label needs the room.
+              scale == 1 ? 48 : greaterThanOrEqualTo(48),
             );
             expect(find.text('never-display-ciphertext'), findsNothing);
             expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
@@ -536,10 +536,9 @@ void main() {
             await tester.tap(groupsPill);
             await tester.pumpAndSettle();
             expect(find.byType(ChatTile), findsOneWidget);
-            expect(
-              find.text('Ирина: Обсуждаем планы на выходные'),
-              findsOneWidget,
-            );
+            // The author is its own run in front of the preview.
+            expect(find.text('Ирина:'), findsOneWidget);
+            expect(find.text('Обсуждаем планы на выходные'), findsOneWidget);
             await tester.ensureVisible(channelsPill);
             await tester.tap(channelsPill);
             await tester.pumpAndSettle();
@@ -614,11 +613,12 @@ void main() {
               find.byKey(const ValueKey<String>('inbox-search-field')),
               findsNothing,
             );
+            // The header's trailing action opens contacts and calls.
             await tester.tap(
-              find.byKey(const ValueKey('inbox-profile-settings')),
+              find.byKey(const ValueKey<String>('inbox-people')),
             );
             await tester.pumpAndSettle();
-            expect(find.text('settings-destination'), findsOneWidget);
+            expect(find.text('people-destination'), findsOneWidget);
             router.go('/');
             await tester.pumpAndSettle();
             tester.view.physicalSize = const Size(1024, 768);

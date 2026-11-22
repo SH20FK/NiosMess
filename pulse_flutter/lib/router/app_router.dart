@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
 import 'package:pulse_flutter/screens/chat_manage_screen.dart';
 import 'package:pulse_flutter/screens/chat_members_screen.dart';
+import 'package:pulse_flutter/screens/contacts_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/join_chat_screen.dart';
 import 'package:pulse_flutter/screens/login_screen.dart';
@@ -237,7 +238,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           ),
         ),
       ),
-      GoRoute(path: '/contacts', redirect: (context, state) => '/main/chats'),
+      GoRoute(
+        path: '/contacts',
+        pageBuilder: (context, state) => _page(state, const ContactsScreen()),
+      ),
       GoRoute(
         path: '/main/contacts',
         redirect: (context, state) => '/contacts',

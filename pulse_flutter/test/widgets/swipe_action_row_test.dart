@@ -18,6 +18,9 @@ class _RowState extends State<_Row> {
 void main() {
   Widget app({
     required VoidCallback onTriggered,
+    VoidCallback? onEndTriggered,
+    VoidCallback? onArmed,
+    Widget background = const Text('read'),
     bool enabled = true,
     bool reduced = false,
     TextDirection direction = TextDirection.ltr,
@@ -33,7 +36,10 @@ void main() {
               child: SwipeActionRow(
                 enabled: enabled,
                 onTriggered: onTriggered,
-                background: const Text('read'),
+                background: background,
+                onEndTriggered: onEndTriggered,
+                endBackground: const Text('mute'),
+                onArmed: onArmed,
                 child: const _Row(),
               ),
             ),
@@ -93,6 +99,75 @@ void main() {
     await tester.pumpAndSettle();
     expect(triggered, 0);
     expect(tester.getTopLeft(row).dx, closeTo(rest, 0.001));
+  });
+
+  testWidgets('pull towards the start edge triggers the end action', (
+    tester,
+  ) async {
+    var read = 0;
+    var muted = 0;
+    var armed = 0;
+    await tester.pumpWidget(
+      app(
+        onTriggered: () => read++,
+        onEndTriggered: () => muted++,
+        onArmed: () => armed++,
+      ),
+    );
+    final double rest = tester.getTopLeft(row).dx;
+
+    final gesture = await tester.startGesture(tester.getCenter(row));
+    await gesture.moveBy(const Offset(-100, 0));
+    await tester.pump();
+    expect(tester.getTopLeft(row).dx, closeTo(rest - 100, 0.001));
+    // Only the background of the pulled side is revealed.
+    expect(find.text('mute'), findsOneWidget);
+    expect(find.text('read'), findsNothing);
+    // 25% of the row: not far enough yet.
+    expect(armed, 0);
+
+    await gesture.moveBy(const Offset(-60, 0));
+    await tester.pump();
+    expect(armed, 1);
+    // Moving on past the threshold does not arm again.
+    await gesture.moveBy(const Offset(-10, 0));
+    await tester.pump();
+    expect(armed, 1);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(muted, 1);
+    expect(read, 0);
+    expect(tester.getTopLeft(row).dx, closeTo(rest, 0.001));
+    expect(find.text('mute'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('background learns when the pull is far enough to trigger', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      app(
+        onTriggered: () {},
+        background: Builder(
+          builder: (BuildContext context) =>
+              Text(SwipeActionRow.armedOf(context) ? 'armed' : 'idle'),
+        ),
+      ),
+    );
+
+    final gesture = await tester.startGesture(tester.getCenter(row));
+    await gesture.moveBy(const Offset(60, 0));
+    await tester.pump();
+    expect(find.text('idle'), findsOneWidget);
+
+    await gesture.moveBy(const Offset(100, 0));
+    await tester.pump();
+    expect(find.text('armed'), findsOneWidget);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(find.text('armed'), findsNothing);
   });
 
   testWidgets('RTL mirrors the swipe direction', (tester) async {

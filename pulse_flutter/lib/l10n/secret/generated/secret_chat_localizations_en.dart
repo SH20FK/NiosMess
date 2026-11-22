@@ -200,6 +200,65 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get inboxResetFilters => 'All chats';
 
   @override
+  String inboxDeleteSelectedTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count chats?',
+      one: 'Delete $count chat?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inboxDeleteSelectedBody =>
+      'Direct chats will be deleted, and you will leave groups and channels.';
+
+  @override
+  String inboxDeletedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chats removed',
+      one: '$count chat removed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inboxSwipeMute => 'Mute';
+
+  @override
+  String get inboxSwipeUnmute => 'Unmute';
+
+  @override
+  String get inboxMutedToast => 'Notifications are off';
+
+  @override
+  String get inboxUnmutedToast => 'Notifications are on';
+
+  @override
+  String get inboxSelect => 'Select';
+
+  @override
+  String inboxSelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get inboxAddToFolder => 'Add to folder';
+
+  @override
+  String inboxFolderAdded(String name) {
+    return 'Added to “$name”';
+  }
+
+  @override
+  String inboxFolderRemoved(String name) {
+    return 'Removed from “$name”';
+  }
+
+  @override
   String get inboxSearchEmpty => 'Nothing found';
 
   @override

@@ -4,9 +4,11 @@ import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
+import 'package:pulse_flutter/models/chat_productivity.dart';
+import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
-enum ChatActionResult { markRead, toggleMute, leave }
+enum ChatActionResult { markRead, toggleMute, addToFolder, select, leave }
 
 /// Unified descriptor for actions inside [ChatActionsModal].
 class ChatActionDescriptor {
@@ -31,19 +33,13 @@ class ChatActionDescriptor {
 class ChatActionsModal {
   ChatActionsModal._();
 
-  /// Desktop pointer anchor captured by `TouchContainer.onSecondaryTapDown`.
-  ///
-  /// [AppModal.showActions] still presents a centred dialog on wide layouts, so
-  /// this parameter is the contract for the cursor-anchored `MenuAnchor` the
-  /// inbox screen owns: the presenter swaps presentation and forwards [anchor]
-  /// verbatim, while the descriptor list below stays untouched. Mobile ignores
-  /// it (the sheet is bottom-anchored by definition).
+  /// The sheet a long press opens (a centred dialog on wide windows). A right
+  /// click gets a menu at the cursor instead; the inbox screen owns that one.
   static Future<ChatActionResult?> show(
     BuildContext context, {
     required ApiChatSummary chat,
     required Color avatarColor,
     bool isMuted = false,
-    Offset? anchor,
   }) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
@@ -125,6 +121,17 @@ class ChatActionsModal {
             ? Icons.notifications_active_rounded
             : Icons.notifications_off_rounded,
       ),
+      ChatActionDescriptor(
+        result: ChatActionResult.addToFolder,
+        label: context.l10n.inboxAddToFolder,
+        icon: Icons.folder_outlined,
+      ),
+      // Starts multi-select with this chat already picked.
+      ChatActionDescriptor(
+        result: ChatActionResult.select,
+        label: context.l10n.inboxSelect,
+        icon: Icons.check_circle_outline_rounded,
+      ),
     ];
 
     final List<Widget> actions = <Widget>[
@@ -168,6 +175,55 @@ class ChatActionsModal {
       destructiveAction: destructiveTile,
     );
   }
+
+  /// Folder picker for one chat. Returns the folder whose own list the chat
+  /// is added to or taken out of.
+  ///
+  /// A folder that takes the chat by a type rule is listed checked and
+  /// disabled: the rule puts the chat there, not the list.
+  static Future<ChatFolder?> pickFolder(
+    BuildContext context, {
+    required ApiChatSummary chat,
+    required List<ChatFolder> folders,
+  }) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final String type = chat.isBotChat ? 'bot' : chat.chatType;
+
+    return AppModal.showActions<ChatFolder>(
+      context: context,
+      header: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+        child: Text(
+          context.l10n.inboxAddToFolder,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ),
+      actions: <Widget>[
+        for (final ChatFolder folder in folders)
+          Builder(
+            key: ValueKey<String>('chat-folder-pick-${folder.id}'),
+            builder: (BuildContext _) {
+              final bool listed = folder.chatIds.contains(chat.id);
+              final bool byRule = !listed && folder.types.contains(type);
+              return _ChatActionRow(
+                descriptor: ChatActionDescriptor(
+                  result: ChatActionResult.addToFolder,
+                  label: folder.title,
+                  icon: listed || byRule
+                      ? Icons.check_circle_rounded
+                      : Icons.folder_outlined,
+                  enabled: !byRule,
+                ),
+                title: CustomEmojiText(folder.title, maxLines: 1),
+                onSelected: () => Navigator.of(context).pop(folder),
+              );
+            },
+          ),
+      ],
+    );
+  }
 }
 
 /// One 48dp menu row: `labelLarge` copy, 20dp leading glyph, [AppShape.control]
@@ -177,11 +233,16 @@ class _ChatActionRow extends StatelessWidget {
   const _ChatActionRow({
     required this.descriptor,
     required this.onSelected,
+    this.title,
     super.key,
   });
 
   final ChatActionDescriptor descriptor;
   final VoidCallback onSelected;
+
+  /// Shown instead of the plain label, in the same style: a folder title may
+  /// carry custom emoji.
+  final Widget? title;
 
   @override
   Widget build(BuildContext context) {
@@ -194,6 +255,10 @@ class _ChatActionRow extends StatelessWidget {
     final Color foreground = descriptor.enabled
         ? accent
         : accent.withValues(alpha: 0.38);
+    // One typeface for every row: labelLarge everywhere.
+    final TextStyle labelStyle = (textTheme.labelLarge ?? const TextStyle())
+        .copyWith(color: foreground);
+    final Widget? title = this.title;
 
     return Semantics(
       button: true,
@@ -211,15 +276,19 @@ class _ChatActionRow extends StatelessWidget {
                 Icon(descriptor.icon, size: 20, color: foreground),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    descriptor.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    // One typeface for every row: labelLarge everywhere.
-                    style: (textTheme.labelLarge ?? const TextStyle()).copyWith(
-                      color: foreground,
-                    ),
-                  ),
+                  child: title != null
+                      ? DefaultTextStyle.merge(
+                          style: labelStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          child: title,
+                        )
+                      : Text(
+                          descriptor.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: labelStyle,
+                        ),
                 ),
               ],
             ),

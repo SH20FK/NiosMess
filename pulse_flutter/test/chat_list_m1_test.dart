@@ -190,7 +190,26 @@ void main() {
       for (final key in <Key>[unreadKey, groupsKey]) {
         expect(tester.getCenter(find.byKey(key)).dy, centerY, reason: '$key');
       }
-      expect(tester.getSize(find.byKey(allKey)).height, 36);
+      // A 36 dp pill inside a 48 dp touch target.
+      expect(tester.getSize(find.byKey(allKey)).height, 48);
+      expect(
+        tester
+            .getSize(
+              find
+                  .descendant(
+                    of: find.byKey(allKey),
+                    matching: find.byType(DecoratedBox),
+                  )
+                  .first,
+            )
+            .height,
+        36,
+      );
+      // The visible way into folder management closes the rail.
+      expect(
+        find.byKey(const ValueKey<String>('chat-filter-folders')),
+        findsOneWidget,
+      );
       // Pills and the app bar share the 16 dp text column.
       expect(tester.getTopLeft(find.byKey(allKey)).dx, 16);
     });

@@ -6,59 +6,68 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/features/chats/presentation/compose_action_sheet.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
-import 'package:pulse_flutter/features/chats/application/inbox_search_controller.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
+/// Vertical space the inbox keeps free for the composer button:
+/// 16 gap + 56 button + 16 gap. The list reserves exactly this much trailing
+/// room while the button is shown, and the scrim under the button covers the
+/// same strip.
+const double kInboxComposerClearance = 88.0;
+
+/// Gap between the composer button and the pane edge / navigation bar.
+const double kInboxComposerMargin = 16.0;
+
+/// Floating "new conversation" button of the inbox.
+///
+/// Shape, colours and the flat elevation come from the theme's FAB token.
+/// The button springs in (scale and slide may overshoot) and leaves on an
+/// accelerating curve; opacity rides an effects curve in both directions.
 class InboxComposeButton extends ConsumerWidget {
   const InboxComposeButton({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The composer steps aside while the header is a search field.
-    final bool isVisible =
-        ref.watch(chatListFabVisibleProvider) &&
-        !ref.watch(inboxSearchProvider.select((s) => s.active));
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final bool reducedMotion = context.reduceMotion;
-    final Duration motionDuration = reducedMotion
+    final bool isVisible = ref.watch(inboxComposerVisibleProvider);
+    final bool animate = !context.reduceMotion;
+    final Duration spatial = !animate
         ? Duration.zero
+        : isVisible
+        ? M3Durations.spatialFast
         : M3Durations.short4;
+    final Curve spatialCurve = isVisible
+        ? M3SpringCurves.spatialFast
+        : M3SpringCurves.expressiveAccel;
 
     return AnimatedSlide(
       offset: isVisible ? Offset.zero : const Offset(0, 0.35),
-      duration: motionDuration,
-      curve: M3SpringCurves.spatialFast,
-      child: AnimatedOpacity(
-        opacity: isVisible ? 1.0 : 0.0,
-        duration: motionDuration,
-        curve: M3SpringCurves.expressiveDecel,
-        child: ExcludeSemantics(
-          excluding: !isVisible,
-          child: IgnorePointer(
-            ignoring: !isVisible,
-            child: FloatingActionButton(
-              heroTag: 'compose_chat_fab',
-              elevation: 0,
-              highlightElevation: 0,
-              focusElevation: 0,
-              hoverElevation: 1,
-              backgroundColor: scheme.primaryContainer,
-              foregroundColor: scheme.onPrimaryContainer,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+      duration: spatial,
+      curve: spatialCurve,
+      child: AnimatedScale(
+        scale: isVisible ? 1 : 0.6,
+        duration: spatial,
+        curve: spatialCurve,
+        child: AnimatedOpacity(
+          opacity: isVisible ? 1.0 : 0.0,
+          duration: animate ? M3Durations.effectsFast : Duration.zero,
+          curve: M3SpringCurves.effectsFast,
+          child: ExcludeSemantics(
+            excluding: !isVisible,
+            child: IgnorePointer(
+              ignoring: !isVisible,
+              child: FloatingActionButton(
+                heroTag: 'compose_chat_fab',
+                tooltip: context.l10n.inboxCreateMenu,
+                onPressed: () {
+                  final bool haptics = ref.read(
+                    uiSettingsProvider.select((s) => s.haptics),
+                  );
+                  if (haptics) {
+                    HapticService.tap();
+                  }
+                  openComposeActions(context);
+                },
+                child: const Icon(Icons.edit_rounded),
               ),
-              tooltip: context.l10n.inboxCreateMenu,
-              onPressed: () {
-                final bool haptics = ref.read(
-                  uiSettingsProvider.select((s) => s.haptics),
-                );
-                if (haptics) {
-                  HapticService.tap();
-                }
-                openComposeActions(context);
-              },
-              child: const Icon(Icons.edit_rounded),
             ),
           ),
         ),

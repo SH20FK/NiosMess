@@ -2,6 +2,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
+import 'package:pulse_flutter/features/chats/application/inbox_selection_controller.dart';
 import 'package:pulse_flutter/widgets/nav/app_nav_destination.dart';
 import 'package:pulse_flutter/widgets/nav/app_nav_item.dart';
 import 'package:pulse_flutter/widgets/nav/app_nav_rail.dart';
@@ -47,18 +48,13 @@ import 'package:pulse_flutter/core/services/background_service.dart';
 import 'package:pulse_flutter/core/services/account_background_policy.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 
+export 'package:pulse_flutter/widgets/chat/inbox_compose_button.dart'
+    show kInboxComposerClearance, kInboxComposerMargin;
+
 /// Max readable width of the inbox pane. On tablets/desktop the list is
 /// centred inside this budget instead of stretching edge to edge
 /// (INBOX_VISUAL_AUDIT_2026-11-16, P0 #3).
 const double kInboxContentMaxWidth = 640.0;
-
-/// Vertical space the inbox list keeps free for the composer FAB:
-/// 16 gap + 56 button + 16 gap. `ChatListScreen` reserves the same amount as
-/// trailing sliver padding, so the last row can always scroll above the FAB.
-const double kInboxComposerClearance = 88.0;
-
-/// Gap between the composer FAB and the pane edge / navigation bar.
-const double kInboxComposerMargin = 16.0;
 
 class MainShellScreen extends ConsumerStatefulWidget {
   const MainShellScreen({
@@ -418,6 +414,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
           // Secondary tab (Contacts, NiosGram, Profile) -> return to primary Chats tab
           _lastBackPressTime = null;
           context.go('/main/chats');
+          return;
+        }
+
+        // Picking chats is a mode of the inbox: back leaves it first.
+        if (ref.read(inboxSelectionProvider).isNotEmpty) {
+          _lastBackPressTime = null;
+          ref.read(inboxSelectionProvider.notifier).clear();
           return;
         }
 
@@ -861,9 +864,7 @@ class _InboxComposerScrim extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool visible =
-        ref.watch(chatListFabVisibleProvider) &&
-        !ref.watch(inboxSearchProvider.select((s) => s.active));
+    final bool visible = ref.watch(inboxComposerVisibleProvider);
     final Color backdrop = AppSurfaces.of(context);
 
     return IgnorePointer(

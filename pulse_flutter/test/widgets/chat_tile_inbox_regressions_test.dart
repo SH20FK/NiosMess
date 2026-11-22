@@ -232,7 +232,7 @@ void main() {
 
   // --- Key mismatch -------------------------------------------------------
 
-  testWidgets('key mismatch renders the error lock, warning and frame', (
+  testWidgets('key mismatch renders the error lock and a filled warning', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -246,13 +246,16 @@ void main() {
     expect(find.text('Ключи не совпадают'), findsOneWidget);
     expect(find.text('Короткое превью сообщения'), findsNothing);
 
-    final BoxBorder? border = _surface(tester).border;
-    expect(border, isA<Border>());
-    expect(
-      (border! as Border).top.color,
-      scheme.error.withValues(alpha: 0.35),
+    // A filled pill in the preview slot, not a hairline frame around the row.
+    expect(_surface(tester).border, isNull);
+    final DecoratedBox pill = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey<String>('chat-tile-key-mismatch')),
     );
-    expect(border.top.width, 1);
+    expect((pill.decoration as ShapeDecoration).color, scheme.errorContainer);
+    expect(
+      tester.widget<Text>(find.text('Ключи не совпадают')).style?.color,
+      scheme.onErrorContainer,
+    );
   });
 
   testWidgets('healthy secret chat keeps the primary lock and no frame', (
@@ -268,7 +271,7 @@ void main() {
 
   // --- Row height / delivery status slot ----------------------------------
 
-  testWidgets('sending status lives in the time slot and keeps the row at 76', (
+  testWidgets('pending send keeps the message time and the 76dp row', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(_app(_narrow(_tile())));
@@ -288,12 +291,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.getSize(find.byType(ChatTile)).height, ChatTile.rowHeight);
-    // Status replaces the timestamp instead of adding a third line.
-    expect(find.text('Отправляется…'), findsOneWidget);
-    expect(find.text('12:45'), findsNothing);
+    // The time stays; the clock glyph in the preview row carries the state.
+    expect(find.text('12:45'), findsOneWidget);
+    expect(find.text('Отправляется…'), findsNothing);
+    expect(find.byIcon(Icons.schedule_rounded), findsOneWidget);
   });
 
-  testWidgets('failed delivery status is error-tinted in the time slot', (
+  testWidgets('failed delivery replaces the preview in the error tone', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -311,11 +315,10 @@ void main() {
     final ColorScheme scheme = _scheme(tester);
     final Text status = tester.widget<Text>(find.text('Не отправлено'));
     expect(status.style?.color, scheme.error);
-    // labelSmall, i.e. the same 11sp as the timestamp it replaces.
-    expect(
-      status.style?.fontSize,
-      Theme.of(tester.element(find.byType(ChatTile))).textTheme.labelSmall?.fontSize,
-    );
+    // It takes the preview slot and its type size; the time stays in place.
+    expect(status.style?.fontSize, 14);
+    expect(find.text('Короткое превью сообщения'), findsNothing);
+    expect(find.text('12:45'), findsOneWidget);
   });
 
   testWidgets('compact tiles keep their 64dp height with a status label', (
@@ -514,7 +517,7 @@ void main() {
 
   // --- Badges, icons, avatar ----------------------------------------------
 
-  testWidgets('muted unread badge uses a tonal pill with an outline', (
+  testWidgets('muted unread badge is the neutral pill of the filter rail', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -527,9 +530,9 @@ void main() {
       find.byKey(const ValueKey<String>('7_true')),
     );
     final BoxDecoration decoration = badge.decoration! as BoxDecoration;
-    expect(decoration.color, scheme.surfaceContainerHigh);
-    expect(decoration.border, isA<Border>());
-    expect((decoration.border! as Border).top.color, scheme.outlineVariant);
+    // Same tone as a muted-only folder counter, no outline.
+    expect(decoration.color, scheme.surfaceContainerHighest);
+    expect(decoration.border, isNull);
 
     // Muted avatars recede to 90% instead of being tinted like unread rows.
     final Opacity dimmed = tester.widget<Opacity>(
@@ -661,6 +664,44 @@ void main() {
   });
 
   // --- Delivery ticks -----------------------------------------------------
+
+  testWidgets('group author is styled apart from the preview it precedes', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        _narrow(
+          ChatTile(
+            title: 'Команда',
+            subtitle: 'Обсуждаем планы',
+            subtitlePrefix: 'Ирина',
+            subtitleIcon: Icons.photo_camera_rounded,
+            formattedTime: '12:45',
+            unreadCount: 0,
+            avatarText: 'Команда',
+            avatarColor: const Color(0xFF6750A4),
+            onTap: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final ColorScheme scheme = _scheme(tester);
+    final Text author = tester.widget<Text>(find.text('Ирина:'));
+    expect(author.style?.color, scheme.onSurface);
+    expect(author.style?.fontWeight, FontWeight.w600);
+    final Text preview = tester.widget<Text>(find.text('Обсуждаем планы'));
+    expect(preview.style?.color, scheme.onSurfaceVariant);
+
+    // Author, then the media glyph, then the caption.
+    final Rect authorRect = tester.getRect(find.text('Ирина:'));
+    final Rect glyph = tester.getRect(find.byIcon(Icons.photo_camera_rounded));
+    final Rect caption = tester.getRect(find.text('Обсуждаем планы'));
+    expect(glyph.left, greaterThan(authorRect.right));
+    expect(caption.left, greaterThan(glyph.right));
+    expect(tester.getSize(find.byType(ChatTile)).height, ChatTile.rowHeight);
+  });
 
   testWidgets('delivered stays neutral, read takes the primary accent', (
     WidgetTester tester,

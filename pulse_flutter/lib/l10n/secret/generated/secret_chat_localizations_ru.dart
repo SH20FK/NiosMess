@@ -202,6 +202,69 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get inboxResetFilters => 'Все чаты';
 
   @override
+  String inboxDeleteSelectedTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Удалить $count чата?',
+      many: 'Удалить $count чатов?',
+      few: 'Удалить $count чата?',
+      one: 'Удалить $count чат?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inboxDeleteSelectedBody =>
+      'Личные переписки будут удалены, из групп и каналов вы выйдете.';
+
+  @override
+  String inboxDeletedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Удалено $count чата',
+      many: 'Удалено $count чатов',
+      few: 'Удалено $count чата',
+      one: 'Удалён $count чат',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inboxSwipeMute => 'Без звука';
+
+  @override
+  String get inboxSwipeUnmute => 'Со звуком';
+
+  @override
+  String get inboxMutedToast => 'Уведомления отключены';
+
+  @override
+  String get inboxUnmutedToast => 'Уведомления включены';
+
+  @override
+  String get inboxSelect => 'Выбрать';
+
+  @override
+  String inboxSelectedCount(int count) {
+    return 'Выбрано: $count';
+  }
+
+  @override
+  String get inboxAddToFolder => 'В папку';
+
+  @override
+  String inboxFolderAdded(String name) {
+    return 'Добавлено в папку «$name»';
+  }
+
+  @override
+  String inboxFolderRemoved(String name) {
+    return 'Убрано из папки «$name»';
+  }
+
+  @override
   String get inboxSearchEmpty => 'Ничего не найдено';
 
   @override
