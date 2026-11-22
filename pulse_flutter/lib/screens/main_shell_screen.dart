@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
+import 'package:pulse_flutter/providers/chat_list_scroll_provider.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
@@ -350,6 +351,15 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     });
   }
 
+  /// The active destination was tapped again. Returns whether anything
+  /// happened, so the bar stays silent when there is nothing to do.
+  bool _onReselectTab(int index) {
+    if (index != 0) return false;
+    _revealComposer();
+    ref.read(chatListScrollToTopProvider.notifier).request();
+    return true;
+  }
+
   void _onTapTab(int nextIndex) {
     if (nextIndex < 0 || nextIndex >= _tabs.length) {
       return;
@@ -357,6 +367,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
 
     final String targetTab = _tabs[nextIndex];
     if (targetTab == widget.tab) {
+      _onReselectTab(nextIndex);
       return;
     }
 
@@ -400,6 +411,16 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
           // Secondary tab (Contacts, NiosGram, Profile) -> return to primary Chats tab
           _lastBackPressTime = null;
           context.go('/main/chats');
+          return;
+        }
+
+        // Two-pane layout: back closes the open chat instead of arming the
+        // exit prompt. The shell owns this; the chat pane's own PopScope on
+        // the same route stays out of it on native.
+        if (MediaQuery.sizeOf(context).width >= Breakpoints.medium &&
+            ref.read(desktopSelectedChatProvider) != null) {
+          _lastBackPressTime = null;
+          ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(null);
           return;
         }
 
@@ -650,6 +671,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                         child: AppBottomNav(
                           currentIndex: currentIndex,
                           onTap: _onTapTab,
+                          onReselect: _onReselectTab,
                           hapticsEnabled: haptics,
                         ),
                       ),

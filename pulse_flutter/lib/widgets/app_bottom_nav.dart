@@ -18,11 +18,16 @@ class AppBottomNav extends ConsumerStatefulWidget {
     required this.currentIndex,
     required this.onTap,
     required this.hapticsEnabled,
+    this.onReselect,
     super.key,
   });
 
   final int currentIndex;
   final ValueChanged<int> onTap;
+
+  /// Called when the active destination is tapped again. Returns whether the
+  /// tap did anything; an idle tap gives no sound and no haptic.
+  final bool Function(int index)? onReselect;
   final bool hapticsEnabled;
 
   @override
@@ -33,6 +38,9 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
   DateTime _lastTapTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   void _handleTap(int index) {
+    final bool reselect = index == widget.currentIndex;
+    if (reselect && !(widget.onReselect?.call(index) ?? false)) return;
+
     final DateTime now = DateTime.now();
     final feedback = now.difference(_lastTapTime).inMilliseconds >= 120;
     _lastTapTime = now;
@@ -40,10 +48,10 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
     if (feedback && ref.read(uiSettingsProvider).soundEffects) {
       unawaited(ref.read(appSoundProvider).playUiTick());
     }
-    if (feedback && widget.hapticsEnabled && index != widget.currentIndex) {
+    if (feedback && widget.hapticsEnabled) {
       HapticService.tap();
     }
-    widget.onTap(index);
+    if (!reselect) widget.onTap(index);
   }
 
   @override

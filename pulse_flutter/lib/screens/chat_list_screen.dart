@@ -38,6 +38,10 @@ import 'package:pulse_flutter/widgets/chat/chat_list_header.dart';
 import 'package:pulse_flutter/widgets/chat/reorder_slide.dart';
 import 'package:pulse_flutter/widgets/chat/swipe_action_row.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
+import 'package:pulse_flutter/providers/chat_list_scroll_provider.dart';
+import 'package:pulse_flutter/features/chats/presentation/compose_action_sheet.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/chat/chat_actions_modal.dart';
 import 'package:pulse_flutter/providers/chat_muted_provider.dart';
@@ -63,7 +67,36 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     ) {
       if (before != after) _previewFormatter.clear();
     });
+    ref.listenManual(chatListScrollToTopProvider, (_, _) => _scrollToTop());
     // The provider already fetches on first build and WebSocket push keeps data fresh.
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  final ScrollController _scrollController = ScrollController();
+
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    final ScrollPosition position = _scrollController.position;
+    if (position.pixels <= 0) return;
+    if (context.reduceMotion) {
+      position.jumpTo(0);
+      return;
+    }
+    // A long list is not replayed row by row: jump close, then glide home.
+    final double near = position.viewportDimension * 1.5;
+    if (position.pixels > near) position.jumpTo(near);
+    unawaited(
+      position.animateTo(
+        0,
+        duration: M3Durations.medium2,
+        curve: M3SpringCurves.expressiveDecel,
+      ),
+    );
   }
 
   final _previewFormatter = MessagePreviewFormatter();
@@ -91,9 +124,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   Future<void> _markRead(ApiChatSummary chat) async {
     if (!_markingRead.add(chat.id)) return;
     try {
-      await ref
-          .read(chatMessagesProvider(chat.id).notifier)
-          .markRead(reportFailure: true);
+      if (chat.isSecret) {
+        // Secret receipts go through the chat's own engine.
+        await ref
+            .read(chatMessagesProvider(chat.id).notifier)
+            .markRead(reportFailure: true);
+      } else {
+        await ref.read(chatsProvider.notifier).markReadFromInbox(chat.id);
+      }
     } catch (error) {
       if (mounted) {
         AppToast.showError(context, error, onRetry: () => _markRead(chat));
@@ -187,6 +225,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             child: NotificationListener<ScrollNotification>(
               onNotification: _handleScrollNotification,
               child: CustomScrollView(
+                controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: <Widget>[
                   SliverToBoxAdapter(
@@ -377,23 +416,33 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         filter == ChatFilter.all &&
         !filtered.any((chat) => chat.isSaved);
 
-    if (filtered.isEmpty && !showSavedShortcut) {
+    if (filtered.isEmpty) {
+      // An account without chats gets a way forward; an empty filter only
+      // offers the way back to every chat.
+      final bool noChatsAtAll = !canResetFilters;
       return <Widget>[
+        if (showSavedShortcut) _savedShortcut(scheme, compact),
         SliverFillRemaining(
           child: EmptyStateWidget(
-            title: filter == ChatFilter.unread
+            title: noChatsAtAll
+                ? context.l10n.inboxEmptyTitle
+                : filter == ChatFilter.unread
                 ? context.l10n.inboxNoUnread
-                : filter == ChatFilter.all
-                ? context.l10n.chatListNoChats
                 : context.l10n.inboxCategoryEmpty,
-            subtitle: canResetFilters
-                ? context.l10n.inboxFilterResetHint
-                : null,
-            actionLabel: canResetFilters
-                ? context.l10n.preferencesResetConfirm
-                : null,
-            onAction: canResetFilters ? _resetInboxFilters : null,
-            icon: Icons.chat_bubble_outline_rounded,
+            subtitle: noChatsAtAll
+                ? context.l10n.inboxEmptyHint
+                : context.l10n.inboxFilterResetHint,
+            actionLabel: noChatsAtAll
+                ? context.l10n.inboxComposeTitle
+                : context.l10n.inboxResetFilters,
+            onAction: noChatsAtAll
+                ? () => openComposeActions(context)
+                : _resetInboxFilters,
+            icon: noChatsAtAll
+                ? Icons.forum_outlined
+                : filter == ChatFilter.unread
+                ? Icons.mark_chat_read_outlined
+                : Icons.filter_list_off_rounded,
           ),
         ),
       ];
@@ -430,13 +479,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 },
                 child: Consumer(
                   builder: (BuildContext context, WidgetRef ref, _) {
-                    final bool isTyping =
-                        !chat.isSaved &&
-                        ref.watch(
-                          typingProvider(chat.id).select(
-                            (TypingState s) => s.typingUserIds.isNotEmpty,
-                          ),
-                        );
+                    final int typingCount = chat.isSaved
+                        ? 0
+                        : ref.watch(
+                            typingProvider(chat.id).select(
+                              (TypingState s) => s.typingUserIds.length,
+                            ),
+                          );
+                    final bool isTyping = typingCount > 0;
                     String? draft;
                     if (chat.isSecret) {
                       ref.watch(secretChatRevisionProvider);
@@ -457,17 +507,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       title: chat.isSaved
                           ? context.l10n.savedMessagesTitle
                           : chat.name,
-                      draftLabel: hasDraft
+                      draftLabel: hasDraft && !isTyping
                           ? context.l10n.inboxDraftLabel
                           : null,
                       enableHaptics: ref.watch(
                         uiSettingsProvider.select((s) => s.haptics),
                       ),
-                      subtitle: hasDraft
+                      // Typing is live and short-lived, so it wins over the
+                      // draft and the last message.
+                      subtitle: isTyping
+                          ? (typingCount > 1
+                                ? context.l10n.chatTypingMultiple
+                                : context.l10n.chatTyping)
+                          : hasDraft
                           ? messagePreviewText(draft!)
-                          : isTyping
-                          ? context.l10n.chatTyping
                           : _chatPreview(chat),
+                      isTyping: isTyping,
                       formattedTime: formatRelativeTime(
                         chat.lastMessage?.sentAt ?? chat.lastActivity,
                         localeCode: context.l10n.localeName,
@@ -491,10 +546,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           : chat.name,
                       avatarUrl: chat.avatarUrl,
                       avatarColor: _avatarColor(chat.id, scheme),
-                      subtitleIcon: hasDraft
+                      subtitleIcon: hasDraft || isTyping
                           ? null
-                          : isTyping
-                          ? Icons.edit_note_rounded
                           : _chatPreviewIcon(chat),
                       compact: compact,
                       isOnline:

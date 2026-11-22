@@ -454,7 +454,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     final ColorScheme scheme = _scheme(tester);
-    final Text typing = tester.widget<Text>(find.text('печатает...'));
+    // The literal dots are dropped: the animated dots follow the copy.
+    expect(find.text('печатает...'), findsNothing);
+    final Text typing = tester.widget<Text>(find.text('печатает'));
     expect(typing.style?.color, scheme.primary);
     expect(typing.style?.fontWeight, FontWeight.w500);
     expect(
@@ -506,7 +508,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Несколько человек печатают...'), findsOneWidget);
+    expect(find.text('Несколько человек печатают'), findsOneWidget);
     expect(find.text('Игнорируется'), findsNothing);
 
     await tester.pumpWidget(_app(const SizedBox.shrink()));

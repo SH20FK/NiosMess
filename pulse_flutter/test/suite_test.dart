@@ -250,6 +250,10 @@ import 'widgets/media_hero_test.dart' as media_hero_motion;
 import 'widgets/swipe_reply_motion_test.dart' as swipe_reply_motion;
 import 'widgets/theme_reveal_motion_test.dart' as theme_reveal_motion;
 import 'widgets/touch_motion_test.dart' as touch_motion;
+import 'widgets/chat_tile_inbox_regressions_test.dart'
+    as chat_tile_inbox_regressions;
+import 'widgets/wave_a_visual_tokens_test.dart' as wave_a_visual_tokens;
+import 'widgets/app_bottom_nav_badge_test.dart' as app_bottom_nav_badge;
 
 void main() {
   group('Motion regressions', () {
@@ -505,6 +509,9 @@ void main() {
     widgets_swipe_action_row.main();
     widgets_reorder_slide.main();
     widgets_m3_entrance.main();
+    group('chat_tile_inbox_regressions', chat_tile_inbox_regressions.main);
+    group('wave_a_visual_tokens', wave_a_visual_tokens.main);
+    group('app_bottom_nav_badge', app_bottom_nav_badge.main);
 
     // End-to-End & Integration Suites
     e2e_niosgram_and_settings.main();

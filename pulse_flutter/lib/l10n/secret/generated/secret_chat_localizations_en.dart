@@ -190,10 +190,33 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get inboxFilterResetHint => 'Select All to return to every chat';
 
   @override
+  String get inboxEmptyTitle => 'Your chats will appear here';
+
+  @override
+  String get inboxEmptyHint =>
+      'Message a friend, create a group or join with a link';
+
+  @override
+  String get inboxResetFilters => 'All chats';
+
+  @override
   String get inboxSearchEmpty => 'Nothing found';
 
   @override
   String get inboxSearchEmptyHint => 'Try another search';
+
+  @override
+  String get inboxSearchPeople => 'People';
+
+  @override
+  String get inboxSearchDirectChat => 'Direct chat';
+
+  @override
+  String get inboxSearchMessage => 'Message';
+
+  @override
+  String get inboxSearchFailed =>
+      'Search failed. Check your connection and try again.';
 
   @override
   String get inboxWaitingToSend => 'Waiting to send';

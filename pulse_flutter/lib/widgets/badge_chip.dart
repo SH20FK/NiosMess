@@ -280,20 +280,9 @@ class BadgeChip extends StatelessWidget {
 
     switch (mode) {
       case BadgeDisplayMode.statusIcon:
-        // A. Блок Имени: Монохромный глянцевый значок со свечением
-        child = Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: scheme.primary.withValues(alpha: 0.35),
-                blurRadius: 10,
-                spreadRadius: -2,
-              ),
-            ],
-          ),
-          child: _buildIcon(resolved, scheme.primary, 18),
-        );
+        // A. Блок имени: монохромный значок. Без свечения: значок стоит в
+        // каждой строке списка чатов, блюр там запрещён.
+        child = _buildIcon(resolved, scheme.primary, 18);
         break;
 
       case BadgeDisplayMode.avatarBadge:

@@ -419,6 +419,24 @@ abstract class SecretChatLocalizations {
   /// **'Select All to return to every chat'**
   String get inboxFilterResetHint;
 
+  /// No description provided for @inboxEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your chats will appear here'**
+  String get inboxEmptyTitle;
+
+  /// No description provided for @inboxEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Message a friend, create a group or join with a link'**
+  String get inboxEmptyHint;
+
+  /// No description provided for @inboxResetFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'All chats'**
+  String get inboxResetFilters;
+
   /// No description provided for @inboxSearchEmpty.
   ///
   /// In en, this message translates to:
@@ -430,6 +448,30 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Try another search'**
   String get inboxSearchEmptyHint;
+
+  /// No description provided for @inboxSearchPeople.
+  ///
+  /// In en, this message translates to:
+  /// **'People'**
+  String get inboxSearchPeople;
+
+  /// No description provided for @inboxSearchDirectChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct chat'**
+  String get inboxSearchDirectChat;
+
+  /// No description provided for @inboxSearchMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get inboxSearchMessage;
+
+  /// No description provided for @inboxSearchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Search failed. Check your connection and try again.'**
+  String get inboxSearchFailed;
 
   /// No description provided for @inboxWaitingToSend.
   ///

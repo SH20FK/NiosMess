@@ -192,10 +192,33 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
       'Выберите «Все», чтобы вернуться ко всем чатам';
 
   @override
+  String get inboxEmptyTitle => 'Здесь будут ваши чаты';
+
+  @override
+  String get inboxEmptyHint =>
+      'Напишите другу, создайте группу или вступите по ссылке';
+
+  @override
+  String get inboxResetFilters => 'Все чаты';
+
+  @override
   String get inboxSearchEmpty => 'Ничего не найдено';
 
   @override
   String get inboxSearchEmptyHint => 'Попробуйте изменить поисковый запрос';
+
+  @override
+  String get inboxSearchPeople => 'Люди';
+
+  @override
+  String get inboxSearchDirectChat => 'Личный чат';
+
+  @override
+  String get inboxSearchMessage => 'Сообщение';
+
+  @override
+  String get inboxSearchFailed =>
+      'Поиск не удался. Проверьте соединение и повторите.';
 
   @override
   String get inboxWaitingToSend => 'Ожидает отправки';

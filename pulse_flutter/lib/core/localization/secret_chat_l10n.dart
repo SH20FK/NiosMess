@@ -345,8 +345,15 @@ extension SecretChatL10n on AppLocalizations {
   String get inboxNoUnread => _secret.inboxNoUnread;
   String get inboxCategoryEmpty => _secret.inboxCategoryEmpty;
   String get inboxFilterResetHint => _secret.inboxFilterResetHint;
+  String get inboxEmptyTitle => _secret.inboxEmptyTitle;
+  String get inboxEmptyHint => _secret.inboxEmptyHint;
+  String get inboxResetFilters => _secret.inboxResetFilters;
   String get inboxSearchEmpty => _secret.inboxSearchEmpty;
   String get inboxSearchEmptyHint => _secret.inboxSearchEmptyHint;
+  String get inboxSearchPeople => _secret.inboxSearchPeople;
+  String get inboxSearchDirectChat => _secret.inboxSearchDirectChat;
+  String get inboxSearchMessage => _secret.inboxSearchMessage;
+  String get inboxSearchFailed => _secret.inboxSearchFailed;
   String get inboxWaitingToSend => _secret.inboxWaitingToSend;
   String get inboxSendFailed => _secret.inboxSendFailed;
   String get inboxDraftSemantics => _secret.inboxDraftSemantics;

@@ -159,11 +159,17 @@ class _ChatTileState extends State<ChatTile> {
   /// Preview copy for the typing state. A caller without a participant list
   /// keeps its own subtitle (already localized by the screen); a list switches
   /// to the shared one-person/group typing strings.
+  static final RegExp _trailingDots = RegExp(r'[.…\s]+$');
+
   String _typingText(BuildContext context) {
     final List<String>? names = widget.typingNames;
-    if (names == null || names.isEmpty) return widget.subtitle;
-    if (names.length > 1) return context.l10n.chatTypingMultiple;
-    return context.l10n.chatTypingOne(names.first);
+    final String text = names == null || names.isEmpty
+        ? widget.subtitle
+        : names.length > 1
+        ? context.l10n.chatTypingMultiple
+        : context.l10n.chatTypingOne(names.first);
+    // The animated dots follow the copy: a literal "..." would double them.
+    return text.replaceFirst(_trailingDots, '');
   }
 
   /// The avatar flies into the chat header avatar when the chat opens.
@@ -178,6 +184,8 @@ class _ChatTileState extends State<ChatTile> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final ApiBadge? statusBadge = _resolveStatusBadge(widget.partnerBadges);
+    // Same user-tunable radius as the swipe backdrop behind the row.
+    final BorderRadius rowRadius = AppRadii.of(context).lgRadius;
 
     final bool hasUnread = widget.unreadCount > 0;
     final bool reduceMotion = context.reduceMotion;
@@ -227,7 +235,7 @@ class _ChatTileState extends State<ChatTile> {
           onTap: widget.onTap,
           onLongPress: widget.onLongPress,
           onSecondaryTapDown: widget.onSecondaryTapDown,
-          borderRadius: AppRadii.lgRadius,
+          borderRadius: rowRadius,
           scaleDown: 0.98,
           releaseCurve: M3SpringCurves.spatialFast,
           enableHaptics: widget.enableHaptics,
@@ -260,7 +268,7 @@ class _ChatTileState extends State<ChatTile> {
                 curve: M3SpringCurves.effectsFast,
                 decoration: BoxDecoration(
                   color: tileBg,
-                  borderRadius: AppRadii.lgRadius,
+                  borderRadius: rowRadius,
                   border: widget.keyMismatch
                       ? Border.all(
                           color: scheme.error.withValues(alpha: 0.35),

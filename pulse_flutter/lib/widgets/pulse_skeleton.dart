@@ -145,6 +145,8 @@ class _ChatRowPlaceholder extends StatelessWidget {
     // Deterministic variety so the placeholder does not look like a barcode.
     final double titleFactor = 0.42 + (index % 3) * 0.11;
     final double subtitleFactor = 0.58 + (index % 4) * 0.10;
+    // Same user-tunable radius as the real row.
+    final BorderRadius radius = AppRadii.of(context).lgRadius;
 
     return Container(
       key: ValueKey<String>('chat_skeleton_row_$index'),
@@ -154,12 +156,12 @@ class _ChatRowPlaceholder extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: AppRadii.lgRadius,
+        borderRadius: radius,
       ),
       // A layout border would add 1dp on every side (76 → 78 and a shifted
       // avatar); painting it in the foreground keeps ChatTile's exact metrics.
       foregroundDecoration: BoxDecoration(
-        borderRadius: AppRadii.lgRadius,
+        borderRadius: radius,
         border: Border.all(
           color: scheme.outlineVariant.withValues(alpha: 0.18),
         ),

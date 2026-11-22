@@ -119,4 +119,48 @@ void main() {
     await pumpNav(tester, unread: 0, index: 1);
     expect(find.byType(Badge), findsNothing);
   });
+
+  testWidgets('tapping the active destination reselects instead of navigating', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        uiSettingsProvider.overrideWith(_NavSettings.new),
+        totalUnreadCountProvider.overrideWithValue(0),
+      ],
+    );
+    addTearDown(container.dispose);
+    final List<int> taps = <int>[];
+    final List<int> reselects = <int>[];
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          locale: const Locale('ru'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            bottomNavigationBar: AppBottomNav(
+              currentIndex: 0,
+              hapticsEnabled: false,
+              onTap: taps.add,
+              onReselect: (int index) {
+                reselects.add(index);
+                return true;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(NavigationDestination).first);
+    expect(reselects, <int>[0]);
+    expect(taps, isEmpty);
+
+    await tester.tap(find.byType(NavigationDestination).last);
+    expect(taps, <int>[2]);
+    expect(reselects, <int>[0]);
+  });
 }

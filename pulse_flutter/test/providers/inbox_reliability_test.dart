@@ -35,6 +35,12 @@ class _FailingRepo extends ChatRepository {
       throw const ApiException(statusCode: 0, message: 'offline');
 }
 
+class _OkRepo extends ChatRepository {
+  _OkRepo(super.ref);
+  @override
+  Future<int> markRead(int chatId) async => 0;
+}
+
 class _Chats extends ChatsNotifier {
   @override
   Future<List<ApiChatSummary>> build() async => const [
@@ -96,6 +102,45 @@ void main() {
       await messages.markRead();
     },
   );
+  test(
+    'inbox mark-read clears the badge without building the message history',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith(_Auth.new),
+          chatsProvider.overrideWith(_Chats.new),
+          secretChatCoordinatorProvider.overrideWith((ref) async => null),
+          chatRepositoryProvider.overrideWith(_OkRepo.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(chatsProvider.future);
+      final chats = container.read(chatsProvider.notifier);
+      await chats.markReadFromInbox(1);
+      expect(container.read(chatsProvider).requireValue.single.unreadCount, 0);
+      expect(chats.hasPendingReadReset(1), isFalse);
+      expect(container.exists(chatMessagesProvider(1)), isFalse);
+    },
+  );
+  test('failed inbox mark-read restores the badge and reports the failure', () async {
+    final container = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(_Auth.new),
+        chatsProvider.overrideWith(_Chats.new),
+        secretChatCoordinatorProvider.overrideWith((ref) async => null),
+        chatRepositoryProvider.overrideWith(_FailingRepo.new),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(chatsProvider.future);
+    final chats = container.read(chatsProvider.notifier);
+    await expectLater(
+      chats.markReadFromInbox(1),
+      throwsA(isA<ApiException>()),
+    );
+    expect(container.read(chatsProvider).requireValue.single.unreadCount, 2);
+    expect(chats.hasPendingReadReset(1), isFalse);
+  });
   test(
     'draft save and removal update a live inbox projection after storage commit',
     () async {

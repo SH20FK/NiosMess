@@ -1106,6 +1106,28 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
 
   /// True when a local mark-read reset is waiting for its server confirmation.
   bool hasPendingReadReset(int chatId) => _readResets.containsKey(chatId);
+
+  /// Marks [chatId] read straight from the inbox: the badge clears at once and
+  /// a single `mark_read` request goes out. Unlike
+  /// [ChatMessagesNotifier.markRead] it does not build the chat's message
+  /// provider, so a swipe never loads a conversation history. Secret chats
+  /// need their engine and stay on the message-provider path.
+  Future<void> markReadFromInbox(int chatId) async {
+    // Same rule as the message provider: a backgrounded app must not cancel
+    // the system push as already read.
+    if (!PushNotificationService.isForeground) {
+      throw StateError('READ_RECEIPT_UNAVAILABLE: app is in background');
+    }
+    final int generation = _generation;
+    markChatAsRead(chatId);
+    try {
+      await ref.read(chatRepositoryProvider).markRead(chatId);
+    } catch (_) {
+      if (_valid(generation)) rollbackChatRead(chatId);
+      rethrow;
+    }
+    if (_valid(generation)) confirmChatRead(chatId);
+  }
 }
 
 final AsyncNotifierProvider<ChatsNotifier, List<ApiChatSummary>> chatsProvider =

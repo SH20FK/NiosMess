@@ -2437,6 +2437,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             canPop: !widget.isDesktopSplit && canRoutePop,
             onPopInvokedWithResult: (bool didPop, Object? result) {
               if (didPop) return;
+              // Native two-pane layout: the shell's PopScope on the same route
+              // closes this pane. Handling it here as well made one back press
+              // do two things.
+              if (widget.isDesktopSplit && !kIsWeb) return;
               _goBack();
             },
             child: Scaffold(
