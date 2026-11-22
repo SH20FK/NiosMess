@@ -44,6 +44,10 @@ import 'unit/expression_editing_test.dart' as expression_editing;
 import 'widgets/settings_refresh_test.dart' as settings_refresh;
 import 'widgets/feed_features_test.dart' as feed_features;
 import 'unit/settings_registry_test.dart' as settings_registry_navigation;
+import 'unit/settings_integrity_test.dart' as settings_integrity;
+import 'unit/settings_persistence_test.dart' as settings_persistence;
+import 'widgets/settings_performance_phase4_test.dart'
+    as settings_performance_phase4;
 import 'unit/comment_thread_test.dart' as comment_threads;
 import 'widgets/comment_item_test.dart' as comment_items;
 import 'providers/post_comments_provider_test.dart' as comment_provider;
@@ -491,6 +495,9 @@ void main() {
     widgets_public_profile_gallery.main();
     settings_refresh.main();
     settings_registry_navigation.main();
+    settings_integrity.main();
+    settings_persistence.main();
+    settings_performance_phase4.main();
     chat_productivity.main();
     widgets_settings_about_screen.main();
     widgets_settings_desktop_restructure.main();
