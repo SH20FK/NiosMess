@@ -581,6 +581,90 @@ abstract class SecretChatLocalizations {
   /// **'muted'**
   String get inboxMutedSemantics;
 
+  /// No description provided for @inboxPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get inboxPin;
+
+  /// No description provided for @inboxUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get inboxUnpin;
+
+  /// No description provided for @inboxArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get inboxArchive;
+
+  /// No description provided for @inboxUnarchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Unarchive'**
+  String get inboxUnarchive;
+
+  /// No description provided for @inboxMarkUnread.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as unread'**
+  String get inboxMarkUnread;
+
+  /// No description provided for @inboxSwipeUnread.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread'**
+  String get inboxSwipeUnread;
+
+  /// No description provided for @inboxSwipeUnarchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Unarchive'**
+  String get inboxSwipeUnarchive;
+
+  /// No description provided for @inboxArchiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get inboxArchiveTitle;
+
+  /// No description provided for @inboxArchiveCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} chat} other{{count} chats}}'**
+  String inboxArchiveCount(int count);
+
+  /// No description provided for @inboxArchivedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat archived'**
+  String get inboxArchivedToast;
+
+  /// No description provided for @inboxUnarchivedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat returned from the archive'**
+  String get inboxUnarchivedToast;
+
+  /// No description provided for @inboxPinLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'You can pin up to {count} chats'**
+  String inboxPinLimit(int count);
+
+  /// No description provided for @inboxPinnedSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'pinned'**
+  String get inboxPinnedSemantics;
+
+  /// No description provided for @inboxMarkedUnreadSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'marked as unread'**
+  String get inboxMarkedUnreadSemantics;
+
   /// No description provided for @composeOpenDialogFailed.
   ///
   /// In en, this message translates to:

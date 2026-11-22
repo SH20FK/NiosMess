@@ -302,6 +302,60 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get inboxMutedSemantics => 'без звука';
 
   @override
+  String get inboxPin => 'Закрепить';
+
+  @override
+  String get inboxUnpin => 'Открепить';
+
+  @override
+  String get inboxArchive => 'В архив';
+
+  @override
+  String get inboxUnarchive => 'Вернуть из архива';
+
+  @override
+  String get inboxMarkUnread => 'Отметить непрочитанным';
+
+  @override
+  String get inboxSwipeUnread => 'Непрочитано';
+
+  @override
+  String get inboxSwipeUnarchive => 'Вернуть';
+
+  @override
+  String get inboxArchiveTitle => 'Архив';
+
+  @override
+  String inboxArchiveCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count чата',
+      many: '$count чатов',
+      few: '$count чата',
+      one: '$count чат',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inboxArchivedToast => 'Чат убран в архив';
+
+  @override
+  String get inboxUnarchivedToast => 'Чат возвращён из архива';
+
+  @override
+  String inboxPinLimit(int count) {
+    return 'Можно закрепить не больше $count чатов';
+  }
+
+  @override
+  String get inboxPinnedSemantics => 'закреплён';
+
+  @override
+  String get inboxMarkedUnreadSemantics => 'отмечен непрочитанным';
+
+  @override
   String get composeOpenDialogFailed => 'Не удалось открыть диалог';
 
   @override

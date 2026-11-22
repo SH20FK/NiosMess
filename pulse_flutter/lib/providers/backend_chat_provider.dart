@@ -149,6 +149,14 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   /// roll the badge back when the server call fails or cannot run.
   final Map<int, Map<int, int>> _readResets = {};
 
+  /// Mute toggles made on this device that the server has not stored yet, by
+  /// chat id. A snapshot must not undo them; they are sent again after it.
+  final Map<int, bool> _muteUploads = <int, bool>{};
+  bool _muteUploadRunning = false;
+
+  /// Most chats one `set_chat_state` request may carry.
+  static const int _stateBatch = 100;
+
   Timer? _persistTimer;
   final _previewDecryptions = <String>{};
   List<ApiChatSummary>? _pendingChats;
@@ -221,6 +229,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       _unreadTouchedAt.clear();
       _unreadLoweredAt.clear();
       _readResets.clear();
+      _muteUploads.clear();
     }
     _previewDecryptions.clear();
     // Riverpod carries the previous value through a rebuild, and another
@@ -252,6 +261,20 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       ref.onDispose(() => ordinary.removeListener(onKeysChanged));
       unawaited(ordinary.open().catchError((Object _) {}));
     }
+    // A mute toggled anywhere in the app lands in the hub. From there it goes
+    // to the server, so every device of the account follows. Only a change
+    // between two loaded sets counts: a reload belongs to another account.
+    ref.listen(chatMuteHubProvider, (
+      AsyncValue<Set<int>>? previous,
+      AsyncValue<Set<int>> next,
+    ) {
+      if (!_valid(generation)) return;
+      if (previous == null || previous.isLoading || next.isLoading) return;
+      final Set<int>? before = previous.value;
+      final Set<int>? after = next.value;
+      if (before == null || after == null) return;
+      _queueMuteUploads(before, after);
+    });
     final productivitySubscription = ref
         .read(webSocketClientProvider)
         .pushStream
@@ -262,6 +285,19 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
               data is Map &&
               data['chat_id'] != null) {
             unawaited(refresh());
+          }
+          // Pin, archive, mute or manual unread changed on another device.
+          if (event['action'] == 'chat_state_changed' && data is Map) {
+            final dynamic rows = data['chats'];
+            if (rows is List) {
+              applyChatStates(<Map<String, dynamic>>[
+                for (final Map<dynamic, dynamic> row in rows.whereType<Map>())
+                  row.map(
+                    (dynamic key, dynamic value) =>
+                        MapEntry<String, dynamic>(key.toString(), value),
+                  ),
+              ]);
+            }
           }
           if (event['action'] == 'chat_reminder_due' && data is Map) {
             final notification = <String, dynamic>{
@@ -481,6 +517,12 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
             c.id: 0,
       };
       if (zeros.isNotEmpty) _writeUnread(zeros);
+      // The server takes a manual unread mark back together with the counter.
+      _rewriteChats(
+        <int>{chatId},
+        (ApiChatSummary c) =>
+            c.markedUnread ? c.copyWith(markedUnread: false) : c,
+      );
     } else {
       // Peer read the chat: mark our last message as read
       if (chat.lastMessage != null &&
@@ -788,6 +830,21 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         unreadCount: newUnreadCount,
       );
 
+      // Same rule as the server: a message from someone else returns an
+      // archived chat to the inbox unless its notifications are muted. A
+      // message in a topic returns the group.
+      if (message.senderId != myUserId) {
+        final int rootId = chat.topicParentId ?? chat.id;
+        final int rootIndex = rootId == chat.id
+            ? index
+            : updated.indexWhere((ApiChatSummary c) => c.id == rootId);
+        if (rootIndex != -1 &&
+            updated[rootIndex].isArchived &&
+            updated[rootIndex].notificationsMuted != true) {
+          updated[rootIndex] = updated[rootIndex].copyWith(isArchived: false);
+        }
+      }
+
       if (newUnreadCount != chat.unreadCount) {
         final DateTime now = DateTime.now();
         _unreadTouchedAt[chat.id] = now;
@@ -936,7 +993,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     } else {
       unreadCount = incoming.unreadCount;
     }
-    return incoming.copyWith(
+    final ApiChatSummary merged = incoming.copyWith(
       name: incoming.name.trim().isEmpty ? known.name : null,
       username: _isBlank(incoming.username) ? known.username : null,
       avatarUrl: _isBlank(incoming.avatarUrl) ? known.avatarUrl : null,
@@ -964,6 +1021,18 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       // A device-bound key mismatch is a safety signal: it stays sticky until a
       // rebind clears it on both sides.
       keyMismatch: known.keyMismatch || incoming.keyMismatch,
+    );
+    // A pointwise summary without the inbox state says nothing about it: what
+    // is known stays. A full snapshot is the server's word either way.
+    if (requestedAt != null || incoming.notificationsMuted != null) {
+      return merged;
+    }
+    return merged.copyWith(
+      pinnedAt: known.pinnedAt,
+      clearPin: known.pinnedAt == null,
+      isArchived: known.isArchived,
+      markedUnread: known.markedUnread,
+      notificationsMuted: known.notificationsMuted,
     );
   }
 
@@ -996,6 +1065,7 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       state = AsyncData<List<ApiChatSummary>>(merged);
       // Cache mirrors the final state, never the raw response.
       _persistChats(merged);
+      unawaited(_adoptServerMutes(merged, generation));
       // Hydrate presentation after publishing; never block the inbox on
       // key/network repair.
       final previewAccount = ref.read(authProvider).session?.userId;
@@ -1157,8 +1227,257 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       if (_valid(generation)) rollbackChatRead(chatId);
       rethrow;
     }
-    if (_valid(generation)) confirmChatRead(chatId);
+    if (!_valid(generation)) return;
+    confirmChatRead(chatId);
+    // The server takes a manual unread mark back together with the counter.
+    _rewriteChats(
+      <int>{chatId},
+      (ApiChatSummary chat) =>
+          chat.markedUnread ? chat.copyWith(markedUnread: false) : chat,
+    );
   }
+
+  /// Server id of [chat]: a secret conversation is listed under its local id.
+  int _remoteId(ApiChatSummary chat) {
+    if (!chat.isSecret) return chat.id;
+    return ref.read(secretChatEngineProvider)?.chat(chat.id)['remote_id']
+            as int? ??
+        chat.id;
+  }
+
+  /// Rewrites the summaries of [ids] and, when one of them changed, publishes
+  /// the list again in inbox order.
+  void _rewriteChats(
+    Set<int> ids,
+    ApiChatSummary Function(ApiChatSummary chat) rewrite,
+  ) {
+    final List<ApiChatSummary>? current = state.value;
+    if (current == null) return;
+    bool changed = false;
+    final List<ApiChatSummary> updated = <ApiChatSummary>[];
+    for (final ApiChatSummary chat in current) {
+      final ApiChatSummary next = ids.contains(chat.id) ? rewrite(chat) : chat;
+      if (!identical(next, chat)) changed = true;
+      updated.add(next);
+    }
+    if (!changed) return;
+    updated.sort(compareChatRecency);
+    state = AsyncData<List<ApiChatSummary>>(updated);
+    _persistChats(updated);
+  }
+
+  /// Pins, archives or marks [chats] unread for the whole account. Only the
+  /// flags that are passed change. Chats that keep no such state (topics,
+  /// «Избранное», a server without it) are skipped. The list follows the
+  /// server's answer, so a refused request changes nothing on screen.
+  Future<void> setInboxState(
+    Iterable<ApiChatSummary> chats, {
+    bool? pinned,
+    bool? archived,
+    bool? unread,
+  }) async {
+    final int generation = _generation;
+    final List<ApiChatSummary> targets = <ApiChatSummary>[
+      for (final ApiChatSummary chat in chats)
+        if (chat.hasInboxState) chat,
+    ];
+    if (targets.isEmpty) return;
+    if (pinned == true) {
+      final Set<int> ids = <int>{
+        for (final ApiChatSummary chat in targets) chat.id,
+      };
+      final int others = (state.value ?? const <ApiChatSummary>[])
+          .where((ApiChatSummary c) => c.isPinned && !ids.contains(c.id))
+          .length;
+      if (others + targets.length > kMaxPinnedChats) {
+        throw const ChatPinLimitException();
+      }
+    }
+    final List<int> remoteIds = <int>[
+      for (final ApiChatSummary chat in targets) _remoteId(chat),
+    ];
+    for (int start = 0; start < remoteIds.length; start += _stateBatch) {
+      final List<Map<String, dynamic>> rows = await ref
+          .read(chatRepositoryProvider)
+          .setChatState(
+            remoteIds.skip(start).take(_stateBatch).toList(growable: false),
+            pinned: pinned,
+            archived: archived,
+            unread: unread,
+          );
+      if (!_valid(generation)) return;
+      applyChatStates(rows);
+    }
+  }
+
+  /// Applies inbox state rows stored by the server: the answer to
+  /// `set_chat_state` or a `chat_state_changed` push from another device.
+  /// Rows carry server chat ids.
+  void applyChatStates(List<Map<String, dynamic>> rows) {
+    final Map<int, Map<String, dynamic>> byRemoteId =
+        <int, Map<String, dynamic>>{
+          for (final Map<String, dynamic> row in rows)
+            if (row['chat_id'] is num) (row['chat_id'] as num).toInt(): row,
+        };
+    final List<ApiChatSummary>? current = state.value;
+    if (byRemoteId.isEmpty || current == null) return;
+    final Map<int, Map<String, dynamic>> byId = <int, Map<String, dynamic>>{};
+    for (final ApiChatSummary chat in current) {
+      final Map<String, dynamic>? row = byRemoteId[_remoteId(chat)];
+      if (row != null) byId[chat.id] = row;
+    }
+    if (byId.isEmpty) return;
+    _rewriteChats(byId.keys.toSet(), (ApiChatSummary chat) {
+      final Map<String, dynamic> row = byId[chat.id]!;
+      final DateTime? pinnedAt = DateTime.tryParse(
+        row['pinned_at']?.toString() ?? '',
+      );
+      final bool archived = row['is_archived'] == true;
+      final bool unread = row['marked_unread'] == true;
+      final bool muted = row['notifications_muted'] == true;
+      if (chat.pinnedAt == pinnedAt &&
+          chat.isArchived == archived &&
+          chat.markedUnread == unread &&
+          chat.notificationsMuted == muted) {
+        return chat;
+      }
+      return chat.copyWith(
+        pinnedAt: pinnedAt,
+        clearPin: pinnedAt == null,
+        isArchived: archived,
+        markedUnread: unread,
+        notificationsMuted: muted,
+      );
+    });
+    // The summaries above already carry the server value, so the hub change
+    // below is not sent back. A toggle still waiting to be uploaded wins.
+    final Map<int, bool> mutes = <int, bool>{
+      for (final MapEntry<int, Map<String, dynamic>> entry in byId.entries)
+        if (!_muteUploads.containsKey(entry.key))
+          entry.key: entry.value['notifications_muted'] == true,
+    };
+    if (mutes.isEmpty) return;
+    unawaited(
+      ref
+          .read(chatMuteHubProvider.notifier)
+          .applyServerMutes(mutes)
+          .catchError((Object _) {}),
+    );
+  }
+
+  /// Brings the device mute preference in line with a server snapshot, then
+  /// sends what the server does not know yet.
+  Future<void> _adoptServerMutes(
+    List<ApiChatSummary> chats,
+    int generation,
+  ) async {
+    final Map<int, bool> values = <int, bool>{
+      for (final ApiChatSummary chat in chats)
+        if (chat.hasInboxState && !_muteUploads.containsKey(chat.id))
+          chat.id: chat.notificationsMuted == true,
+    };
+    if (values.isNotEmpty) {
+      try {
+        final Set<int> localOnly = await ref
+            .read(chatMuteHubProvider.notifier)
+            .adoptServerMutes(values);
+        if (!_valid(generation)) return;
+        for (final int id in localOnly) {
+          _muteUploads.putIfAbsent(id, () => true);
+        }
+      } catch (_) {
+        debugPrint('[backend_chat_provider.dart] Mute adoption failed');
+      }
+    }
+    if (_valid(generation) && _muteUploads.isNotEmpty) {
+      unawaited(_uploadMutes());
+    }
+  }
+
+  /// Queues the chats whose mute changed in the hub for upload. A change that
+  /// only repeats what the server already stores is not sent.
+  void _queueMuteUploads(Set<int> before, Set<int> after) {
+    final Map<int, ApiChatSummary> known = <int, ApiChatSummary>{
+      for (final ApiChatSummary chat in state.value ?? const <ApiChatSummary>[])
+        chat.id: chat,
+    };
+    for (final int id in <int>{
+      ...before.difference(after),
+      ...after.difference(before),
+    }) {
+      final bool muted = after.contains(id);
+      final ApiChatSummary? chat = known[id];
+      if (chat == null ||
+          !chat.hasInboxState ||
+          chat.notificationsMuted == muted) {
+        _muteUploads.remove(id);
+      } else {
+        _muteUploads[id] = muted;
+      }
+    }
+    if (_muteUploads.isNotEmpty) unawaited(_uploadMutes());
+  }
+
+  /// Sends the queued mute toggles, one request per value. A failed request
+  /// leaves its chats queued: the next snapshot (reconnect, refresh) sends
+  /// them again.
+  Future<void> _uploadMutes() async {
+    if (_muteUploadRunning) return;
+    _muteUploadRunning = true;
+    final int generation = _generation;
+    try {
+      while (_muteUploads.isNotEmpty && _valid(generation)) {
+        final bool muted = _muteUploads.values.first;
+        final Map<int, ApiChatSummary> known = <int, ApiChatSummary>{
+          for (final ApiChatSummary chat
+              in state.value ?? const <ApiChatSummary>[])
+            chat.id: chat,
+        };
+        // Chat id in the list -> server id.
+        final Map<int, int> remoteIds = <int, int>{};
+        for (final MapEntry<int, bool> entry
+            in _muteUploads.entries.toList(growable: false)) {
+          if (entry.value != muted) continue;
+          final ApiChatSummary? chat = known[entry.key];
+          if (chat == null ||
+              !chat.hasInboxState ||
+              chat.notificationsMuted == muted) {
+            _muteUploads.remove(entry.key);
+          } else if (remoteIds.length < _stateBatch) {
+            remoteIds[entry.key] = _remoteId(chat);
+          }
+        }
+        if (remoteIds.isEmpty) continue;
+        final List<Map<String, dynamic>> rows;
+        try {
+          rows = await ref
+              .read(chatRepositoryProvider)
+              .setChatState(
+                remoteIds.values.toList(growable: false),
+                muted: muted,
+              );
+        } catch (_) {
+          debugPrint('[backend_chat_provider.dart] Mute sync failed');
+          return;
+        }
+        if (!_valid(generation)) return;
+        for (final int id in remoteIds.keys) {
+          if (_muteUploads[id] == muted) _muteUploads.remove(id);
+        }
+        applyChatStates(rows);
+      }
+    } finally {
+      _muteUploadRunning = false;
+    }
+  }
+}
+
+/// Pinning would take the account over [kMaxPinnedChats] pinned chats.
+class ChatPinLimitException implements Exception {
+  const ChatPinLimitException();
+
+  @override
+  String toString() => 'ChatPinLimitException';
 }
 
 final AsyncNotifierProvider<ChatsNotifier, List<ApiChatSummary>> chatsProvider =
@@ -1206,19 +1525,24 @@ final chatOnlineProvider = Provider.autoDispose.family<bool, int>((
 });
 
 /// Unread messages the navigation badge counts: every chat whose
-/// notifications are on. A muted chat (or a topic of a muted group) keeps its
-/// own counter in the list but does not ask for attention from every screen.
+/// notifications are on and that is not archived. A muted chat (or a topic of
+/// a muted group) keeps its own counter in the list but does not ask for
+/// attention from every screen. A chat marked unread by hand counts as one.
 final Provider<int> totalUnreadCountProvider = Provider<int>((Ref ref) {
   final List<ApiChatSummary>? chats = ref.watch(chatsProvider).value;
   if (chats == null) return 0;
-  final Set<int> muted = ref.watch(chatMuteHubProvider).value ?? const <int>{};
+  final Set<int> quiet = <int>{
+    ...?ref.watch(chatMuteHubProvider).value,
+    for (final ApiChatSummary chat in chats)
+      if (chat.isArchived) chat.id,
+  };
   int total = 0;
   for (final ApiChatSummary chat in chats) {
-    if (chat.unreadCount <= 0) continue;
-    if (muted.contains(chat.id) || muted.contains(chat.topicParentId)) {
+    if (!chat.hasUnread) continue;
+    if (quiet.contains(chat.id) || quiet.contains(chat.topicParentId)) {
       continue;
     }
-    total += chat.unreadCount;
+    total += chat.unreadCount > 0 ? chat.unreadCount : 1;
   }
   return total;
 });

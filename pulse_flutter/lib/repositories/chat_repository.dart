@@ -1174,6 +1174,41 @@ class ChatRepository {
     return 0;
   }
 
+  /// Sets the account-wide inbox state of [chatIds]: pin, archive, notification
+  /// mute, manual unread. Only the flags that are passed change. Returns the
+  /// state rows the server stored (`chat_id`, `pinned_at`, `is_archived`,
+  /// `notifications_muted`, `marked_unread`), in the order of the request.
+  Future<List<Map<String, dynamic>>> setChatState(
+    List<int> chatIds, {
+    bool? pinned,
+    bool? archived,
+    bool? muted,
+    bool? unread,
+  }) async {
+    final dynamic response = await _ref
+        .read(webSocketClientProvider)
+        .request(
+          'set_chat_state',
+          payload: <String, dynamic>{
+            'chat_ids': chatIds,
+            'pinned': ?pinned,
+            'archived': ?archived,
+            'muted': ?muted,
+            'unread': ?unread,
+          },
+        );
+    final dynamic rows = response is Map ? response['chats'] : null;
+    if (rows is! List) return const <Map<String, dynamic>>[];
+    return rows
+        .whereType<Map>()
+        .map(
+          (Map item) => item.map(
+            (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+          ),
+        )
+        .toList(growable: false);
+  }
+
   Future<List<ApiChatMember>> getMembers(int chatId) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)

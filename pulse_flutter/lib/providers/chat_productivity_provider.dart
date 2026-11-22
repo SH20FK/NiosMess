@@ -456,10 +456,13 @@ final _chatFolderUnreadMapProvider =
       final unread = <String, int>{};
       final alert = <String>{};
       for (final chat in chats) {
-        if (chat.unreadCount <= 0) continue;
+        // Archived chats are out of the inbox, so out of its folders too.
+        if (!chat.hasUnread || chat.isArchived) continue;
+        // A chat marked unread by hand counts as one.
+        final count = chat.unreadCount > 0 ? chat.unreadCount : 1;
         for (final folder in folders) {
           if (!folder.includes(chat)) continue;
-          unread[folder.id] = (unread[folder.id] ?? 0) + chat.unreadCount;
+          unread[folder.id] = (unread[folder.id] ?? 0) + count;
           if (!muted.contains(chat.id)) alert.add(folder.id);
         }
       }

@@ -60,6 +60,8 @@ class ChatTile extends StatefulWidget {
     this.deliveryIcon,
     this.deliveryLabel,
     this.isMuted = false,
+    this.isPinned = false,
+    this.markedUnread = false,
     this.enableHaptics = true,
     this.compact = false,
     this.isOnline = false,
@@ -114,6 +116,14 @@ class ChatTile extends StatefulWidget {
   /// read out by the screen reader, a failed one replaces the preview.
   final String? deliveryLabel;
   final bool isMuted;
+
+  /// Pinned by the account: a pin glyph closes the preview line whenever the
+  /// unread pill does not take that place.
+  final bool isPinned;
+
+  /// Marked unread by hand. With no unread messages the row still reads as
+  /// unread and shows a bare dot instead of a counter.
+  final bool markedUnread;
   final bool enableHaptics;
   final bool compact;
   final bool isOnline;
@@ -224,7 +234,7 @@ class _ChatTileState extends State<ChatTile> {
     // Same user-tunable radius as the swipe backdrop behind the row.
     final BorderRadius rowRadius = AppRadii.of(context).lgRadius;
 
-    final bool hasUnread = widget.unreadCount > 0;
+    final bool hasUnread = widget.unreadCount > 0 || widget.markedUnread;
     final bool reduceMotion = context.reduceMotion;
     final Duration surfaceDuration = reduceMotion
         ? Duration.zero
@@ -254,7 +264,11 @@ class _ChatTileState extends State<ChatTile> {
       if (previewShown && preview.isNotEmpty)
         author == null ? preview : '$author: $preview',
       if (widget.formattedTime.isNotEmpty) widget.formattedTime,
-      if (hasUnread) context.l10n.chatListUnreadCount(widget.unreadCount),
+      if (widget.unreadCount > 0)
+        context.l10n.chatListUnreadCount(widget.unreadCount)
+      else if (widget.markedUnread)
+        context.l10n.inboxMarkedUnreadSemantics,
+      if (widget.isPinned) context.l10n.inboxPinnedSemantics,
       if (widget.isSelected || widget.isPicked)
         context.l10n.inboxSelectedSemantics,
       if (widget.isMuted) context.l10n.inboxMutedSemantics,
@@ -849,6 +863,29 @@ class _ChatTileState extends State<ChatTile> {
                 color: _deliveryColor(scheme),
               ),
             ],
+            // The switcher shows its first child as is, so a row that scrolls
+            // into view does not replay the pin; pinning a visible row springs
+            // the glyph in while the row slides to the top.
+            AnimatedSwitcher(
+              duration: context.reduceMotion
+                  ? Duration.zero
+                  : M3Durations.spatialFast,
+              switchInCurve: M3SpringCurves.spatialFast,
+              switchOutCurve: M3SpringCurves.expressiveAccel,
+              transitionBuilder: (Widget child, Animation<double> animation) =>
+                  ScaleTransition(scale: animation, child: child),
+              child: widget.isPinned && !hasUnread
+                  ? Padding(
+                      key: const ValueKey<String>('chat-tile-pin'),
+                      padding: const EdgeInsetsDirectional.only(start: 6),
+                      child: Icon(
+                        Icons.push_pin_rounded,
+                        size: 16,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         );
       },
@@ -950,14 +987,21 @@ class _AnimatedBadge extends StatelessWidget {
       },
       child: Container(
         key: ValueKey<String>('${count}_$isMuted'),
-        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        // No count: the chat is marked unread by hand and shows a bare dot.
+        constraints: count > 0
+            ? const BoxConstraints(minWidth: 20, minHeight: 20)
+            : const BoxConstraints.tightFor(width: 12, height: 12),
+        padding: count > 0
+            ? const EdgeInsets.symmetric(horizontal: 7, vertical: 2)
+            : EdgeInsets.zero,
         decoration: BoxDecoration(
           color: background,
           borderRadius: BorderRadius.circular(12),
         ),
         alignment: Alignment.center,
-        child: Text(
+        child: count <= 0
+            ? null
+            : Text(
           count > 99 ? '99+' : '$count',
           style: textTheme.labelSmall?.copyWith(
             color: foreground,

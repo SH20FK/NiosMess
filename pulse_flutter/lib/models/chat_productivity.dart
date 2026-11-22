@@ -36,7 +36,7 @@ class ChatFolder {
   };
   bool includes(ApiChatSummary chat) =>
       chat.topicParentId == null &&
-      (!unreadOnly || chat.unreadCount > 0) &&
+      (!unreadOnly || chat.hasUnread) &&
       (chatIds.contains(chat.id) ||
           types.contains(chat.isBotChat ? 'bot' : chat.chatType));
 }

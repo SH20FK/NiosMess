@@ -373,6 +373,21 @@ extension SecretChatL10n on AppLocalizations {
   String get inboxKeyMismatch => _secret.inboxKeyMismatch;
   String get inboxSelectedSemantics => _secret.inboxSelectedSemantics;
   String get inboxMutedSemantics => _secret.inboxMutedSemantics;
+  String get inboxPin => _secret.inboxPin;
+  String get inboxUnpin => _secret.inboxUnpin;
+  String get inboxArchive => _secret.inboxArchive;
+  String get inboxUnarchive => _secret.inboxUnarchive;
+  String get inboxMarkUnread => _secret.inboxMarkUnread;
+  String get inboxSwipeUnread => _secret.inboxSwipeUnread;
+  String get inboxSwipeUnarchive => _secret.inboxSwipeUnarchive;
+  String get inboxArchiveTitle => _secret.inboxArchiveTitle;
+  String inboxArchiveCount(int count) => _secret.inboxArchiveCount(count);
+  String get inboxArchivedToast => _secret.inboxArchivedToast;
+  String get inboxUnarchivedToast => _secret.inboxUnarchivedToast;
+  String inboxPinLimit(int count) => _secret.inboxPinLimit(count);
+  String get inboxPinnedSemantics => _secret.inboxPinnedSemantics;
+  String get inboxMarkedUnreadSemantics =>
+      _secret.inboxMarkedUnreadSemantics;
 
   String get composeOpenDialogFailed => _secret.composeOpenDialogFailed;
   String get composeSecretTitle => _secret.composeSecretTitle;

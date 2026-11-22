@@ -52,6 +52,9 @@ import 'package:pulse_flutter/features/chats/application/inbox_selection_control
 import 'package:pulse_flutter/models/chat_productivity.dart';
 import 'package:pulse_flutter/widgets/common/app_action_menu_item.dart';
 import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/motion/m3_animated_badge.dart';
+import 'package:pulse_flutter/widgets/motion/m3_morphing_icon.dart';
 
 enum _LastMessageKind { photo, video, audio, file }
 
@@ -202,6 +205,166 @@ class _MuteSwipeBackdrop extends ConsumerWidget {
   }
 }
 
+/// Entry to the archive at the top of the inbox, and the way back at the top
+/// of the archive. The glyph morphs between the two roles.
+class _ArchiveRow extends StatefulWidget {
+  const _ArchiveRow({
+    required this.count,
+    required this.unread,
+    required this.open,
+    required this.compact,
+    required this.onTap,
+    super.key,
+  });
+
+  final int count;
+
+  /// Archived chats that ask for attention.
+  final int unread;
+  final bool open;
+  final bool compact;
+  final VoidCallback onTap;
+
+  @override
+  State<_ArchiveRow> createState() => _ArchiveRowState();
+}
+
+class _ArchiveRowState extends State<_ArchiveRow> {
+  // Shown only while the keyboard drives the focus.
+  bool _focusRing = false;
+
+  static const Map<ShortcutActivator, Intent> _shortcuts =
+      <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final BorderRadius radius = AppRadii.of(context).lgRadius;
+    final double avatar = widget.compact ? 44 : 48;
+    final double rowHeight = widget.compact
+        ? ChatTile.compactRowHeight
+        : ChatTile.rowHeight;
+    final String title = context.l10n.inboxArchiveTitle;
+    final String subtitle = context.l10n.inboxArchiveCount(widget.count);
+
+    return Semantics(
+      button: true,
+      label: <String>[
+        if (widget.open) MaterialLocalizations.of(context).backButtonTooltip,
+        title,
+        subtitle,
+        if (widget.unread > 0) context.l10n.chatListUnreadCount(widget.unread),
+      ].join(', '),
+      excludeSemantics: true,
+      onTap: widget.onTap,
+      child: FocusableActionDetector(
+        includeFocusSemantics: false,
+        mouseCursor: SystemMouseCursors.click,
+        shortcuts: _shortcuts,
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (ActivateIntent _) {
+              widget.onTap();
+              return null;
+            },
+          ),
+        },
+        onShowFocusHighlight: (bool value) {
+          if (mounted && value != _focusRing) {
+            setState(() => _focusRing = value);
+          }
+        },
+        child: TouchContainer(
+          onTap: widget.onTap,
+          borderRadius: radius,
+          scaleDown: 0.98,
+          releaseCurve: M3SpringCurves.spatialFast,
+          // The toggle itself answers with a haptic.
+          enableHaptics: false,
+          child: DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: _focusRing
+                  ? Border.all(color: scheme.primary, width: 2)
+                  : null,
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: (rowHeight - 48) / 2,
+              ),
+              child: Row(
+                children: <Widget>[
+                  SizedBox.square(
+                    dimension: avatar,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHigh,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: M3MorphingIcon(
+                          icon: widget.open
+                              ? Icons.arrow_back_rounded
+                              : Icons.archive_outlined,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Archived chats do not ask for attention from the inbox:
+                  // the same neutral pill as a muted chat.
+                  M3AnimatedBadge(
+                    count: widget.unread,
+                    backgroundColor: scheme.surfaceContainerHighest,
+                    textColor: scheme.onSurfaceVariant,
+                    minSize: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
 
@@ -226,7 +389,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     // leaves the selection too.
     ref.listenManual(visibleChatsProvider, (_, next) {
       final List<ApiChatSummary>? chats = next.value;
-      if (chats == null || ref.read(inboxSelectionProvider).isEmpty) return;
+      if (chats == null) return;
+      // The archive closes with its last chat, so a chat archived later does
+      // not reopen it.
+      if (mounted &&
+          _archiveOpen &&
+          !chats.any((ApiChatSummary chat) => chat.isArchived)) {
+        setState(() => _archiveOpen = false);
+      }
+      if (ref.read(inboxSelectionProvider).isEmpty) return;
       ref.read(inboxSelectionProvider.notifier).retainAll(<int>{
         for (final ApiChatSummary chat in chats) chat.id,
       });
@@ -286,6 +457,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   bool _retrying = false;
   final Set<int> _markingRead = {};
 
+  /// The list shows the archive instead of the inbox.
+  bool _archiveOpen = false;
+
   Future<void> _retryChats() async {
     if (_retrying) return;
     setState(() => _retrying = true);
@@ -339,7 +513,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         return chats;
       case ChatFilter.unread:
         return chats
-            .where((ApiChatSummary c) => c.unreadCount > 0)
+            .where((ApiChatSummary c) => c.hasUnread)
             .toList(growable: false);
       case ChatFilter.groups:
         return chats
@@ -394,9 +568,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
-        // Bound only while picking, so Escape is not swallowed otherwise.
+        // Bound only while picking or inside the archive, so Escape is not
+        // swallowed otherwise.
         if (selecting)
-          const SingleActivator(LogicalKeyboardKey.escape): _endSelection,
+          const SingleActivator(LogicalKeyboardKey.escape): _endSelection
+        else if (_archiveOpen)
+          const SingleActivator(LogicalKeyboardKey.escape): _toggleArchiveView,
         const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
             ref.read(inboxSearchProvider.notifier).open(),
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
@@ -488,73 +665,30 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
   }
 
-  /// The same five actions as the long-press sheet, in the same order.
+  /// The same actions as the long-press sheet, in the same order.
   List<Widget> _cursorMenuItems(BuildContext context, ApiChatSummary chat) {
-    final l10n = context.l10n;
     final bool muted = ref.read(chatMutedProvider(chat.id)).value ?? false;
-    final bool isDirect =
-        chat.chatType != 'group' && chat.chatType != 'channel';
-    final List<(ChatActionResult, String, IconData, bool)> rows =
-        <(ChatActionResult, String, IconData, bool)>[
-          (
-            ChatActionResult.markRead,
-            l10n.chatListMarkRead,
-            Icons.done_all_rounded,
-            chat.unreadCount > 0,
-          ),
-          (
-            ChatActionResult.toggleMute,
-            muted
-                ? l10n.profileUnmuteNotifications
-                : l10n.profileMuteNotifications,
-            muted
-                ? Icons.notifications_active_rounded
-                : Icons.notifications_off_rounded,
-            true,
-          ),
-          (
-            ChatActionResult.addToFolder,
-            l10n.inboxAddToFolder,
-            Icons.folder_outlined,
-            true,
-          ),
-          (
-            ChatActionResult.select,
-            l10n.inboxSelect,
-            Icons.check_circle_outline_rounded,
-            true,
-          ),
-          (
-            ChatActionResult.leave,
-            isDirect ? l10n.chatDelete : l10n.chatListLeave,
-            isDirect ? Icons.delete_outline_rounded : Icons.logout_rounded,
-            true,
-          ),
-        ];
+    final List<ChatActionDescriptor> rows = ChatActionsModal.actionsFor(
+      context,
+      chat: chat,
+      isMuted: muted,
+    );
     return <Widget>[
-      for (final (
-            int index,
-            (
-              ChatActionResult action,
-              String label,
-              IconData icon,
-              bool enabled,
-            ),
-          )
+      for (final (int index, ChatActionDescriptor row)
           in rows.indexed) ...<Widget>[
-        if (action == ChatActionResult.leave) const Divider(height: 8),
+        if (row.isDestructive) const Divider(height: 8),
         // The menu is mounted anew on every opening, so the rows rise into
         // place one after another each time.
         M3Entrance(
-          key: ValueKey<String>('chat-cursor-menu-${action.name}'),
+          key: ValueKey<String>('chat-cursor-menu-${row.result.name}'),
           delay: Duration(milliseconds: 20 * index),
           offsetY: 6,
           child: AppActionMenuItem(
-            label: label,
-            icon: icon,
-            isDisabled: !enabled,
-            isDestructive: action == ChatActionResult.leave,
-            onPressed: () => unawaited(_runChatAction(chat, action)),
+            label: row.label,
+            icon: row.icon,
+            isDisabled: !row.enabled,
+            isDestructive: row.isDestructive,
+            onPressed: () => unawaited(_runChatAction(chat, row.result)),
           ).toMenuItem(context),
         ),
       ],
@@ -702,12 +836,21 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final folders = ref.watch(chatFoldersProvider).value ?? [];
     final selected = ref.watch(selectedChatFolderProvider);
     final folder = folders.where((f) => f.id == selected).firstOrNull;
-    final List<ApiChatSummary> filtered = List<ApiChatSummary>.of(
-      _applyFilter(
-        folder == null ? chats : chats.where(folder.includes).toList(),
-        filter,
-      ),
-    );
+    final List<ApiChatSummary> archived = chats
+        .where((ApiChatSummary c) => c.isArchived)
+        .toList(growable: false);
+    final bool archiveOpen = _archiveOpen && archived.isNotEmpty;
+    // Archived chats live in the archive only: no filter or folder lists them.
+    final List<ApiChatSummary> filtered = archiveOpen
+        ? List<ApiChatSummary>.of(archived)
+        : List<ApiChatSummary>.of(
+            _applyFilter(
+              (folder == null ? chats : chats.where(folder.includes))
+                  .where((ApiChatSummary c) => !c.isArchived)
+                  .toList(),
+              filter,
+            ),
+          );
     final bool hasActiveFolder = folder != null;
     final bool canResetFilters = filter != ChatFilter.all || hasActiveFolder;
     // Each row watches its own pick; the list only follows the mode itself.
@@ -715,21 +858,26 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       inboxSelectionProvider.select((Set<int> s) => s.isNotEmpty),
     );
 
+    final bool mainInbox =
+        !archiveOpen && !hasActiveFolder && filter == ChatFilter.all;
     // The self-chat is always the first pinned item in the main inbox.
-    if (!hasActiveFolder && filter == ChatFilter.all) {
+    if (mainInbox) {
       final index = filtered.indexWhere((chat) => chat.isSaved);
       if (index > 0) filtered.insert(0, filtered.removeAt(index));
     }
     final showSavedShortcut =
-        !hasActiveFolder &&
-        filter == ChatFilter.all &&
-        !filtered.any((chat) => chat.isSaved);
+        mainInbox && !filtered.any((chat) => chat.isSaved);
+    // The archive is entered from the main inbox and left from its own top.
+    final Widget? archiveRow = archived.isNotEmpty && (mainInbox || archiveOpen)
+        ? _archiveRow(archived, archiveOpen, compact)
+        : null;
 
     if (filtered.isEmpty) {
       // An account without chats gets a way forward; an empty filter only
       // offers the way back to every chat.
       final bool noChatsAtAll = !canResetFilters;
       return <Widget>[
+        ?archiveRow,
         if (showSavedShortcut) _savedShortcut(scheme, compact),
         SliverFillRemaining(
           child: EmptyStateWidget(
@@ -765,6 +913,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     };
 
     return <Widget>[
+      ?archiveRow,
       if (showSavedShortcut) _savedShortcut(scheme, compact),
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -784,29 +933,59 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     HapticService.selection();
                   }
                 },
-                // Towards the end edge: read. Nothing to read, no travel.
+                // Towards the end edge: read. A chat with nothing to read is
+                // marked unread instead when the server keeps that mark;
+                // otherwise the row does not travel.
                 background: _SwipeBackdrop(
-                  icon: Icons.done_all_rounded,
-                  label: context.l10n.deliveryRead,
+                  icon: chat.hasUnread
+                      ? Icons.done_all_rounded
+                      : Icons.mark_chat_unread_outlined,
+                  label: chat.hasUnread
+                      ? context.l10n.deliveryRead
+                      : context.l10n.inboxSwipeUnread,
                 ),
-                onTriggered: chat.unreadCount > 0
+                onTriggered: chat.hasUnread
                     ? () {
                         if (ref.read(uiSettingsProvider).haptics) {
                           HapticService.tap();
                         }
                         unawaited(_markRead(chat));
                       }
+                    : chat.hasInboxState
+                    ? () {
+                        if (ref.read(uiSettingsProvider).haptics) {
+                          HapticService.tap();
+                        }
+                        unawaited(
+                          _setInboxState(<ApiChatSummary>[chat], unread: true),
+                        );
+                      }
                     : null,
-                // Towards the start edge: mute or unmute. The saved chat
-                // never notifies, so it has nothing to mute.
-                endBackground: _MuteSwipeBackdrop(chatId: chat.id),
+                // Towards the start edge: to the archive or back. Against a
+                // server without the archive it mutes or unmutes, as before.
+                // The saved chat has neither.
+                endBackground: chat.hasInboxState
+                    ? _SwipeBackdrop(
+                        icon: chat.isArchived
+                            ? Icons.unarchive_outlined
+                            : Icons.archive_outlined,
+                        label: chat.isArchived
+                            ? context.l10n.inboxSwipeUnarchive
+                            : context.l10n.inboxArchive,
+                        atEnd: true,
+                      )
+                    : _MuteSwipeBackdrop(chatId: chat.id),
                 onEndTriggered: chat.isSaved
                     ? null
                     : () {
                         if (ref.read(uiSettingsProvider).haptics) {
                           HapticService.tap();
                         }
-                        unawaited(_toggleMute(chat));
+                        unawaited(
+                          chat.hasInboxState
+                              ? _toggleArchive(chat)
+                              : _toggleMute(chat),
+                        );
                       },
                 child: Consumer(
                   builder: (BuildContext context, WidgetRef ref, _) {
@@ -877,6 +1056,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                 : Icons.done_rounded)
                           : null,
                       unreadCount: chat.unreadCount,
+                      markedUnread: chat.markedUnread,
+                      isPinned: chat.isPinned,
                       avatarText: chat.isSaved
                           ? context.l10n.savedMessagesTitle
                           : chat.name,
@@ -975,7 +1156,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   // its new slot; switching filter or folder does not.
                   child: ReorderSlide(
                     index: index,
-                    scope: (filter, selected),
+                    scope: (filter, selected, archiveOpen),
                     gap: 2,
                     child: item,
                   ),
@@ -1147,6 +1328,86 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
   }
 
+  /// Pins, archives or marks [chats] unread and reports a refusal. Returns
+  /// whether the server stored the change.
+  Future<bool> _setInboxState(
+    List<ApiChatSummary> chats, {
+    bool? pinned,
+    bool? archived,
+    bool? unread,
+  }) async {
+    try {
+      await ref
+          .read(chatsProvider.notifier)
+          .setInboxState(
+            chats,
+            pinned: pinned,
+            archived: archived,
+            unread: unread,
+          );
+      return true;
+    } on ChatPinLimitException {
+      if (mounted) {
+        AppToast.showError(
+          context,
+          context.l10n.inboxPinLimit(kMaxPinnedChats),
+        );
+      }
+    } catch (error) {
+      if (mounted) AppToast.showError(context, error);
+    }
+    return false;
+  }
+
+  /// Moves [chat] to the archive or back and offers to take that back.
+  Future<void> _toggleArchive(ApiChatSummary chat) async {
+    final bool archive = !chat.isArchived;
+    if (!await _setInboxState(<ApiChatSummary>[chat], archived: archive)) {
+      return;
+    }
+    if (!mounted) return;
+    AppToast.showAction(
+      context,
+      message: archive
+          ? context.l10n.inboxArchivedToast
+          : context.l10n.inboxUnarchivedToast,
+      actionLabel: context.l10n.commonCancel,
+      icon: archive ? Icons.archive_outlined : Icons.unarchive_outlined,
+      onAction: () => unawaited(
+        _setInboxState(
+          <ApiChatSummary>[chat],
+          archived: !archive,
+          // Archiving took the pin off: the way back returns it.
+          pinned: archive && chat.isPinned ? true : null,
+        ),
+      ),
+    );
+  }
+
+  /// Switches the list between the inbox and the archive.
+  void _toggleArchiveView() {
+    if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
+    _endSelection();
+    setState(() => _archiveOpen = !_archiveOpen);
+    // The two are different lists: each starts at the top.
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+  }
+
+  Widget _archiveRow(List<ApiChatSummary> archived, bool open, bool compact) =>
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
+        sliver: SliverToBoxAdapter(
+          child: _ArchiveRow(
+            key: const ValueKey<String>('inbox-archive-row'),
+            count: archived.length,
+            unread: archived.where((ApiChatSummary c) => c.hasUnread).length,
+            open: open,
+            compact: compact,
+            onTap: _toggleArchiveView,
+          ),
+        ),
+      );
+
   /// Deletes a direct or secret conversation, or leaves a group or channel.
   /// No confirmation and no list refresh: the callers own both.
   Future<void> _removeChat(ApiChatSummary chat) async {
@@ -1226,8 +1487,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       case ChatActionResult.markRead:
         await _markRead(chat);
         return;
+      case ChatActionResult.markUnread:
+        await _setInboxState(<ApiChatSummary>[chat], unread: true);
+        return;
+      case ChatActionResult.togglePin:
+        await _setInboxState(<ApiChatSummary>[chat], pinned: !chat.isPinned);
+        return;
       case ChatActionResult.toggleMute:
         await _toggleMute(chat);
+        return;
+      case ChatActionResult.toggleArchive:
+        await _toggleArchive(chat);
         return;
       case ChatActionResult.addToFolder:
         await _addToFolder(context, chat);
@@ -1319,7 +1589,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
   Future<void> _markSelectedRead() async {
     final List<ApiChatSummary> unread = _selectedChats()
-        .where((ApiChatSummary chat) => chat.unreadCount > 0)
+        .where((ApiChatSummary chat) => chat.hasUnread)
         .toList(growable: false);
     _endSelection();
     // Each chat reports its own failure, with a retry.

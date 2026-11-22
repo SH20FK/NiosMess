@@ -296,6 +296,58 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get inboxMutedSemantics => 'muted';
 
   @override
+  String get inboxPin => 'Pin';
+
+  @override
+  String get inboxUnpin => 'Unpin';
+
+  @override
+  String get inboxArchive => 'Archive';
+
+  @override
+  String get inboxUnarchive => 'Unarchive';
+
+  @override
+  String get inboxMarkUnread => 'Mark as unread';
+
+  @override
+  String get inboxSwipeUnread => 'Unread';
+
+  @override
+  String get inboxSwipeUnarchive => 'Unarchive';
+
+  @override
+  String get inboxArchiveTitle => 'Archive';
+
+  @override
+  String inboxArchiveCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chats',
+      one: '$count chat',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inboxArchivedToast => 'Chat archived';
+
+  @override
+  String get inboxUnarchivedToast => 'Chat returned from the archive';
+
+  @override
+  String inboxPinLimit(int count) {
+    return 'You can pin up to $count chats';
+  }
+
+  @override
+  String get inboxPinnedSemantics => 'pinned';
+
+  @override
+  String get inboxMarkedUnreadSemantics => 'marked as unread';
+
+  @override
   String get composeOpenDialogFailed => 'Could not open the conversation';
 
   @override

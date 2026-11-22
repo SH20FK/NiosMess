@@ -8,7 +8,16 @@ import 'package:pulse_flutter/models/chat_productivity.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
-enum ChatActionResult { markRead, toggleMute, addToFolder, select, leave }
+enum ChatActionResult {
+  markRead,
+  markUnread,
+  togglePin,
+  toggleMute,
+  toggleArchive,
+  addToFolder,
+  select,
+  leave,
+}
 
 /// Unified descriptor for actions inside [ChatActionsModal].
 class ChatActionDescriptor {
@@ -102,55 +111,24 @@ class ChatActionsModal {
       ),
     );
 
-    // "Mark read" stays in the list even when there is nothing to read: the
-    // menu must not change height or shift the destructive row under the
-    // cursor, so it renders disabled instead of being filtered out.
-    final List<ChatActionDescriptor> descriptors = <ChatActionDescriptor>[
-      ChatActionDescriptor(
-        result: ChatActionResult.markRead,
-        label: context.l10n.chatListMarkRead,
-        icon: Icons.done_all_rounded,
-        enabled: chat.unreadCount > 0,
-      ),
-      ChatActionDescriptor(
-        result: ChatActionResult.toggleMute,
-        label: isMuted
-            ? context.l10n.profileUnmuteNotifications
-            : context.l10n.profileMuteNotifications,
-        icon: isMuted
-            ? Icons.notifications_active_rounded
-            : Icons.notifications_off_rounded,
-      ),
-      ChatActionDescriptor(
-        result: ChatActionResult.addToFolder,
-        label: context.l10n.inboxAddToFolder,
-        icon: Icons.folder_outlined,
-      ),
-      // Starts multi-select with this chat already picked.
-      ChatActionDescriptor(
-        result: ChatActionResult.select,
-        label: context.l10n.inboxSelect,
-        icon: Icons.check_circle_outline_rounded,
-      ),
-    ];
+    final List<ChatActionDescriptor> all = actionsFor(
+      context,
+      chat: chat,
+      isMuted: isMuted,
+    );
 
     final List<Widget> actions = <Widget>[
-      for (final ChatActionDescriptor descriptor in descriptors)
-        _ChatActionRow(
-          key: ValueKey<ChatActionResult>(descriptor.result),
-          descriptor: descriptor,
-          onSelected: () => Navigator.of(context).pop(descriptor.result),
-        ),
+      for (final ChatActionDescriptor descriptor in all)
+        if (!descriptor.isDestructive)
+          _ChatActionRow(
+            key: ValueKey<ChatActionResult>(descriptor.result),
+            descriptor: descriptor,
+            onSelected: () => Navigator.of(context).pop(descriptor.result),
+          ),
     ];
 
-    final bool isDirect = chat.chatType != 'group' && chat.chatType != 'channel';
     final Widget destructiveTile = _ChatActionRow(
-      descriptor: ChatActionDescriptor(
-        result: ChatActionResult.leave,
-        label: isDirect ? context.l10n.chatDelete : context.l10n.chatListLeave,
-        icon: isDirect ? Icons.delete_outline_rounded : Icons.logout_rounded,
-        isDestructive: true,
-      ),
+      descriptor: all.last,
       onSelected: () => Navigator.of(context).pop(ChatActionResult.leave),
     );
 
@@ -174,6 +152,79 @@ class ChatActionsModal {
       ],
       destructiveAction: destructiveTile,
     );
+  }
+
+  /// Actions of [chat] in menu order, the destructive one last. The sheet and
+  /// the cursor menu list the same rows.
+  ///
+  /// The first row stays in the list even when there is nothing to read or
+  /// to mark: it renders disabled instead of being filtered out, so the rows
+  /// below it keep their place. Pin, archive and "mark unread" exist only for
+  /// a chat whose inbox state the server keeps.
+  static List<ChatActionDescriptor> actionsFor(
+    BuildContext context, {
+    required ApiChatSummary chat,
+    required bool isMuted,
+  }) {
+    final l10n = context.l10n;
+    final bool canMarkUnread = chat.hasInboxState && !chat.hasUnread;
+    final bool isDirect = chat.chatType != 'group' && chat.chatType != 'channel';
+    return <ChatActionDescriptor>[
+      ChatActionDescriptor(
+        result: canMarkUnread
+            ? ChatActionResult.markUnread
+            : ChatActionResult.markRead,
+        label: canMarkUnread ? l10n.inboxMarkUnread : l10n.chatListMarkRead,
+        icon: canMarkUnread
+            ? Icons.mark_chat_unread_outlined
+            : Icons.done_all_rounded,
+        enabled: canMarkUnread || chat.hasUnread,
+      ),
+      // Pinning an archived chat would pull it out of the archive: the
+      // archive offers the way back instead.
+      if (chat.hasInboxState && !chat.isArchived)
+        ChatActionDescriptor(
+          result: ChatActionResult.togglePin,
+          label: chat.isPinned ? l10n.inboxUnpin : l10n.inboxPin,
+          icon: chat.isPinned
+              ? Icons.push_pin_outlined
+              : Icons.push_pin_rounded,
+        ),
+      ChatActionDescriptor(
+        result: ChatActionResult.toggleMute,
+        label: isMuted
+            ? l10n.profileUnmuteNotifications
+            : l10n.profileMuteNotifications,
+        icon: isMuted
+            ? Icons.notifications_active_rounded
+            : Icons.notifications_off_rounded,
+      ),
+      if (chat.hasInboxState)
+        ChatActionDescriptor(
+          result: ChatActionResult.toggleArchive,
+          label: chat.isArchived ? l10n.inboxUnarchive : l10n.inboxArchive,
+          icon: chat.isArchived
+              ? Icons.unarchive_outlined
+              : Icons.archive_outlined,
+        ),
+      ChatActionDescriptor(
+        result: ChatActionResult.addToFolder,
+        label: l10n.inboxAddToFolder,
+        icon: Icons.folder_outlined,
+      ),
+      // Starts multi-select with this chat already picked.
+      ChatActionDescriptor(
+        result: ChatActionResult.select,
+        label: l10n.inboxSelect,
+        icon: Icons.check_circle_outline_rounded,
+      ),
+      ChatActionDescriptor(
+        result: ChatActionResult.leave,
+        label: isDirect ? l10n.chatDelete : l10n.chatListLeave,
+        icon: isDirect ? Icons.delete_outline_rounded : Icons.logout_rounded,
+        isDestructive: true,
+      ),
+    ];
   }
 
   /// Folder picker for one chat. Returns the folder whose own list the chat

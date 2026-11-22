@@ -18,10 +18,23 @@ String? _parsePartnerPublicKey(Map<String, dynamic> json) {
 bool _parseKeyMismatch(Map<String, dynamic> json) =>
     _parseBool(json['key_mismatch']);
 
-/// Shared inbox ordering: the most recent activity first. Secret chats, server
-/// chats and refreshed snapshots all use it, so a chat never jumps to the
-/// bottom just because it arrived through another merge path.
+/// How many chats an account can pin. The server enforces the same number
+/// (`MAX_PINNED`); the client checks it first to answer in its own words.
+const int kMaxPinnedChats = 10;
+
+/// Shared inbox ordering: pinned chats lead, the newest pin first, then the
+/// most recent activity. Secret chats, server chats and refreshed snapshots all
+/// use it, so a chat never jumps to the bottom just because it arrived through
+/// another merge path.
 int compareChatRecency(ApiChatSummary a, ApiChatSummary b) {
+  final DateTime? aPin = a.pinnedAt;
+  final DateTime? bPin = b.pinnedAt;
+  if (aPin != null || bPin != null) {
+    if (aPin == null) return 1;
+    if (bPin == null) return -1;
+    final int byPin = bPin.compareTo(aPin);
+    if (byPin != 0) return byPin;
+  }
   final int byActivity = b.lastActivity.compareTo(a.lastActivity);
   if (byActivity != 0) return byActivity;
   final int aLast = a.lastMessage?.id ?? 0;
@@ -62,6 +75,10 @@ class ApiChatSummary {
     this.topicsEnabled = false,
     this.topicParentId,
     this.topicClosed = false,
+    this.pinnedAt,
+    this.isArchived = false,
+    this.markedUnread = false,
+    this.notificationsMuted,
   });
 
   final int id;
@@ -95,6 +112,32 @@ class ApiChatSummary {
   final bool isOnline;
   final bool isSaved, topicsEnabled, topicClosed;
   final int? topicParentId;
+
+  /// When the account pinned this chat; `null` for a chat that is not pinned.
+  /// The newest pin leads the inbox.
+  final DateTime? pinnedAt;
+
+  /// Moved out of the inbox by the account. A new message brings the chat
+  /// back unless its notifications are muted.
+  final bool isArchived;
+
+  /// Marked as unread by hand: asks for attention with no unread messages.
+  final bool markedUnread;
+
+  /// Notification mute stored on the server for the whole account. `null` when
+  /// the summary carries no such field (an older server or an old cache), and
+  /// then the device preference stays in charge.
+  final bool? notificationsMuted;
+
+  bool get isPinned => pinnedAt != null;
+
+  /// Whether the account can pin, archive and mark this chat unread: the
+  /// server keeps that state, and the chat is neither a topic nor "Избранное".
+  bool get hasInboxState =>
+      notificationsMuted != null && !isSaved && topicParentId == null;
+
+  /// Whether the row asks for attention: unread messages or a manual mark.
+  bool get hasUnread => unreadCount > 0 || markedUnread;
 
   String? get formattedAutoDeleteDuration {
     if (autoDeleteSeconds == null || autoDeleteSeconds! <= 0) return null;
@@ -160,7 +203,11 @@ class ApiChatSummary {
           isSaved == other.isSaved &&
           topicsEnabled == other.topicsEnabled &&
           topicClosed == other.topicClosed &&
-          topicParentId == other.topicParentId;
+          topicParentId == other.topicParentId &&
+          pinnedAt == other.pinnedAt &&
+          isArchived == other.isArchived &&
+          markedUnread == other.markedUnread &&
+          notificationsMuted == other.notificationsMuted;
 
   bool get isBotChat =>
       partnerBadges.any(
@@ -259,6 +306,12 @@ class ApiChatSummary {
       topicsEnabled: _parseBool(json['topics_enabled']),
       topicParentId: (json['topic_parent_id'] as num?)?.toInt(),
       topicClosed: _parseBool(json['topic_closed']),
+      pinnedAt: DateTime.tryParse(json['pinned_at']?.toString() ?? ''),
+      isArchived: _parseBool(json['is_archived']),
+      markedUnread: _parseBool(json['marked_unread']),
+      notificationsMuted: json['notifications_muted'] == null
+          ? null
+          : _parseBool(json['notifications_muted']),
       id: json['id'] as int? ?? 0,
       chatType: json['chat_type'] as String? ?? 'direct',
       name: _parseBool(json['is_saved']) ? 'Избранное' : resolvedName,
@@ -321,12 +374,22 @@ class ApiChatSummary {
     bool? isBlockedByUser,
     bool? isBlocked,
     bool? isOnline,
+    DateTime? pinnedAt,
+    // `null` means "keep" for every argument, so unpinning needs its own flag.
+    bool clearPin = false,
+    bool? isArchived,
+    bool? markedUnread,
+    bool? notificationsMuted,
   }) {
     return ApiChatSummary(
       isSaved: isSaved,
       topicsEnabled: topicsEnabled,
       topicParentId: topicParentId,
       topicClosed: topicClosed,
+      pinnedAt: clearPin ? null : (pinnedAt ?? this.pinnedAt),
+      isArchived: isArchived ?? this.isArchived,
+      markedUnread: markedUnread ?? this.markedUnread,
+      notificationsMuted: notificationsMuted ?? this.notificationsMuted,
       id: id ?? this.id,
       chatType: chatType ?? this.chatType,
       name: name ?? this.name,
@@ -364,6 +427,10 @@ class ApiChatSummary {
       'topics_enabled': topicsEnabled,
       'topic_parent_id': topicParentId,
       'topic_closed': topicClosed,
+      if (pinnedAt != null) 'pinned_at': pinnedAt!.toUtc().toIso8601String(),
+      'is_archived': isArchived,
+      'marked_unread': markedUnread,
+      if (notificationsMuted != null) 'notifications_muted': notificationsMuted,
       'name': name,
       'username': username,
       'avatar_url': avatarUrl,
