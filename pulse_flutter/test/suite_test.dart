@@ -261,6 +261,10 @@ import 'widgets/chat_filter_bar_folders_test.dart'
     as widgets_chat_filter_bar_folders;
 import 'widgets/chat_actions_modal_test.dart' as widgets_chat_actions_modal;
 import 'widgets/inbox_selection_test.dart' as widgets_inbox_selection;
+import 'core/app_text_scaler_test.dart' as core_app_text_scaler;
+import 'features/chats/create_group_test.dart' as features_create_group;
+import 'widgets/main_shell_inbox_pane_test.dart'
+    as widgets_main_shell_inbox_pane;
 
 void main() {
   group('Motion regressions', () {
@@ -525,6 +529,9 @@ void main() {
     group('chat_filter_bar_folders', widgets_chat_filter_bar_folders.main);
     group('chat_actions_modal', widgets_chat_actions_modal.main);
     group('inbox_selection', widgets_inbox_selection.main);
+    group('app_text_scaler', core_app_text_scaler.main);
+    group('main_shell_inbox_pane', widgets_main_shell_inbox_pane.main);
+    group('create_group', features_create_group.main);
 
     // End-to-End & Integration Suites
     e2e_niosgram_and_settings.main();

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
@@ -791,6 +792,166 @@ void main() {
     expect(semantics.properties.label, contains('Ключи не совпадают'));
 
     handle.dispose();
+  });
+
+  testWidgets('screen reader hears presence, author, preview and time', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        _narrow(
+          ChatTile(
+            title: 'Команда',
+            subtitle: 'Обсуждаем планы',
+            subtitlePrefix: 'Ирина',
+            formattedTime: '12:45',
+            unreadCount: 0,
+            isOnline: true,
+            avatarText: 'Команда',
+            avatarColor: const Color(0xFF6750A4),
+            onTap: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    String label() =>
+        tester
+            .widget<Semantics>(
+              find
+                  .descendant(
+                    of: find.byType(ChatTile),
+                    matching: find.byType(Semantics),
+                  )
+                  .first,
+            )
+            .properties
+            .label ??
+        '';
+    expect(label(), contains('Команда'));
+    expect(label(), contains('в сети'));
+    expect(label(), contains('Ирина: Обсуждаем планы'));
+    expect(label(), contains('12:45'));
+
+    // Typing takes the preview slot on screen, and in the label as well.
+    await tester.pumpWidget(
+      _app(
+        _reducedMotion(
+          _narrow(_tile(isTyping: true, subtitle: 'печатает...')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(label(), contains('печатает'));
+    expect(label(), isNot(contains('Короткое превью сообщения')));
+
+    // A failed send replaces the preview; the time is still read out.
+    await tester.pumpWidget(
+      _app(
+        _narrow(
+          _tile(
+            deliveryIcon: Icons.error_outline_rounded,
+            deliveryLabel: 'Не отправлено',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(label(), contains('Не отправлено'));
+    expect(label(), contains('12:45'));
+    expect(label(), isNot(contains('Короткое превью сообщения')));
+
+    handle.dispose();
+  });
+
+  testWidgets('keyboard reaches the row: Enter opens, Shift+F10 asks for the '
+      'menu, Delete asks to remove', (WidgetTester tester) async {
+    int opened = 0;
+    int deletes = 0;
+    Offset? menuAt;
+    await tester.pumpWidget(
+      _app(
+        _narrow(
+          ChatTile(
+            title: 'Ирина',
+            subtitle: 'Привет',
+            formattedTime: '12:45',
+            unreadCount: 0,
+            avatarText: 'Ирина',
+            avatarColor: const Color(0xFF6750A4),
+            onTap: () => opened++,
+            onLongPress: () {},
+            onSecondaryTapDown: (Offset position) => menuAt = position,
+            onDeleteRequested: () => deletes++,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    AnimatedContainer surface() => tester.widget<AnimatedContainer>(
+      find.byKey(const ValueKey<String>('chat-tile-surface')),
+    );
+    // No ring until the keyboard takes the focus.
+    expect(surface().foregroundDecoration, isNull);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    final ColorScheme scheme = _scheme(tester);
+    final BoxDecoration ring = surface().foregroundDecoration! as BoxDecoration;
+    expect((ring.border! as Border).top.color, scheme.primary);
+    expect((ring.border! as Border).top.width, 2);
+    // The ring is painted over the row: its own fill and height stay.
+    expect(_surface(tester).border, isNull);
+    expect(tester.getSize(find.byType(ChatTile)).height, ChatTile.rowHeight);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(opened, 1);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    // The menu is asked for at a point inside the row.
+    expect(menuAt, isNotNull);
+    expect(tester.getRect(find.byType(ChatTile)).contains(menuAt!), isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    expect(deletes, 1);
+    expect(opened, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('selected indicator and presence dot follow the text direction', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        Directionality(
+          textDirection: TextDirection.rtl,
+          child: _narrow(_tile(isSelected: true, isOnline: true)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final Rect row = tester.getRect(find.byType(ChatTile));
+    final Rect indicator = tester.getRect(
+      find.byKey(const ValueKey<String>('chat-tile-selected-indicator')),
+    );
+    // 8 dp from the leading edge, which is the right one here.
+    expect(row.right - indicator.right, closeTo(8, 0.01));
+    // The dot sits on the avatar's trailing-bottom corner: its left one.
+    final Rect avatar = tester.getRect(find.byType(PulseAvatar));
+    final Rect dot = tester.getRect(
+      find.byKey(const ValueKey<String>('chat-tile-presence-dot')),
+    );
+    expect(dot.left, closeTo(avatar.left - 1, 0.01));
+    expect(tester.takeException(), isNull);
   });
 
   // --- Touch state layer --------------------------------------------------

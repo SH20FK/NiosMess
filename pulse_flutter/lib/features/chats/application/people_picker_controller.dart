@@ -43,7 +43,6 @@ class PeoplePickerState {
     this.searchResults = const <MemberCandidate>[],
     this.isSearching = false,
     this.resolvingHandle,
-    this.errorMessage,
   });
 
   final String query;
@@ -51,7 +50,6 @@ class PeoplePickerState {
   final List<MemberCandidate> searchResults;
   final bool isSearching;
   final String? resolvingHandle;
-  final String? errorMessage;
 
   bool get hasQuery => query.trim().isNotEmpty;
 
@@ -61,7 +59,6 @@ class PeoplePickerState {
     List<MemberCandidate>? searchResults,
     bool? isSearching,
     String? resolvingHandle,
-    String? errorMessage,
   }) {
     return PeoplePickerState(
       query: query ?? this.query,
@@ -69,7 +66,6 @@ class PeoplePickerState {
       searchResults: searchResults ?? this.searchResults,
       isSearching: isSearching ?? this.isSearching,
       resolvingHandle: resolvingHandle,
-      errorMessage: errorMessage,
     );
   }
 }
@@ -111,7 +107,6 @@ class PeoplePickerController extends Notifier<PeoplePickerState> {
         query: '',
         searchResults: const <MemberCandidate>[],
         isSearching: false,
-        errorMessage: null,
       );
       return;
     }
@@ -119,7 +114,6 @@ class PeoplePickerController extends Notifier<PeoplePickerState> {
     state = state.copyWith(
       query: q,
       isSearching: true,
-      errorMessage: null,
     );
 
     _debounce = Timer(const Duration(milliseconds: 220), () {
@@ -144,10 +138,9 @@ class PeoplePickerController extends Notifier<PeoplePickerState> {
       );
     } catch (_) {
       if (generation != _generation) return;
-      state = state.copyWith(
-        isSearching: false,
-        errorMessage: 'Ошибка при поиске',
-      );
+      // The screens show a failed search as "nothing found" and offer to
+      // check the exact handle.
+      state = state.copyWith(isSearching: false);
     }
   }
 

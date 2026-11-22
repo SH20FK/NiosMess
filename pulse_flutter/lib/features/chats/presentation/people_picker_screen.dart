@@ -67,7 +67,7 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
         context,
         isSecret
             ? context.l10n.secretCreateFailed
-            : 'Не удалось открыть диалог',
+            : context.l10n.composeOpenDialogFailed,
       );
     }
   }
@@ -84,10 +84,10 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
 
     final bool isSecret = widget.mode == PeoplePickerMode.secret;
     final String titleText =
-        isSecret ? 'Новый секретный чат' : 'Новое сообщение';
+        isSecret ? context.l10n.composeSecretTitle : context.l10n.composeMessageTitle;
     final String subtitleText = isSecret
-        ? 'Сквозное Double Ratchet шифрование'
-        : 'Выберите собеседника или найдите по @id';
+        ? context.l10n.composeSecretSubtitle
+        : context.l10n.inboxComposePersonHint;
 
     return Scaffold(
       backgroundColor: scheme.surface,
@@ -147,7 +147,7 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
                   textInputAction: TextInputAction.search,
                   onChanged: controller.setQuery,
                   decoration: InputDecoration(
-                    hintText: 'Имя или @username',
+                    hintText: context.l10n.composeSearchHint,
                     prefixIcon: const Icon(Icons.search_rounded),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
@@ -208,8 +208,11 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
               backgroundColor: scheme.primaryContainer,
               child: Icon(Icons.group_add_rounded, color: scheme.onPrimaryContainer),
             ),
-            title: const Text('Новая группа', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Чат для нескольких участников'),
+            title: Text(
+              context.l10n.groupNewGroup,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(context.l10n.inboxComposeGroupHint),
             onTap: () {
               Navigator.of(context).pop();
               context.push('/new-group/members');
@@ -220,8 +223,11 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
               backgroundColor: scheme.tertiaryContainer,
               child: Icon(Icons.campaign_rounded, color: scheme.onTertiaryContainer),
             ),
-            title: const Text('Новый канал', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Публикации для аудитории'),
+            title: Text(
+              context.l10n.groupNewChannel,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(context.l10n.inboxComposeChannelHint),
             onTap: () {
               Navigator.of(context).pop();
               context.push('/new-channel');
@@ -234,7 +240,7 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
-              'Недавние собеседники',
+              context.l10n.composeRecentPeople,
               style: textTheme.labelLarge?.copyWith(
                 color: scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
@@ -247,8 +253,8 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
             padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
             child: EmptyStateWidget(
               icon: Icons.shield_rounded,
-              title: 'Секретный диалог',
-              subtitle: 'Введите @username собеседника, чтобы начать зашифрованную переписку без следов на сервере',
+              title: context.l10n.composeSecretEmptyTitle,
+              subtitle: context.l10n.composeSecretEmptyHint,
             ),
           ),
         ],
@@ -284,22 +290,28 @@ class _PeoplePickerScreenState extends ConsumerState<PeoplePickerScreen> {
               backgroundColor: scheme.primaryContainer,
               child: Icon(Icons.alternate_email_rounded, color: scheme.onPrimaryContainer),
             ),
-            title: Text('Найти @$rawQuery', style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Проверить точный юзернейм на сервере'),
+            title: Text(
+              context.l10n.composeFindHandle(rawQuery),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(context.l10n.composeFindHandleHint),
             onTap: () async {
               final resolved = await controller.resolveHandle(rawQuery);
               if (resolved != null) {
                 _handleCandidateSelected(resolved);
               } else if (mounted) {
-                AppToast.showInfo(context, 'Пользователь @$rawQuery не найден');
+                AppToast.showInfo(
+                  context,
+                  context.l10n.composeUserNotFound(rawQuery),
+                );
               }
             },
           ),
           const SizedBox(height: 24),
           EmptyStateWidget(
             icon: Icons.person_off_rounded,
-            title: 'Ничего не найдено',
-            subtitle: 'Пользователь по запросу «${state.query}» не найден',
+            title: context.l10n.inboxSearchEmpty,
+            subtitle: context.l10n.composeQueryNotFound(state.query),
           ),
         ],
       );

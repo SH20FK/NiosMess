@@ -287,6 +287,167 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get inboxDraftSemantics => 'Draft';
 
   @override
+  String get inboxKeyMismatch => 'Keys do not match';
+
+  @override
+  String get inboxSelectedSemantics => 'selected';
+
+  @override
+  String get inboxMutedSemantics => 'muted';
+
+  @override
+  String get composeOpenDialogFailed => 'Could not open the conversation';
+
+  @override
+  String get composeSecretTitle => 'New secret chat';
+
+  @override
+  String get composeMessageTitle => 'New message';
+
+  @override
+  String get composeSecretSubtitle => 'End-to-end Double Ratchet encryption';
+
+  @override
+  String get composeSearchHint => 'Name or @username';
+
+  @override
+  String get composeRecentPeople => 'Recent people';
+
+  @override
+  String get composeSecretEmptyTitle => 'Secret conversation';
+
+  @override
+  String get composeSecretEmptyHint =>
+      'Enter a person\'s @username to start an encrypted conversation that leaves no trace on the server';
+
+  @override
+  String composeFindHandle(String handle) {
+    return 'Find @$handle';
+  }
+
+  @override
+  String get composeFindHandleHint => 'Check the exact username on the server';
+
+  @override
+  String composeUserNotFound(String handle) {
+    return 'User @$handle not found';
+  }
+
+  @override
+  String composeQueryNotFound(String query) {
+    return 'No user found for “$query”';
+  }
+
+  @override
+  String get composeAddMembers => 'Add members';
+
+  @override
+  String composeNextCount(int count) {
+    return 'Next ($count)';
+  }
+
+  @override
+  String get composeNoContacts => 'No contacts';
+
+  @override
+  String get composeNoContactsHint => 'Find people with the search field above';
+
+  @override
+  String get composeGroupPartialMembers =>
+      'The group was created, but some members could not be added because of their privacy settings';
+
+  @override
+  String get composeGroupFailed => 'Could not create the group';
+
+  @override
+  String get composeGroupNameTooShort =>
+      'The group name must be at least 2 characters long';
+
+  @override
+  String get composeGroupNameLabel => 'Group name *';
+
+  @override
+  String get composeNameHint => 'Enter a name';
+
+  @override
+  String composeMinChars(int count) {
+    return 'At least $count characters';
+  }
+
+  @override
+  String get composeGroupType => 'Group type';
+
+  @override
+  String get composeGroupPublic => 'Public';
+
+  @override
+  String get composeGroupPrivate => 'Private';
+
+  @override
+  String get composeGroupPrivateHint =>
+      'People can join the group only with an invite link.';
+
+  @override
+  String get composeGroupPublicHint =>
+      'The group will appear in NiosMess global search.';
+
+  @override
+  String composeMembersCount(int count) {
+    return 'Members ($count)';
+  }
+
+  @override
+  String get composeNoMembersHint =>
+      'No members selected. You can invite them later with a link.';
+
+  @override
+  String get composeCreateGroup => 'Create group';
+
+  @override
+  String get composeGroupDetailsTitle => 'Group details';
+
+  @override
+  String get composeChannelFailed => 'Could not create the channel';
+
+  @override
+  String get composeChannelFailedUsername =>
+      'Could not create the channel. The username may already be taken.';
+
+  @override
+  String get composeChannelNameLabel => 'Channel name *';
+
+  @override
+  String get composeChannelUsernameLabel => 'Channel username *';
+
+  @override
+  String get composeUsernameRules => 'Use Latin letters, digits, _ and -';
+
+  @override
+  String get composeChannelType => 'Channel type';
+
+  @override
+  String get composeChannelPrivateHint =>
+      'People can join the channel only with an invite link.';
+
+  @override
+  String get composeChannelPublicHint =>
+      'Public channels appear in search and have a permanent link.';
+
+  @override
+  String get composeChannelComments => 'Allow comments on posts';
+
+  @override
+  String get composeChannelCommentsOn =>
+      'Every post automatically gets a discussion thread.';
+
+  @override
+  String get composeChannelCommentsOff =>
+      'Subscribers will not be able to comment on posts.';
+
+  @override
+  String get composeCreateChannel => 'Create channel';
+
+  @override
   String get inboxDraftLabel => 'Draft:';
 
   @override

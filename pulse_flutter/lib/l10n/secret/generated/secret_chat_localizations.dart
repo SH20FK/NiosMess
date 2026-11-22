@@ -563,6 +563,282 @@ abstract class SecretChatLocalizations {
   /// **'Draft'**
   String get inboxDraftSemantics;
 
+  /// No description provided for @inboxKeyMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys do not match'**
+  String get inboxKeyMismatch;
+
+  /// No description provided for @inboxSelectedSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'selected'**
+  String get inboxSelectedSemantics;
+
+  /// No description provided for @inboxMutedSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'muted'**
+  String get inboxMutedSemantics;
+
+  /// No description provided for @composeOpenDialogFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the conversation'**
+  String get composeOpenDialogFailed;
+
+  /// No description provided for @composeSecretTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New secret chat'**
+  String get composeSecretTitle;
+
+  /// No description provided for @composeMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New message'**
+  String get composeMessageTitle;
+
+  /// No description provided for @composeSecretSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'End-to-end Double Ratchet encryption'**
+  String get composeSecretSubtitle;
+
+  /// No description provided for @composeSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name or @username'**
+  String get composeSearchHint;
+
+  /// No description provided for @composeRecentPeople.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent people'**
+  String get composeRecentPeople;
+
+  /// No description provided for @composeSecretEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret conversation'**
+  String get composeSecretEmptyTitle;
+
+  /// No description provided for @composeSecretEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a person\'s @username to start an encrypted conversation that leaves no trace on the server'**
+  String get composeSecretEmptyHint;
+
+  /// No description provided for @composeFindHandle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find @{handle}'**
+  String composeFindHandle(String handle);
+
+  /// No description provided for @composeFindHandleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the exact username on the server'**
+  String get composeFindHandleHint;
+
+  /// No description provided for @composeUserNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'User @{handle} not found'**
+  String composeUserNotFound(String handle);
+
+  /// No description provided for @composeQueryNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No user found for “{query}”'**
+  String composeQueryNotFound(String query);
+
+  /// No description provided for @composeAddMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Add members'**
+  String get composeAddMembers;
+
+  /// No description provided for @composeNextCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Next ({count})'**
+  String composeNextCount(int count);
+
+  /// No description provided for @composeNoContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'No contacts'**
+  String get composeNoContacts;
+
+  /// No description provided for @composeNoContactsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Find people with the search field above'**
+  String get composeNoContactsHint;
+
+  /// No description provided for @composeGroupPartialMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'The group was created, but some members could not be added because of their privacy settings'**
+  String get composeGroupPartialMembers;
+
+  /// No description provided for @composeGroupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create the group'**
+  String get composeGroupFailed;
+
+  /// No description provided for @composeGroupNameTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'The group name must be at least 2 characters long'**
+  String get composeGroupNameTooShort;
+
+  /// No description provided for @composeGroupNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name *'**
+  String get composeGroupNameLabel;
+
+  /// No description provided for @composeNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name'**
+  String get composeNameHint;
+
+  /// No description provided for @composeMinChars.
+  ///
+  /// In en, this message translates to:
+  /// **'At least {count} characters'**
+  String composeMinChars(int count);
+
+  /// No description provided for @composeGroupType.
+  ///
+  /// In en, this message translates to:
+  /// **'Group type'**
+  String get composeGroupType;
+
+  /// No description provided for @composeGroupPublic.
+  ///
+  /// In en, this message translates to:
+  /// **'Public'**
+  String get composeGroupPublic;
+
+  /// No description provided for @composeGroupPrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Private'**
+  String get composeGroupPrivate;
+
+  /// No description provided for @composeGroupPrivateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'People can join the group only with an invite link.'**
+  String get composeGroupPrivateHint;
+
+  /// No description provided for @composeGroupPublicHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The group will appear in NiosMess global search.'**
+  String get composeGroupPublicHint;
+
+  /// No description provided for @composeMembersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Members ({count})'**
+  String composeMembersCount(int count);
+
+  /// No description provided for @composeNoMembersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No members selected. You can invite them later with a link.'**
+  String get composeNoMembersHint;
+
+  /// No description provided for @composeCreateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Create group'**
+  String get composeCreateGroup;
+
+  /// No description provided for @composeGroupDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Group details'**
+  String get composeGroupDetailsTitle;
+
+  /// No description provided for @composeChannelFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create the channel'**
+  String get composeChannelFailed;
+
+  /// No description provided for @composeChannelFailedUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create the channel. The username may already be taken.'**
+  String get composeChannelFailedUsername;
+
+  /// No description provided for @composeChannelNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel name *'**
+  String get composeChannelNameLabel;
+
+  /// No description provided for @composeChannelUsernameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel username *'**
+  String get composeChannelUsernameLabel;
+
+  /// No description provided for @composeUsernameRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Latin letters, digits, _ and -'**
+  String get composeUsernameRules;
+
+  /// No description provided for @composeChannelType.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel type'**
+  String get composeChannelType;
+
+  /// No description provided for @composeChannelPrivateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'People can join the channel only with an invite link.'**
+  String get composeChannelPrivateHint;
+
+  /// No description provided for @composeChannelPublicHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Public channels appear in search and have a permanent link.'**
+  String get composeChannelPublicHint;
+
+  /// No description provided for @composeChannelComments.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow comments on posts'**
+  String get composeChannelComments;
+
+  /// No description provided for @composeChannelCommentsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Every post automatically gets a discussion thread.'**
+  String get composeChannelCommentsOn;
+
+  /// No description provided for @composeChannelCommentsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribers will not be able to comment on posts.'**
+  String get composeChannelCommentsOff;
+
+  /// No description provided for @composeCreateChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Create channel'**
+  String get composeCreateChannel;
+
   /// No description provided for @inboxDraftLabel.
   ///
   /// In en, this message translates to:

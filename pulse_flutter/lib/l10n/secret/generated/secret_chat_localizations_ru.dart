@@ -293,6 +293,168 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get inboxDraftSemantics => 'Черновик';
 
   @override
+  String get inboxKeyMismatch => 'Ключи не совпадают';
+
+  @override
+  String get inboxSelectedSemantics => 'выбран';
+
+  @override
+  String get inboxMutedSemantics => 'без звука';
+
+  @override
+  String get composeOpenDialogFailed => 'Не удалось открыть диалог';
+
+  @override
+  String get composeSecretTitle => 'Новый секретный чат';
+
+  @override
+  String get composeMessageTitle => 'Новое сообщение';
+
+  @override
+  String get composeSecretSubtitle => 'Сквозное шифрование Double Ratchet';
+
+  @override
+  String get composeSearchHint => 'Имя или @username';
+
+  @override
+  String get composeRecentPeople => 'Недавние собеседники';
+
+  @override
+  String get composeSecretEmptyTitle => 'Секретный диалог';
+
+  @override
+  String get composeSecretEmptyHint =>
+      'Введите @username собеседника, чтобы начать зашифрованную переписку без следов на сервере';
+
+  @override
+  String composeFindHandle(String handle) {
+    return 'Найти @$handle';
+  }
+
+  @override
+  String get composeFindHandleHint => 'Проверить точный юзернейм на сервере';
+
+  @override
+  String composeUserNotFound(String handle) {
+    return 'Пользователь @$handle не найден';
+  }
+
+  @override
+  String composeQueryNotFound(String query) {
+    return 'Пользователь по запросу «$query» не найден';
+  }
+
+  @override
+  String get composeAddMembers => 'Добавьте участников';
+
+  @override
+  String composeNextCount(int count) {
+    return 'Далее ($count)';
+  }
+
+  @override
+  String get composeNoContacts => 'Нет контактов';
+
+  @override
+  String get composeNoContactsHint =>
+      'Найдите пользователей через строку поиска выше';
+
+  @override
+  String get composeGroupPartialMembers =>
+      'Группа создана, но часть участников не удалось добавить из-за настроек приватности';
+
+  @override
+  String get composeGroupFailed => 'Не удалось создать группу';
+
+  @override
+  String get composeGroupNameTooShort =>
+      'Название группы должно содержать не менее 2 символов';
+
+  @override
+  String get composeGroupNameLabel => 'Название группы *';
+
+  @override
+  String get composeNameHint => 'Введите название';
+
+  @override
+  String composeMinChars(int count) {
+    return 'Не менее $count символов';
+  }
+
+  @override
+  String get composeGroupType => 'Тип группы';
+
+  @override
+  String get composeGroupPublic => 'Публичная';
+
+  @override
+  String get composeGroupPrivate => 'Частная';
+
+  @override
+  String get composeGroupPrivateHint =>
+      'Вступить в группу можно только по пригласительной ссылке.';
+
+  @override
+  String get composeGroupPublicHint =>
+      'Группа будет доступна в глобальном поиске NiosMess.';
+
+  @override
+  String composeMembersCount(int count) {
+    return 'Участники ($count)';
+  }
+
+  @override
+  String get composeNoMembersHint =>
+      'Участники не выбраны. Вы сможете пригласить их позже по ссылке.';
+
+  @override
+  String get composeCreateGroup => 'Создать группу';
+
+  @override
+  String get composeGroupDetailsTitle => 'Параметры группы';
+
+  @override
+  String get composeChannelFailed => 'Не удалось создать канал';
+
+  @override
+  String get composeChannelFailedUsername =>
+      'Не удалось создать канал. Возможно, такой юзернейм уже занят.';
+
+  @override
+  String get composeChannelNameLabel => 'Название канала *';
+
+  @override
+  String get composeChannelUsernameLabel => 'Юзернейм канала *';
+
+  @override
+  String get composeUsernameRules => 'Допустимы латиница, цифры, _ и -';
+
+  @override
+  String get composeChannelType => 'Тип канала';
+
+  @override
+  String get composeChannelPrivateHint =>
+      'Вступить в канал можно только по пригласительной ссылке.';
+
+  @override
+  String get composeChannelPublicHint =>
+      'Публичные каналы доступны в поиске и по постоянной ссылке.';
+
+  @override
+  String get composeChannelComments => 'Разрешить комментарии к постам';
+
+  @override
+  String get composeChannelCommentsOn =>
+      'К каждому посту автоматически создаётся ветка обсуждений.';
+
+  @override
+  String get composeChannelCommentsOff =>
+      'Подписчики не смогут комментировать публикации.';
+
+  @override
+  String get composeCreateChannel => 'Создать канал';
+
+  @override
   String get inboxDraftLabel => 'Черновик:';
 
   @override

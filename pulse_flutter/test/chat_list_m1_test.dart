@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
@@ -309,6 +310,51 @@ void main() {
         pillDecoration(tester, channelsKey).color,
         scheme.secondaryContainer,
       );
+    });
+
+    testWidgets('keyboard: Tab reaches the rail, arrows move, Enter selects', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(_buildTestApp(child: const ChatFilterBar()));
+      await tester.pumpAndSettle();
+      final ColorScheme scheme = Theme.of(
+        tester.element(find.byType(ChatFilterBar)),
+      ).colorScheme;
+
+      Decoration? ring(Key key) => tester
+          .widget<AnimatedContainer>(
+            find
+                .descendant(
+                  of: find.byKey(key),
+                  matching: find.byType(AnimatedContainer),
+                )
+                .first,
+          )
+          .foregroundDecoration;
+      expect(ring(allKey), isNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(ring(allKey), isA<ShapeDecoration>());
+      expect(ring(unreadKey), isNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(ring(allKey), isNull);
+      expect(ring(unreadKey), isA<ShapeDecoration>());
+      // Moving the focus selects nothing yet.
+      expect(pillDecoration(tester, allKey).color, scheme.secondaryContainer);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(
+        pillDecoration(tester, unreadKey).color,
+        scheme.secondaryContainer,
+      );
+      expect(pillDecoration(tester, allKey).color, Colors.transparent);
+      // The touch target is the same 48 dp with or without the ring.
+      expect(tester.getSize(find.byKey(unreadKey)).height, 48);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('does not duplicate global unread counts in filters', (

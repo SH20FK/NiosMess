@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -63,7 +64,7 @@ class _CreateGroupMembersScreenState
             autofocus: false,
             onChanged: pickerNotifier.setQuery,
             decoration: InputDecoration(
-              hintText: 'Поиск по имени или @username...',
+              hintText: context.l10n.composeSearchHint,
               prefixIcon: const Icon(Icons.search_rounded, size: 22),
               suffixIcon: pickerState.hasQuery
                   ? IconButton(
@@ -179,11 +180,11 @@ class _CreateGroupMembersScreenState
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const Text('Новая группа'),
+            Text(context.l10n.groupNewGroup),
             Text(
               selected.isEmpty
-                  ? 'Добавьте участников'
-                  : 'Выбрано: ${selected.length}',
+                  ? context.l10n.composeAddMembers
+                  : context.l10n.inboxSelectedCount(selected.length),
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -200,7 +201,7 @@ class _CreateGroupMembersScreenState
                   context.push('/new-group/details');
                 },
                 icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: Text('Далее (${selected.length})'),
+                label: Text(context.l10n.composeNextCount(selected.length)),
               ),
             ),
         ],
@@ -213,7 +214,7 @@ class _CreateGroupMembersScreenState
                 context.push('/new-group/details');
               },
               icon: const Icon(Icons.arrow_forward_rounded),
-              label: Text('Далее (${selected.length})'),
+              label: Text(context.l10n.composeNextCount(selected.length)),
             )
           : null,
     );
@@ -228,11 +229,11 @@ class _CreateGroupMembersScreenState
   ) {
     final recent = state.recentCandidates;
     if (recent.isEmpty) {
-      return const Center(
+      return Center(
         child: EmptyStateWidget(
           icon: Icons.people_outline_rounded,
-          title: 'Нет контактов',
-          subtitle: 'Найдите пользователей через строку поиска выше',
+          title: context.l10n.composeNoContacts,
+          subtitle: context.l10n.composeNoContactsHint,
         ),
       );
     }
@@ -288,8 +289,8 @@ class _CreateGroupMembersScreenState
     return Center(
       child: EmptyStateWidget(
         icon: Icons.search_off_rounded,
-        title: 'Ничего не найдено',
-        subtitle: 'Попробуйте изменить поисковый запрос',
+        title: context.l10n.inboxSearchEmpty,
+        subtitle: context.l10n.inboxSearchEmptyHint,
       ),
     );
   }

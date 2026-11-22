@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -60,19 +61,19 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
 
       if (result != null && result.chatId > 0) {
         ref.invalidate(chatsProvider);
-        AppToast.showSuccess(context, 'Канал успешно создан');
+        AppToast.showSuccess(context, context.l10n.groupCreatedChannel);
         context.go('/chat/${result.chatId}');
       } else {
         setState(() => _isSubmitting = false);
         AppToast.showError(
           context,
-          'Не удалось создать канал. Возможно, такой юзернейм уже занят.',
+          context.l10n.composeChannelFailedUsername,
         );
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      AppToast.showError(context, 'Не удалось создать канал');
+      AppToast.showError(context, context.l10n.composeChannelFailed);
     }
   }
 
@@ -115,8 +116,8 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
                   textInputAction: TextInputAction.next,
                   maxLength: 64,
                   decoration: InputDecoration(
-                    labelText: 'Название канала *',
-                    hintText: 'Введите название',
+                    labelText: context.l10n.composeChannelNameLabel,
+                    hintText: context.l10n.composeNameHint,
                     counterText: '',
                     filled: true,
                     fillColor: scheme.surfaceContainerHigh,
@@ -128,7 +129,7 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
                   validator: (value) {
                     final trimmed = value?.trim() ?? '';
                     if (trimmed.length < 2) {
-                      return 'Не менее 2 символов';
+                      return context.l10n.composeMinChars(2);
                     }
                     return null;
                   },
@@ -147,7 +148,7 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
                   textInputAction: TextInputAction.next,
                   maxLength: 32,
                   decoration: InputDecoration(
-                    labelText: 'Юзернейм канала *',
+                    labelText: context.l10n.composeChannelUsernameLabel,
                     hintText: 'channel_username',
                     prefixText: '@',
                     counterText: '',
@@ -163,10 +164,10 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
                     final trimmed =
                         value?.trim().replaceFirst(RegExp(r'^@'), '') ?? '';
                     if (trimmed.length < 3) {
-                      return 'Не менее 3 символов';
+                      return context.l10n.composeMinChars(3);
                     }
                     if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(trimmed)) {
-                      return 'Допустимы латиница, цифры, _ и -';
+                      return context.l10n.composeUsernameRules;
                     }
                     return null;
                   },
@@ -181,8 +182,8 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
             maxLines: 3,
             maxLength: 255,
             decoration: InputDecoration(
-              labelText: 'Описание канала',
-              hintText: 'О чем будет ваш канал?',
+              labelText: context.l10n.groupDescriptionChannelLabel,
+              hintText: context.l10n.groupDescriptionChannelHint,
               filled: true,
               fillColor: scheme.surfaceContainerHigh,
               border: OutlineInputBorder(
@@ -207,23 +208,23 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Тип канала',
+                  context.l10n.composeChannelType,
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 12),
                 SegmentedButton<bool>(
-                  segments: const <ButtonSegment<bool>>[
+                  segments: <ButtonSegment<bool>>[
                     ButtonSegment<bool>(
                       value: false,
-                      label: Text('Публичный'),
-                      icon: Icon(Icons.public_rounded, size: 18),
+                      label: Text(context.l10n.groupPublic),
+                      icon: const Icon(Icons.public_rounded, size: 18),
                     ),
                     ButtonSegment<bool>(
                       value: true,
-                      label: Text('Частный'),
-                      icon: Icon(Icons.lock_outline_rounded, size: 18),
+                      label: Text(context.l10n.groupPrivate),
+                      icon: const Icon(Icons.lock_outline_rounded, size: 18),
                     ),
                   ],
                   selected: <bool>{_isPrivate},
@@ -235,8 +236,8 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
                 const SizedBox(height: 8),
                 Text(
                   _isPrivate
-                      ? 'Вступить в канал можно только по пригласительной ссылке.'
-                      : 'Публичные каналы доступны в поиске и по постоянной ссылке.',
+                      ? context.l10n.composeChannelPrivateHint
+                      : context.l10n.composeChannelPublicHint,
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -253,11 +254,11 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
               HapticService.selection();
               setState(() => _commentsEnabled = val);
             },
-            title: const Text('Разрешить комментарии к постам'),
+            title: Text(context.l10n.composeChannelComments),
             subtitle: Text(
               _commentsEnabled
-                  ? 'К каждому посту автоматически создается ветка обсуждений.'
-                  : 'Подписчики не смогут комментировать публикации.',
+                  ? context.l10n.composeChannelCommentsOn
+                  : context.l10n.composeChannelCommentsOff,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -284,9 +285,9 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
                     width: 24,
                     child: AppLoadingIndicator(size: 24),
                   )
-                : const Text(
-                    'Создать канал',
-                    style: TextStyle(
+                : Text(
+                    context.l10n.composeCreateChannel,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -322,7 +323,7 @@ class _CreateChannelScreenState extends ConsumerState<CreateChannelScreen> {
     return Scaffold(
       backgroundColor: scheme.surface,
       appBar: AppBar(
-        title: const Text('Новый канал'),
+        title: Text(context.l10n.groupNewChannel),
       ),
       body: content,
     );

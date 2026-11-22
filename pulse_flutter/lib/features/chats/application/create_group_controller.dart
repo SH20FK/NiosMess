@@ -6,27 +6,36 @@ import 'package:pulse_flutter/models/api/chat_actions_models.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 
+/// Why a group could not be created. The screen picks the wording.
+enum CreateGroupError { nameTooShort, failed }
+
 @immutable
 class CreateGroupState {
   const CreateGroupState({
     this.draft = const CreateGroupDraft(),
     this.isSubmitting = false,
-    this.errorMessage,
+    this.error,
+    this.cause,
   });
 
   final CreateGroupDraft draft;
   final bool isSubmitting;
-  final String? errorMessage;
+  final CreateGroupError? error;
+
+  /// The exception behind [CreateGroupError.failed], when there was one.
+  final Object? cause;
 
   CreateGroupState copyWith({
     CreateGroupDraft? draft,
     bool? isSubmitting,
-    String? errorMessage,
+    CreateGroupError? error,
+    Object? cause,
   }) {
     return CreateGroupState(
       draft: draft ?? this.draft,
       isSubmitting: isSubmitting ?? this.isSubmitting,
-      errorMessage: errorMessage,
+      error: error,
+      cause: cause,
     );
   }
 }
@@ -66,7 +75,6 @@ class CreateGroupController extends Notifier<CreateGroupState> {
   void setName(String name) {
     state = state.copyWith(
       draft: state.draft.copyWith(name: name),
-      errorMessage: null,
     );
   }
 
@@ -85,13 +93,11 @@ class CreateGroupController extends Notifier<CreateGroupState> {
   Future<ChatCreateResult?> submit() async {
     final name = state.draft.name.trim();
     if (name.length < 2) {
-      state = state.copyWith(
-        errorMessage: 'Название группы должно содержать не менее 2 символов',
-      );
+      state = state.copyWith(error: CreateGroupError.nameTooShort);
       return null;
     }
 
-    state = state.copyWith(isSubmitting: true, errorMessage: null);
+    state = state.copyWith(isSubmitting: true);
 
     try {
       final repo = ref.read(chatRepositoryProvider);
@@ -113,7 +119,7 @@ class CreateGroupController extends Notifier<CreateGroupState> {
       if (result == null) {
         state = state.copyWith(
           isSubmitting: false,
-          errorMessage: 'Не удалось создать группу. Попробуйте снова.',
+          error: CreateGroupError.failed,
         );
         return null;
       }
@@ -126,7 +132,8 @@ class CreateGroupController extends Notifier<CreateGroupState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        errorMessage: 'Ошибка при создании группы: $e',
+        error: CreateGroupError.failed,
+        cause: e,
       );
       return null;
     }

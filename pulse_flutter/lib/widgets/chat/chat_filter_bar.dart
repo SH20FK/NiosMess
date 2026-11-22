@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -366,7 +367,10 @@ class _FolderPill extends ConsumerWidget {
 ///
 /// The weight is fixed at `w600` on purpose: swapping 500 ↔ 700 on selection
 /// changes the intrinsic width and makes the whole row jump sideways.
-class _FilterPill extends StatelessWidget {
+///
+/// Keyboard: Tab reaches the rail, the left and right arrows move between
+/// pills, Enter or Space selects.
+class _FilterPill extends StatefulWidget {
   const _FilterPill({
     super.key,
     required this.label,
@@ -387,11 +391,39 @@ class _FilterPill extends StatelessWidget {
   final bool badgeAlert;
 
   @override
+  State<_FilterPill> createState() => _FilterPillState();
+}
+
+const Map<ShortcutActivator, Intent> _kPillShortcuts =
+    <ShortcutActivator, Intent>{
+      SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+      SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+      SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+      // Bound here as well: the web has no arrow traversal by default.
+      SingleActivator(LogicalKeyboardKey.arrowLeft): DirectionalFocusIntent(
+        TraversalDirection.left,
+      ),
+      SingleActivator(LogicalKeyboardKey.arrowRight): DirectionalFocusIntent(
+        TraversalDirection.right,
+      ),
+    };
+
+class _FilterPillState extends State<_FilterPill> {
+  // The ring is shown only while the keyboard drives the focus.
+  bool _focusRing = false;
+
+  @override
   Widget build(BuildContext context) {
+    final Widget label = widget.label;
+    final bool selected = widget.selected;
+    final double minHeight = widget.minHeight;
+    final VoidCallback onTap = widget.onTap;
+    final VoidCallback? onLongPress = widget.onLongPress;
+    final bool badgeAlert = widget.badgeAlert;
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final bool reduceMotion = context.reduceMotion;
-    final int? count = badgeCount;
+    final int? count = widget.badgeCount;
     final bool showBadge = count != null && count > 0;
 
     final TextStyle textStyle =
@@ -408,7 +440,23 @@ class _FilterPill extends StatelessWidget {
       button: true,
       selected: selected,
       container: true,
-      child: GestureDetector(
+      child: FocusableActionDetector(
+        mouseCursor: SystemMouseCursors.click,
+        shortcuts: _kPillShortcuts,
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (ActivateIntent _) {
+              onTap();
+              return null;
+            },
+          ),
+        },
+        onShowFocusHighlight: (bool value) {
+          if (mounted && value != _focusRing) {
+            setState(() => _focusRing = value);
+          }
+        },
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         onLongPress: onLongPress,
@@ -430,6 +478,13 @@ class _FilterPill extends StatelessWidget {
             color: selected ? scheme.secondaryContainer : Colors.transparent,
             shape: const StadiumBorder(),
           ),
+          foregroundDecoration: _focusRing
+              ? ShapeDecoration(
+                  shape: StadiumBorder(
+                    side: BorderSide(color: scheme.primary, width: 2),
+                  ),
+                )
+              : null,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -445,6 +500,7 @@ class _FilterPill extends StatelessWidget {
               ],
             ],
           ),
+        ),
         ),
       ),
     );

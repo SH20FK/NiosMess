@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -39,14 +40,6 @@ const double _kIndicatorInset = 8;
 const double _kIndicatorWidth = 3;
 const double _kIndicatorHeight = 20;
 
-/// TODO(l10n): the `keyMismatch`, `muted` and `selected` inbox state
-/// markers have no `.arb` entries yet (the repo ships only generated
-/// `app_localizations*.dart`, the source .arb files are absent). Replace these
-/// hardcoded Russian labels with `context.l10n.*` once the keys land.
-const String _kKeyMismatchLabel = 'Ключи не совпадают';
-const String _kSelectedSemantics = 'выбран';
-const String _kMutedSemantics = 'без звука';
-
 /// Google Messages / M3 Expressive Chat List Tile with unread pills,
 /// dynamic online indicator cutout, and refined typography.
 class ChatTile extends StatefulWidget {
@@ -61,6 +54,7 @@ class ChatTile extends StatefulWidget {
     required this.onTap,
     this.onLongPress,
     this.onSecondaryTapDown,
+    this.onDeleteRequested,
     this.subtitleIcon,
     this.subtitlePrefix,
     this.deliveryIcon,
@@ -103,6 +97,10 @@ class ChatTile extends StatefulWidget {
   /// coordinates. Wired instead of the legacy "secondary tap == long press"
   /// fallback so a right click opens exactly one menu.
   final ValueChanged<Offset>? onSecondaryTapDown;
+
+  /// Delete pressed while the row has keyboard focus. Without it the key is
+  /// left to whoever handles it further up.
+  final VoidCallback? onDeleteRequested;
 
   final IconData? subtitleIcon;
 
@@ -155,6 +153,40 @@ class ChatTile extends StatefulWidget {
 class _ChatTileState extends State<ChatTile> {
   final ValueNotifier<bool> _isHoveredNotifier = ValueNotifier<bool>(false);
 
+  bool _focused = false;
+
+  // The ring is shown only while the keyboard drives the focus.
+  bool _focusRing = false;
+
+  static const Map<ShortcutActivator, Intent> _shortcuts =
+      <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        // Bound here as well: the web has no arrow traversal by default.
+        SingleActivator(LogicalKeyboardKey.arrowDown): DirectionalFocusIntent(
+          TraversalDirection.down,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowUp): DirectionalFocusIntent(
+          TraversalDirection.up,
+        ),
+        SingleActivator(LogicalKeyboardKey.f10, shift: true): _ChatMenuIntent(),
+        SingleActivator(LogicalKeyboardKey.contextMenu): _ChatMenuIntent(),
+        SingleActivator(LogicalKeyboardKey.delete): _ChatDeleteIntent(),
+      };
+
+  /// Keyboard request for the row's menu: the cursor menu at the middle of
+  /// the row, or the long-press sheet when the row has no cursor menu.
+  void _requestMenu() {
+    final ValueChanged<Offset>? atPointer = widget.onSecondaryTapDown;
+    final RenderObject? box = context.findRenderObject();
+    if (atPointer != null && box is RenderBox && box.hasSize) {
+      atPointer(box.localToGlobal(box.size.center(Offset.zero)));
+    } else {
+      widget.onLongPress?.call();
+    }
+  }
+
   @override
   void dispose() {
     _isHoveredNotifier.dispose();
@@ -205,22 +237,37 @@ class _ChatTileState extends State<ChatTile> {
         widget.deliveryIcon == Icons.error_outline_rounded;
     final String? statusLabel = widget.deliveryLabel;
 
+    // What the screen reader hears instead of the row's children: who, what
+    // was said and when, then the states. The preview is left out whenever
+    // the row shows something else in its slot.
+    final bool previewShown =
+        !widget.isTyping &&
+        !widget.keyMismatch &&
+        !(statusIsError && statusLabel != null);
+    final String preview = widget.subtitle.trim();
+    final String? author = widget.subtitlePrefix;
     final String semanticsLabel = <String>[
       widget.title,
-      if (widget.draftLabel != null)
-        '${context.l10n.inboxDraftSemantics}: ${widget.draftLabel}',
-      if (hasUnread) context.l10n.chatListUnreadCount(widget.unreadCount),
-      if (widget.isSelected || widget.isPicked) _kSelectedSemantics,
-      if (widget.isMuted) _kMutedSemantics,
-      if (widget.isSecret) context.l10n.secretTitle,
-      if (widget.keyMismatch) _kKeyMismatchLabel,
+      if (widget.isOnline && !widget.isSaved) context.l10n.online,
       if (widget.isTyping) _typingText(context),
+      if (widget.draftLabel != null) context.l10n.inboxDraftSemantics,
+      if (previewShown && preview.isNotEmpty)
+        author == null ? preview : '$author: $preview',
+      if (widget.formattedTime.isNotEmpty) widget.formattedTime,
+      if (hasUnread) context.l10n.chatListUnreadCount(widget.unreadCount),
+      if (widget.isSelected || widget.isPicked)
+        context.l10n.inboxSelectedSemantics,
+      if (widget.isMuted) context.l10n.inboxMutedSemantics,
+      if (widget.isSecret) context.l10n.secretTitle,
+      if (widget.keyMismatch) context.l10n.inboxKeyMismatch,
       if (widget.deliveryIcon == Icons.done_all_rounded)
         context.l10n.deliveryRead
       else if (widget.deliveryIcon == Icons.done_rounded)
         context.l10n.deliverySent,
       ?statusLabel,
     ].join(', ');
+
+    final VoidCallback? onDelete = widget.onDeleteRequested;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -229,13 +276,54 @@ class _ChatTileState extends State<ChatTile> {
       child: Semantics(
         button: true,
         selected: widget.isSelected || widget.isPicked,
+        focusable: true,
+        focused: _focused,
         label: semanticsLabel,
         // The tile paints its own title, preview, badge and icons: without
         // excludeSemantics TalkBack reads the label plus every child twice.
         excludeSemantics: true,
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
-        child: TouchContainer(
+        // Keyboard: Tab or the arrows reach the row, Enter opens the chat,
+        // Shift+F10 asks for its menu, Delete asks to remove it. A key whose
+        // action is not offered here is not swallowed.
+        child: FocusableActionDetector(
+          includeFocusSemantics: false,
+          mouseCursor: SystemMouseCursors.click,
+          shortcuts: _shortcuts,
+          actions: <Type, Action<Intent>>{
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (ActivateIntent _) {
+                widget.onTap();
+                return null;
+              },
+            ),
+            if (widget.onSecondaryTapDown != null || widget.onLongPress != null)
+              _ChatMenuIntent: CallbackAction<_ChatMenuIntent>(
+                onInvoke: (_ChatMenuIntent _) {
+                  _requestMenu();
+                  return null;
+                },
+              ),
+            if (onDelete != null)
+              _ChatDeleteIntent: CallbackAction<_ChatDeleteIntent>(
+                onInvoke: (_ChatDeleteIntent _) {
+                  onDelete();
+                  return null;
+                },
+              ),
+          },
+          onFocusChange: (bool value) {
+            if (mounted && value != _focused) {
+              setState(() => _focused = value);
+            }
+          },
+          onShowFocusHighlight: (bool value) {
+            if (mounted && value != _focusRing) {
+              setState(() => _focusRing = value);
+            }
+          },
+          child: TouchContainer(
           onTap: widget.onTap,
           onLongPress: widget.onLongPress,
           onSecondaryTapDown: widget.onSecondaryTapDown,
@@ -276,6 +364,14 @@ class _ChatTileState extends State<ChatTile> {
                   color: tileBg,
                   borderRadius: rowRadius,
                 ),
+                // Painted over the row, so it changes neither the layout nor
+                // the row's own fill.
+                foregroundDecoration: _focusRing
+                    ? BoxDecoration(
+                        borderRadius: rowRadius,
+                        border: Border.all(color: scheme.primary, width: 2),
+                      )
+                    : null,
                 child: Stack(
                   // The indicator lives in the leading padding, never in the
                   // hit area: taps still target the whole row.
@@ -336,8 +432,8 @@ class _ChatTileState extends State<ChatTile> {
                               // is mounted only while the row is picked: a
                               // resting avatar carries no overlay at all.
                               if (widget.isPicked)
-                              Positioned(
-                                right: -3,
+                              PositionedDirectional(
+                                end: -3,
                                 bottom: -3,
                                 child: TweenAnimationBuilder<double>(
                                   key: const ValueKey<String>(
@@ -379,8 +475,8 @@ class _ChatTileState extends State<ChatTile> {
                               if (widget.isOnline &&
                                   !widget.isSaved &&
                                   !widget.isPicked)
-                                Positioned(
-                                  right: -1,
+                                PositionedDirectional(
+                                  end: -1,
                                   bottom: -1,
                                   child: Container(
                                     key: const ValueKey<String>(
@@ -429,8 +525,9 @@ class _ChatTileState extends State<ChatTile> {
                         ],
                       ),
                     ),
-                    Positioned(
-                      left: _kIndicatorInset,
+                    // Leading edge: the right one in a right-to-left locale.
+                    PositionedDirectional(
+                      start: _kIndicatorInset,
                       top: 0,
                       bottom: 0,
                       child: Center(
@@ -456,6 +553,7 @@ class _ChatTileState extends State<ChatTile> {
               );
             },
           ),
+        ),
         ),
       ),
     );
@@ -707,7 +805,7 @@ class _ChatTileState extends State<ChatTile> {
                             vertical: 1,
                           ),
                           child: Text(
-                            _kKeyMismatchLabel,
+                            context.l10n.inboxKeyMismatch,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style:
@@ -768,6 +866,16 @@ class _ChatTileState extends State<ChatTile> {
     }
     return scheme.onSurfaceVariant;
   }
+}
+
+/// Keyboard request for the row's menu (Shift+F10 or the menu key).
+class _ChatMenuIntent extends Intent {
+  const _ChatMenuIntent();
+}
+
+/// Keyboard request to delete or leave the chat (Delete).
+class _ChatDeleteIntent extends Intent {
+  const _ChatDeleteIntent();
 }
 
 class _TitleIcon extends StatelessWidget {

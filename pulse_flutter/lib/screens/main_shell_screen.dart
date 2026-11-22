@@ -796,7 +796,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               context.l10n.shellE2eeNotice,
               style: TextStyle(
                 fontSize: 12,
-                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                // Full tone: 12 px text at 70% alpha fell under 4.5:1.
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ],

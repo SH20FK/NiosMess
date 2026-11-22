@@ -914,6 +914,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       keyMismatch: chat.keyMismatch,
                       isSelected: desktopChatId == chat.id,
                       isPicked: picked,
+                      // Delete on a focused row asks before it removes.
+                      onDeleteRequested: selecting
+                          ? null
+                          : () => unawaited(_leaveChat(context, chat)),
                       onTap: () {
                         if (selecting) {
                           _togglePick(chat.id);

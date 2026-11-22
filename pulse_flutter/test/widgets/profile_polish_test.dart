@@ -125,6 +125,11 @@ void main() {
         for (final element in find.byType(ProductivityIcon).evaluate()) {
           final avatar = element.findAncestorWidgetOfExactType<Stack>()!;
           expect(avatar.children.whereType<Positioned>(), isEmpty);
+          // The presence dot and the pick mark are directional overlays.
+          expect(
+            avatar.children.whereType<PositionedDirectional>(),
+            isEmpty,
+          );
         }
         expect(tester.takeException(), isNull);
       },

@@ -13,6 +13,7 @@ import 'package:pulse_flutter/core/diagnostics/app_logger.dart';
 import 'package:pulse_flutter/core/utils/app_time.dart';
 import 'package:pulse_flutter/core/utils/noto_emoji_licenses.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/core/theme/app_text_scaler.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/router/app_router.dart';
@@ -413,7 +414,14 @@ class _PulseAppState extends ConsumerState<PulseApp> {
                 builder: (BuildContext innerContext) {
                   final mediaQuery = MediaQuery.of(
                     innerContext,
-                  ).copyWith(textScaler: TextScaler.linear(fontScale.scale));
+                  ).copyWith(
+                    // The system text size is honoured and multiplied by the
+                    // in-app setting, within the range layouts are tested in.
+                    textScaler: AppTextScaler(
+                      system: MediaQuery.textScalerOf(innerContext),
+                      appScale: fontScale.scale,
+                    ),
+                  );
                   return MediaQuery(
                     data: mediaQuery,
                     child: AppLockGate(

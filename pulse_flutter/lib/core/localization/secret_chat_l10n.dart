@@ -370,6 +370,56 @@ extension SecretChatL10n on AppLocalizations {
   String get inboxWaitingToSend => _secret.inboxWaitingToSend;
   String get inboxSendFailed => _secret.inboxSendFailed;
   String get inboxDraftSemantics => _secret.inboxDraftSemantics;
+  String get inboxKeyMismatch => _secret.inboxKeyMismatch;
+  String get inboxSelectedSemantics => _secret.inboxSelectedSemantics;
+  String get inboxMutedSemantics => _secret.inboxMutedSemantics;
+
+  String get composeOpenDialogFailed => _secret.composeOpenDialogFailed;
+  String get composeSecretTitle => _secret.composeSecretTitle;
+  String get composeMessageTitle => _secret.composeMessageTitle;
+  String get composeSecretSubtitle => _secret.composeSecretSubtitle;
+  String get composeSearchHint => _secret.composeSearchHint;
+  String get composeRecentPeople => _secret.composeRecentPeople;
+  String get composeSecretEmptyTitle => _secret.composeSecretEmptyTitle;
+  String get composeSecretEmptyHint => _secret.composeSecretEmptyHint;
+  String composeFindHandle(String handle) => _secret.composeFindHandle(handle);
+  String get composeFindHandleHint => _secret.composeFindHandleHint;
+  String composeUserNotFound(String handle) =>
+      _secret.composeUserNotFound(handle);
+  String composeQueryNotFound(String query) =>
+      _secret.composeQueryNotFound(query);
+  String get composeAddMembers => _secret.composeAddMembers;
+  String composeNextCount(int count) => _secret.composeNextCount(count);
+  String get composeNoContacts => _secret.composeNoContacts;
+  String get composeNoContactsHint => _secret.composeNoContactsHint;
+  String get composeGroupPartialMembers => _secret.composeGroupPartialMembers;
+  String get composeGroupFailed => _secret.composeGroupFailed;
+  String get composeGroupNameTooShort => _secret.composeGroupNameTooShort;
+  String get composeGroupNameLabel => _secret.composeGroupNameLabel;
+  String get composeNameHint => _secret.composeNameHint;
+  String composeMinChars(int count) => _secret.composeMinChars(count);
+  String get composeGroupType => _secret.composeGroupType;
+  String get composeGroupPublic => _secret.composeGroupPublic;
+  String get composeGroupPrivate => _secret.composeGroupPrivate;
+  String get composeGroupPrivateHint => _secret.composeGroupPrivateHint;
+  String get composeGroupPublicHint => _secret.composeGroupPublicHint;
+  String composeMembersCount(int count) => _secret.composeMembersCount(count);
+  String get composeNoMembersHint => _secret.composeNoMembersHint;
+  String get composeCreateGroup => _secret.composeCreateGroup;
+  String get composeGroupDetailsTitle => _secret.composeGroupDetailsTitle;
+  String get composeChannelFailed => _secret.composeChannelFailed;
+  String get composeChannelFailedUsername =>
+      _secret.composeChannelFailedUsername;
+  String get composeChannelNameLabel => _secret.composeChannelNameLabel;
+  String get composeChannelUsernameLabel => _secret.composeChannelUsernameLabel;
+  String get composeUsernameRules => _secret.composeUsernameRules;
+  String get composeChannelType => _secret.composeChannelType;
+  String get composeChannelPrivateHint => _secret.composeChannelPrivateHint;
+  String get composeChannelPublicHint => _secret.composeChannelPublicHint;
+  String get composeChannelComments => _secret.composeChannelComments;
+  String get composeChannelCommentsOn => _secret.composeChannelCommentsOn;
+  String get composeChannelCommentsOff => _secret.composeChannelCommentsOff;
+  String get composeCreateChannel => _secret.composeCreateChannel;
 
   String get inboxActions => _secret.inboxActions;
   String get inboxAllFolders => _secret.inboxAllFolders;

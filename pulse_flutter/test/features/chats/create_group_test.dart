@@ -91,8 +91,9 @@ void main() {
       expect(result, isNull);
 
       final state = container.read(createGroupControllerProvider);
-      expect(state.errorMessage, isNotNull);
-      expect(state.errorMessage, contains('не менее 2'));
+      expect(state.error, CreateGroupError.nameTooShort);
+      expect(state.cause, isNull);
+      expect(state.isSubmitting, isFalse);
     });
   });
 }

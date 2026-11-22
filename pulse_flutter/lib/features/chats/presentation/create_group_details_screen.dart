@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -52,17 +53,22 @@ class _CreateGroupDetailsScreenState
       if (result.hasMemberFailures) {
         AppToast.showInfo(
           context,
-          'Группа создана, но часть участников не удалось добавить из-за настроек приватности',
+          context.l10n.composeGroupPartialMembers,
         );
       } else {
-        AppToast.showSuccess(context, 'Группа успешно создана');
+        AppToast.showSuccess(context, context.l10n.groupCreatedGroup);
       }
       notifier.reset();
       context.go('/chat/${result.chatId}');
     } else {
-      final error = ref.read(createGroupControllerProvider).errorMessage ??
-          'Не удалось создать группу';
-      AppToast.showError(context, error);
+      final CreateGroupState failed = ref.read(createGroupControllerProvider);
+      AppToast.showError(
+        context,
+        failed.error == CreateGroupError.nameTooShort
+            ? context.l10n.composeGroupNameTooShort
+            // The toast words a known exception itself.
+            : failed.cause ?? context.l10n.composeGroupFailed,
+      );
     }
   }
 
@@ -109,8 +115,8 @@ class _CreateGroupDetailsScreenState
                   textInputAction: TextInputAction.next,
                   maxLength: 64,
                   decoration: InputDecoration(
-                    labelText: 'Название группы *',
-                    hintText: 'Введите название',
+                    labelText: context.l10n.composeGroupNameLabel,
+                    hintText: context.l10n.composeNameHint,
                     counterText: '',
                     filled: true,
                     fillColor: scheme.surfaceContainerHigh,
@@ -122,7 +128,7 @@ class _CreateGroupDetailsScreenState
                   validator: (value) {
                     final trimmed = value?.trim() ?? '';
                     if (trimmed.length < 2) {
-                      return 'Не менее 2 символов';
+                      return context.l10n.composeMinChars(2);
                     }
                     return null;
                   },
@@ -138,8 +144,8 @@ class _CreateGroupDetailsScreenState
             maxLines: 3,
             maxLength: 255,
             decoration: InputDecoration(
-              labelText: 'Описание (необязательно)',
-              hintText: 'О чем эта группа?',
+              labelText: context.l10n.groupDescriptionGroupLabel,
+              hintText: context.l10n.groupDescriptionGroupHint,
               filled: true,
               fillColor: scheme.surfaceContainerHigh,
               border: OutlineInputBorder(
@@ -164,23 +170,23 @@ class _CreateGroupDetailsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Тип группы',
+                  context.l10n.composeGroupType,
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 12),
                 SegmentedButton<bool>(
-                  segments: const <ButtonSegment<bool>>[
+                  segments: <ButtonSegment<bool>>[
                     ButtonSegment<bool>(
                       value: false,
-                      label: Text('Публичная'),
-                      icon: Icon(Icons.public_rounded, size: 18),
+                      label: Text(context.l10n.composeGroupPublic),
+                      icon: const Icon(Icons.public_rounded, size: 18),
                     ),
                     ButtonSegment<bool>(
                       value: true,
-                      label: Text('Частная'),
-                      icon: Icon(Icons.lock_outline_rounded, size: 18),
+                      label: Text(context.l10n.composeGroupPrivate),
+                      icon: const Icon(Icons.lock_outline_rounded, size: 18),
                     ),
                   ],
                   selected: <bool>{draft.isPrivate},
@@ -192,8 +198,8 @@ class _CreateGroupDetailsScreenState
                 const SizedBox(height: 8),
                 Text(
                   draft.isPrivate
-                      ? 'Вступить в группу можно только по пригласительной ссылке.'
-                      : 'Группа будет доступна в глобальном поиске NiosMess.',
+                      ? context.l10n.composeGroupPrivateHint
+                      : context.l10n.composeGroupPublicHint,
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -208,7 +214,7 @@ class _CreateGroupDetailsScreenState
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               Text(
-                'Участники (${draft.memberCount})',
+                context.l10n.composeMembersCount(draft.memberCount),
                 style: textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -216,7 +222,7 @@ class _CreateGroupDetailsScreenState
               TextButton.icon(
                 onPressed: () => context.pop(),
                 icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Изменить'),
+                label: Text(context.l10n.chatEdit),
               ),
             ],
           ),
@@ -274,7 +280,7 @@ class _CreateGroupDetailsScreenState
                 borderRadius: BorderRadius.circular(AppRadii.lg),
               ),
               child: Text(
-                'Участники не выбраны. Вы сможете пригласить их позже по ссылке.',
+                context.l10n.composeNoMembersHint,
                 style: textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -297,9 +303,9 @@ class _CreateGroupDetailsScreenState
                     width: 24,
                     child: AppLoadingIndicator(size: 24),
                   )
-                : const Text(
-                    'Создать группу',
-                    style: TextStyle(
+                : Text(
+                    context.l10n.composeCreateGroup,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -335,7 +341,7 @@ class _CreateGroupDetailsScreenState
     return Scaffold(
       backgroundColor: scheme.surface,
       appBar: AppBar(
-        title: const Text('Параметры группы'),
+        title: Text(context.l10n.composeGroupDetailsTitle),
       ),
       body: content,
     );
