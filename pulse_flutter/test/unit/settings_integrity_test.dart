@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pulse_flutter/core/constants/build_info.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
 import 'package:pulse_flutter/l10n/app_localizations_ru.dart';
 import 'package:pulse_flutter/models/settings/settings_node.dart';
@@ -201,6 +202,18 @@ void main() {
           reason: node.route,
         );
       }
+    });
+
+    // The hub, the licence page and the changelog card print BuildInfo. It
+    // is written by hand, and once stayed twenty releases behind.
+    test('the version the app shows is the one in pubspec.yaml', () {
+      final RegExpMatch? declared = RegExp(
+        r'^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$',
+        multiLine: true,
+      ).firstMatch(File('pubspec.yaml').readAsStringSync());
+      expect(declared, isNotNull, reason: 'pubspec.yaml has no version line');
+      expect(BuildInfo.version, declared!.group(1));
+      expect(BuildInfo.buildNumber, declared.group(2));
     });
   });
 }

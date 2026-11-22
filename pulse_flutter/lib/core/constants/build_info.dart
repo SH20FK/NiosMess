@@ -1,14 +1,15 @@
 /// Compile-time build and version metadata for NiosMess.
 ///
-/// Single source of truth for application versioning alongside pubspec.yaml.
+/// Kept equal to the version in pubspec.yaml by hand: a test in
+/// `test/unit/settings_integrity_test.dart` fails when the two drift apart.
 class BuildInfo {
   const BuildInfo._();
 
   /// Semantic version (e.g. "3.63.0").
-  static const String version = '3.125.1';
+  static const String version = '3.145.3';
 
   /// Build number (e.g. "147").
-  static const String buildNumber = '4281';
+  static const String buildNumber = '4329';
 
   /// Version with 'v' prefix (e.g. "v3.63.1").
   static const String versionWithPrefix = 'v$version';
@@ -26,5 +27,5 @@ class BuildInfo {
   static const String buildChannel = 'stable';
 
   /// Release date string (YYYY-MM-DD).
-  static const String buildDate = '2026-11-02';
+  static const String buildDate = '2026-11-22';
 }
