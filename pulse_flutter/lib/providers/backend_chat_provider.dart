@@ -1205,14 +1205,22 @@ final chatOnlineProvider = Provider.autoDispose.family<bool, int>((
   );
 });
 
-/// Total unread message count across all chats — drives the nav bar badge.
+/// Unread messages the navigation badge counts: every chat whose
+/// notifications are on. A muted chat (or a topic of a muted group) keeps its
+/// own counter in the list but does not ask for attention from every screen.
 final Provider<int> totalUnreadCountProvider = Provider<int>((Ref ref) {
-  final AsyncValue<List<ApiChatSummary>> chats = ref.watch(chatsProvider);
-  return chats.maybeWhen(
-    data: (List<ApiChatSummary> list) =>
-        list.fold(0, (int sum, ApiChatSummary c) => sum + c.unreadCount),
-    orElse: () => 0,
-  );
+  final List<ApiChatSummary>? chats = ref.watch(chatsProvider).value;
+  if (chats == null) return 0;
+  final Set<int> muted = ref.watch(chatMuteHubProvider).value ?? const <int>{};
+  int total = 0;
+  for (final ApiChatSummary chat in chats) {
+    if (chat.unreadCount <= 0) continue;
+    if (muted.contains(chat.id) || muted.contains(chat.topicParentId)) {
+      continue;
+    }
+    total += chat.unreadCount;
+  }
+  return total;
 });
 
 int _compareMessages(ApiMessage a, ApiMessage b) {

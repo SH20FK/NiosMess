@@ -194,6 +194,16 @@ abstract final class Breakpoints {
 
   /// Large desktop, 4K canvas: expanded rail with permanent drawer (>= 1600 dp).
   static const double large = 1600.0;
+
+  /// Lowest window that still gets the list–detail split. A phone on its side
+  /// is wide enough for two panes but too low to read either of them.
+  static const double twoPaneMinHeight = 480.0;
+
+  /// Whether a window of [size] shows the chat list and the open chat side by
+  /// side. Every place that chooses between selecting a chat in the pane and
+  /// pushing its route asks this, so they cannot disagree.
+  static bool twoPane(Size size) =>
+      size.width >= medium && size.height >= twoPaneMinHeight;
 }
 
 /// Canonical 4dp spacing scale. Use these instead of magic padding numbers so

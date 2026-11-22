@@ -6,6 +6,7 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
+import 'package:pulse_flutter/widgets/nav/app_nav_item.dart';
 
 class _NavTestSettings extends UiSettingsNotifier {
   @override
@@ -209,8 +210,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(selections, [1, 2]);
       expect(index, 2);
-      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).animationDuration, Duration.zero);
-      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 2);
+      final items = tester.widgetList<AppNavItem>(find.byType(AppNavItem)).toList();
+      expect(items.every((item) => item.duration == Duration.zero), isTrue);
+      expect(items.map((item) => item.selected).toList(), [false, false, true]);
       expect(tester.takeException(), isNull);
     });
 

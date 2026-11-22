@@ -32,7 +32,7 @@ class InboxSearchResults extends ConsumerWidget {
     // Same routing as a tap on an inbox row.
     if (ref.read(clientCapabilitiesProvider).browserWorkspace) {
       context.go('/main/chats?chat=$chatId');
-    } else if (MediaQuery.sizeOf(context).width >= Breakpoints.medium) {
+    } else if (Breakpoints.twoPane(MediaQuery.sizeOf(context))) {
       ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(chatId);
     } else {
       context.push('/chat/$chatId');

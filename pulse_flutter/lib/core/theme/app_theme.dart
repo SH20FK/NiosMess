@@ -139,44 +139,6 @@ class AppTheme {
           borderRadius: BorderRadius.circular(settings.uiCornerRadius),
         ),
       ),
-      navigationBarTheme: NavigationBarThemeData(
-        height: 66,
-        elevation: 0,
-        backgroundColor: scheme.surfaceContainerLow.withValues(alpha: 0.96),
-        indicatorColor: scheme.secondaryContainer,
-        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
-          (Set<WidgetState> states) => textTheme.labelMedium?.copyWith(
-            color: states.contains(WidgetState.selected)
-                ? scheme.onSecondaryContainer
-                : scheme.onSurfaceVariant,
-            fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w700
-                : FontWeight.w500,
-          ),
-        ),
-        iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>(
-          (Set<WidgetState> states) => IconThemeData(
-            color: states.contains(WidgetState.selected)
-                ? scheme.onSecondaryContainer
-                : scheme.onSurfaceVariant,
-            size: 24,
-          ),
-        ),
-      ),
-      navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: scheme.surface,
-        indicatorColor: scheme.secondaryContainer,
-        selectedIconTheme: IconThemeData(color: scheme.onSecondaryContainer),
-        unselectedIconTheme: IconThemeData(color: scheme.onSurfaceVariant),
-        selectedLabelTextStyle: textTheme.labelMedium?.copyWith(
-          color: scheme.onSurface,
-          fontWeight: FontWeight.w700,
-        ),
-        unselectedLabelTextStyle: textTheme.labelMedium?.copyWith(
-          color: scheme.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
       searchBarTheme: SearchBarThemeData(
         elevation: const WidgetStatePropertyAll<double>(0),
         backgroundColor: WidgetStatePropertyAll<Color>(

@@ -7,6 +7,7 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
+import 'package:pulse_flutter/widgets/nav/app_nav_item.dart';
 
 class _NavTestSettings extends UiSettingsNotifier {
   @override
@@ -75,8 +76,12 @@ void main() {
         PerformanceMode.powerSaver,
       );
       await tester.pump();
-      final nav = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(nav.animationDuration, greaterThan(Duration.zero));
+      expect(
+        tester
+            .widgetList<AppNavItem>(find.byType(AppNavItem))
+            .every((item) => item.animate && item.duration > Duration.zero),
+        isTrue,
+      );
       expect(
         tester
             .widgetList<TabMorphIcon>(find.byType(TabMorphIcon))
@@ -87,9 +92,9 @@ void main() {
       await tester.pump();
       expect(
         tester
-            .widget<NavigationBar>(find.byType(NavigationBar))
-            .animationDuration,
-        Duration.zero,
+            .widgetList<AppNavItem>(find.byType(AppNavItem))
+            .every((item) => !item.animate && item.duration == Duration.zero),
+        isTrue,
       );
       expect(
         tester

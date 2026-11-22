@@ -32,6 +32,8 @@ import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart'
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/performance/frame_timing_monitor.dart';
 import 'package:pulse_flutter/widgets/nav/m3_route_tab_switcher.dart';
+import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
+import 'package:pulse_flutter/widgets/nav/app_nav_rail.dart';
 
 class _Auth extends AuthNotifier {
   @override
@@ -353,14 +355,10 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(
-        find.byType(NavigationRail),
-        browser ? findsOneWidget : findsNothing,
-      );
-      expect(
-        find.byType(NavigationBar),
-        browser ? findsNothing : findsOneWidget,
-      );
+      // Wide windows get the side rail on every platform, not only in the
+      // browser.
+      expect(find.byType(AppNavRail), findsOneWidget);
+      expect(find.byType(AppBottomNav), findsNothing);
       expect(tester.takeException(), isNull);
       await snapshot('1440-light');
       if (browser) {
@@ -378,8 +376,8 @@ void main() {
       expect(tester.takeException(), isNull);
       tester.view.physicalSize = const Size(390, 844);
       await tester.pump();
-      expect(find.byType(NavigationRail), findsNothing);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(AppNavRail), findsNothing);
+      expect(find.byType(AppBottomNav), findsOneWidget);
       expect(tester.takeException(), isNull);
       await snapshot('390');
       if (browser) {

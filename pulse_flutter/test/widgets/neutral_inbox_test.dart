@@ -23,6 +23,7 @@ import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/screens/chat_list_screen.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
+import 'package:pulse_flutter/widgets/nav/app_nav_item.dart';
 import 'package:pulse_flutter/widgets/chat/inbox_compose_button.dart';
 import 'package:pulse_flutter/widgets/chat_tile.dart';
 import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
@@ -407,10 +408,12 @@ void main() {
               ),
               findsWidgets,
             );
-            final nav = find.byType(NavigationBar);
+            final nav = find.byType(AppBottomNav);
             expect(nav, findsOneWidget);
             expect(tester.getSize(nav).width, 390);
-            expect(tester.getSize(nav).height, 80);
+            // 64 dp bar; it only grows when the scaled label needs the room.
+            final double barHeight = tester.getSize(nav).height;
+            expect(barHeight, scale == 1 ? 64 : greaterThan(64));
             expect(tester.getBottomLeft(nav).dx, 0);
             expect(tester.getBottomLeft(nav).dy, 844);
 
@@ -586,9 +589,9 @@ void main() {
             await captureStep('05-delete-named');
             await tester.tap(find.text(locale == 'ru' ? 'Отмена' : 'Cancel'));
             await tester.pumpAndSettle();
-            await tester.tap(find.byType(NavigationDestination).last);
+            await tester.tap(find.byType(AppNavItem).last);
             await tester.pumpAndSettle();
-            expect(tester.widget<NavigationBar>(nav).selectedIndex, 2);
+            expect(tester.widget<AppBottomNav>(nav).currentIndex, 2);
             await tester.tap(find.text('Ирина'));
             await tester.pumpAndSettle();
             expect(find.text('chat-1'), findsOneWidget);
@@ -624,8 +627,8 @@ void main() {
             tester.view.viewPadding = const FakeViewPadding(bottom: 34);
             addTearDown(tester.view.resetViewPadding);
             await tester.pumpAndSettle();
-            // 80 dp docked bar + the 34 dp system inset.
-            expect(tester.getSize(nav).height, 114);
+            // The docked bar + the 34 dp system inset.
+            expect(tester.getSize(nav).height, closeTo(barHeight + 34, 0.01));
             expect(tester.takeException(), isNull);
             expect(soundInitializations, 0);
             await tester.pumpWidget(const SizedBox());

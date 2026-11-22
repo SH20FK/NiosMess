@@ -104,8 +104,6 @@ class UiSettingsState {
     this.saveToGalleryPrivate = false,
     this.saveToGalleryGroups = false,
     this.saveToGalleryChannels = false,
-    this.badgeCountMessages = true,
-    this.badgeIncludeMuted = false,
     this.accountSelfDestructMonths = 6,
     this.linkPreviewsInSecretChats = false,
     this.secureScreenshotsInSecretChats = true,
@@ -159,8 +157,6 @@ class UiSettingsState {
       saveToGalleryPrivate = false,
       saveToGalleryGroups = false,
       saveToGalleryChannels = false,
-      badgeCountMessages = true,
-      badgeIncludeMuted = false,
       accountSelfDestructMonths = 6,
       linkPreviewsInSecretChats = false,
       secureScreenshotsInSecretChats = true,
@@ -204,8 +200,6 @@ class UiSettingsState {
   final bool saveToGalleryPrivate;
   final bool saveToGalleryGroups;
   final bool saveToGalleryChannels;
-  final bool badgeCountMessages;
-  final bool badgeIncludeMuted;
   final int accountSelfDestructMonths;
   final bool linkPreviewsInSecretChats;
   final bool secureScreenshotsInSecretChats;
@@ -252,8 +246,6 @@ class UiSettingsState {
     bool? saveToGalleryPrivate,
     bool? saveToGalleryGroups,
     bool? saveToGalleryChannels,
-    bool? badgeCountMessages,
-    bool? badgeIncludeMuted,
     int? accountSelfDestructMonths,
     bool? linkPreviewsInSecretChats,
     bool? secureScreenshotsInSecretChats,
@@ -307,8 +299,6 @@ class UiSettingsState {
       saveToGalleryGroups: saveToGalleryGroups ?? this.saveToGalleryGroups,
       saveToGalleryChannels:
           saveToGalleryChannels ?? this.saveToGalleryChannels,
-      badgeCountMessages: badgeCountMessages ?? this.badgeCountMessages,
-      badgeIncludeMuted: badgeIncludeMuted ?? this.badgeIncludeMuted,
       accountSelfDestructMonths:
           accountSelfDestructMonths ?? this.accountSelfDestructMonths,
       linkPreviewsInSecretChats:
@@ -364,8 +354,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _saveToGalleryPrivateKey = 'ui.saveGalleryPrivate';
   static const String _saveToGalleryGroupsKey = 'ui.saveGalleryGroups';
   static const String _saveToGalleryChannelsKey = 'ui.saveGalleryChannels';
-  static const String _badgeCountMessagesKey = 'ui.badgeCountMessages';
-  static const String _badgeIncludeMutedKey = 'ui.badgeIncludeMuted';
   static const String _accountSelfDestructMonthsKey = 'ui.accountSelfDestructMonths';
   static const String _linkPreviewsSecretKey = 'ui.linkPreviewsSecret';
   static const String _secureScreenshotsSecretKey = 'ui.secureScreenshotsSecret';
@@ -459,10 +447,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
           prefs.getBool(_saveToGalleryGroupsKey) ?? defaults.saveToGalleryGroups,
       saveToGalleryChannels:
           prefs.getBool(_saveToGalleryChannelsKey) ?? defaults.saveToGalleryChannels,
-      badgeCountMessages:
-          prefs.getBool(_badgeCountMessagesKey) ?? defaults.badgeCountMessages,
-      badgeIncludeMuted:
-          prefs.getBool(_badgeIncludeMutedKey) ?? defaults.badgeIncludeMuted,
       accountSelfDestructMonths:
           prefs.getInt(_accountSelfDestructMonthsKey) ?? defaults.accountSelfDestructMonths,
       linkPreviewsInSecretChats:
@@ -762,16 +746,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _persistKey(_saveToGalleryChannelsKey, value);
   }
 
-  void setBadgeCountMessages(bool value) {
-    state = state.copyWith(badgeCountMessages: value);
-    _persistKey(_badgeCountMessagesKey, value);
-  }
-
-  void setBadgeIncludeMuted(bool value) {
-    state = state.copyWith(badgeIncludeMuted: value);
-    _persistKey(_badgeIncludeMutedKey, value);
-  }
-
   void setAccountSelfDestructMonths(int value) {
     state = state.copyWith(accountSelfDestructMonths: value);
     _persistKey(_accountSelfDestructMonthsKey, value);
@@ -838,8 +812,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.remove(_saveToGalleryPrivateKey),
       prefs.remove(_saveToGalleryGroupsKey),
       prefs.remove(_saveToGalleryChannelsKey),
-      prefs.remove(_badgeCountMessagesKey),
-      prefs.remove(_badgeIncludeMutedKey),
       prefs.remove(_accountSelfDestructMonthsKey),
       prefs.remove(_linkPreviewsSecretKey),
       prefs.remove(_secureScreenshotsSecretKey),

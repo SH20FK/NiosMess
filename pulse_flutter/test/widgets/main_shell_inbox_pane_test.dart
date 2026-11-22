@@ -23,6 +23,8 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/screens/chat_list_screen.dart';
 import 'package:pulse_flutter/screens/main_shell_screen.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
+import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
+import 'package:pulse_flutter/widgets/nav/app_nav_rail.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 
 class _Settings extends UiSettingsNotifier {
@@ -119,7 +121,9 @@ void main() {
     expect(list.width, lessThanOrEqualTo(kInboxContentMaxWidth));
     // A detail pane shares the window: without the split the list would be 900.
     expect(list.width, lessThan(540));
-    expect(find.byType(NavigationBar), findsOneWidget);
+    // Wide windows navigate from the side rail, on desktop as well as web.
+    expect(find.byType(AppNavRail), findsOneWidget);
+    expect(find.byType(AppBottomNav), findsNothing);
   });
 
   testWidgets('compact window centres the inbox inside 640dp', (tester) async {
@@ -128,7 +132,8 @@ void main() {
     final Rect list = tester.getRect(find.byType(ChatListScreen));
     expect(list.width, kInboxContentMaxWidth);
     expect(list.left, (700 - kInboxContentMaxWidth) / 2);
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(AppBottomNav), findsOneWidget);
+    expect(find.byType(AppNavRail), findsNothing);
   });
 
   testWidgets('phone inbox uses the full width', (tester) async {
@@ -137,17 +142,23 @@ void main() {
     expect(tester.getSize(find.byType(ChatListScreen)).width, 390);
   });
 
-  testWidgets('composer FAB clears the navigation bar', (tester) async {
+  testWidgets('composer FAB sits inside the list pane, clear of the rail', (
+    tester,
+  ) async {
     await pumpShell(tester, const Size(900, 1200));
 
     final Finder fabFinder = find.byType(FloatingActionButton);
     final Rect fab = tester.getRect(fabFinder);
-    final Rect nav = tester.getRect(find.byType(NavigationBar));
-    expect(fab.bottom, lessThanOrEqualTo(nav.top - kInboxComposerMargin));
+    final Rect rail = tester.getRect(find.byType(AppNavRail));
+    final Rect list = tester.getRect(find.byType(ChatListScreen));
     expect(tester.getSize(fabFinder).width, 56);
     expect(tester.getSize(fabFinder).height, 56);
+    // No bottom bar on a wide window: the button keeps its margin from the
+    // window edge instead.
+    expect(fab.bottom, lessThanOrEqualTo(1200 - kInboxComposerMargin));
     // The pane the FAB floats over is the capped list pane, not the window.
-    expect(fab.left, greaterThan(nav.left));
+    expect(fab.left, greaterThan(rail.right));
+    expect(fab.right, lessThanOrEqualTo(list.right - kInboxComposerMargin));
   });
 
   testWidgets('shell body is present and unpadded above the bar', (
@@ -156,7 +167,7 @@ void main() {
     await pumpShell(tester, const Size(390, 844));
     expect(find.byType(PulseScaffoldBody), findsOneWidget);
     final Rect fab = tester.getRect(find.byType(FloatingActionButton));
-    final Rect nav = tester.getRect(find.byType(NavigationBar));
+    final Rect nav = tester.getRect(find.byType(AppBottomNav));
     expect(fab.bottom, lessThanOrEqualTo(nav.top - kInboxComposerMargin));
   });
 }

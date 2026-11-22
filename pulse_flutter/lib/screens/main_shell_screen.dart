@@ -2,7 +2,9 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
-import 'package:pulse_flutter/widgets/nav/web_workspace_navigation.dart';
+import 'package:pulse_flutter/widgets/nav/app_nav_destination.dart';
+import 'package:pulse_flutter/widgets/nav/app_nav_item.dart';
+import 'package:pulse_flutter/widgets/nav/app_nav_rail.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -77,7 +79,7 @@ class MainShellScreen extends ConsumerStatefulWidget {
 
 class _MainShellScreenState extends ConsumerState<MainShellScreen>
     with WidgetsBindingObserver {
-  static const List<String> _tabs = ['chats', 'niosgram', 'settings'];
+  static const List<AppNavDestination> _tabs = AppNavDestination.values;
 
   late final Set<int> _activatedTabs;
   final TabTransitionController _tabTransition = TabTransitionController();
@@ -337,11 +339,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     super.dispose();
   }
 
-  int _tabIndex(String tab) {
-    if (tab == 'settings' || tab == 'profile') return 2;
-    if (tab == 'niosgram') return 1;
-    return 0;
-  }
+  int _tabIndex(String tab) => AppNavDestination.fromRoute(tab).index;
 
   /// The inbox hides the composer while the user scrolls down (owned by
   /// `ChatListScreen`). Without this reset a hidden FAB would stay hidden
@@ -371,8 +369,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       return;
     }
 
-    final String targetTab = _tabs[nextIndex];
-    if (targetTab == widget.tab) {
+    final String targetTab = _tabs[nextIndex].route;
+    if (nextIndex == _tabIndex(widget.tab)) {
       _onReselectTab(nextIndex);
       return;
     }
@@ -396,6 +394,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   Widget build(BuildContext context) {
     final bool haptics = ref.watch(uiSettingsProvider.select((s) => s.haptics));
     final capabilities = ref.watch(clientCapabilitiesProvider);
+    // Tab shortcuts work wherever there is a hardware keyboard by default.
+    final bool keyboardNav =
+        capabilities.browserWorkspace || capabilities.desktopFiles;
     final int? desktopChatId = capabilities.browserWorkspace
         ? widget.selectedChatId
         : ref.watch(desktopSelectedChatProvider);
@@ -423,7 +424,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         // Two-pane layout: back closes the open chat instead of arming the
         // exit prompt. The shell owns this; the chat pane's own PopScope on
         // the same route stays out of it on native.
-        if (MediaQuery.sizeOf(context).width >= Breakpoints.medium &&
+        if (Breakpoints.twoPane(MediaQuery.sizeOf(context)) &&
             ref.read(desktopSelectedChatProvider) != null) {
           _lastBackPressTime = null;
           ref.read(desktopSelectedChatProvider.notifier).setSelectedChat(null);
@@ -450,7 +451,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
         SystemUtils.minimizeApp();
       },
       child: CallbackShortcuts(
-        bindings: capabilities.browserWorkspace
+        bindings: keyboardNav
             ? {
                 const SingleActivator(
                   LogicalKeyboardKey.digit1,
@@ -479,12 +480,17 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
               }
             : const {},
         child: Focus(
-          autofocus: capabilities.browserWorkspace,
+          autofocus: keyboardNav,
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
-              final bool isWide = constraints.maxWidth >= Breakpoints.medium;
-              final bool webRail = capabilities.browserWorkspace && isWide;
-              final workspaceWidth = constraints.maxWidth - (webRail ? 89 : 0);
+              // From 840 dp the bottom bar gives way to the side rail on
+              // every platform. The list–detail split also needs height: a
+              // phone on its side gets the rail and a single pane.
+              final bool rail = constraints.maxWidth >= Breakpoints.medium;
+              final bool isWide = Breakpoints.twoPane(constraints.biggest);
+              final workspaceWidth =
+                  constraints.maxWidth -
+                  (rail ? AppNavMetrics.railWidth + 1 : 0);
 
               final double minChatListWidth = 260.0;
               final double maxChatListWidth = (workspaceWidth - 340.0).clamp(
@@ -496,8 +502,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   capabilities.browserWorkspace && desktopChatId != null;
               // The body already ends above the navigation bar
               // (`extendBody: false`); the system gesture inset only needs to
-              // be added when no bar is painted at all (web workspace rail).
-              final double composerBottomInset = webRail
+              // be added when no bar is painted at all (side rail).
+              final double composerBottomInset = rail
                   ? MediaQuery.viewPaddingOf(context).bottom
                   : 0;
 
@@ -585,7 +591,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                           highlightMessageId: widget.highlightMessageId,
                         )
                       : const _InboxPane(overlayComposer: false),
-                isWide
+                rail
                     ? Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 820),
@@ -660,10 +666,14 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                     Expanded(
                       child: Row(
                         children: [
-                          if (webRail) ...[
-                            WebWorkspaceNavigation(
-                              index: currentIndex,
-                              onSelect: _onTapTab,
+                          if (rail) ...[
+                            RepaintBoundary(
+                              child: AppNavRail(
+                                currentIndex: currentIndex,
+                                onTap: _onTapTab,
+                                onReselect: _onReselectTab,
+                                hapticsEnabled: haptics,
+                              ),
                             ),
                             const VerticalDivider(width: 1),
                           ],
@@ -680,7 +690,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                     ),
                   ],
                 ),
-                bottomNavigationBar: webRail
+                bottomNavigationBar: rail
                     ? null
                     : RepaintBoundary(
                         child: AppBottomNav(

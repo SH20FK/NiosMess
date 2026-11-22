@@ -653,8 +653,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                             .read(clientCapabilitiesProvider)
                             .browserWorkspace) {
                           context.go('/main/chats?chat=${chat.id}');
-                        } else if (MediaQuery.sizeOf(context).width >=
-                            Breakpoints.medium) {
+                        } else if (Breakpoints.twoPane(
+                          MediaQuery.sizeOf(context),
+                        )) {
                           ref
                               .read(desktopSelectedChatProvider.notifier)
                               .setSelectedChat(chat.id);

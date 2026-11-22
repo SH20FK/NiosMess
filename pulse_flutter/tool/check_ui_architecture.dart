@@ -167,25 +167,32 @@ void main() {
     hasDesktopSplitMotion,
   );
 
-  // 9. Check the active M3 NavigationBar. The icon lift uses a sine for
-  // position/scale, never
-  // opacity. Runtime reduced-motion and successive-tap tests live in
-  // tab_shared_axis_switcher_test.dart.
-  final File bottomNavFile = File('lib/widgets/app_bottom_nav.dart');
-  final String bottomNavContent = bottomNavFile.readAsStringSync();
-  final int navStart = bottomNavContent.indexOf('class AppBottomNav ');
-  final int navEnd = bottomNavContent.indexOf('class _NavItem ');
-  final String activeNav = navStart >= 0 && navEnd > navStart
-      ? bottomNavContent.substring(navStart, navEnd)
-      : '';
+  // 9. The bottom bar and the side rail are drawn by hand: the SDK
+  // NavigationBar has neither the M3 Expressive 56 dp indicator nor
+  // horizontal destinations. Both must keep reduced-motion support and share
+  // one destination widget, whose indicator rides a spatial spring for size
+  // and an effects curve for opacity. Runtime tests live in
+  // app_bottom_nav_badge_test.dart and tab_shared_axis_switcher_test.dart.
+  final String bottomNavContent = File(
+    'lib/widgets/app_bottom_nav.dart',
+  ).readAsStringSync();
+  final String navRailContent = File(
+    'lib/widgets/nav/app_nav_rail.dart',
+  ).readAsStringSync();
+  final String navItemContent = File(
+    'lib/widgets/nav/app_nav_item.dart',
+  ).readAsStringSync();
+  bool reducedMotionAware(String source) =>
+      source.contains('context.reduceMotion') &&
+      source.contains('Duration.zero') &&
+      source.contains('AppNavItem(');
   final bool hasAccessibleM3Nav =
-      activeNav.contains('child: NavigationBar(') &&
-      activeNav.contains('context.reduceMotion') &&
-      activeNav.contains('animationDuration: duration') &&
-      activeNav.contains('Duration.zero') &&
-      bottomNavContent.contains('M3SpringCurves.expressiveDecel');
+      reducedMotionAware(bottomNavContent) &&
+      reducedMotionAware(navRailContent) &&
+      navItemContent.contains('M3SpringCurves.spatialFast') &&
+      navItemContent.contains('M3SpringCurves.effectsDefault');
   report(
-    'Active bottom navigation uses M3 NavigationBar with reduced-motion support',
+    'Bottom bar and side rail share AppNavItem with reduced-motion support',
     hasAccessibleM3Nav,
   );
 
