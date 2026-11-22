@@ -260,13 +260,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   String _getSectionBadgeValue(
     SettingsNavNode node,
-    UiSettingsState settings,
+    ThemeMode themeMode,
     LocalStorageSnapshot? snapshot,
   ) {
     if (node.id == 'appearance') {
-      return settings.themeMode == ThemeMode.dark
+      return themeMode == ThemeMode.dark
           ? context.l10n.commonDark
-          : settings.themeMode == ThemeMode.light
+          : themeMode == ThemeMode.light
           ? context.l10n.commonLight
           : context.l10n.commonSystem;
     } else if (node.id == 'storage') {
@@ -404,7 +404,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   ];
 
   List<Widget> _sectionGroups(
-    UiSettingsState settings,
+    ThemeMode themeMode,
     LocalStorageSnapshot? snapshot, {
     SettingsSectionId? selected,
   }) {
@@ -423,7 +423,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   key: ValueKey('settings-destination-${node.id}'),
                   icon: node.icon,
                   title: node.title(context.l10n),
-                  value: _getSectionBadgeValue(node, settings, snapshot),
+                  value: _getSectionBadgeValue(node, themeMode, snapshot),
                   isSection: true,
                   isSelected: selected != null && node.sectionId == selected,
                   onTap: () {
@@ -550,7 +550,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     BuildContext context,
     AuthState auth,
     ColorScheme scheme,
-    UiSettingsState settings,
+    ThemeMode themeMode,
     LocalStorageSnapshot? storageSnapshot,
     String displayName,
     String username,
@@ -579,7 +579,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _buildSearchAnchor(isWide: false),
                 const SizedBox(height: 20),
                 ..._healthIssues(wide: false),
-                ..._sectionGroups(settings, storageSnapshot),
+                ..._sectionGroups(themeMode, storageSnapshot),
                 _logoutAction(),
               ]),
             ),
@@ -625,7 +625,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     BuildContext context,
     AuthState auth,
     ColorScheme scheme,
-    UiSettingsState settings,
+    ThemeMode themeMode,
     LocalStorageSnapshot? storageSnapshot,
     String displayName,
     String username,
@@ -675,7 +675,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 20),
                 ..._healthIssues(wide: true),
                 ..._sectionGroups(
-                  settings,
+                  themeMode,
                   storageSnapshot,
                   selected: selected,
                 ),
@@ -782,7 +782,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final AuthState auth = ref.watch(authProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final UiSettingsState settings = ref.watch(uiSettingsProvider);
+    final ThemeMode themeMode = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.themeMode),
+    );
 
     final String displayName =
         auth.profile?.displayName ??
@@ -838,7 +840,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             context,
             auth,
             scheme,
-            settings,
+            themeMode,
             storageSnapshot,
             displayName,
             username,
@@ -849,7 +851,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           context,
           auth,
           scheme,
-          settings,
+          themeMode,
           storageSnapshot,
           displayName,
           username,

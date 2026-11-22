@@ -30,7 +30,7 @@ void main() {
 
       await tester.pumpWidget(
         _buildTestHarness(
-          child: SettingsScaffold(
+          child: SettingsShell(
             title: 'Тест прокрутки',
             children: <Widget>[
               SettingsSection(
@@ -80,7 +80,7 @@ void main() {
 
       await tester.pumpWidget(
         _buildTestHarness(
-          child: SettingsScaffold(
+          child: SettingsShell(
             title: 'Тест нажатия',
             children: <Widget>[
               SettingsSection(
@@ -114,7 +114,7 @@ void main() {
         _buildTestHarness(
           child: StatefulBuilder(
             builder: (context, setState) {
-              return SettingsScaffold(
+              return SettingsShell(
                 title: 'Тест переключателя',
                 children: <Widget>[
                   SettingsSection(
@@ -150,7 +150,7 @@ void main() {
 
       await tester.pumpWidget(
         _buildTestHarness(
-          child: SettingsScaffold(
+          child: SettingsShell(
             title: 'Инфо тест',
             children: <Widget>[
               SettingsSection(

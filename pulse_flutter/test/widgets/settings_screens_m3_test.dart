@@ -151,11 +151,11 @@ void main() {
 
   group('Tier 1: Settings UI Framework M3 Expressive Tests', () {
     testWidgets(
-      '1.1 SettingsScaffold suppresses AppBar and uses compact padding when isEmbedded is true',
+      '1.1 SettingsShell suppresses AppBar and uses compact padding when isEmbedded is true',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           _wrapWithApp(
-            const SettingsScaffold(
+            const SettingsShell(
               title: 'Embedded Settings',
               isEmbedded: true,
               children: <Widget>[Text('Child Content')],
@@ -171,11 +171,11 @@ void main() {
     );
 
     testWidgets(
-      '1.2 SettingsScaffold renders AppBar with gradient background when isEmbedded is false',
+      '1.2 SettingsShell renders AppBar with gradient background when isEmbedded is false',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           _wrapWithApp(
-            const SettingsScaffold(
+            const SettingsShell(
               title: 'Standalone Settings',
               isEmbedded: false,
               children: <Widget>[Text('Child Content')],

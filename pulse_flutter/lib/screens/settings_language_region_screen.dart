@@ -17,7 +17,15 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(uiSettingsProvider);
+    final settings = ref.watch(
+      uiSettingsProvider.select(
+        (UiSettingsState s) => (
+          localeCode: s.localeCode,
+          timeZoneMode: s.timeZoneMode,
+          timeZoneId: s.timeZoneId,
+        ),
+      ),
+    );
     final manualZone = settings.timeZoneId ?? 'Europe/Moscow';
     final currentZoneLabel = settings.timeZoneMode == AppTimeZoneMode.auto
         ? _offsetLabel(DateTime.now().timeZoneOffset)

@@ -229,20 +229,14 @@ class _CircleVideoRecorderScreenState
 
     setState(() => _isSwitchingCamera = true);
 
-    final bool useCamera2 = ref.read(uiSettingsProvider).camera2Api;
-
     try {
-      if (useCamera2) {
-        // Fast seamless hardware switch via Camera2 API (setDescription preserves surface & audio)
-        try {
-          await _controller!.setDescription(next);
-          _currentLensDirection = next.lensDirection;
-        } catch (e) {
-          debugPrint('[CircleVideoRecorder] Camera2 live switch fallback: $e');
-          await _reinitializeController(next);
-        }
-      } else {
-        // Standard full re-initialization (legacy / fallback)
+      // A live switch keeps the surface and the audio track; a full
+      // re-initialization is the fallback.
+      try {
+        await _controller!.setDescription(next);
+        _currentLensDirection = next.lensDirection;
+      } catch (e) {
+        debugPrint('[CircleVideoRecorder] Camera2 live switch fallback: $e');
         await _reinitializeController(next);
       }
 

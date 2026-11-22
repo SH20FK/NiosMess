@@ -190,25 +190,5 @@ void main() {
       expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
       expect(find.byType(EmptyFeedIllustration), findsNothing);
     });
-
-    testWidgets('SettingsNavBanner displays SettingsHeaderIllustration when illustrationCategory is provided', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(
-        _wrapWithMaterial(
-          const SettingsNavBanner(
-            illustrationCategory: SettingsIllustrationCategory.account,
-            title: 'Аккаунт',
-            subtitle: 'Управление Nios ID',
-          ),
-        ),
-      );
-      await tester.pump();
-
-      expect(find.byType(SettingsNavBanner), findsOneWidget);
-      expect(find.byType(SettingsHeaderIllustration), findsOneWidget);
-      expect(find.text('Аккаунт'), findsOneWidget);
-      expect(find.text('Управление Nios ID'), findsOneWidget);
-    });
   });
 }

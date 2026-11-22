@@ -135,7 +135,10 @@ void main() {
         );
         await tester.pump();
         expect(find.byType(Switch), findsNothing);
-        expect(find.textContaining('2FA'), findsOneWidget);
+        // The portal link stays, but it no longer promises 2FA: Nios ID does
+        // not ask for a second factor at sign-in.
+        expect(find.textContaining('2FA'), findsNothing);
+        expect(find.textContaining('Nios ID'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );

@@ -849,22 +849,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsServerLimitsTitle => 'Server-side limits';
 
   @override
-  String get settingsTwoFactorStatus => 'Two-factor status';
-
-  @override
-  String get settingsTwoFactor => 'Two-factor authentication';
-
-  @override
-  String get settingsTwoFactorEnabledShort => 'Enabled on your account';
-
-  @override
-  String get settingsTwoFactorDisabledShort => 'Disabled on your account';
-
-  @override
-  String get settingsTwoFactorOpenAccount =>
-      'Open account settings to enable or disable 2FA';
-
-  @override
   String get settingsTrustedDevices => 'Trusted devices';
 
   @override
@@ -4694,14 +4678,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsChatsAutoDownloadCellularDesc => 'Save data: preview media and download only when tapped';
   @override
-  String get settingsChatsCameraSection => 'Camera & Video Circles';
-  @override
-  String get settingsChatsCameraSectionDesc => 'Hardware optimization and seamless camera switching';
-  @override
-  String get settingsChatsCamera2Api => 'Camera2 API';
-  @override
-  String get settingsChatsCamera2ApiDesc => 'Smooth camera switching without latency during video and circle recording';
-  @override
   String get settingsChatsWallpaperSection => 'Wallpaper & Background';
   @override
   String get settingsChatsWallpaperSectionDesc => 'Custom chat wallpapers and vector pattern generator';
@@ -4709,10 +4685,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsChatsWallpaperGenerator => 'Chat Wallpaper Generator';
   @override
   String get settingsChatsWallpaperGeneratorDesc => 'Customize patterns, animations, and color palettes';
-  @override
-  String get settingsAccountNiosIdSecurity => 'Security & 2FA in Nios ID';
-  @override
-  String get settingsAccountNiosIdSecurityDesc => 'Two-factor authentication and password management on ni-os.ru';
   @override
   String get settingsAccountNiosIdError => 'Failed to open Nios ID page';
   @override

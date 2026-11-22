@@ -7,7 +7,6 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/router/app_navigation.dart';
 import 'package:pulse_flutter/widgets/motion/m3_press_scale.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// Screen for fast photo capture directly from the attachment modal or gallery.
 class QuickCameraCaptureScreen extends StatefulWidget {
@@ -97,9 +96,7 @@ class _QuickCameraCaptureScreenState extends State<QuickCameraCaptureScreen>
     _currentCameraIndex = (_currentCameraIndex + 1) % _availableCameras.length;
     final CameraDescription nextCam = _availableCameras[_currentCameraIndex];
 
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final bool useCamera2 = prefs.getBool('ui.camera2Api') ?? true;
-    if (useCamera2 && _controller != null) {
+    if (_controller != null) {
       try {
         await _controller!.setDescription(nextCam);
         await _controller!.setFlashMode(_flashMode);

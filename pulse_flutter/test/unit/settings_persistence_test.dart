@@ -270,6 +270,24 @@ void main() {
       );
     });
 
+    test('resetAll clears keys left by settings that no longer exist', () async {
+      final (ProviderContainer container, SharedPreferences prefs) =
+          await boot(<String, Object>{
+            'ui.camera2Api': false,
+            'ui.streamMedia': false,
+            'ui.videoSeekSeconds': 30,
+            'ui.autoTerminateSessionsDays': 7,
+          });
+
+      await container.read(uiSettingsProvider.notifier).resetAll();
+      await pumpEventQueue();
+
+      expect(
+        prefs.getKeys().where((String k) => k.startsWith('ui.')),
+        isEmpty,
+      );
+    });
+
     test('resetAll drops a slider write that is still debounced', () async {
       final (ProviderContainer container, SharedPreferences prefs) =
           await boot();

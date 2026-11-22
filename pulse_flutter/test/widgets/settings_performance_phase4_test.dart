@@ -84,7 +84,7 @@ void main() {
       expect(prefs.containsKey('ui.themeMode'), isFalse);
     });
 
-    testWidgets('4.4 SettingsScaffold renders with SliverChildBuilderDelegate without error',
+    testWidgets('4.4 SettingsShell renders with SliverChildBuilderDelegate without error',
         (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -92,7 +92,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: SettingsScaffold(
+            body: SettingsShell(
               isEmbedded: true,
               title: 'Тест производительности',
               children: <Widget>[

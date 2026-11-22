@@ -29,7 +29,7 @@ class _AccountSecuritySectionState
   bool _changingLock = false;
 
   Future<void> _openNiosIdSecurity(BuildContext context) async {
-    await AppUrlLauncher.openUrl(context, 'https://ni-os.ru/id/account');
+    await AppUrlLauncher.openUrl(context, 'https://ni-os.ru/id/security');
   }
 
   String _timeoutLabel(AppLocalizations l10n, AppLockTimeout timeout) =>
@@ -170,10 +170,10 @@ class _AccountSecuritySectionState
                 ),
             ],
             SettingsRow(
-              anchor: SettingId.securityTwoFactor.value,
+              anchor: SettingId.securityNiosId.value,
               leading: Icon(Icons.shield_outlined, color: scheme.primary),
-              title: context.l10n.settingsAccountNiosIdSecurity,
-              subtitle: context.l10n.settingsAccountNiosIdSecurityDesc,
+              title: context.l10n.settingsNiosIdSecurity,
+              subtitle: context.l10n.settingsNiosIdSecurityHint,
               control: const NavigationControl(),
               onTap: () => _openNiosIdSecurity(context),
             ),

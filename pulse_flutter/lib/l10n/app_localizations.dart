@@ -1664,36 +1664,6 @@ abstract class AppLocalizations {
   /// **'Server-side limits'**
   String get settingsServerLimitsTitle;
 
-  /// No description provided for @settingsTwoFactorStatus.
-  ///
-  /// In en, this message translates to:
-  /// **'Two-factor status'**
-  String get settingsTwoFactorStatus;
-
-  /// No description provided for @settingsTwoFactor.
-  ///
-  /// In en, this message translates to:
-  /// **'Two-factor authentication'**
-  String get settingsTwoFactor;
-
-  /// No description provided for @settingsTwoFactorEnabledShort.
-  ///
-  /// In en, this message translates to:
-  /// **'Enabled on your account'**
-  String get settingsTwoFactorEnabledShort;
-
-  /// No description provided for @settingsTwoFactorDisabledShort.
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled on your account'**
-  String get settingsTwoFactorDisabledShort;
-
-  /// No description provided for @settingsTwoFactorOpenAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Open account settings to enable or disable 2FA'**
-  String get settingsTwoFactorOpenAccount;
-
   /// No description provided for @settingsTrustedDevices.
   ///
   /// In en, this message translates to:
@@ -7421,16 +7391,10 @@ abstract class AppLocalizations {
   String get settingsChatsAutoDownloadWifiDesc;
   String get settingsChatsAutoDownloadCellular;
   String get settingsChatsAutoDownloadCellularDesc;
-  String get settingsChatsCameraSection;
-  String get settingsChatsCameraSectionDesc;
-  String get settingsChatsCamera2Api;
-  String get settingsChatsCamera2ApiDesc;
   String get settingsChatsWallpaperSection;
   String get settingsChatsWallpaperSectionDesc;
   String get settingsChatsWallpaperGenerator;
   String get settingsChatsWallpaperGeneratorDesc;
-  String get settingsAccountNiosIdSecurity;
-  String get settingsAccountNiosIdSecurityDesc;
   String get settingsAccountNiosIdError;
   String get loginWaitingBrowserConfirmation;
   String get loginCodeExpiresIn;

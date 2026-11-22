@@ -158,22 +158,3 @@ final class SettingsSliderNode extends SettingsNode {
   final double Function(UiSettingsState) valueSelector;
   final void Function(WidgetRef, double) onChanged;
 }
-
-/// A node that triggers an action or dialog (e.g. destructive clear cache).
-final class SettingsActionNode extends SettingsNode {
-  const SettingsActionNode({
-    required super.id,
-    required super.title,
-    super.subtitle,
-    required super.icon,
-    required super.group,
-    required this.onPerform,
-    this.isDestructive = false,
-    super.keywords,
-    super.availability,
-    super.parentNavId,
-  });
-
-  final bool isDestructive;
-  final void Function(BuildContext, WidgetRef) onPerform;
-}

@@ -872,4 +872,6 @@ extension SecretChatL10n on AppLocalizations {
   String get accountDeleteFailed => _secret.accountDeleteFailed;
   String get accountDeleteLoadFailed => _secret.accountDeleteLoadFailed;
   String get settingsIssueDeletionAction => _secret.settingsIssueDeletionAction;
+  String get settingsNiosIdSecurity => _secret.settingsNiosIdSecurity;
+  String get settingsNiosIdSecurityHint => _secret.settingsNiosIdSecurityHint;
 }

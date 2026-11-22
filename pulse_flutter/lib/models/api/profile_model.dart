@@ -13,7 +13,6 @@ class ApiProfile {
     required this.displayName,
     required this.bio,
     this.avatarUrl,
-    this.twoFaEnabled,
     this.spamBlock,
     this.spamBlockUntil,
     this.spamBlockReason,
@@ -41,7 +40,6 @@ class ApiProfile {
   final String displayName;
   final String bio;
   final String? avatarUrl;
-  final bool? twoFaEnabled;
   final bool? spamBlock;
   final DateTime? spamBlockUntil;
   final String? spamBlockReason;
@@ -153,7 +151,6 @@ class ApiProfile {
       displayName: json['display_name'] as String? ?? '',
       bio: json['bio'] as String? ?? '',
       avatarUrl: json['avatar_url'] as String?,
-      twoFaEnabled: json['two_fa_enabled'] as bool?,
       spamBlock: json['spam_block'] as bool?,
       spamBlockUntil: json['spam_block_until'] != null
           ? DateTime.tryParse(json['spam_block_until'] as String)
@@ -213,7 +210,6 @@ class ApiProfile {
       'display_name': displayName,
       'bio': bio,
       'avatar_url': avatarUrl,
-      'two_fa_enabled': twoFaEnabled,
       'spam_block': spamBlock,
       if (spamBlockUntil != null)
         'spam_block_until': spamBlockUntil!.toIso8601String(),
@@ -243,7 +239,6 @@ class ApiProfile {
     String? displayName,
     String? bio,
     String? avatarUrl,
-    bool? twoFaEnabled,
     bool? spamBlock,
     DateTime? spamBlockUntil,
     String? spamBlockReason,
@@ -266,7 +261,6 @@ class ApiProfile {
       displayName: displayName ?? this.displayName,
       bio: bio ?? this.bio,
       avatarUrl: avatarUrl ?? this.avatarUrl,
-      twoFaEnabled: twoFaEnabled ?? this.twoFaEnabled,
       spamBlock: spamBlock ?? this.spamBlock,
       spamBlockUntil: spamBlockUntil ?? this.spamBlockUntil,
       spamBlockReason: spamBlockReason ?? this.spamBlockReason,

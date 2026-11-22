@@ -850,22 +850,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsServerLimitsTitle => 'Серверные ограничения';
 
   @override
-  String get settingsTwoFactorStatus => 'Статус двухфакторной защиты';
-
-  @override
-  String get settingsTwoFactor => 'Двухфакторная аутентификация';
-
-  @override
-  String get settingsTwoFactorEnabledShort => 'Включена для вашего аккаунта';
-
-  @override
-  String get settingsTwoFactorDisabledShort => 'Выключена для вашего аккаунта';
-
-  @override
-  String get settingsTwoFactorOpenAccount =>
-      'Открыть настройки аккаунта для включения или отключения 2FA';
-
-  @override
   String get settingsTrustedDevices => 'Доверенные устройства';
 
   @override
@@ -4719,14 +4703,6 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get settingsChatsAutoDownloadCellularDesc => 'Экономия трафика: предпросмотр медиа только по нажатию';
   @override
-  String get settingsChatsCameraSection => 'Камера и видеосообщения';
-  @override
-  String get settingsChatsCameraSectionDesc => 'Аппаратная оптимизация и бесшовное переключение сенсоров';
-  @override
-  String get settingsChatsCamera2Api => 'Camera2 API';
-  @override
-  String get settingsChatsCamera2ApiDesc => 'Бесшовное переключение камер без задержки и рывков при записи видео и кружков';
-  @override
   String get settingsChatsWallpaperSection => 'Оформление и фон';
   @override
   String get settingsChatsWallpaperSectionDesc => 'Индивидуальные обои и генератор векторных узоров';
@@ -4734,10 +4710,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsChatsWallpaperGenerator => 'Генератор обоев чатов';
   @override
   String get settingsChatsWallpaperGeneratorDesc => 'Настройка паттернов, анимации и цветовой гаммы';
-  @override
-  String get settingsAccountNiosIdSecurity => 'Безопасность и 2FA в Nios ID';
-  @override
-  String get settingsAccountNiosIdSecurityDesc => 'Двухфакторная аутентификация и управление паролем на портале ni-os.ru';
   @override
   String get settingsAccountNiosIdError => 'Не удалось открыть страницу Nios ID';
   @override

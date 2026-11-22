@@ -18,7 +18,16 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
   final bool isEmbedded;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(uiSettingsProvider);
+    final settings = ref.watch(
+      uiSettingsProvider.select(
+        (UiSettingsState s) => (
+          animateStickers: s.animateStickers,
+          animateEmoji: s.animateEmoji,
+          optimizeForWeakDevices: s.optimizeForWeakDevices,
+          backgroundMode: s.backgroundMode,
+        ),
+      ),
+    );
     final scheme = Theme.of(context).colorScheme;
     final isAndroid = !kIsWeb && Platform.isAndroid;
     return SettingsShell(

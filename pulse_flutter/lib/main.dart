@@ -341,9 +341,6 @@ class _PulseAppState extends ConsumerState<PulseApp> {
     final AppFontScale fontScale = ref.watch(
       uiSettingsProvider.select((s) => s.fontScale),
     );
-    final bool showPerformanceOverlay = ref.watch(
-      uiSettingsProvider.select((s) => s.showPerformanceOverlay),
-    );
     final VisualThemeSettings visualTheme = ref.watch(
       uiSettingsProvider.select((s) => s.visualTheme),
     );
@@ -389,7 +386,6 @@ class _PulseAppState extends ConsumerState<PulseApp> {
               : M3Durations.long2,
           themeAnimationCurve: M3SpringCurves.expressiveStandard,
           debugShowCheckedModeBanner: false,
-          showPerformanceOverlay: showPerformanceOverlay,
           scrollBehavior: const AppScrollBehavior(),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,

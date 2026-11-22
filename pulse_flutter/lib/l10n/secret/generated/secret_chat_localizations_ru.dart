@@ -2770,4 +2770,11 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsIssueDeletionAction => 'Открыть аккаунт';
+
+  @override
+  String get settingsNiosIdSecurity => 'Безопасность Nios ID';
+
+  @override
+  String get settingsNiosIdSecurityHint =>
+      'Пароль, сеансы и подключённые приложения на портале ni-os.ru';
 }

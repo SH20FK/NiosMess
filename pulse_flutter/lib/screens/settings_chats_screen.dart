@@ -27,7 +27,14 @@ class SettingsChatsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(uiSettingsProvider);
+    final settings = ref.watch(
+      uiSettingsProvider.select(
+        (UiSettingsState s) => (
+          sendOnEnter: s.sendOnEnter,
+          doubleTapReactionEmoji: s.doubleTapReactionEmoji,
+        ),
+      ),
+    );
     return SettingsShell(
       title: context.l10n.settingsV2Chats,
       isEmbedded: isEmbedded,

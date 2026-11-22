@@ -71,7 +71,14 @@ final networkTypeProvider = StreamProvider<NetworkType>((ref) async* {
 /// Reactive provider indicating if automatic media downloading is allowed
 /// based on the current network connection and user settings.
 final autoDownloadAllowedProvider = Provider<bool>((ref) {
-  final UiSettingsState settings = ref.watch(uiSettingsProvider);
+  final settings = ref.watch(
+    uiSettingsProvider.select(
+      (UiSettingsState s) => (
+        autoDownloadWifi: s.autoDownloadWifi,
+        autoDownloadCellular: s.autoDownloadCellular,
+      ),
+    ),
+  );
   if (kIsWeb) {
     return (ref.watch(connectivityProvider).value ?? true) &&
         settings.autoDownloadWifi;

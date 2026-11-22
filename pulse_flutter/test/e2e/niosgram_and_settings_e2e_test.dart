@@ -21,7 +21,7 @@ import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
-import 'package:pulse_flutter/screens/settings/settings_hub_screen.dart';
+import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/widgets/post_card.dart';
@@ -280,7 +280,7 @@ void main() {
       final router = GoRouter(
         initialLocation: '/settings',
         routes: [
-          GoRoute(path: '/settings', builder: (_, _) => const SettingsHubScreen()),
+          GoRoute(path: '/settings', builder: (_, _) => const ProfileScreen()),
         ],
       );
 
@@ -322,7 +322,7 @@ void main() {
       final router = GoRouter(
         initialLocation: '/settings',
         routes: [
-          GoRoute(path: '/settings', builder: (_, _) => const SettingsHubScreen()),
+          GoRoute(path: '/settings', builder: (_, _) => const ProfileScreen()),
           GoRoute(path: '/main/niosgram', builder: (_, _) => const NiosgramScreen()),
         ],
       );
@@ -363,7 +363,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(SettingsHubScreen), findsOneWidget);
+      expect(find.byType(ProfileScreen), findsOneWidget);
       expect(find.byType(SettingsPrivacyScreen), findsOneWidget);
     });
   });
@@ -475,7 +475,7 @@ void main() {
       final router = GoRouter(
         initialLocation: '/settings',
         routes: [
-          GoRoute(path: '/settings', builder: (_, _) => const SettingsHubScreen()),
+          GoRoute(path: '/settings', builder: (_, _) => const ProfileScreen()),
         ],
       );
 
@@ -588,7 +588,7 @@ void main() {
       final router = GoRouter(
         initialLocation: '/settings',
         routes: [
-          GoRoute(path: '/settings', builder: (_, _) => const SettingsHubScreen()),
+          GoRoute(path: '/settings', builder: (_, _) => const ProfileScreen()),
           GoRoute(path: '/settings/account', builder: (_, _) => const SettingsAccountScreen()),
           GoRoute(path: '/settings/appearance', builder: (_, _) => const SettingsAppearanceScreen()),
           GoRoute(path: '/settings/privacy', builder: (_, _) => const SettingsPrivacyScreen()),
@@ -624,7 +624,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(SettingsHubScreen), findsOneWidget);
+      expect(find.byType(ProfileScreen), findsOneWidget);
     });
   });
 }

@@ -18,7 +18,7 @@ import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
-import 'package:pulse_flutter/screens/settings/settings_hub_screen.dart';
+import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -67,12 +67,12 @@ Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
       GoRoute(
         path: '/settings',
         builder: (BuildContext context, GoRouterState state) =>
-            const SettingsHubScreen(),
+            const ProfileScreen(),
       ),
       GoRoute(
         path: '/main/profile',
         builder: (BuildContext context, GoRouterState state) =>
-            const SettingsHubScreen(),
+            const ProfileScreen(),
       ),
       GoRoute(
         path: '/settings/account',

@@ -168,25 +168,30 @@ class LocalStorageService {
 
     if (!kIsWeb) {
       final Directory? support = await _tryDirectory(_supportDirectory);
-      final Set<String> countedPaths = <String>{};
       // Desktop Documents is a user-wide folder, not NiosMess storage.
-      if (_hasSandboxedDocuments) {
-        final documents = await _documentsDirectory();
-        documentsBytes = await _scanDirectory(
-          documents,
-          countedPaths,
-          categoryBytes,
-        );
-      }
-      supportBytes = support == null
-          ? 0
-          : await _scanDirectory(support, countedPaths, categoryBytes);
-      for (final cache in await _ownedCacheDirectories()) {
-        temporaryBytes += await _scanDirectory(
-          cache,
-          countedPaths,
-          categoryBytes,
-        );
+      final Directory? documents = _hasSandboxedDocuments
+          ? await _documentsDirectory()
+          : null;
+      final List<Directory> caches = await _ownedCacheDirectories();
+      final List<String> paths = <String>[
+        if (documents != null) documents.path,
+        if (support != null) support.path,
+        for (final Directory cache in caches) cache.path,
+      ];
+      if (paths.isNotEmpty) {
+        // Thousands of cached files: the walk runs in a background isolate so
+        // it does not share the UI isolate with the cold start.
+        final scan = await compute(_scanDirectories, paths);
+        int next = 0;
+        if (documents != null) documentsBytes = scan.totals[next++];
+        if (support != null) supportBytes = scan.totals[next++];
+        for (; next < scan.totals.length; next++) {
+          temporaryBytes += scan.totals[next];
+        }
+        scan.categoryBytes.forEach((int index, int bytes) {
+          final StorageCategory category = StorageCategory.values[index];
+          categoryBytes[category] = (categoryBytes[category] ?? 0) + bytes;
+        });
       }
     }
 
@@ -314,36 +319,6 @@ class LocalStorageService {
     }
   }
 
-  Future<int> _scanDirectory(
-    Directory directory,
-    Set<String> countedPaths,
-    Map<StorageCategory, int> categoryBytes,
-  ) async {
-    final String path = directory.absolute.path.toLowerCase();
-    if (!countedPaths.add(path)) return 0;
-    if (!await directory.exists()) return 0;
-
-    int total = 0;
-    await for (final FileSystemEntity entity in directory.list(
-      recursive: true,
-      followLinks: false,
-    )) {
-      if (entity is File) {
-        try {
-          final int length = await entity.length();
-          total += length;
-          final StorageCategory cat = StorageCategory.detectFromFilePath(
-            entity.path,
-          );
-          categoryBytes[cat] = (categoryBytes[cat] ?? 0) + length;
-        } catch (e) {
-          debugPrint('[local_storage_service.dart] Error reading length: $e');
-        }
-      }
-    }
-    return total;
-  }
-
   Future<int> _clearCacheDirectory(
     Directory directory, {
     StorageCategory? category,
@@ -372,6 +347,42 @@ class LocalStorageService {
     }
     return deleted;
   }
+}
+
+/// Sizes of [paths] in order, plus bytes per [StorageCategory] index. A path
+/// listed twice counts once. Top-level and built from sendable values only:
+/// it is the entry point of the scanning isolate.
+({List<int> totals, Map<int, int> categoryBytes}) _scanDirectories(
+  List<String> paths,
+) {
+  final Set<String> counted = <String>{};
+  final Map<int, int> categoryBytes = <int, int>{};
+  final List<int> totals = <int>[];
+  for (final String path in paths) {
+    final Directory directory = Directory(path);
+    int total = 0;
+    if (counted.add(directory.absolute.path.toLowerCase()) &&
+        directory.existsSync()) {
+      for (final FileSystemEntity entity in directory.listSync(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (entity is! File) continue;
+        try {
+          final int length = entity.lengthSync();
+          total += length;
+          final int index = StorageCategory.detectFromFilePath(
+            entity.path,
+          ).index;
+          categoryBytes[index] = (categoryBytes[index] ?? 0) + length;
+        } catch (e) {
+          debugPrint('[local_storage_service.dart] Error reading length: $e');
+        }
+      }
+    }
+    totals.add(total);
+  }
+  return (totals: totals, categoryBytes: categoryBytes);
 }
 
 final Provider<LocalStorageService> localStorageServiceProvider =

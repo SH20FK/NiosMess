@@ -5038,6 +5038,18 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Open account'**
   String get settingsIssueDeletionAction;
+
+  /// No description provided for @settingsNiosIdSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Nios ID security'**
+  String get settingsNiosIdSecurity;
+
+  /// No description provided for @settingsNiosIdSecurityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Password, sessions and connected apps on ni-os.ru'**
+  String get settingsNiosIdSecurityHint;
 }
 
 class _SecretChatLocalizationsDelegate

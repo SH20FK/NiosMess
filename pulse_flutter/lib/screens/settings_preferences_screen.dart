@@ -69,7 +69,15 @@ class _SettingsPreferencesScreenState
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(uiSettingsProvider);
+    final settings = ref.watch(
+      uiSettingsProvider.select(
+        (UiSettingsState s) => (
+          soundEffects: s.soundEffects,
+          soundVolume: s.soundVolume,
+          haptics: s.haptics,
+        ),
+      ),
+    );
     final scheme = Theme.of(context).colorScheme;
     return SettingsShell(
       title: context.l10n.settingsV2Notifications,

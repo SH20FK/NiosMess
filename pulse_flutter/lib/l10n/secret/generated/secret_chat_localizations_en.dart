@@ -2745,4 +2745,11 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsIssueDeletionAction => 'Open account';
+
+  @override
+  String get settingsNiosIdSecurity => 'Nios ID security';
+
+  @override
+  String get settingsNiosIdSecurityHint =>
+      'Password, sessions and connected apps on ni-os.ru';
 }

@@ -82,19 +82,6 @@ class AuthRepository {
     return AuthLoginResult.fromJson(asStringMap(response));
   }
 
-  Future<AuthLoginResult> verifyTwoFa({
-    required String identifier,
-    required String code,
-  }) async {
-    final dynamic response = await _ref
-        .read(webSocketClientProvider)
-        .request(
-          'verify_2fa',
-          payload: <String, dynamic>{'identifier': identifier, 'code': code},
-        );
-    return AuthLoginResult.fromJson(asStringMap(response));
-  }
-
   Future<void> unregisterFcmToken(String fcmToken) async {
     await _ref
         .read(webSocketClientProvider)
@@ -108,36 +95,6 @@ class AuthRepository {
     await _ref
         .read(webSocketClientProvider)
         .request('logout', payload: <String, dynamic>{});
-  }
-
-  Future<Map<String, dynamic>> requestPasswordReset({
-    required String email,
-  }) async {
-    final dynamic response = await _ref
-        .read(webSocketClientProvider)
-        .request(
-          'reset_password_request',
-          payload: <String, dynamic>{'email': email},
-        );
-    return asStringMap(response);
-  }
-
-  Future<Map<String, dynamic>> confirmPasswordReset({
-    required String email,
-    required String code,
-    required String newPassword,
-  }) async {
-    final dynamic response = await _ref
-        .read(webSocketClientProvider)
-        .request(
-          'reset_password_confirm',
-          payload: <String, dynamic>{
-            'email': email,
-            'code': code,
-            'new_password': newPassword,
-          },
-        );
-    return asStringMap(response);
   }
 
   Future<ApiProfile> getMe() async {
@@ -297,19 +254,6 @@ class AuthRepository {
           maxRetries: 0,
         );
     return asStringMap(response)['avatar_url'] as String? ?? '';
-  }
-
-  Future<bool> toggle2fa({
-    required bool enabled,
-    required String password,
-  }) async {
-    final dynamic response = await _ref
-        .read(webSocketClientProvider)
-        .request(
-          'toggle_2fa',
-          payload: <String, dynamic>{'enabled': enabled, 'password': password},
-        );
-    return asStringMap(response)['two_fa_enabled'] as bool? ?? enabled;
   }
 
   Future<List<ApiSession>> getSessions() async {

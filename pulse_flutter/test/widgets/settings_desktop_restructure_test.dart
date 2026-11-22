@@ -27,7 +27,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Settings Desktop Restructuring Tests', () {
-    testWidgets('SettingsScaffold in embedded mode centers content with default maxWidth 860',
+    testWidgets('SettingsShell in embedded mode centers content with default maxWidth 860',
         (WidgetTester tester) async {
       const Size desktopSize = Size(1920, 1080);
       tester.view.physicalSize = desktopSize;
@@ -38,7 +38,7 @@ void main() {
       await tester.pumpWidget(
         _buildDesktopTestHarness(
           size: desktopSize,
-          child: SettingsScaffold(
+          child: SettingsShell(
             isEmbedded: true,
             title: 'Настройки',
             children: <Widget>[
@@ -107,7 +107,7 @@ void main() {
       await tester.pumpWidget(
         _buildDesktopTestHarness(
           size: desktopSize,
-          child: const SettingsScaffold(
+          child: const SettingsShell(
             isEmbedded: true,
             maxWidth: 1120,
             title: 'Студия оформления',
