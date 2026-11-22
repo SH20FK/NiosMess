@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -159,7 +160,7 @@ class SettingsShell extends ConsumerWidget {
 
         final Widget scrolling = rawScrollView;
         final Widget bodyContent = onRefresh != null
-            ? RefreshIndicator(onRefresh: onRefresh!, child: scrolling)
+            ? AppRefreshIndicator(onRefresh: onRefresh!, child: scrolling)
             : scrolling;
 
         if (isEmbedded) {

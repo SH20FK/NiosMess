@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/notifications/notification_center.dart';
 import 'package:flutter/material.dart';
@@ -129,110 +130,120 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
-          child: feedAsync.when(
-            loading: () => const PostFeedSkeleton(count: 4),
-            error: (Object e, _) => AppErrorBanner(
-              message: context.l10n.niosgramFailedLoad,
-              variant: AppErrorBannerVariant.centered,
-              onRetry: () => ref.invalidate(niosgramProvider),
+          child: AnimatedSwitcher(
+            // Skeleton, error and feed cross-fade instead of swapping.
+            duration: context.motionDuration(M3Durations.effectsDefault),
+            switchInCurve: M3SpringCurves.effectsDefault,
+            switchOutCurve: M3SpringCurves.effectsDefault,
+            layoutBuilder: (Widget? current, List<Widget> previous) => Stack(
+              alignment: Alignment.topCenter,
+              children: <Widget>[...previous, ?current],
             ),
-            data: (NiosgramFeedLayout feedState) {
-              if (feedState.ids.isEmpty) {
-                return RefreshIndicator(
-                  onRefresh: () =>
-                      ref.read(niosgramProvider.notifier).refresh(),
-                  child: ListView(
+            child: feedAsync.when(
+              loading: () => const PostFeedSkeleton(count: 4),
+              error: (Object e, _) => AppErrorBanner(
+                message: context.l10n.niosgramFailedLoad,
+                variant: AppErrorBannerVariant.centered,
+                onRetry: () => ref.invalidate(niosgramProvider),
+              ),
+              data: (NiosgramFeedLayout feedState) {
+                if (feedState.ids.isEmpty) {
+                  return AppRefreshIndicator(
+                    onRefresh: () =>
+                        ref.read(niosgramProvider.notifier).refresh(),
+                    child: ListView(
+                      controller: _scrollController,
+                      padding: EdgeInsets.only(top: 4, bottom: isWide ? 84 : 96),
+                      children: <Widget>[
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: horizontalGutter,
+                          ),
+                          child: const _CompactQuickCreateBar(),
+                        ),
+                        const SizedBox(height: 24),
+                        EmptyFeedWidget(
+                          title: context.l10n.niosgramEmptyFeed,
+                          description: context.l10n.niosgramEmptyFeedDesc,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                final idToIndex = <int, int>{
+                  for (var i = 0; i < feedState.ids.length; i++)
+                    feedState.ids[i]: i + 1,
+                };
+                return AppRefreshIndicator(
+                  onRefresh: () => ref.read(niosgramProvider.notifier).refresh(),
+                  child: ListView.builder(
                     controller: _scrollController,
+                    // PostCard already isolates its paint; keep one boundary per post.
+                    addRepaintBoundaries: false,
+                    findChildIndexCallback: (key) =>
+                        key is ValueKey<int> ? idToIndex[key.value] : null,
                     padding: EdgeInsets.only(top: 4, bottom: isWide ? 84 : 96),
-                    children: <Widget>[
-                      Padding(
+                    itemCount:
+                        1 +
+                        feedState.ids.length +
+                        (feedState.isLoadingMore ? 1 : 0) +
+                        (feedState.hasMore && !feedState.isLoadingMore ? 1 : 0),
+                    itemBuilder: (BuildContext context, int index) {
+                      if (index == 0) {
+                        return Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: horizontalGutter,
+                            vertical: 6,
+                          ),
+                          child: const _CompactQuickCreateBar(),
+                        );
+                      }
+                      final int postIndex = index - 1;
+                      if (postIndex == feedState.ids.length) {
+                        if (feedState.isLoadingMore) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: AppLoadingIndicator(size: 32),
+                          );
+                        }
+                        if (feedState.loadMoreFailed) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Column(
+                              children: [
+                                Text(context.l10n.niosgramPageLoadFailed),
+                                TextButton(
+                                  onPressed: () => ref
+                                      .read(niosgramProvider.notifier)
+                                      .loadMore(retry: true),
+                                  child: Text(context.l10n.commonRetry),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return _LoadMoreTrigger(
+                          onVisible: () =>
+                              ref.read(niosgramProvider.notifier).loadMore(),
+                        );
+                      }
+                      final postId = feedState.ids[postIndex];
+                      return Padding(
+                        key: ValueKey<int>(postId),
                         padding: EdgeInsets.symmetric(
                           horizontal: horizontalGutter,
+                          vertical: isWide ? 8 : 6,
                         ),
-                        child: const _CompactQuickCreateBar(),
-                      ),
-                      const SizedBox(height: 24),
-                      EmptyFeedWidget(
-                        title: context.l10n.niosgramEmptyFeed,
-                        description: context.l10n.niosgramEmptyFeedDesc,
-                      ),
-                    ],
+                        child: _FeedPostEntry(postId: postId),
+                      );
+                    },
                   ),
                 );
-              }
-              final idToIndex = <int, int>{
-                for (var i = 0; i < feedState.ids.length; i++)
-                  feedState.ids[i]: i + 1,
-              };
-              return RefreshIndicator(
-                onRefresh: () => ref.read(niosgramProvider.notifier).refresh(),
-                child: ListView.builder(
-                  controller: _scrollController,
-                  // PostCard already isolates its paint; keep one boundary per post.
-                  addRepaintBoundaries: false,
-                  findChildIndexCallback: (key) =>
-                      key is ValueKey<int> ? idToIndex[key.value] : null,
-                  padding: EdgeInsets.only(top: 4, bottom: isWide ? 84 : 96),
-                  itemCount:
-                      1 +
-                      feedState.ids.length +
-                      (feedState.isLoadingMore ? 1 : 0) +
-                      (feedState.hasMore && !feedState.isLoadingMore ? 1 : 0),
-                  itemBuilder: (BuildContext context, int index) {
-                    if (index == 0) {
-                      return Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: horizontalGutter,
-                          vertical: 6,
-                        ),
-                        child: const _CompactQuickCreateBar(),
-                      );
-                    }
-                    final int postIndex = index - 1;
-                    if (postIndex == feedState.ids.length) {
-                      if (feedState.isLoadingMore) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: AppLoadingIndicator(size: 32),
-                        );
-                      }
-                      if (feedState.loadMoreFailed) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Column(
-                            children: [
-                              Text(context.l10n.niosgramPageLoadFailed),
-                              TextButton(
-                                onPressed: () => ref
-                                    .read(niosgramProvider.notifier)
-                                    .loadMore(retry: true),
-                                child: Text(context.l10n.commonRetry),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return _LoadMoreTrigger(
-                        onVisible: () =>
-                            ref.read(niosgramProvider.notifier).loadMore(),
-                      );
-                    }
-                    final postId = feedState.ids[postIndex];
-                    return Padding(
-                      key: ValueKey<int>(postId),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: horizontalGutter,
-                        vertical: isWide ? 8 : 6,
-                      ),
-                      child: _FeedPostEntry(postId: postId),
-                    );
-                  },
-                ),
-              );
-            },
+              },
+            ),
           ),
         ),
       ),

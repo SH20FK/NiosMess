@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:file_picker/file_picker.dart';
@@ -535,7 +536,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     String bio,
   ) => Scaffold(
     backgroundColor: scheme.surface,
-    body: RefreshIndicator(
+    body: AppRefreshIndicator(
       onRefresh: () => ref.read(authProvider.notifier).refreshProfile(),
       child: CustomScrollView(
         key: const PageStorageKey('settings-overview-scroll'),

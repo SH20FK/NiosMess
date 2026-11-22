@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/feed_poll_card.dart';
 import 'package:flutter/material.dart';
@@ -325,7 +326,7 @@ class _PostCommentsScreenState extends ConsumerState<PostCommentsScreen> {
                   final byId = {
                     for (final comment in comments) comment.id: comment,
                   };
-                  return RefreshIndicator(
+                  return AppRefreshIndicator(
                     onRefresh: () => _notifier.refresh(),
                     child: ListView.builder(
                       controller: _scroll,

@@ -4,6 +4,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:motor/motor.dart' show SingleMotionController;
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
@@ -37,9 +38,17 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
   bool _areControlsVisible = true;
   Timer? _controlsAutoHideTimer;
 
-  // Draggable local PiP coordinates
-  double _pipX = 0.0;
-  double _pipY = 0.0;
+  static const double _pipEdgeMargin = 12.0;
+  static const double _pipMinFlingVelocity = 700.0;
+
+  // The local PiP position lives in listenables: a drag moves the tile
+  // without rebuilding the remote video.
+  late final SingleMotionController _pipX;
+  final ValueNotifier<double> _pipY = ValueNotifier<double>(0.0);
+  late final Listenable _pipPosition = Listenable.merge(<Listenable>[
+    _pipX,
+    _pipY,
+  ]);
   bool _pipInitialized = false;
 
   final ValueNotifier<int> _timerNotifier = ValueNotifier<int>(0);
@@ -52,6 +61,10 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
   void initState() {
     super.initState();
 
+    _pipX = SingleMotionController(
+      motion: M3Motion.spatialDefault,
+      vsync: this,
+    );
     _controlsFadeController = AnimationController(
       vsync: this,
       duration: CallTokens.controlsFadeDuration,
@@ -102,6 +115,8 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
 
   @override
   void dispose() {
+    _pipX.dispose();
+    _pipY.dispose();
     _controlsFadeController.dispose();
     _controlsAutoHideTimer?.cancel();
     _stateSubscription?.cancel();
@@ -156,6 +171,21 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     _popOrGoHome();
   }
 
+  /// Springs the PiP to the nearer side edge, or to the one a fling points
+  /// at, starting with the finger's velocity.
+  void _snapPip(DragEndDetails details, double screenWidth) {
+    final double velocity = details.velocity.pixelsPerSecond.dx;
+    const double width = CallTokens.videoPipWidth;
+    final bool toStart = velocity.abs() >= _pipMinFlingVelocity
+        ? velocity < 0
+        : _pipX.value + width / 2 < screenWidth / 2;
+    _pipX.springTo(
+      toStart ? _pipEdgeMargin : screenWidth - width - _pipEdgeMargin,
+      velocity: velocity,
+      reduceMotion: context.reduceMotion,
+    );
+  }
+
   Future<void> _endCall() async {
     HapticService.tap();
     ref.read(appSoundProvider).playEvent(SoundEvent.callEnded);
@@ -189,10 +219,15 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     final topPadding = MediaQuery.paddingOf(context).top;
 
     if (!_pipInitialized) {
-      _pipX = size.width - CallTokens.videoPipWidth - 16;
-      _pipY = topPadding + 64;
+      _pipX.value = size.width - CallTokens.videoPipWidth - _pipEdgeMargin;
+      _pipY.value = topPadding + 64;
       _pipInitialized = true;
     }
+    // The spring may overshoot the edge margin but never leaves the screen.
+    final double pipMaxLeft = (size.width - CallTokens.videoPipWidth).clamp(
+      0.0,
+      double.infinity,
+    );
 
     final participants = data.remoteParticipants;
     final participantName = participants.isNotEmpty
@@ -254,15 +289,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                 top: topPadding + 6,
                 left: 12,
                 right: 12,
-                child: AnimatedBuilder(
-                  animation: _controlsFadeAnimation,
-                  builder: (context, child) => Opacity(
-                    opacity: _controlsFadeAnimation.value,
-                    child: IgnorePointer(
-                      ignoring: _controlsFadeAnimation.value < 0.05,
-                      child: child,
-                    ),
-                  ),
+                child: _CallControlsFade(
+                  opacity: _controlsFadeAnimation,
+                  visible: _areControlsVisible,
                   child: Row(
                     children: [
                       IconButton(
@@ -373,22 +402,26 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
               ),
 
               // ── Draggable M3 Squircle PiP (Self Camera) ─────────────────
-              Positioned(
-                left: _pipX,
-                top: _pipY,
+              AnimatedBuilder(
+                animation: _pipPosition,
+                builder: (context, child) => Positioned(
+                  left: _pipX.value.clamp(0.0, pipMaxLeft),
+                  top: _pipY.value,
+                  child: child!,
+                ),
                 child: GestureDetector(
+                  onPanStart: (_) => _pipX.stop(canceled: true),
                   onPanUpdate: (details) {
-                    setState(() {
-                      _pipX = (_pipX + details.delta.dx).clamp(
-                        12.0,
-                        size.width - CallTokens.videoPipWidth - 12.0,
-                      );
-                      _pipY = (_pipY + details.delta.dy).clamp(
-                        topPadding + 12.0,
-                        size.height - CallTokens.videoPipHeight - 100.0,
-                      );
-                    });
+                    _pipX.value = (_pipX.value + details.delta.dx).clamp(
+                      _pipEdgeMargin,
+                      size.width - CallTokens.videoPipWidth - _pipEdgeMargin,
+                    );
+                    _pipY.value = (_pipY.value + details.delta.dy).clamp(
+                      topPadding + _pipEdgeMargin,
+                      size.height - CallTokens.videoPipHeight - 100.0,
+                    );
                   },
+                  onPanEnd: (details) => _snapPip(details, size.width),
                   child: Container(
                     width: CallTokens.videoPipWidth,
                     height: CallTokens.videoPipHeight,
@@ -463,15 +496,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                 bottom: 0,
                 left: 0,
                 right: 0,
-                child: AnimatedBuilder(
-                  animation: _controlsFadeAnimation,
-                  builder: (context, child) => Opacity(
-                    opacity: _controlsFadeAnimation.value,
-                    child: IgnorePointer(
-                      ignoring: _controlsFadeAnimation.value < 0.05,
-                      child: child,
-                    ),
-                  ),
+                child: _CallControlsFade(
+                  opacity: _controlsFadeAnimation,
+                  visible: _areControlsVisible,
                   child: CallControlDock(
                     session: session,
                     data: data,
@@ -499,6 +526,27 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
 }
 
 // ── No Video Placeholder ──────────────────────────────────────────────────────
+
+/// Fades call controls in and out. Hidden or leaving controls ignore taps.
+class _CallControlsFade extends StatelessWidget {
+  const _CallControlsFade({
+    required this.opacity,
+    required this.visible,
+    required this.child,
+  });
+
+  final Animation<double> opacity;
+  final bool visible;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: !visible,
+      child: FadeTransition(opacity: opacity, child: child),
+    );
+  }
+}
 
 class _NoVideoPlaceholder extends StatelessWidget {
   const _NoVideoPlaceholder({

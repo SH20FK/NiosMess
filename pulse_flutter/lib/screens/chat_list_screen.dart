@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:pulse_flutter/providers/encrypted_draft_sync_provider.dart';
 import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
@@ -178,15 +179,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             child: const ChatListHeader(),
           ),
           backgroundColor: Colors.transparent,
-          body: RefreshIndicator(
+          body: AppRefreshIndicator(
             onRefresh: () async {
               if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
               await _retryChats();
             },
-            displacement: 24,
-            color: scheme.primary,
-            backgroundColor: scheme.surfaceContainerHighest,
-            elevation: 0,
             child: NotificationListener<ScrollNotification>(
               onNotification: _handleScrollNotification,
               child: CustomScrollView(

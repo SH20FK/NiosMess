@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
@@ -299,7 +300,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                   Expanded(
                     child: visibleMembers.isEmpty
                         ? Center(child: Text(context.l10n.chatMembersEmpty))
-                        : RefreshIndicator(
+                        : AppRefreshIndicator(
                             onRefresh: _loadMembers,
                             child: ListView.separated(
                               padding: const EdgeInsets.symmetric(

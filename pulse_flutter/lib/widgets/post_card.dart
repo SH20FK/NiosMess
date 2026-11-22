@@ -700,14 +700,25 @@ class _PostCardState extends ConsumerState<PostCard>
   }
 }
 
-void _openFullScreen(BuildContext context, String url, int postId) {
+String _postMediaHeroTag(int postId, int index) =>
+    'post_media_${postId}_$index';
+
+void _openFullScreen(
+  BuildContext context,
+  String url,
+  int postId, {
+  int index = 0,
+}) {
   Navigator.of(context).push(
     PageRouteBuilder<void>(
       opaque: true,
       barrierLabel: context.l10n.semanticsClose,
       transitionDuration: M3Durations.effectsSlow,
       reverseTransitionDuration: M3Durations.effectsDefault,
-      pageBuilder: (_, _, _) => _FullScreenImage(url: url, postId: postId),
+      pageBuilder: (_, _, _) => _FullScreenImage(
+        url: url,
+        heroTag: _postMediaHeroTag(postId, index),
+      ),
       transitionsBuilder: (_, Animation<double> a1, _, Widget child) {
         return FadeTransition(
           opacity: a1.drive(CurveTween(curve: M3SpringCurves.effectsSlow)),
@@ -773,9 +784,9 @@ Widget _feedImage(BuildContext context, String url) {
 
 // ── Full-screen image viewer ─────────────────────────────────────────
 class _FullScreenImage extends StatefulWidget {
-  const _FullScreenImage({required this.url, required this.postId});
+  const _FullScreenImage({required this.url, required this.heroTag});
   final String url;
-  final int postId;
+  final String heroTag;
 
   @override
   State<_FullScreenImage> createState() => _FullScreenImageState();
@@ -804,7 +815,7 @@ class _FullScreenImageState extends State<_FullScreenImage> {
           children: <Widget>[
             Positioned.fill(
               child: Hero(
-                tag: 'post_media_${widget.postId}',
+                tag: widget.heroTag,
                 child: InteractiveViewer(
                   minScale: 0.8,
                   maxScale: 5.0,
@@ -956,8 +967,12 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                             context,
                             ApiConstants.resolve(url),
                             widget.post.id,
+                            index: index,
                           ),
-                          child: _feedImage(context, url),
+                          child: Hero(
+                            tag: _postMediaHeroTag(widget.post.id, index),
+                            child: _feedImage(context, url),
+                          ),
                         );
                       },
                     )
@@ -968,7 +983,7 @@ class _PostMediaViewportState extends State<_PostMediaViewport> {
                       key: ValueKey('post-media-open-${widget.post.id}'),
                       onTap: widget.onMediaTap,
                       child: Hero(
-                        tag: 'post_media_${widget.post.id}',
+                        tag: _postMediaHeroTag(widget.post.id, 0),
                         child: _feedImage(context, widget.mediaUrls.first),
                       ),
                     ),

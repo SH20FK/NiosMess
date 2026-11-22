@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -672,7 +673,7 @@ class ScheduledMessagesScreen extends ConsumerWidget {
                   ],
                 ),
               )
-            : RefreshIndicator(
+            : AppRefreshIndicator(
                 onRefresh: () async {
                   ref.invalidate(scheduledChatMessagesProvider(chatId));
                   await ref.read(scheduledChatMessagesProvider(chatId).future);

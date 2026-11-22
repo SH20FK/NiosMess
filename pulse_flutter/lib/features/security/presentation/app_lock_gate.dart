@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/system_utils.dart';
 import 'package:pulse_flutter/features/security/application/app_lock_controller.dart';
 import 'package:pulse_flutter/features/security/domain/app_lock_policy.dart';
@@ -71,17 +73,13 @@ class _AppLockGateState extends ConsumerState<AppLockGate> {
       );
     }
 
-    // If not authenticated or not locked, render normal tree
     final bool isActuallyLocked =
         isAuthenticated && lockState.isEnabled && lockState.isLocked;
 
     if (!isActuallyLocked) {
       _attemptedAutoAuth = false;
-      return widget.child;
-    }
-
-    // Auto-prompt on transition to locked state
-    if (!_attemptedAutoAuth && !lockState.isAuthenticating) {
+    } else if (!_attemptedAutoAuth && !lockState.isAuthenticating) {
+      // Auto-prompt on transition to locked state
       _attemptedAutoAuth = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -100,17 +98,22 @@ class _AppLockGateState extends ConsumerState<AppLockGate> {
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        // Obscured underlying child excluded from semantics
+        // The child keeps the same place in the tree while locked and
+        // unlocked, so unlocking does not rebuild the app under the cover.
         Offstage(
-          offstage: true,
+          offstage: isActuallyLocked,
           child: ExcludeSemantics(
-            excluding: true,
-            child: ExcludeFocus(child: widget.child),
+            excluding: isActuallyLocked,
+            child: ExcludeFocus(
+              excluding: isActuallyLocked,
+              child: widget.child,
+            ),
           ),
         ),
 
         // Opaque blocking screen covering the entire viewport
-        Positioned.fill(
+        _LockCover(
+          locked: isActuallyLocked,
           child: Material(
             color: scheme.surface,
             child: SafeArea(
@@ -221,6 +224,41 @@ class _AppLockGateState extends ConsumerState<AppLockGate> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Lock screen layer. It appears without a transition, so the app is covered
+/// from the first frame, and fades out after unlocking.
+class _LockCover extends StatelessWidget {
+  const _LockCover({required this.locked, required this.child});
+
+  final bool locked;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      // A leaving lock screen must not start another unlock.
+      ignoring: !locked,
+      child: ExcludeSemantics(
+        excluding: !locked,
+        child: AnimatedSwitcher(
+          duration: Duration.zero,
+          reverseDuration: context.motionDuration(M3Durations.effectsDefault),
+          switchOutCurve: M3SpringCurves.effectsDefault,
+          layoutBuilder: (Widget? current, List<Widget> previous) => Stack(
+            fit: StackFit.expand,
+            children: <Widget>[...previous, ?current],
+          ),
+          child: locked
+              ? KeyedSubtree(
+                  key: const ValueKey<String>('app-lock-cover'),
+                  child: child,
+                )
+              : const SizedBox.shrink(key: ValueKey<String>('app-lock-open')),
+        ),
+      ),
     );
   }
 }

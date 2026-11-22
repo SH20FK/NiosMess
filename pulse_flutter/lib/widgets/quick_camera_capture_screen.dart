@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/motion/m3_press_scale.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -223,29 +224,9 @@ class _QuickCameraCaptureScreenState extends State<QuickCameraCaptureScreen>
                   const SizedBox(width: 56),
 
                   // Big shutter button
-                  GestureDetector(
+                  _ShutterButton(
+                    capturing: _isCapturing,
                     onTap: _takePhoto,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: scheme.onSurface,
-                          width: 4,
-                        ),
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 66,
-                          height: 66,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: scheme.onSurface,
-                          ),
-                        ),
-                      ),
-                    ),
                   ),
 
                   // Flip camera button
@@ -259,6 +240,69 @@ class _QuickCameraCaptureScreenState extends State<QuickCameraCaptureScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shutter with press feedback. The inner disc stays compressed and shows the
+/// loading indicator while the photo is being taken.
+class _ShutterButton extends StatefulWidget {
+  const _ShutterButton({required this.capturing, required this.onTap});
+
+  final bool capturing;
+  final VoidCallback onTap;
+
+  @override
+  State<_ShutterButton> createState() => _ShutterButtonState();
+}
+
+class _ShutterButtonState extends State<_ShutterButton> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTapDown: (_) => _setPressed(true),
+      onTapUp: (_) => _setPressed(false),
+      onTapCancel: () => _setPressed(false),
+      onTap: widget.onTap,
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: scheme.onSurface, width: 4),
+        ),
+        child: Center(
+          child: M3PressScale(
+            pressed: _pressed || widget.capturing,
+            scale: 0.86,
+            child: Container(
+              width: 66,
+              height: 66,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: scheme.onSurface,
+              ),
+              child: AnimatedSwitcher(
+                duration: context.motionDuration(M3Durations.effectsDefault),
+                child: widget.capturing
+                    ? AppLoadingIndicator(
+                        key: const ValueKey<String>('shutter-busy'),
+                        size: 32,
+                        color: scheme.surface,
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -339,6 +339,7 @@ class PostCardSkeleton extends StatelessWidget {
     this.hasMedia = true,
     this.aspectRatio = 16 / 9,
     this.linesCount = 2,
+    this.opacity,
     super.key,
   });
 
@@ -346,19 +347,16 @@ class PostCardSkeleton extends StatelessWidget {
   final double aspectRatio;
   final int linesCount;
 
+  /// Pulse shared with the other cards of a feed skeleton. Without it the
+  /// card is static.
+  final Animation<double>? opacity;
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final Animation<double>? opacity = this.opacity;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.20),
-        ),
-      ),
-      child: Column(
+    final Widget content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -499,7 +497,20 @@ class PostCardSkeleton extends StatelessWidget {
             ),
           ),
         ],
+    );
+
+    // Same shape as the real PostCard, so the frame does not jump on load.
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: AppRadii.lgRadius,
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.20),
+        ),
       ),
+      child: opacity == null
+          ? content
+          : FadeTransition(opacity: opacity, child: content),
     );
   }
 }
@@ -522,18 +533,26 @@ class _ActionChipPlaceholder extends StatelessWidget {
   }
 }
 
-/// Unified feed loading skeleton with coordinated shimmer sweep.
-class PostFeedSkeleton extends StatelessWidget {
+/// Feed loading skeleton. Every card breathes on one shared pulse.
+class PostFeedSkeleton extends StatefulWidget {
   const PostFeedSkeleton({this.count = 4, super.key});
 
   final int count;
 
   @override
+  State<PostFeedSkeleton> createState() => _PostFeedSkeletonState();
+}
+
+class _PostFeedSkeletonState extends State<PostFeedSkeleton>
+    with
+        SingleTickerProviderStateMixin<PostFeedSkeleton>,
+        _SkeletonPulse<PostFeedSkeleton> {
+  @override
   Widget build(BuildContext context) {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.only(top: 4, bottom: 80),
-      itemCount: count,
+      itemCount: widget.count,
       itemBuilder: (BuildContext context, int index) {
         final bool hasMedia = index % 2 == 0;
         final double aspectRatio = index % 4 == 0 ? (16 / 9) : (4 / 3);
@@ -545,6 +564,7 @@ class PostFeedSkeleton extends StatelessWidget {
             hasMedia: hasMedia,
             aspectRatio: aspectRatio,
             linesCount: lines,
+            opacity: pulseOpacity,
           ),
         );
       },

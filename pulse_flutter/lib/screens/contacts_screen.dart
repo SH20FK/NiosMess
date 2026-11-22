@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -481,7 +482,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
             ? _recentDirectChats(chatsAsync.asData!.value)
             : const <ApiChatSummary>[]);
 
-    return RefreshIndicator(
+    return AppRefreshIndicator(
       onRefresh: () async {
         if (_searchQuery.trim().isNotEmpty) {
           ref

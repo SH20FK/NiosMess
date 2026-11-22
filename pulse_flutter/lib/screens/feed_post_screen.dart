@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,7 +32,7 @@ class FeedPostScreen extends ConsumerWidget {
                 child: Text(context.l10n.commonRetry),
               ),
             ),
-            data: (post) => RefreshIndicator(
+            data: (post) => AppRefreshIndicator(
               onRefresh: () async {
                 ref.invalidate(feedPostByIdProvider(postId));
                 await ref.read(feedPostByIdProvider(postId).future);
