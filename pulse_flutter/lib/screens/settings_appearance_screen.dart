@@ -143,8 +143,12 @@ class _AppearanceScreen extends ConsumerWidget {
         seedColor: seedColor,
         useSystemDynamic: useSystemDynamic,
         paletteStyle: paletteStyle,
-        onColorSelected: (Color color) {
-          ref.read(uiSettingsProvider.notifier).setSeedColor(color);
+        onColorSelected: (Color color, Offset origin) {
+          _revealChange(
+            context,
+            origin,
+            () => ref.read(uiSettingsProvider.notifier).setSeedColor(color),
+          );
         },
         onCustomColorTap: () {
           _openCustomColorPicker(context, ref, seedColor);
@@ -162,15 +166,11 @@ class _AppearanceScreen extends ConsumerWidget {
       currentMode: themeMode,
       onSelectMode: (ThemeMode newMode, Offset tapOffset) {
         if (newMode == themeMode) return;
-        final switcher = CircularThemeSwitcher.maybeOf(context);
-        if (switcher != null) {
-          switcher.toggleTheme(
-            () => ref.read(uiSettingsProvider.notifier).setThemeMode(newMode),
-            tapOffset: tapOffset,
-          );
-        } else {
-          ref.read(uiSettingsProvider.notifier).setThemeMode(newMode);
-        }
+        _revealChange(
+          context,
+          tapOffset,
+          () => ref.read(uiSettingsProvider.notifier).setThemeMode(newMode),
+        );
       },
     );
 
@@ -246,6 +246,20 @@ class _AppearanceScreen extends ConsumerWidget {
     );
   }
 
+  // Theme and accent change the same way: the new look opens in a circle
+  // from the control that was touched, so the selection mark and the colours
+  // arrive together. The controls give their own feedback. A change made
+  // while a reveal is still running lands at once under it, because the
+  // switcher would otherwise drop it.
+  void _revealChange(BuildContext context, Offset origin, VoidCallback apply) {
+    final switcher = CircularThemeSwitcher.maybeOf(context);
+    if (switcher == null || CircularThemeSwitcher.revealing.value) {
+      apply();
+      return;
+    }
+    switcher.toggleTheme(apply, tapOffset: origin, haptic: false);
+  }
+
   void _openCustomColorPicker(
     BuildContext context,
     WidgetRef ref,
@@ -283,7 +297,10 @@ class NiosColorField extends StatelessWidget {
   final Color seedColor;
   final bool useSystemDynamic;
   final PaletteStyle paletteStyle;
-  final ValueChanged<Color> onColorSelected;
+
+  /// A ready-made accent was picked. [origin] is the centre of its swatch on
+  /// screen, the point the new colours open from.
+  final void Function(Color color, Offset origin) onColorSelected;
   final VoidCallback onCustomColorTap;
   final ValueChanged<bool> onToggleDynamic;
   final ValueChanged<PaletteStyle> onSelectPaletteStyle;
@@ -319,9 +336,14 @@ class NiosColorField extends StatelessWidget {
                   selected:
                       !useSystemDynamic &&
                       seedColor.toARGB32() == entry.color.toARGB32(),
-                  onTap: () {
+                  onTap: (Offset origin) {
+                    // The accent already in use: nothing to change or reveal.
+                    if (!useSystemDynamic &&
+                        seedColor.toARGB32() == entry.color.toARGB32()) {
+                      return;
+                    }
                     HapticService.selection();
-                    onColorSelected(entry.color);
+                    onColorSelected(entry.color, origin);
                     onToggleDynamic(false);
                   },
                 ),
@@ -332,7 +354,7 @@ class NiosColorField extends StatelessWidget {
                 label: context.l10n.appearanceCustomColor,
                 selected: customSelected,
                 custom: true,
-                onTap: onCustomColorTap,
+                onTap: (_) => onCustomColorTap(),
               ),
             ],
           ),
@@ -511,7 +533,9 @@ class _PaletteChoice extends StatefulWidget {
     onTap: onTap,
     diameter: diameter,
   );
-  final VoidCallback onTap;
+
+  /// Called with the centre of the swatch in screen coordinates.
+  final ValueChanged<Offset> onTap;
 
   @override
   State<_PaletteChoice> createState() => _PaletteChoiceState();
@@ -523,7 +547,15 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
   String get label => widget.label;
   bool get selected => widget.selected;
   bool get custom => widget.custom;
-  VoidCallback get onTap => widget.onTap;
+
+  void onTap() {
+    final box = context.findRenderObject() as RenderBox?;
+    widget.onTap(
+      box != null && box.hasSize
+          ? box.localToGlobal(Offset(box.size.width / 2, widget.diameter / 2))
+          : Offset.zero,
+    );
+  }
 
   void _updatePreview() {
     preview = ColorScheme.fromSeed(

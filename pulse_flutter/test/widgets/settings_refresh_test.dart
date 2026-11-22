@@ -334,6 +334,70 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('the open section stands alone with full corners', (
+      tester,
+    ) async {
+      Widget list(int selected) => _app(
+        SettingsSection(
+          selectedIndex: selected,
+          children: [
+            for (var i = 0; i < 3; i++)
+              SettingsListItem.nav(
+                icon: Icons.tune_rounded,
+                title: 'Row $i',
+                isSelected: i == selected,
+                onTap: () {},
+              ),
+          ],
+        ),
+      );
+      BorderRadius? shapeOf(int row) => tester
+          .widget<PressableSurface>(
+            find.ancestor(
+              of: find.text('Row $row'),
+              matching: find.byType(PressableSurface),
+            ),
+          )
+          .borderRadius;
+      Color? tileOf(int row) => tester
+          .widget<Material>(
+            find
+                .ancestor(
+                  of: find.text('Row $row'),
+                  matching: find.byType(Material),
+                )
+                .first,
+          )
+          .color;
+
+      await tester.pumpWidget(list(1));
+      await tester.pumpAndSettle();
+      final outer = SettingsSection.outerRadius(
+        tester.element(find.text('Row 1')),
+      );
+      final connectedMiddle = BorderRadius.circular(4);
+      expect(shapeOf(1), BorderRadius.circular(outer));
+      expect(shapeOf(1), isNot(connectedMiddle));
+      expect(
+        shapeOf(0),
+        BorderRadius.vertical(
+          top: Radius.circular(outer),
+          bottom: const Radius.circular(4),
+        ),
+      );
+      // No squarer tile shows behind the rounder corners.
+      expect(tileOf(1), Colors.transparent);
+      expect(tileOf(0), isNot(Colors.transparent));
+
+      // Selection moves on: the old row rejoins the group, the new one leaves.
+      await tester.pumpWidget(list(2));
+      await tester.pumpAndSettle();
+      expect(shapeOf(1), connectedMiddle);
+      expect(shapeOf(2), BorderRadius.circular(outer));
+      expect(tileOf(1), isNot(Colors.transparent));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('a privacy rule is chosen from a menu on its own row', (
       tester,
     ) async {

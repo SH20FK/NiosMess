@@ -18,6 +18,7 @@ class SettingsSection extends StatelessWidget {
     this.subtitle,
     this.isCard = true,
     this.stagger = false,
+    this.selectedIndex,
     super.key,
   });
   final String? title;
@@ -28,6 +29,11 @@ class SettingsSection extends StatelessWidget {
   /// The first rows rise into place one after another when the group first
   /// appears. For a list that is the screen itself, such as the hub.
   final bool stagger;
+
+  /// The row at this position leaves the connected shape and stands on its
+  /// own: full corners on every side and no backdrop behind it. For the
+  /// section that is open in the pane next to the list.
+  final int? selectedIndex;
 
   /// Outer corner of a group. Follows the corner radius setting across its
   /// whole 8-28 range; the default 20 gives 24.
@@ -84,12 +90,15 @@ class SettingsSection extends StatelessWidget {
             if (index != 0) const SizedBox(height: 2),
             Builder(
               builder: (context) {
-                final radius = BorderRadius.vertical(
-                  top: Radius.circular(index == 0 ? outer : 4),
-                  bottom: Radius.circular(
-                    index == items.length - 1 ? outer : 4,
-                  ),
-                );
+                final standsAlone = index == selectedIndex;
+                final radius = standsAlone
+                    ? BorderRadius.circular(outer)
+                    : BorderRadius.vertical(
+                        top: Radius.circular(index == 0 ? outer : 4),
+                        bottom: Radius.circular(
+                          index == items.length - 1 ? outer : 4,
+                        ),
+                      );
                 final color = isCard
                     ? scheme.surfaceContainerLow
                     : scheme.surface;
@@ -97,7 +106,9 @@ class SettingsSection extends StatelessWidget {
                   borderRadius: radius,
                   color: color,
                   child: Material(
-                    color: color,
+                    // The row paints its own fill, so its rounder corners
+                    // must not show a squarer tile underneath.
+                    color: standsAlone ? Colors.transparent : color,
                     borderRadius: radius,
                     clipBehavior: Clip.none,
                     child: items[index],

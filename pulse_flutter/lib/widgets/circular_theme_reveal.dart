@@ -81,6 +81,7 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     VoidCallback changeThemeCallback, {
     Offset? tapOffset,
     GlobalKey? buttonKey,
+    bool haptic = true,
   }) async {
     if (_isAnimating) return;
     if (context.reduceMotion) {
@@ -127,9 +128,12 @@ class CircularThemeSwitcherState extends State<CircularThemeSwitcher>
     // Without a snapshot there is no reveal and the theme animates as usual.
     if (snapshotImage != null) CircularThemeSwitcher.revealing.value = true;
 
-    try {
-      HapticService.lightImpact();
-    } catch (_) {}
+    // A control that already answered the touch itself asks for silence.
+    if (haptic) {
+      try {
+        HapticService.lightImpact();
+      } catch (_) {}
+    }
 
     // 2. Change theme state
     changeThemeCallback();

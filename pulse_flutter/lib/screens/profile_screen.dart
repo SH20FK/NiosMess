@@ -273,29 +273,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ThemeMode themeMode,
     LocalStorageSnapshot? snapshot, {
     SettingsSectionId? selected,
-  }) => [
-    SettingsSection(
-      stagger: true,
-      children: [
-        for (final node in SettingsRegistry.getTopLevelSections())
-          SettingsListItem.nav(
-            key: ValueKey('settings-destination-${node.id}'),
-            icon: node.icon,
-            title: node.title(context.l10n),
-            value: _getSectionBadgeValue(node, themeMode, snapshot),
-            isSection: true,
-            isSelected: selected != null && node.sectionId == selected,
-            onTap: () {
-              if (selected != null && node.sectionId != null) {
-                _selectSection(node.sectionId!);
-              } else {
-                _openSection(node);
-              }
-            },
-          ),
-      ],
-    ),
-  ];
+  }) {
+    final sections = SettingsRegistry.getTopLevelSections();
+    final selectedIndex = selected == null
+        ? -1
+        : sections.indexWhere((node) => node.sectionId == selected);
+    return [
+      SettingsSection(
+        stagger: true,
+        // The open section rounds off on every side, not only recolours.
+        selectedIndex: selectedIndex < 0 ? null : selectedIndex,
+        children: [
+          for (final node in sections)
+            SettingsListItem.nav(
+              key: ValueKey('settings-destination-${node.id}'),
+              icon: node.icon,
+              title: node.title(context.l10n),
+              value: _getSectionBadgeValue(node, themeMode, snapshot),
+              isSection: true,
+              isSelected: selected != null && node.sectionId == selected,
+              onTap: () {
+                if (selected != null && node.sectionId != null) {
+                  _selectSection(node.sectionId!);
+                } else {
+                  _openSection(node);
+                }
+              },
+            ),
+        ],
+      ),
+    ];
+  }
 
   // Same rule as a search result: two panes select the section in place,
   // a phone pushes the screen.

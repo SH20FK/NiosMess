@@ -9,6 +9,7 @@ import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
+import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
 import 'package:universal_io/io.dart';
 
@@ -68,6 +69,52 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('a new accent opens in a reveal together with its mark', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'ui.useSystemDynamic': true});
+    final previousPrefs = UiSettingsNotifier.cachedPrefs;
+    UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+    addTearDown(() => UiSettingsNotifier.cachedPrefs = previousPrefs);
+    addTearDown(() => CircularThemeSwitcher.revealing.value = false);
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const CircularThemeSwitcher(child: SettingsAppearanceScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final scope = ProviderScope.containerOf(
+      tester.element(find.byType(SettingsAppearanceScreen)),
+    );
+    final lagoon = find.byTooltip('Lagoon');
+    await tester.ensureVisible(lagoon);
+    await tester.pumpAndSettle();
+    expect(CircularThemeSwitcher.revealing.value, isFalse);
+
+    await tester.tap(lagoon);
+    await tester.pump();
+    // The setting and the reveal start in the same frame: the mark on the
+    // swatch does not run ahead of the colours.
+    expect(scope.read(uiSettingsProvider).seedColor, const Color(0xff006c5b));
+    expect(scope.read(uiSettingsProvider).useSystemDynamic, isFalse);
+    expect(CircularThemeSwitcher.revealing.value, isTrue);
+
+    await tester.pumpAndSettle();
+    expect(CircularThemeSwitcher.revealing.value, isFalse);
+
+    // The accent already in use has nothing to reveal.
+    await tester.tap(lagoon);
+    await tester.pump();
+    expect(CircularThemeSwitcher.revealing.value, isFalse);
+    await tester.pumpAndSettle();
+    expect(tester.binding.transientCallbackCount, 0);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final brightness in Brightness.values) {
     testWidgets(
@@ -222,7 +269,7 @@ void main() {
                       seedColor: selected ?? const Color(0xFF6750A4),
                       useSystemDynamic: dynamic,
                       paletteStyle: PaletteStyle.expressive,
-                      onColorSelected: (color) => selected = color,
+                      onColorSelected: (color, _) => selected = color,
                       onToggleDynamic: (value) => dynamic = value,
                       onCustomColorTap: () => customOpened++,
                       onSelectPaletteStyle: (_) {},
@@ -318,7 +365,7 @@ void main() {
                   seedColor: scheme.primary,
                   useSystemDynamic: false,
                   paletteStyle: PaletteStyle.expressive,
-                  onColorSelected: (_) {},
+                  onColorSelected: (_, _) {},
                   onCustomColorTap: () {},
                   onToggleDynamic: (_) {},
                   onSelectPaletteStyle: (_) {},
