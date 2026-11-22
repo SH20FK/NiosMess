@@ -5,7 +5,6 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
@@ -228,7 +227,7 @@ class _AppearanceScreen extends ConsumerWidget {
             icon: Icons.texture_rounded,
             title: context.l10n.appearanceChatWallpaperTitle,
             subtitle: context.l10n.settingsWallpaperEntryHint,
-            onTap: () => context.push('/settings/wallpaper'),
+            onTap: () => openSettingsPage(context, '/settings/wallpaper'),
           ),
         ),
       ],

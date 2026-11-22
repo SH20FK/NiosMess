@@ -17,7 +17,12 @@ import 'package:pulse_flutter/widgets/settings/settings_group_scope.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class BlockedUsersScreen extends ConsumerStatefulWidget {
-  const BlockedUsersScreen({super.key});
+  const BlockedUsersScreen({this.isEmbedded = false, super.key});
+
+  /// Shown inside the settings pane, under Privacy, instead of as a page of
+  /// its own.
+  final bool isEmbedded;
+
   @override
   ConsumerState<BlockedUsersScreen> createState() => _BlockedUsersScreenState();
 }
@@ -123,6 +128,7 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
         state.pendingUsers.isNotEmpty || state.pendingRules.isNotEmpty;
     return SettingsShell(
       title: context.l10n.blockedUsersTitle,
+      isEmbedded: widget.isEmbedded,
       onRefresh: () => ref.read(privacyProvider.notifier).refresh(),
       actions: [
         IconButton(

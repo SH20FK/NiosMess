@@ -23,7 +23,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
   final bool isEmbedded;
 
   void _openBlockedUsers(BuildContext context) {
-    context.push('/settings/privacy/blocked-users');
+    openSettingsPage(context, '/settings/privacy/blocked-users');
   }
 
   @override

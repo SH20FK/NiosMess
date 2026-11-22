@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/widgets/settings/settings_pane_scope.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -91,8 +91,10 @@ class _PrivacyRuleRowState extends ConsumerState<PrivacyRuleRow> {
           child: AppActionMenuItem(
             label: l.privacyExceptions,
             icon: Icons.person_add_alt_1_rounded,
-            onPressed: () =>
-                context.push('/settings/privacy/rule/${widget.ruleKey}'),
+            onPressed: () => openSettingsPage(
+              context,
+              '/settings/privacy/rule/${widget.ruleKey}',
+            ),
           ).toMenuItem(context),
         ),
       ],

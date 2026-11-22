@@ -18,6 +18,10 @@ import 'package:pulse_flutter/models/settings/settings_node.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/features/account_deletion/presentation/account_deletion_screen.dart';
+import 'package:pulse_flutter/screens/blocked_users_screen.dart';
+import 'package:pulse_flutter/screens/privacy_rule_detail_screen.dart';
+import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
@@ -60,12 +64,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // The section row the keyboard focus is on, if it is in the list.
   SettingsSectionId? _focusedSection;
 
+  // A screen opened under a section while two panes are shown: it takes the
+  // place of that section beside the list instead of covering the window.
+  ({SettingsSectionId section, String route})? _subpage;
+
   bool get _browser => ref.read(clientCapabilitiesProvider).browserWorkspace;
   SettingsSectionId get _webSection =>
       widget.initialSection == SettingsSectionId.systemDevice
       ? SettingsSectionId.about
       : widget.initialSection ?? SettingsSectionId.account;
   void _selectSection(SettingsSectionId section) {
+    // Choosing a section, even the open one, shows the section itself.
+    _closeSubpage();
     if (_browser) {
       context.go('/main/settings?section=${section.name}');
     } else {
@@ -83,9 +93,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  // Escape on the settings tab goes one level up: from a section reached
-  // through another one to that one, from anything else to the chats.
+  // Escape on the settings tab goes one level up: from a screen opened under
+  // a section to the section, from a section reached through another one to
+  // that one, from anything else to the chats.
   void _keyBack() {
+    if (_wide && _subpage != null) {
+      _closeSubpage();
+      return;
+    }
     if (_browser && !_wide && widget.initialSection != null) {
       context.go('/main/settings');
       return;
@@ -156,6 +171,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       ref.read(authProvider.notifier).refreshProfile();
     });
+  }
+
+  @override
+  void didUpdateWidget(ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // In a browser the section comes from the address: back and forward
+    // change it without asking the hub.
+    if (oldWidget.initialSection != widget.initialSection) _subpage = null;
   }
 
   @override
@@ -539,9 +562,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ),
   );
 
-  Widget _animatedDetail(SettingsSectionId section) {
+  Widget _animatedDetail(SettingsSectionId section, {bool pane = false}) {
     final reduced = context.reduceMotion;
-    return AnimatedSwitcher(
+    // A screen opened under this section takes its place in the pane.
+    final String? route = pane && _subpage?.section == section
+        ? _subpage!.route
+        : null;
+    final Widget switcher = AnimatedSwitcher(
       duration: reduced ? Duration.zero : M3Durations.medium1,
       reverseDuration: reduced ? Duration.zero : M3Durations.short3,
       switchInCurve: M3SpringCurves.expressiveDecel,
@@ -565,9 +592,114 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ],
       ),
       child: KeyedSubtree(
-        key: ValueKey(section),
-        child: _buildDetailPane(section),
+        key: route == null
+            ? ValueKey(section)
+            : ValueKey<String>('${section.name}:$route'),
+        child: route == null
+            ? _buildDetailPane(section)
+            : _buildSubpage(section, route),
       ),
+    );
+    if (!pane) return switcher;
+    return SettingsPaneScope(
+      onOpen: (String target) => _openSubpage(section, target),
+      onClose: _closeSubpage,
+      child: switcher,
+    );
+  }
+
+  bool _openSubpage(SettingsSectionId section, String route) {
+    if (_subpageFor(route) == null) return false;
+    setState(() => _subpage = (section: section, route: route));
+    return true;
+  }
+
+  void _closeSubpage() {
+    if (_subpage != null) setState(() => _subpage = null);
+  }
+
+  // Screens that open under a section. Anything else is pushed as a page.
+  ({Widget page, bool fullWidth})? _subpageFor(String route) {
+    final Uri uri = Uri.parse(route);
+    const String rule = '/settings/privacy/rule/';
+    if (uri.path.startsWith(rule) && uri.path.length > rule.length) {
+      return (
+        page: PrivacyRuleDetailScreen(
+          ruleKey: uri.path.substring(rule.length),
+          isEmbedded: true,
+        ),
+        fullWidth: false,
+      );
+    }
+    return switch (uri.path) {
+      '/settings/privacy/blocked-users' => (
+        page: const BlockedUsersScreen(isEmbedded: true),
+        fullWidth: false,
+      ),
+      '/settings/account/delete' => (
+        page: const AccountDeletionScreen(isEmbedded: true),
+        fullWidth: false,
+      ),
+      // The studio lays itself out across the whole pane.
+      '/settings/wallpaper' => (
+        page: SettingsWallpaperScreen(
+          chatId: uri.queryParameters['chatId'],
+          chatTitle: uri.queryParameters['chatTitle'],
+          initialCode: uri.queryParameters['code'],
+          isEmbedded: true,
+        ),
+        fullWidth: true,
+      ),
+      _ => null,
+    };
+  }
+
+  // The path stays in sight: the section is a link above the screen that was
+  // opened under it, and the screen keeps its own heading.
+  Widget _buildSubpage(SettingsSectionId section, String route) {
+    final ({Widget page, bool fullWidth}) sub = _subpageFor(route)!;
+    final String parent =
+        SettingsRegistry.getAllNodes()
+            .whereType<SettingsNavNode>()
+            .where((SettingsNavNode node) => node.sectionId == section)
+            .firstOrNull
+            ?.title(context.l10n) ??
+        context.l10n.tabSettings;
+    final Widget back = Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Tooltip(
+        message: context.l10n.commonBack,
+        child: TextButton.icon(
+          key: const ValueKey<String>('settings-subpage-back'),
+          onPressed: _closeSubpage,
+          icon: const Icon(Icons.arrow_back_rounded, size: 18),
+          label: Text(parent),
+        ),
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            0,
+          ),
+          child: sub.fullWidth
+              ? back
+              // Over the same centred column the screen below lays out in.
+              : Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 860),
+                    child: back,
+                  ),
+                ),
+        ),
+        Expanded(child: sub.page),
+      ],
     );
   }
 
@@ -654,7 +786,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Expanded(
             child: ColoredBox(
               color: scheme.surface,
-              child: _animatedDetail(selected),
+              child: _animatedDetail(selected, pane: true),
             ),
           ),
         ],
@@ -704,6 +836,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _keyBack();
       }
     });
+    // Another screen may switch the section itself; whatever was open under
+    // the old one goes with it.
+    ref.listen(
+      desktopSelectedSettingsSectionProvider,
+      (_, _) => _closeSubpage(),
+    );
     final AuthState auth = ref.watch(authProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final ThemeMode themeMode = ref.watch(

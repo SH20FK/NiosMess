@@ -13,6 +13,7 @@ import 'package:pulse_flutter/features/wallpaper/presentation/widgets/tabs/prese
 import 'package:pulse_flutter/features/wallpaper/presentation/widgets/wallpaper_preview_pane.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
+import 'package:pulse_flutter/widgets/settings/settings_pane_scope.dart';
 
 class WallpaperStudioScreen extends ConsumerStatefulWidget {
   const WallpaperStudioScreen({
@@ -79,7 +80,8 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
       notifier.updateGlobalConfig(_draftConfig);
     }
     if (mounted) {
-      Navigator.of(context).maybePop();
+      // In the settings pane this returns to the section, not out of the tab.
+      closeSettingsPage(context);
     }
   }
 
@@ -205,7 +207,7 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
               ),
               const SizedBox(width: 12),
               OutlinedButton(
-                onPressed: () => Navigator.of(context).maybePop(),
+                onPressed: () => closeSettingsPage(context),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(80, 48),
                   shape: RoundedRectangleBorder(
@@ -219,6 +221,8 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
         );
 
         final PreferredSizeWidget appBar = AppBar(
+          // The settings pane has its own way back to the section.
+          automaticallyImplyLeading: !widget.isEmbedded,
           title: Text(context.l10n.wallpaperScreenTitle),
           actions: <Widget>[
             MenuAnchor(

@@ -9,6 +9,7 @@ export 'package:pulse_flutter/widgets/settings/settings_list_item.dart';
 export 'package:pulse_flutter/widgets/settings/settings_shell.dart';
 export 'package:pulse_flutter/widgets/settings/settings_choice_buttons.dart';
 export 'package:pulse_flutter/widgets/settings/settings_pane_scrollbar.dart';
+export 'package:pulse_flutter/widgets/settings/settings_pane_scope.dart';
 
 /// Connected tonal surfaces: generous outer corners, quiet inner corners.
 /// Rows retain their own hit area and focus outline without a clipped card layer.

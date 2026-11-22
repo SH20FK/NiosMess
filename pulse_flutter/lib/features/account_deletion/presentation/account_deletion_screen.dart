@@ -21,7 +21,11 @@ const int _codeLength = 6;
 /// Schedules the account for deletion with an emailed code, or cancels a
 /// deletion that is already scheduled.
 class AccountDeletionScreen extends ConsumerStatefulWidget {
-  const AccountDeletionScreen({super.key});
+  const AccountDeletionScreen({this.isEmbedded = false, super.key});
+
+  /// Shown inside the settings pane, under Account, instead of as a page of
+  /// its own.
+  final bool isEmbedded;
 
   @override
   ConsumerState<AccountDeletionScreen> createState() =>
@@ -143,6 +147,7 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
           );
     return SettingsShell(
       title: context.l10n.accountDeleteTitle,
+      isEmbedded: widget.isEmbedded,
       children: [
         if (context.reduceMotion)
           body

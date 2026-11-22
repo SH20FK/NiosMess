@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/features/account_deletion/presentation/account_deletion_texts.dart';
 import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
@@ -93,7 +92,8 @@ class SettingsAccountScreen extends ConsumerWidget {
                 subtitle: pendingDeletion
                     ? context.l10n.accountDeleteCancel
                     : context.l10n.accountDeleteEntryHint,
-                onTap: () => context.push('/settings/account/delete'),
+                onTap: () =>
+                    openSettingsPage(context, '/settings/account/delete'),
               ),
             ),
           ],

@@ -15,8 +15,16 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class PrivacyRuleDetailScreen extends ConsumerStatefulWidget {
-  const PrivacyRuleDetailScreen({required this.ruleKey, super.key});
+  const PrivacyRuleDetailScreen({
+    required this.ruleKey,
+    this.isEmbedded = false,
+    super.key,
+  });
   final String ruleKey;
+
+  /// Shown inside the settings pane, under Privacy, instead of as a page of
+  /// its own.
+  final bool isEmbedded;
   @override
   ConsumerState<PrivacyRuleDetailScreen> createState() =>
       _PrivacyRuleDetailScreenState();
@@ -188,6 +196,7 @@ class _PrivacyRuleDetailScreenState
         privacy.pendingUsers.isNotEmpty;
     return SettingsShell(
       title: PrivacyRule.localizedKeyName(widget.ruleKey, context.l10n),
+      isEmbedded: widget.isEmbedded,
       actions: [
         if (_saving)
           const Padding(
