@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/features/account_deletion/presentation/account_deletion_texts.dart';
 import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -27,6 +28,7 @@ class SettingsAccountScreen extends ConsumerWidget {
     final String username =
         auth.session?.username ?? auth.profile?.username ?? '';
     final String? niosId = auth.session?.niosId;
+    final bool pendingDeletion = auth.profile?.isPendingDeletion ?? false;
 
     return SettingsShell(
       title: context.l10n.settingsAccountTitle,
@@ -76,6 +78,29 @@ class SettingsAccountScreen extends ConsumerWidget {
                   context.push('/settings/privacy');
                 }
               },
+            ),
+          ],
+        ),
+        SettingsSection(
+          children: [
+            SettingsAnchor(
+              id: 'account.delete',
+              child: SettingsListItem.danger(
+                key: const ValueKey('settings-account-delete'),
+                icon: pendingDeletion
+                    ? Icons.auto_delete_outlined
+                    : Icons.delete_forever_outlined,
+                title: pendingDeletion
+                    ? accountDeletionPendingTitle(
+                        context.l10n,
+                        auth.profile?.deletionScheduledAt,
+                      )
+                    : context.l10n.accountDeleteEntry,
+                subtitle: pendingDeletion
+                    ? context.l10n.accountDeleteCancel
+                    : context.l10n.accountDeleteEntryHint,
+                onTap: () => context.push('/settings/account/delete'),
+              ),
             ),
           ],
         ),

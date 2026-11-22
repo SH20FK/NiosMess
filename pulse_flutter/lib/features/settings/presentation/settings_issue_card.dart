@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/features/account_deletion/presentation/account_deletion_texts.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
 
 class SettingsIssueCard extends StatelessWidget {
@@ -25,6 +26,11 @@ class SettingsIssueCard extends StatelessWidget {
     final l10n = context.l10n;
 
     final (String title, String body, String action) = switch (issue.kind) {
+      SettingsHealthIssueKind.deletionPending => (
+        accountDeletionPendingTitle(l10n, issue.scheduledAt),
+        l10n.accountDeletePendingBody,
+        l10n.settingsIssueDeletionAction,
+      ),
       SettingsHealthIssueKind.pushDenied => (
         l10n.settingsIssuePushTitle,
         l10n.settingsIssuePushBody,
@@ -45,6 +51,11 @@ class SettingsIssueCard extends StatelessWidget {
     };
     final (Color background, Color accent, IconData icon) =
         switch (issue.severity) {
+          SettingsHealthSeverity.critical => (
+            scheme.errorContainer.withValues(alpha: 0.35),
+            scheme.error,
+            Icons.warning_rounded,
+          ),
           SettingsHealthSeverity.warning => (
             scheme.tertiaryContainer.withValues(alpha: 0.35),
             scheme.tertiary,

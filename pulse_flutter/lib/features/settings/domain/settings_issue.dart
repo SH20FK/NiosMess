@@ -1,9 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 
-enum SettingsHealthSeverity { warning, advisory }
+enum SettingsHealthSeverity { critical, warning, advisory }
 
-enum SettingsHealthIssueKind { pushDenied, cacheLarge, updateFailed }
+enum SettingsHealthIssueKind {
+  deletionPending,
+  pushDenied,
+  cacheLarge,
+  updateFailed,
+}
 
 /// A problem the settings hub shows above the section list. The issue says
 /// what is wrong and where to fix it; the card owns the localized texts.
@@ -16,7 +21,20 @@ class SettingsHealthIssue {
     required this.sectionId,
     required this.anchor,
     this.bytes = 0,
+    this.scheduledAt,
   });
+
+  /// The account is scheduled for deletion. Signing in does not cancel it,
+  /// so the hub keeps saying so until the user cancels.
+  const SettingsHealthIssue.deletionPending(DateTime? scheduledAt)
+    : this._(
+        kind: SettingsHealthIssueKind.deletionPending,
+        severity: SettingsHealthSeverity.critical,
+        route: '/settings/account',
+        sectionId: SettingsSectionId.account,
+        anchor: 'account.delete',
+        scheduledAt: scheduledAt,
+      );
 
   const SettingsHealthIssue.pushDenied()
     : this._(
@@ -54,6 +72,10 @@ class SettingsHealthIssue {
 
   /// Size the card reports; only [SettingsHealthIssueKind.cacheLarge] sets it.
   final int bytes;
+
+  /// Day of the final erase; only [SettingsHealthIssueKind.deletionPending]
+  /// sets it, and the server may leave it out.
+  final DateTime? scheduledAt;
 
   String get id => kind.name;
 }

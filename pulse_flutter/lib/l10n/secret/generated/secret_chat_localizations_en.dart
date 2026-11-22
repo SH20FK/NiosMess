@@ -2645,4 +2645,104 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   @override
   String get settingsSpamBlockServerHint =>
       'This limit is set by the server and cannot be lifted from the app.';
+
+  @override
+  String get accountDeleteTitle => 'Delete account';
+
+  @override
+  String get accountDeleteEntry => 'Delete account';
+
+  @override
+  String get accountDeleteEntryHint =>
+      'You will need a code from your email. There is time to change your mind before anything is erased.';
+
+  @override
+  String accountDeleteDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '$days day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get accountDeleteWhatTitle => 'What will be deleted';
+
+  @override
+  String get accountDeleteWhatBody =>
+      'Your messages and files, your direct chats in full (including the other person\'s messages), posts, comments and subscriptions. Groups and channels you created will stay, but without an owner.';
+
+  @override
+  String get accountDeleteHowTitle => 'How it works';
+
+  @override
+  String accountDeleteHowBody(String period) {
+    return 'After you confirm, you are signed out on every device. The account is erased in $period. Until then you can sign in again and cancel the deletion. Signing in alone does not cancel it.';
+  }
+
+  @override
+  String get accountDeleteSendCode => 'Email me a code';
+
+  @override
+  String get accountDeleteCodeSent =>
+      'The code was sent to the email of your Nios ID. It is valid for 15 minutes.';
+
+  @override
+  String get accountDeleteCodeLabel => 'Code from the email';
+
+  @override
+  String get accountDeleteConfirmTitle => 'Delete account?';
+
+  @override
+  String accountDeleteConfirmBody(String period) {
+    return 'You will be signed out on every device. In $period the account and its data are erased and cannot be restored.';
+  }
+
+  @override
+  String accountDeleteScheduledToast(String date) {
+    return 'Deletion is scheduled for $date. Until then you can sign in and cancel it.';
+  }
+
+  @override
+  String accountDeletePendingTitle(String date) {
+    return 'The account will be deleted on $date';
+  }
+
+  @override
+  String get accountDeletePendingNoDate =>
+      'The account is scheduled for deletion';
+
+  @override
+  String get accountDeletePendingBody =>
+      'Until that day the account works as usual, then it is erased with all its data. Signing in does not cancel the deletion.';
+
+  @override
+  String get accountDeleteCancel => 'Cancel deletion';
+
+  @override
+  String get accountDeleteKeep => 'Leave as is';
+
+  @override
+  String get accountDeleteCancelled =>
+      'Deletion cancelled. The account stays with you.';
+
+  @override
+  String get accountDeletePlusActive =>
+      'Cancel your Nios+ subscription first: an account with an active subscription cannot be deleted.';
+
+  @override
+  String get accountDeleteInvalidCode =>
+      'The code is wrong or has expired. Request a new one.';
+
+  @override
+  String get accountDeleteFailed => 'That did not work. Try again.';
+
+  @override
+  String get accountDeleteLoadFailed =>
+      'Could not find out whether a deletion is scheduled';
+
+  @override
+  String get settingsIssueDeletionAction => 'Open account';
 }

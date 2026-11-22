@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/utils/server_time.dart';
 import 'package:pulse_flutter/models/api/ai_quota_model.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';
 import 'package:pulse_flutter/models/api/status_emoji_model.dart';
@@ -31,6 +32,8 @@ class ApiProfile {
     this.lastSeen,
     this.isNiosPlusCustom,
     this.niosPlusTrialUsed = false,
+    this.isPendingDeletion = false,
+    this.deletionScheduledAt,
   });
 
   final int id;
@@ -57,6 +60,11 @@ class ApiProfile {
   final DateTime? lastSeen;
   final bool? isNiosPlusCustom;
   final bool niosPlusTrialUsed;
+
+  /// Own profile only: the account is scheduled for deletion. Signing in does
+  /// not cancel it, so the app has to keep saying so.
+  final bool isPendingDeletion;
+  final DateTime? deletionScheduledAt;
 
   bool get isNiosPlus =>
       isNiosPlusCustom == true ||
@@ -193,6 +201,8 @@ class ApiProfile {
       niosPlusTrialUsed: json['nios_plus_trial_used'] as bool? ??
           json['trial_used'] as bool? ??
           false,
+      isPendingDeletion: json['is_pending_deletion'] == true,
+      deletionScheduledAt: parseServerUtc(json['deletion_scheduled_at']),
     );
   }
 
@@ -221,6 +231,9 @@ class ApiProfile {
       'is_blocked': isBlocked,
       'is_online': isOnline,
       if (lastSeen != null) 'last_seen': lastSeen!.toIso8601String(),
+      'is_pending_deletion': isPendingDeletion,
+      if (deletionScheduledAt != null)
+        'deletion_scheduled_at': deletionScheduledAt!.toIso8601String(),
     };
   }
 
@@ -269,6 +282,8 @@ class ApiProfile {
       isBlocked: isBlocked ?? this.isBlocked,
       isOnline: isOnline ?? this.isOnline,
       lastSeen: lastSeen ?? this.lastSeen,
+      isPendingDeletion: isPendingDeletion,
+      deletionScheduledAt: deletionScheduledAt,
     );
   }
 }

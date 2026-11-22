@@ -4888,6 +4888,156 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'This limit is set by the server and cannot be lifted from the app.'**
   String get settingsSpamBlockServerHint;
+
+  /// No description provided for @accountDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get accountDeleteTitle;
+
+  /// No description provided for @accountDeleteEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get accountDeleteEntry;
+
+  /// No description provided for @accountDeleteEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You will need a code from your email. There is time to change your mind before anything is erased.'**
+  String get accountDeleteEntryHint;
+
+  /// No description provided for @accountDeleteDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, one{{days} day} other{{days} days}}'**
+  String accountDeleteDays(int days);
+
+  /// No description provided for @accountDeleteWhatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What will be deleted'**
+  String get accountDeleteWhatTitle;
+
+  /// No description provided for @accountDeleteWhatBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your messages and files, your direct chats in full (including the other person\'s messages), posts, comments and subscriptions. Groups and channels you created will stay, but without an owner.'**
+  String get accountDeleteWhatBody;
+
+  /// No description provided for @accountDeleteHowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How it works'**
+  String get accountDeleteHowTitle;
+
+  /// No description provided for @accountDeleteHowBody.
+  ///
+  /// In en, this message translates to:
+  /// **'After you confirm, you are signed out on every device. The account is erased in {period}. Until then you can sign in again and cancel the deletion. Signing in alone does not cancel it.'**
+  String accountDeleteHowBody(String period);
+
+  /// No description provided for @accountDeleteSendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Email me a code'**
+  String get accountDeleteSendCode;
+
+  /// No description provided for @accountDeleteCodeSent.
+  ///
+  /// In en, this message translates to:
+  /// **'The code was sent to the email of your Nios ID. It is valid for 15 minutes.'**
+  String get accountDeleteCodeSent;
+
+  /// No description provided for @accountDeleteCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Code from the email'**
+  String get accountDeleteCodeLabel;
+
+  /// No description provided for @accountDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account?'**
+  String get accountDeleteConfirmTitle;
+
+  /// No description provided for @accountDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will be signed out on every device. In {period} the account and its data are erased and cannot be restored.'**
+  String accountDeleteConfirmBody(String period);
+
+  /// No description provided for @accountDeleteScheduledToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletion is scheduled for {date}. Until then you can sign in and cancel it.'**
+  String accountDeleteScheduledToast(String date);
+
+  /// No description provided for @accountDeletePendingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The account will be deleted on {date}'**
+  String accountDeletePendingTitle(String date);
+
+  /// No description provided for @accountDeletePendingNoDate.
+  ///
+  /// In en, this message translates to:
+  /// **'The account is scheduled for deletion'**
+  String get accountDeletePendingNoDate;
+
+  /// No description provided for @accountDeletePendingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Until that day the account works as usual, then it is erased with all its data. Signing in does not cancel the deletion.'**
+  String get accountDeletePendingBody;
+
+  /// No description provided for @accountDeleteCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel deletion'**
+  String get accountDeleteCancel;
+
+  /// No description provided for @accountDeleteKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave as is'**
+  String get accountDeleteKeep;
+
+  /// No description provided for @accountDeleteCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletion cancelled. The account stays with you.'**
+  String get accountDeleteCancelled;
+
+  /// No description provided for @accountDeletePlusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel your Nios+ subscription first: an account with an active subscription cannot be deleted.'**
+  String get accountDeletePlusActive;
+
+  /// No description provided for @accountDeleteInvalidCode.
+  ///
+  /// In en, this message translates to:
+  /// **'The code is wrong or has expired. Request a new one.'**
+  String get accountDeleteInvalidCode;
+
+  /// No description provided for @accountDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That did not work. Try again.'**
+  String get accountDeleteFailed;
+
+  /// No description provided for @accountDeleteLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not find out whether a deletion is scheduled'**
+  String get accountDeleteLoadFailed;
+
+  /// No description provided for @settingsIssueDeletionAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open account'**
+  String get settingsIssueDeletionAction;
 }
 
 class _SecretChatLocalizationsDelegate

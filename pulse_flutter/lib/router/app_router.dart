@@ -32,6 +32,7 @@ import 'package:pulse_flutter/screens/settings_plus_screen.dart';
 import 'package:pulse_flutter/screens/plus_activation_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
+import 'package:pulse_flutter/features/account_deletion/presentation/account_deletion_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/help_faq_screen.dart';
 import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
@@ -596,6 +597,14 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) =>
             _page(state, const SettingsAccountScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/settings/account/delete',
+        pageBuilder: (context, state) => _page(
+          state,
+          const AccountDeletionScreen(),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/settings/privacy',

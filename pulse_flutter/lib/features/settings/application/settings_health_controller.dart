@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
+import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ota_update_provider.dart';
 import 'package:pulse_flutter/providers/push_permission_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -12,6 +13,19 @@ const int _largeCacheBytes = 1024 * 1024 * 1024;
 final Provider<List<SettingsHealthIssue>> settingsHealthProvider =
     Provider<List<SettingsHealthIssue>>((Ref ref) {
       final List<SettingsHealthIssue> issues = <SettingsHealthIssue>[];
+
+      // First on purpose: the hub shows two cards at most.
+      final ({bool pending, DateTime? at}) deletion = ref.watch(
+        authProvider.select(
+          (AuthState a) => (
+            pending: a.profile?.isPendingDeletion ?? false,
+            at: a.profile?.deletionScheduledAt,
+          ),
+        ),
+      );
+      if (deletion.pending) {
+        issues.add(SettingsHealthIssue.deletionPending(deletion.at));
+      }
 
       // An unknown permission is not a problem yet: only a definite "no" is.
       if (PushNotificationService.supportsPush &&

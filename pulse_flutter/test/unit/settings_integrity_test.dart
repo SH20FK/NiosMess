@@ -96,6 +96,7 @@ Set<String> _routerPaths() => RegExp(r"path:\s*'([^']+)'")
     .toSet();
 
 List<SettingsHealthIssue> _allIssues() => const <SettingsHealthIssue>[
+  SettingsHealthIssue.deletionPending(null),
   SettingsHealthIssue.pushDenied(),
   SettingsHealthIssue.cacheLarge(0),
   SettingsHealthIssue.updateFailed(),

@@ -843,4 +843,33 @@ extension SecretChatL10n on AppLocalizations {
   String get wallpaperResetDefault => _secret.wallpaperResetDefault;
   String get wallpaperCopyCode => _secret.wallpaperCopyCode;
   String get settingsSpamBlockServerHint => _secret.settingsSpamBlockServerHint;
+  String get accountDeleteTitle => _secret.accountDeleteTitle;
+  String get accountDeleteEntry => _secret.accountDeleteEntry;
+  String get accountDeleteEntryHint => _secret.accountDeleteEntryHint;
+  String accountDeleteDays(int days) => _secret.accountDeleteDays(days);
+  String get accountDeleteWhatTitle => _secret.accountDeleteWhatTitle;
+  String get accountDeleteWhatBody => _secret.accountDeleteWhatBody;
+  String get accountDeleteHowTitle => _secret.accountDeleteHowTitle;
+  String accountDeleteHowBody(String period) =>
+      _secret.accountDeleteHowBody(period);
+  String get accountDeleteSendCode => _secret.accountDeleteSendCode;
+  String get accountDeleteCodeSent => _secret.accountDeleteCodeSent;
+  String get accountDeleteCodeLabel => _secret.accountDeleteCodeLabel;
+  String get accountDeleteConfirmTitle => _secret.accountDeleteConfirmTitle;
+  String accountDeleteConfirmBody(String period) =>
+      _secret.accountDeleteConfirmBody(period);
+  String accountDeleteScheduledToast(String date) =>
+      _secret.accountDeleteScheduledToast(date);
+  String accountDeletePendingTitle(String date) =>
+      _secret.accountDeletePendingTitle(date);
+  String get accountDeletePendingNoDate => _secret.accountDeletePendingNoDate;
+  String get accountDeletePendingBody => _secret.accountDeletePendingBody;
+  String get accountDeleteCancel => _secret.accountDeleteCancel;
+  String get accountDeleteKeep => _secret.accountDeleteKeep;
+  String get accountDeleteCancelled => _secret.accountDeleteCancelled;
+  String get accountDeletePlusActive => _secret.accountDeletePlusActive;
+  String get accountDeleteInvalidCode => _secret.accountDeleteInvalidCode;
+  String get accountDeleteFailed => _secret.accountDeleteFailed;
+  String get accountDeleteLoadFailed => _secret.accountDeleteLoadFailed;
+  String get settingsIssueDeletionAction => _secret.settingsIssueDeletionAction;
 }

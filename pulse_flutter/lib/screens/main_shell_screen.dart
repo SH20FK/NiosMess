@@ -30,6 +30,10 @@ import 'package:pulse_flutter/screens/niosgram_screen.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/widgets/app_bottom_nav.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/features/account_deletion/data/account_deletion_repository.dart';
+import 'package:pulse_flutter/features/account_deletion/domain/account_deletion_status.dart';
+import 'package:pulse_flutter/features/account_deletion/presentation/account_deletion_texts.dart';
 import 'package:pulse_flutter/widgets/chat/inbox_compose_button.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/offline_banner.dart';
@@ -92,6 +96,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   ProviderSubscription<BackgroundMode>? _backgroundModeSubscription;
   ProviderSubscription<bool>? _callSubscription;
   ProviderSubscription<bool>? _authSubscription;
+  ProviderSubscription<({int? account, bool pending})>? _deletionSubscription;
+  int? _deletionWarnedAccount;
   AdaptivePerformanceNotifier? _performance;
 
   @override
@@ -200,7 +206,67 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       if (!mounted) return;
       _checkDailyOtaUpdate();
       _checkPushPermissionPrompt();
+      _watchPendingDeletion();
     });
+  }
+
+  // Starts after the first-launch dialog so the two never stack.
+  void _watchPendingDeletion() {
+    _deletionSubscription ??= ref.listenManual(
+      authProvider.select(
+        (s) => (
+          account: s.session?.userId,
+          pending: s.profile?.isPendingDeletion ?? false,
+        ),
+      ),
+      (_, next) {
+        if (next.pending) unawaited(_warnPendingDeletion());
+      },
+      fireImmediately: true,
+    );
+  }
+
+  /// Signing in does not cancel a scheduled deletion and the account keeps
+  /// working, so say it once per launch instead of letting it lapse silently.
+  Future<void> _warnPendingDeletion() async {
+    final auth = ref.read(authProvider);
+    final account = auth.session?.userId;
+    if (!mounted ||
+        account == null ||
+        !(auth.profile?.isPendingDeletion ?? false) ||
+        _deletionWarnedAccount == account) {
+      return;
+    }
+    _deletionWarnedAccount = account;
+    final l10n = context.l10n;
+    final cancel = await showAppConfirmDialog(
+      context: context,
+      title: accountDeletionPendingTitle(
+        l10n,
+        auth.profile?.deletionScheduledAt,
+      ),
+      subtitle: l10n.accountDeletePendingBody,
+      confirmLabel: l10n.accountDeleteCancel,
+      cancelLabel: l10n.accountDeleteKeep,
+      icon: Icons.auto_delete_outlined,
+    );
+    if (cancel != true ||
+        !mounted ||
+        ref.read(authProvider).session?.userId != account) {
+      return;
+    }
+    try {
+      await ref.read(accountDeletionRepositoryProvider).cancel();
+    } catch (error) {
+      // Already cancelled from another device: the goal is reached.
+      if (AccountDeletionFailure.of(error) !=
+          AccountDeletionFailure.notScheduled) {
+        if (mounted) AppToast.showError(context, l10n.accountDeleteFailed);
+        return;
+      }
+    }
+    await ref.read(authProvider.notifier).refreshProfile();
+    if (mounted) AppToast.showSuccess(context, l10n.accountDeleteCancelled);
   }
 
   @override
@@ -324,6 +390,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   @override
   void dispose() {
     _authSubscription?.close();
+    _deletionSubscription?.close();
     _backgroundModeSubscription?.close();
     _callSubscription?.close();
     BackgroundService.workCount.removeListener(_syncBackgroundPolicy);

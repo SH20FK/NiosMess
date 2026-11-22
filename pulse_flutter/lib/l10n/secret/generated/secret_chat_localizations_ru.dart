@@ -2669,4 +2669,105 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   @override
   String get settingsSpamBlockServerHint =>
       'Ограничение установлено сервером. Из приложения его не снять.';
+
+  @override
+  String get accountDeleteTitle => 'Удаление аккаунта';
+
+  @override
+  String get accountDeleteEntry => 'Удалить аккаунт';
+
+  @override
+  String get accountDeleteEntryHint =>
+      'Понадобится код с почты. До удаления останется время передумать.';
+
+  @override
+  String accountDeleteDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days дня',
+      many: '$days дней',
+      few: '$days дня',
+      one: '$days день',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get accountDeleteWhatTitle => 'Что будет удалено';
+
+  @override
+  String get accountDeleteWhatBody =>
+      'Ваши сообщения и файлы, личные чаты целиком (вместе с сообщениями собеседников), посты, комментарии и подписки. Группы и каналы, которые вы создали, останутся, но без владельца.';
+
+  @override
+  String get accountDeleteHowTitle => 'Как это происходит';
+
+  @override
+  String accountDeleteHowBody(String period) {
+    return 'После подтверждения вы выйдете из аккаунта на всех устройствах. Аккаунт сотрётся через $period. До этого можно войти снова и отменить удаление. Сам вход удаление не отменяет.';
+  }
+
+  @override
+  String get accountDeleteSendCode => 'Отправить код на почту';
+
+  @override
+  String get accountDeleteCodeSent =>
+      'Код отправлен на почту вашего Nios ID. Он действует 15 минут.';
+
+  @override
+  String get accountDeleteCodeLabel => 'Код из письма';
+
+  @override
+  String get accountDeleteConfirmTitle => 'Удалить аккаунт?';
+
+  @override
+  String accountDeleteConfirmBody(String period) {
+    return 'Вы выйдете на всех устройствах. Через $period аккаунт и данные сотрутся, восстановить их будет нельзя.';
+  }
+
+  @override
+  String accountDeleteScheduledToast(String date) {
+    return 'Удаление назначено на $date. До этого дня можно войти и отменить его.';
+  }
+
+  @override
+  String accountDeletePendingTitle(String date) {
+    return 'Аккаунт будет удалён $date';
+  }
+
+  @override
+  String get accountDeletePendingNoDate => 'Аккаунт ожидает удаления';
+
+  @override
+  String get accountDeletePendingBody =>
+      'До этого дня аккаунт работает как обычно, а потом сотрётся вместе с данными. Вход в аккаунт удаление не отменяет.';
+
+  @override
+  String get accountDeleteCancel => 'Отменить удаление';
+
+  @override
+  String get accountDeleteKeep => 'Оставить как есть';
+
+  @override
+  String get accountDeleteCancelled =>
+      'Удаление отменено. Аккаунт остаётся с вами.';
+
+  @override
+  String get accountDeletePlusActive =>
+      'Сначала отмените подписку Nios+: с активной подпиской аккаунт удалить нельзя.';
+
+  @override
+  String get accountDeleteInvalidCode =>
+      'Код неверный или устарел. Запросите новый.';
+
+  @override
+  String get accountDeleteFailed => 'Не получилось. Попробуйте ещё раз.';
+
+  @override
+  String get accountDeleteLoadFailed =>
+      'Не удалось узнать, назначено ли удаление';
+
+  @override
+  String get settingsIssueDeletionAction => 'Открыть аккаунт';
 }

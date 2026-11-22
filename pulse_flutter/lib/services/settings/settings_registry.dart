@@ -616,6 +616,22 @@ class SettingsRegistry {
       keywords: ['обои', 'фон чата', 'узор', 'wallpaper', 'background'],
     ),
     SettingsNavNode(
+      id: 'account.delete',
+      parentNavId: 'account',
+      title: (l) => l.accountDeleteEntry,
+      icon: Icons.delete_forever_outlined,
+      group: SettingsGroup.account,
+      route: '/settings/account',
+      sectionId: SettingsSectionId.account,
+      keywords: [
+        'удалить аккаунт',
+        'удаление аккаунта',
+        'отменить удаление',
+        'delete account',
+        'cancel deletion',
+      ],
+    ),
+    SettingsNavNode(
       id: 'motion.optimization',
       parentNavId: 'energy_saving',
       title: (l) => l.appearanceOptimizeWeakDevices,
