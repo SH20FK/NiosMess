@@ -263,6 +263,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               state.uri.queryParameters['highlight'] ?? '',
             ),
             settingsSection: state.uri.queryParameters['section'],
+            // A link to one setting names its row after the section.
+            settingsAnchor:
+                state.uri.queryParameters['anchor'] ??
+                (state.uri.fragment.isEmpty ? null : state.uri.fragment),
           ),
           pageKey: kIsWeb
               ? state.pageKey

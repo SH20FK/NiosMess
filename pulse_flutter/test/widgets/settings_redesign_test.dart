@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/storage/local_storage_service.dart';
+import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/features/settings/application/settings_health_controller.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
@@ -75,12 +76,26 @@ class _Storage extends StorageSnapshotNotifier {
       const LocalStorageSnapshot.empty();
 }
 
+// Rows tick when tapped. The real service reaches for audio plugins, and a
+// capture run lets those calls fail in real time.
+class _Sound extends SoundService {
+  @override
+  Future<void> playEvent(SoundEvent event, {double? volume}) async {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const captureDir = String.fromEnvironment('NIOS_SETTINGS_CAPTURE_DIR');
   const iconFontPath = String.fromEnvironment('NIOS_SETTINGS_ICON_FONT');
 
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    // The settings keep the instance they loaded: without a fresh one the
+    // section opened in one test is still open in the next.
+    final previous = UiSettingsNotifier.cachedPrefs;
+    UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+    addTearDown(() => UiSettingsNotifier.cachedPrefs = previous);
+  });
 
   Future<void> showSettings(
     WidgetTester tester, {
@@ -133,6 +148,7 @@ void main() {
           authProvider.overrideWith(_Auth.new),
           storageSnapshotProvider.overrideWith(_Storage.new),
           sessionsRepositoryProvider.overrideWith(_Sessions.new),
+          appSoundProvider.overrideWithValue(_Sound()),
           settingsHealthProvider.overrideWithValue(
             const <SettingsHealthIssue>[],
           ),
@@ -231,6 +247,39 @@ void main() {
     expect(find.text('Account destination'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  // Wide windows: the list of sections stays beside the open one. With a
+  // capture directory set, these are the pictures the layout is judged by.
+  for (final size in const [
+    Size(1440, 900),
+    Size(1920, 1080),
+    Size(2560, 1440),
+  ]) {
+    final width = size.width.toInt();
+    testWidgets('wide settings keep both panes at $width dp', (tester) async {
+      await showSettings(tester, size: size, brightness: Brightness.light);
+      expect(
+        find.byKey(const ValueKey<String>('settings-master-pane')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await capture(tester, 'settings-wide-$width-account');
+
+      final appearance = find.byKey(
+        const ValueKey<String>('settings-destination-appearance'),
+      );
+      await tester.ensureVisible(appearance);
+      await tester.pumpAndSettle();
+      await tester.tap(appearance);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('settings-master-pane')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await capture(tester, 'settings-wide-$width-appearance');
+    });
+  }
 
   testWidgets('reduced motion reveal has no hidden animation ticker', (
     tester,

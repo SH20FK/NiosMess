@@ -11,6 +11,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/features/settings/application/settings_health_controller.dart';
+import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
@@ -76,6 +77,7 @@ void main() {
                           : SettingsSectionId.fromString(
                               state.uri.queryParameters['section'],
                             ),
+                      initialAnchor: state.uri.queryParameters['anchor'],
                     ),
                   ),
                 ],
@@ -145,6 +147,18 @@ void main() {
       router.go('/main/settings?section=chats');
       await tester.pump();
       expect(find.byType(SettingsChatsScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      // A link to one setting opens its section and marks the row.
+      router.go('/main/settings?section=appearance&anchor=appearance.compact');
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
+      expect(
+        ProviderScope.containerOf(
+          tester.element(find.byType(ProfileScreen)),
+        ).read(settingsAnchorControllerProvider).highlightedAnchor,
+        'appearance.compact',
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 1));

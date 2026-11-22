@@ -46,9 +46,13 @@ import 'package:pulse_flutter/features/sessions/application/sessions_controller.
 import 'package:pulse_flutter/providers/push_permission_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({this.initialSection, super.key});
+  const ProfileScreen({this.initialSection, this.initialAnchor, super.key});
 
   final SettingsSectionId? initialSection;
+
+  /// A row of [initialSection] to scroll to and highlight: a link to one
+  /// setting opened in a browser.
+  final String? initialAnchor;
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
@@ -171,6 +175,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       ref.read(authProvider.notifier).refreshProfile();
     });
+    _requestInitialAnchor();
+  }
+
+  // A link to one setting: the address names the section and the row. The
+  // row is highlighted once the section is on screen.
+  void _requestInitialAnchor() {
+    final String? anchor = widget.initialAnchor;
+    if (anchor == null || anchor.isEmpty || widget.initialSection == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final SettingsSectionId section = _webSection;
+      final String route =
+          SettingsRegistry.getAllNodes()
+              .whereType<SettingsNavNode>()
+              .where((SettingsNavNode node) => node.sectionId == section)
+              .firstOrNull
+              ?.route ??
+          '/main/settings';
+      ref
+          .read(settingsAnchorControllerProvider.notifier)
+          .request(route: route, anchor: anchor);
+    });
   }
 
   @override
@@ -179,6 +207,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // In a browser the section comes from the address: back and forward
     // change it without asking the hub.
     if (oldWidget.initialSection != widget.initialSection) _subpage = null;
+    if (oldWidget.initialAnchor != widget.initialAnchor ||
+        oldWidget.initialSection != widget.initialSection) {
+      _requestInitialAnchor();
+    }
   }
 
   @override

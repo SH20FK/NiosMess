@@ -67,12 +67,16 @@ class MainShellScreen extends ConsumerStatefulWidget {
     this.selectedChatId,
     this.highlightMessageId,
     this.settingsSection,
+    this.settingsAnchor,
     super.key,
   });
 
   final String tab;
   final int? selectedChatId, highlightMessageId;
   final String? settingsSection;
+
+  /// A setting to highlight in the open section, from a link in a browser.
+  final String? settingsAnchor;
 
   @override
   ConsumerState<MainShellScreen> createState() => _MainShellScreenState();
@@ -697,6 +701,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                       capabilities.browserWorkspace &&
                           widget.settingsSection != null
                       ? SettingsSectionId.fromString(widget.settingsSection)
+                      : null,
+                  initialAnchor: capabilities.browserWorkspace
+                      ? widget.settingsAnchor
                       : null,
                 ),
               ];
