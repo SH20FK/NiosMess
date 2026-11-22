@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/settings/account_security_section.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -44,7 +45,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
       children: <Widget>[
         if (privacy.isLoading && privacy.rules.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
             child: Center(
               child: AppLoadingIndicator(
                 size: 28,

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -210,12 +211,12 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
         ),
         if (auth.profile?.aiUsage != null) ...[
           AiUsageIndicatorCard(usage: auth.profile!.aiUsage!),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
         ],
         SettingsSection(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: PlusPurchaseOptions(
                 key: ValueKey(_account),
                 onChanged: _loadStatus,

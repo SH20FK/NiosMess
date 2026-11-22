@@ -172,7 +172,8 @@ class SettingsRow extends StatelessWidget {
       leading: leading,
       showIcon: leading != null,
       title: title,
-      subtitle: enabled ? subtitle : disabledReason ?? subtitle,
+      subtitle: subtitle,
+      disabledReason: disabledReason,
       value: navigation?.value ?? staticValue,
       type: toggle != null
           ? SettingsListItemType.toggle

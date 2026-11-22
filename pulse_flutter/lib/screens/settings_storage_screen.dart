@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -106,7 +107,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
             title: context.l10n.webStorageTitle,
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(context.l10n.webStorageDescription),
               ),
               SettingsRow(
@@ -165,7 +166,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                       context.l10n.settingsV2StorageError,
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     FilledButton.tonalIcon(
                       onPressed: _busy ? null : _refresh,
                       icon: const Icon(Icons.refresh_rounded),
@@ -196,7 +197,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Padding(
-          padding: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
           child: Container(
             decoration: BoxDecoration(
               color: scheme.surfaceContainerLow,
@@ -221,7 +222,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                               letterSpacing: -0.6,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppSpacing.xs),
                           Text(
                             context.l10n.settingsStorageUsedByApp,
                             style: textTheme.bodySmall?.copyWith(
@@ -242,14 +243,14 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   context.l10n.settingsStorageEstimate,
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 Semantics(
                   label:
                       '${context.l10n.settingsStorageAppData}: ${_format(appDataBytes)}, '
@@ -261,7 +262,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
                     draftBytes: draftBytes,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Wrap(
                   spacing: 16,
                   runSpacing: 8,
@@ -299,6 +300,9 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
               subtitle: _format(cacheBytes),
               control: const ActionControl(destructive: true),
               enabled: cacheBytes > 0 && !_busy,
+              disabledReason: cacheBytes > 0
+                  ? null
+                  : context.l10n.settingsStorageNothingToClear,
               onTap: _clearTemporaryFiles,
             ),
             SettingsRow(
@@ -307,6 +311,9 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
               subtitle: _format(draftBytes),
               control: const ActionControl(destructive: true),
               enabled: draftBytes > 0 && !_busy,
+              disabledReason: draftBytes > 0
+                  ? null
+                  : context.l10n.settingsStorageNothingToClear,
               onTap: _clearDrafts,
             ),
           ],

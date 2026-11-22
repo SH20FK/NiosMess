@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:dynamic_color/dynamic_color.dart';
@@ -306,7 +307,7 @@ class NiosColorField extends StatelessWidget {
             onChanged: onToggleDynamic,
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.lg, AppSpacing.md, 0),
           child: _PalettePager(
             scheme: scheme,
             children: [
@@ -410,7 +411,7 @@ class _PalettePagerState extends State<_PalettePager> {
                   : const _PalettePagePhysics(),
               onPageChanged: (page) => setState(() => _page = page),
               itemBuilder: (context, page) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -655,7 +656,7 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
                 ),
               ),
               ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 ExcludeSemantics(
                   child: Text(
                     label,
@@ -699,7 +700,7 @@ class _ThemeModeSelectorCard extends StatelessWidget {
     },
     children: [
       Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Builder(
           builder: (choiceContext) => SettingsChoiceButtons<ThemeMode>(
             segments: [
@@ -783,7 +784,7 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
         value: '${_localValue.toInt()} dp',
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
         child: SliderTheme(
           data: SliderTheme.of(context).copyWith(trackHeight: 16),
           child: Slider(
@@ -823,7 +824,7 @@ class _FontScaleSliderTile extends StatelessWidget {
         value: '${(currentScale.scale * 100).round()}%',
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
         child: SettingsChoiceButtons<AppFontScale>(
           segments: [
             for (final scale in AppFontScale.values)
@@ -867,7 +868,7 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
         subtitle: context.l10n.appearanceContrastColorsDesc,
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
         child: SettingsChoiceButtons<PaletteStyle>(
           segments: [
             for (final style in PaletteStyle.values)

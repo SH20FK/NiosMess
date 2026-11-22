@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -88,7 +89,7 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
             children: <Widget>[
               if (isAndroid) ...<Widget>[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
@@ -127,7 +128,7 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
                           }
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       M3SpringSwitcher(
                         type: M3SwitcherType.fade,
                         duration: M3Durations.short4,
@@ -150,7 +151,7 @@ class SettingsEnergySavingScreen extends ConsumerWidget {
                       ),
                       if (settings.backgroundMode ==
                           BackgroundMode.reliable) ...<Widget>[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppSpacing.sm),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(

@@ -190,6 +190,35 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('a disabled row shows its reason in place of the hint', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _app(
+          SettingsListItem.toggle(
+            icon: Icons.volume_up_outlined,
+            title: 'Sound',
+            subtitle: 'Plays with each message',
+            value: true,
+            enabled: false,
+            disabledReason: 'Turn on notifications first',
+            onChanged: (_) {},
+          ),
+        ),
+      );
+      expect(find.text('Turn on notifications first'), findsOneWidget);
+      expect(find.text('Plays with each message'), findsNothing);
+      expect(
+        tester
+            .getSemantics(find.byType(SettingsListItem))
+            .getSemanticsData()
+            .label,
+        'Sound, Turn on notifications first',
+      );
+      semantics.dispose();
+    });
+
     testWidgets('a pending row says it is loading', (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(

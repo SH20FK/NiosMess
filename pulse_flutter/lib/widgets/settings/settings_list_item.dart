@@ -30,6 +30,7 @@ class SettingsListItem extends ConsumerWidget {
     this.leading,
     this.showIcon = true,
     this.pending = false,
+    this.disabledReason,
     super.key,
   });
 
@@ -70,6 +71,7 @@ class SettingsListItem extends ConsumerWidget {
     required ValueChanged<bool>? onChanged,
     Color? iconColor,
     bool enabled = true,
+    String? disabledReason,
     Key? key,
   }) : this(
          icon: icon,
@@ -80,6 +82,7 @@ class SettingsListItem extends ConsumerWidget {
          type: SettingsListItemType.toggle,
          iconColor: iconColor,
          enabled: enabled,
+         disabledReason: disabledReason,
          key: key,
        );
 
@@ -139,6 +142,10 @@ class SettingsListItem extends ConsumerWidget {
   final bool showIcon;
   final bool pending;
 
+  /// Shown in place of [subtitle] while the row is not [enabled], so a
+  /// greyed-out row says what would bring it back.
+  final String? disabledReason;
+
   /// Indent of a divider that starts where the text does: row padding, icon
   /// slot and the gap after it (68 dp).
   static const double dividerIndent =
@@ -168,6 +175,9 @@ class SettingsListItem extends ConsumerWidget {
         ? Icon((leading as Icon).icon, size: 22, color: iconForeground)
         : leading ?? Icon(icon, size: 22, color: iconForeground);
     final toggle = type == SettingsListItemType.toggle;
+    final String? hint = !enabled && disabledReason?.trim().isNotEmpty == true
+        ? disabledReason
+        : subtitle;
     // A short value sits at the trailing edge, with or without a hint under
     // the title. A long one, or any value at a large text size, would be cut
     // there, so it wraps under the title instead.
@@ -278,10 +288,10 @@ class SettingsListItem extends ConsumerWidget {
                           : FontWeight.w500,
                     ),
                   ),
-                  if (subtitle?.trim().isNotEmpty == true) ...[
+                  if (hint?.trim().isNotEmpty == true) ...[
                     const SizedBox(height: 3),
                     Text(
-                      subtitle!,
+                      hint!,
                       style: textTheme.bodySmall?.copyWith(
                         color: isSelected
                             ? scheme.onSecondaryContainer
@@ -290,7 +300,7 @@ class SettingsListItem extends ConsumerWidget {
                     ),
                   ],
                   if (value?.trim().isNotEmpty == true &&
-                      value != subtitle &&
+                      value != hint &&
                       !inlineValue) ...[
                     const SizedBox(height: 3),
                     Text(
@@ -321,8 +331,8 @@ class SettingsListItem extends ConsumerWidget {
     final bool oneNode = toggle || trailing == null;
     final String semanticsLabel = <String>[
       title,
-      if (subtitle?.trim().isNotEmpty == true) subtitle!,
-      if (value?.trim().isNotEmpty == true && value != subtitle) value!,
+      if (hint?.trim().isNotEmpty == true) hint!,
+      if (value?.trim().isNotEmpty == true && value != hint) value!,
       // The spinner in the trailing slot is hidden with the other children.
       if (pending) context.l10n.commonLoading,
     ].join(', ');

@@ -2781,4 +2781,10 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   @override
   String get settingsSaveFailed =>
       'Не удалось сохранить настройку. Вернули прежнее значение.';
+
+  @override
+  String get settingsNotificationsOffReason => 'Сначала включите уведомления';
+
+  @override
+  String get settingsStorageNothingToClear => 'Очищать нечего';
 }

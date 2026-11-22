@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -250,12 +251,12 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
             _explanation(context.l10n.settingsE2eeDeviceDescription),
             if (_busy)
               const Padding(
-                padding: EdgeInsets.all(12),
+                padding: EdgeInsets.all(AppSpacing.md),
                 child: Center(child: AppLoadingIndicator(size: 24)),
               ),
             if (_error != null)
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -268,7 +269,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: TextButton.icon(
@@ -313,7 +314,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
                 ListenableBuilder(
                   listenable: mesh,
                   builder: (context, _) => Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.md),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -380,12 +381,12 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
         _recovery == null
             ? null
             : Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     SelectableText(_recovery!),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -435,7 +436,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
     title: context.l10n.settingsE2eeRestoreTitle,
     children: [
       Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -449,7 +450,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
                 labelText: context.l10n.settingsE2eeRecoveryTitle,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             FilledButton(
               onPressed: _busy
                   ? null
@@ -498,7 +499,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
           _pairCode == null
               ? null
               : Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Column(
                     children: [
                       LayoutBuilder(
@@ -534,7 +535,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
         ),
       ] else
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -547,7 +548,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
                   labelText: context.l10n.settingsE2eePairCodeLabel,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               FilledButton.tonal(
                 onPressed: _busy
                     ? null
@@ -579,7 +580,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
       children: [
         _description(context.l10n.settingsE2eeContactDescription),
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -632,9 +633,9 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppSpacing.lg),
                           SelectableText(_contactFingerprint!),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: AppSpacing.md),
                           FilledButton.tonal(
                             onPressed: _busy || _contact == null
                                 ? null
@@ -663,7 +664,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
   }
 
   Widget _description(String text) => Padding(
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.all(AppSpacing.lg),
     child: Text(
       text,
       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -673,7 +674,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
   );
 
   Widget _selectable(String text) =>
-      Padding(padding: const EdgeInsets.all(16), child: SelectableText(text));
+      Padding(padding: const EdgeInsets.all(AppSpacing.lg), child: SelectableText(text));
 
   Widget _explanation(String text) => ExpansionTile(
     title: Text(context.l10n.e2eeHowItWorks),

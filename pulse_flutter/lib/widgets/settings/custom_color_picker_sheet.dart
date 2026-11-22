@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
@@ -109,7 +110,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               AnimatedContainer(
                 duration: context.reduceMotion
                     ? Duration.zero : M3Durations.medium3,
@@ -128,7 +129,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                         color: preview.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
                     Row(
                       children: [
                         AnimatedContainer(
@@ -145,7 +146,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                             color: preview.onPrimary,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: AppSpacing.lg),
                         Expanded(
                           child: Text(
                             '#${_code(_selected)}',
@@ -192,7 +193,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                   color: scheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
@@ -290,7 +291,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                   );
                 },
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Semantics(
                 label: context.l10n.appearanceCustomColor,
                 value: '#${_code(_selected)}',
@@ -299,7 +300,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                   children: [
                     Container(
                       height: 16,
-                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
                         gradient: LinearGradient(
@@ -337,7 +338,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 spacing: 8,

@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -41,14 +42,14 @@ class SystemResourceMeter extends StatelessWidget {
       value: '$label. $subtitle',
       excludeSemantics: true,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(icon, size: 22, color: scheme.primary),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(child: Text(title, style: text.titleSmall)),
               ],
             ),
@@ -57,7 +58,7 @@ class SystemResourceMeter extends StatelessWidget {
               label,
               style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             if (usageKnown)
               RepaintBoundary(
                 child: TweenAnimationBuilder<double>(
@@ -91,7 +92,7 @@ class SystemResourceMeter extends StatelessWidget {
                   ),
                 ),
               ),
-            if (usageKnown) const SizedBox(height: 8),
+            if (usageKnown) const SizedBox(height: AppSpacing.sm),
             Text(
               subtitle,
               style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),

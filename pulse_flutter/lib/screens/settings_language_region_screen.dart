@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -39,7 +40,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
           subtitle: context.l10n.settingsLanguageBannerDesc,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: SettingsChoiceButtons<String?>(
                 segments: [
                   ButtonSegment<String?>(
@@ -69,7 +70,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
           subtitle: context.l10n.settingsLanguageTzDesc,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: SettingsChoiceButtons<AppTimeZoneMode>(
                 segments: [
                   ButtonSegment<AppTimeZoneMode>(
@@ -231,7 +232,7 @@ class _TimeZonePickerState extends State<_TimeZonePicker> {
       builder: (context, constraints) => SizedBox(
         height: math.min(600, constraints.maxHeight),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
           child: Column(
             children: [
               Row(
@@ -251,7 +252,7 @@ class _TimeZonePickerState extends State<_TimeZonePicker> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               TextField(
                 key: const ValueKey('settings-time-zone-search'),
                 controller: _search,
@@ -274,7 +275,7 @@ class _TimeZonePickerState extends State<_TimeZonePicker> {
                 onChanged: (query) =>
                     setState(() => _query = query.trim().toLowerCase()),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               Expanded(
                 child: items.isEmpty
                     ? Center(child: Text(context.l10n.settingsV2SearchNone))

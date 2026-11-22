@@ -5056,6 +5056,18 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Could not save this setting. The previous value is back.'**
   String get settingsSaveFailed;
+
+  /// No description provided for @settingsNotificationsOffReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on notifications first'**
+  String get settingsNotificationsOffReason;
+
+  /// No description provided for @settingsStorageNothingToClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to clear'**
+  String get settingsStorageNothingToClear;
 }
 
 class _SecretChatLocalizationsDelegate

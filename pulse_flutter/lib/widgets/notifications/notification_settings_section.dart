@@ -67,6 +67,9 @@ class _NotificationSettingsSectionState
             subtitle: hint,
             value: options.value?.toJson()[key] == true,
             enabled: enabled && !_busy.contains(key) && options.hasValue,
+            disabledReason: enabled
+                ? null
+                : l10n.settingsNotificationsOffReason,
             onChanged: (value) => _change(
               key,
               () => ref

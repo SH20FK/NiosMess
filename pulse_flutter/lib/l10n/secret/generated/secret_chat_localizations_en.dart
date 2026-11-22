@@ -2756,4 +2756,10 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   @override
   String get settingsSaveFailed =>
       'Could not save this setting. The previous value is back.';
+
+  @override
+  String get settingsNotificationsOffReason => 'Turn on notifications first';
+
+  @override
+  String get settingsStorageNothingToClear => 'Nothing to clear';
 }

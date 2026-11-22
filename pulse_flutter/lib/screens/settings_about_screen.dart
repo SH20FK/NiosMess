@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -119,7 +120,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
       isEmbedded: widget.isEmbedded,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
           child: Column(
             children: [
               MorphingBrandMark(
@@ -129,7 +130,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                   '${l.aboutEasterEggTitle} ${l.aboutEasterEggMessage}',
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               Text(
                 l.appName,
                 textAlign: TextAlign.center,
@@ -137,7 +138,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 l.aboutTagline,
                 textAlign: TextAlign.center,
@@ -145,7 +146,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                   color: scheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               AboutVersionChip(
                 packageInfoFuture: _packageInfo,
                 onCopy: _copyVersion,
@@ -172,7 +173,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             setState(() => _tab = selection.first);
           },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         if (reduced)
           _tabContent(context)
         else
@@ -261,7 +262,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           ],
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
           child: Text(
             '${l.aboutCopyrightFooter(2026)} · ${BuildInfo.buildChannel}',
             textAlign: TextAlign.center,
@@ -290,7 +291,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     final l = context.l10n;
     if (_loadingChangelog) {
       return Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xxl),
         child: Center(
           child: AppLoadingIndicator(semanticsLabel: l.commonLoading),
         ),
@@ -327,7 +328,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               ),
               if (release?.date != null)
                 Padding(
-                  padding: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
                   child: Text(
                     release!.date!,
                     style: text.bodySmall?.copyWith(
@@ -335,13 +336,13 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               if (release == null)
                 Text(l.aboutUpToDate)
               else
                 for (final change in release.changes)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: Text(
                       change,
                       style: text.bodyMedium?.copyWith(height: 1.45),
@@ -385,7 +386,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             applicationName: l.appName,
             applicationVersion: BuildInfo.fullVersion,
             applicationIcon: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.md),
               child: SvgPicture.asset(
                 'assets/svg/niosmess_logo_tintable.svg',
                 width: 52,

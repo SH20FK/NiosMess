@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -63,7 +64,7 @@ class SettingsChatsScreen extends ConsumerWidget {
           subtitle: context.l10n.settingsChatsQuickReactionDesc,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,

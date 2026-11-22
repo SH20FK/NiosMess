@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -122,7 +123,7 @@ class _AboutBugReportDialogState extends ConsumerState<AboutBugReportDialog> {
               labelText: context.l10n.aboutReportSubject,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _description,
             enabled: !_sending,
