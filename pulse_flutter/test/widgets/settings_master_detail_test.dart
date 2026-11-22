@@ -57,7 +57,6 @@ Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
       seedColor: Color(0xFF6750A4),
       themeMode: ThemeMode.light,
       useSystemDynamic: false,
-      predictiveBackEnabled: false,
     ),
     Brightness.light,
   );

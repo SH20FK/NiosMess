@@ -3,7 +3,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/notifications/notification_center.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/router/app_navigation.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/smooth_scroll.dart';
@@ -95,10 +95,10 @@ class _NiosgramScreenState extends ConsumerState<NiosgramScreen> {
           IconButton(
             tooltip: context.l10n.niosgramSavedTitle,
             icon: const Icon(Icons.bookmark_outline_rounded),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const NiosgramSavedScreen(),
-              ),
+            onPressed: () => pushAppRoute<void>(
+              context,
+              '/niosgram/saved',
+              fallback: (_) => const NiosgramSavedScreen(),
             ),
           ),
           const _NotificationsBell(),
@@ -363,13 +363,11 @@ class _CompactQuickCreateBar extends ConsumerWidget {
         borderRadius: BorderRadius.circular(24),
         onTap: () {
           if (ref.read(uiSettingsProvider).haptics) HapticService.tap();
-          if (GoRouter.maybeOf(context) != null) {
-            context.push('/niosgram/create');
-          } else {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const CreatePostScreen()),
-            );
-          }
+          pushAppRoute<void>(
+            context,
+            '/niosgram/create',
+            fallback: (_) => const CreatePostScreen(),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

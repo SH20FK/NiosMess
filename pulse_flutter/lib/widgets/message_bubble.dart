@@ -1369,6 +1369,10 @@ class MessageBubble extends ConsumerWidget {
       textTheme: textTheme,
       expiresAt: expiresAt,
     );
+    // Only media that fills the bubble edge to edge needs the clip. A voice
+    // message or a file card without a caption stays inside the rounded shape.
+    final clipsMedia =
+        hasCaption || visual || MediaAlbum.isAlbum(mediaLabel);
     final Widget body;
     if (emoji != null) {
       body = Column(
@@ -1416,7 +1420,7 @@ class MessageBubble extends ConsumerWidget {
               ),
               color: hasCaption || !visual ? bubbleColor : Colors.transparent,
               borderRadius: BorderRadius.circular(radius),
-              clipBehavior: Clip.antiAlias,
+              clipBehavior: clipsMedia ? Clip.antiAlias : Clip.none,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,

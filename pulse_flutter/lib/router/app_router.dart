@@ -14,6 +14,11 @@ import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/join_chat_screen.dart';
 import 'package:pulse_flutter/screens/login_screen.dart';
 import 'package:pulse_flutter/screens/main_shell_screen.dart';
+import 'package:pulse_flutter/screens/niosgram_saved_screen.dart';
+import 'package:pulse_flutter/screens/niosgram_video_screen.dart';
+import 'package:pulse_flutter/widgets/chat_productivity.dart'
+    show ChatFoldersScreen, GroupTopicsScreen;
+import 'package:pulse_flutter/widgets/quick_camera_capture_screen.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/screens/create_post_screen.dart';
 import 'package:pulse_flutter/screens/group_profile_screen.dart';
@@ -267,6 +272,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             _page(state, const InboxSearchScreen()),
       ),
       GoRoute(
+        path: '/chats/folders',
+        pageBuilder: (context, state) =>
+            _page(state, const ChatFoldersScreen()),
+      ),
+      GoRoute(
         path: '/new-message',
         pageBuilder: (context, state) {
           final modeStr = state.uri.queryParameters['mode'];
@@ -437,6 +447,15 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             channelId:
                 int.tryParse(state.pathParameters['channelId'] ?? '') ?? 0,
             postId: int.tryParse(state.pathParameters['postId'] ?? '') ?? 0,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/chat/:chatId/topics',
+        pageBuilder: (context, state) => _page(
+          state,
+          GroupTopicsScreen(
+            chatId: int.tryParse(state.pathParameters['chatId'] ?? '') ?? 0,
           ),
         ),
       ),
@@ -735,6 +754,26 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             pageKey: state.pageKey,
           );
         },
+      ),
+      GoRoute(
+        path: '/camera/capture',
+        // Typed page: the screen pops with the path of the photo it took.
+        pageBuilder: (context, state) => MaterialPage<String>(
+          key: state.pageKey,
+          child: const QuickCameraCaptureScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/niosgram/saved',
+        pageBuilder: (context, state) =>
+            _page(state, const NiosgramSavedScreen()),
+      ),
+      GoRoute(
+        path: '/niosgram/video',
+        pageBuilder: (context, state) => _page(
+          state,
+          NiosgramVideoScreen(url: state.uri.queryParameters['url'] ?? ''),
+        ),
       ),
       GoRoute(
         path: '/niosgram/post/:postId',

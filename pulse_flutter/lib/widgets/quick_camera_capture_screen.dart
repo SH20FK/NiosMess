@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/router/app_navigation.dart';
 import 'package:pulse_flutter/widgets/motion/m3_press_scale.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,10 +14,10 @@ class QuickCameraCaptureScreen extends StatefulWidget {
   const QuickCameraCaptureScreen({super.key});
 
   static Future<String?> capturePhoto(BuildContext context) {
-    return Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
-        builder: (_) => const QuickCameraCaptureScreen(),
-      ),
+    return pushAppRoute<String>(
+      context,
+      '/camera/capture',
+      fallback: (_) => const QuickCameraCaptureScreen(),
     );
   }
 

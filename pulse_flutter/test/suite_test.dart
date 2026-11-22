@@ -230,6 +230,7 @@ import 'widgets/tab_shared_axis_switcher_test.dart'
 import 'widgets/vector_illustrations_test.dart' as widgets_vector_illustrations;
 import 'unit/m3_motion_kit_unit_test.dart' as unit_m3_motion_kit;
 import 'unit/m3_motion_test.dart' as unit_m3_motion;
+import 'unit/call_tokens_test.dart' as unit_call_tokens;
 import 'unit/m3_spring_curves_test.dart' as unit_m3_spring_curves;
 import 'widgets/m3_motion_kit_test.dart' as widgets_m3_motion_kit;
 import 'widgets/m3_modal_route_test.dart' as widgets_m3_modal_route;
@@ -240,6 +241,7 @@ import 'widgets/expression_panel_frame_test.dart'
     as widgets_expression_panel_frame;
 import 'widgets/app_refresh_indicator_test.dart'
     as widgets_app_refresh_indicator;
+import 'widgets/app_navigation_test.dart' as widgets_app_navigation;
 import 'widgets/swipe_action_row_test.dart' as widgets_swipe_action_row;
 import 'widgets/reorder_slide_test.dart' as widgets_reorder_slide;
 import 'widgets/m3_entrance_test.dart' as widgets_m3_entrance;
@@ -320,6 +322,7 @@ void main() {
     unit_nios_link_and_blob_store.main();
     unit_m3_motion_kit.main();
     unit_m3_motion.main();
+    unit_call_tokens.main();
     unit_m3_spring_curves.main();
 
     // Performance lifecycle, storage and resource regressions. No device FPS assertions.
@@ -496,6 +499,7 @@ void main() {
     widgets_bubble_reaction_chip.main();
     widgets_expression_panel_frame.main();
     widgets_app_refresh_indicator.main();
+    widgets_app_navigation.main();
     widgets_swipe_action_row.main();
     widgets_reorder_slide.main();
     widgets_m3_entrance.main();

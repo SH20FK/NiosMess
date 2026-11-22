@@ -125,7 +125,6 @@ void main() {
         seedColor: Color(0xFF6750A4),
         themeMode: ThemeMode.light,
         useSystemDynamic: false,
-        predictiveBackEnabled: false,
       );
       final ThemeData theme = AppTheme.themed(settings, Brightness.light);
 
@@ -143,7 +142,6 @@ void main() {
         seedColor: Color(0xFF6750A4),
         themeMode: ThemeMode.light,
         useSystemDynamic: false,
-        predictiveBackEnabled: false,
       );
       final ThemeData theme = AppTheme.themed(settings, Brightness.light);
 

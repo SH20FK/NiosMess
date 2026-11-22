@@ -21,7 +21,11 @@ Future<void> openResponsiveProfile(
     context: context,
     barrierLabel: 'Profile',
     width: 440,
-    child: PublicProfileScreen(username: username),
+    // A side sheet is not a page route, so a Hero inside it never flies.
+    child: HeroMode(
+      enabled: false,
+      child: PublicProfileScreen(username: username),
+    ),
   );
 }
 
@@ -41,6 +45,10 @@ Future<void> openResponsiveGroupProfile(
     context: context,
     barrierLabel: 'Chat Info',
     width: 440,
-    child: GroupProfileScreen(chatId: chatId),
+    // A side sheet is not a page route, so a Hero inside it never flies.
+    child: HeroMode(
+      enabled: false,
+      child: GroupProfileScreen(chatId: chatId),
+    ),
   );
 }

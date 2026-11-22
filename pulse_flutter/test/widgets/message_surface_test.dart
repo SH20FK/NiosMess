@@ -193,9 +193,34 @@ void main() {
             const ValueKey<String>('attachment-without-caption'),
           );
           expect(tester.widget<Material>(video).color, Colors.transparent);
+          // Media that fills the bubble is clipped to its rounded shape.
+          expect(tester.widget<Material>(video).clipBehavior, Clip.antiAlias);
           expect(find.byTooltip('movie.mp4'), findsOneWidget);
           expect(find.text('12:30'), findsOneWidget);
           await snapshot('video-file');
+          await tester.pumpWidget(
+            app(
+              MessageBubble(
+                text: '',
+                formattedTime: '12:30',
+                isMine: mine,
+                chatId: 1,
+                mediaUrl: 'https://example.invalid/report.pdf',
+                mediaLabel: 'report.pdf',
+              ),
+            ),
+          );
+          await tester.pump();
+          final document = find.byKey(
+            const ValueKey<String>('attachment-without-caption'),
+          );
+          // A file card stays inside the bubble, so nothing is clipped.
+          expect(tester.widget<Material>(document).clipBehavior, Clip.none);
+          expect(
+            tester.widget<Material>(document).color,
+            isNot(Colors.transparent),
+          );
+          expect(find.text('report.pdf'), findsOneWidget);
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox());
         },

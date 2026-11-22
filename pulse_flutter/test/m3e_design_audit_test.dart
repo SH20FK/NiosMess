@@ -163,7 +163,6 @@ void main() {
           seedColor: Color(0xFF6750A4),
           themeMode: ThemeMode.light,
           useSystemDynamic: false,
-          predictiveBackEnabled: false,
         ),
         Brightness.light,
       );
@@ -185,7 +184,6 @@ void main() {
           seedColor: Color(0xFF6750A4),
           themeMode: ThemeMode.dark,
           useSystemDynamic: false,
-          predictiveBackEnabled: false,
         ),
         Brightness.dark,
       );

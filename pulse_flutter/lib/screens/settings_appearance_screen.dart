@@ -78,14 +78,6 @@ class _AppearanceScreen extends ConsumerWidget {
     final PaletteStyle paletteStyle = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.paletteStyle),
     );
-    final bool predictiveBackEnabled = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.predictiveBackEnabled),
-    );
-    final double predictiveBackStrength = ref.watch(
-      uiSettingsProvider.select(
-        (UiSettingsState s) => s.predictiveBackStrength,
-      ),
-    );
 
     final Brightness brightness = Theme.of(context).brightness;
 
@@ -123,8 +115,6 @@ class _AppearanceScreen extends ConsumerWidget {
                 fontScale: fontScale,
                 paletteStyle: paletteStyle,
                 useSystemDynamic: useSystemDynamic,
-                predictiveBackEnabled: predictiveBackEnabled,
-                predictiveBackStrength: predictiveBackStrength,
               ),
             ),
           ),
@@ -143,8 +133,6 @@ class _AppearanceScreen extends ConsumerWidget {
     required AppFontScale fontScale,
     required PaletteStyle paletteStyle,
     required bool useSystemDynamic,
-    required bool predictiveBackEnabled,
-    required double predictiveBackStrength,
   }) {
     final Widget colorField = SettingsAnchor(
       id: 'appearance.color.source',
@@ -230,32 +218,6 @@ class _AppearanceScreen extends ConsumerWidget {
       ],
     );
 
-    final Widget navSection = SettingsSection(
-      title: context.l10n.appearanceInterfaceNav,
-      subtitle: context.l10n.appearanceInterfaceNavDesc,
-      children: [
-        SettingsSwitchTile(
-          icon: Icons.swipe_left_rounded,
-          title: context.l10n.appearancePredictiveBack,
-          subtitle: context.l10n.appearancePredictiveBackDesc,
-          iconColor: scheme.secondary,
-          value: predictiveBackEnabled,
-          onChanged: (bool v) {
-            ref.read(uiSettingsProvider.notifier).setPredictiveBackEnabled(v);
-          },
-        ),
-        if (predictiveBackEnabled)
-          _PredictiveBackStrengthTile(
-            strength: predictiveBackStrength,
-            onChanged: (double val) {
-              ref
-                  .read(uiSettingsProvider.notifier)
-                  .setPredictiveBackStrength(val);
-            },
-          ),
-      ],
-    );
-
     return SettingsShell(
       title: context.l10n.settingsV2Appearance,
       isEmbedded: isEmbedded,
@@ -263,9 +225,6 @@ class _AppearanceScreen extends ConsumerWidget {
         themeCard,
         colorField,
         geometrySection,
-        // Predictive back exists only on Android.
-        if (!kIsWeb && Theme.of(context).platform == TargetPlatform.android)
-          navSection,
       ],
     );
   }
@@ -864,61 +823,6 @@ class _FontScaleSliderTile extends StatelessWidget {
               ),
           ],
           selected: {currentScale},
-          onSelectionChanged: (selected) {
-            HapticService.selection();
-            onChanged(selected.first);
-          },
-        ),
-      ),
-    ],
-  );
-}
-
-class _PredictiveBackStrengthTile extends StatelessWidget {
-  const _PredictiveBackStrengthTile({
-    required this.strength,
-    required this.onChanged,
-  });
-  final double strength;
-  final ValueChanged<double> onChanged;
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      SettingsInfoTile(
-        icon: Icons.tune_rounded,
-        title: context.l10n.appearancePredictiveBackStrength,
-        subtitle: strength <= .6
-            ? context.l10n.appearancePredictiveBackSoft
-            : strength >= 1.4
-            ? context.l10n.appearancePredictiveBackDeep
-            : context.l10n.appearancePredictiveBackStandard,
-        value: '${strength.toStringAsFixed(1)}×',
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: SettingsChoiceButtons<double>(
-          segments: [
-            ButtonSegment<double>(
-              value: .5,
-              label: Text(context.l10n.appearancePredictiveBackSoftLabel),
-            ),
-            ButtonSegment<double>(
-              value: 1,
-              label: Text(context.l10n.appearancePredictiveBackStandardLabel),
-            ),
-            ButtonSegment<double>(
-              value: 1.5,
-              label: Text(context.l10n.appearancePredictiveBackDeepLabel),
-            ),
-          ],
-          selected: {
-            strength <= .75
-                ? .5
-                : strength >= 1.25
-                ? 1.5
-                : 1.0,
-          },
           onSelectionChanged: (selected) {
             HapticService.selection();
             onChanged(selected.first);

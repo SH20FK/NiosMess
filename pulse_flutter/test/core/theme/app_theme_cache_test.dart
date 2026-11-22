@@ -7,7 +7,6 @@ VisualThemeSettings createSettings({
   Color seedColor = const Color(0xFF2196F3),
   ThemeMode themeMode = ThemeMode.light,
   bool useSystemDynamic = false,
-  bool predictiveBackEnabled = false,
   double uiCornerRadius = 20.0,
   PaletteStyle paletteStyle = PaletteStyle.expressive,
 }) {
@@ -15,7 +14,6 @@ VisualThemeSettings createSettings({
     seedColor: seedColor,
     themeMode: themeMode,
     useSystemDynamic: useSystemDynamic,
-    predictiveBackEnabled: predictiveBackEnabled,
     uiCornerRadius: uiCornerRadius,
     paletteStyle: paletteStyle,
   );

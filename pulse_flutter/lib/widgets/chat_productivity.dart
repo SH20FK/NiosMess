@@ -4,6 +4,7 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/router/app_navigation.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
@@ -84,8 +85,10 @@ Future<void> openSavedMessages(BuildContext context, WidgetRef ref) async {
 /// Opens folder management from the inbox scope strip (the "⋯" menu item
 /// and the long-press on a folder pill).
 Future<void> openChatFolders(BuildContext context) {
-  return Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => const ChatFoldersScreen()),
+  return pushAppRoute<void>(
+    context,
+    '/chats/folders',
+    fallback: (_) => const ChatFoldersScreen(),
   );
 }
 

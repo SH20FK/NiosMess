@@ -119,7 +119,6 @@ void main() {
               seedColor: const Color(0xffa8c7fa),
               themeMode: ThemeMode.dark,
               useSystemDynamic: false,
-              predictiveBackEnabled: false,
             ),
             brightness,
           ),

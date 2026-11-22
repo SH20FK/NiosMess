@@ -49,7 +49,7 @@ void main() {
           locale: const Locale('ru'),
           theme: AppTheme.themed(const VisualThemeSettings(
             seedColor: Color(0xFFEAB0FF), themeMode: ThemeMode.dark,
-            useSystemDynamic: false, predictiveBackEnabled: false,
+            useSystemDynamic: false,
           ), brightness),
           home: Builder(builder: (context) => Scaffold(body: RepaintBoundary(
             key: boundary,

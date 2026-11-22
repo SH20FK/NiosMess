@@ -12,7 +12,6 @@ Widget _createRegisterHarness() {
       seedColor: Color(0xFF1E88E5),
       themeMode: ThemeMode.light,
       useSystemDynamic: false,
-      predictiveBackEnabled: false,
     ),
     Brightness.light,
   );

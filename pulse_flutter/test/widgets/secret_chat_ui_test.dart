@@ -246,7 +246,6 @@ void main() {
               seedColor: Color(0xff6750a4),
               themeMode: ThemeMode.system,
               useSystemDynamic: false,
-              predictiveBackEnabled: true,
             ),
             brightness,
           );

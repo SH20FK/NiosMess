@@ -189,7 +189,6 @@ Widget _buildTestApp({
       seedColor: Color(0xFF6750A4),
       themeMode: ThemeMode.light,
       useSystemDynamic: false,
-      predictiveBackEnabled: false,
     ),
     brightness,
   );

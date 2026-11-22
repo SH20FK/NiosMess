@@ -78,7 +78,6 @@ void main() {
           seedColor: Color(0xFF6750A4),
           themeMode: ThemeMode.system,
           useSystemDynamic: false,
-          predictiveBackEnabled: false,
         ),
         brightness,
       );

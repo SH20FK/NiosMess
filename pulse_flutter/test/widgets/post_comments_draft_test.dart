@@ -177,7 +177,6 @@ void main() {
                   seedColor: Color(0xff006c5b),
                   themeMode: ThemeMode.dark,
                   useSystemDynamic: false,
-                  predictiveBackEnabled: false,
                 ),
                 Brightness.dark,
               ),

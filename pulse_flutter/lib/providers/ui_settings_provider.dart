@@ -34,8 +34,6 @@ class VisualThemeSettings {
     required this.seedColor,
     required this.themeMode,
     required this.useSystemDynamic,
-    required this.predictiveBackEnabled,
-    this.predictiveBackStrength = 1.0,
     this.uiCornerRadius = 20.0,
     this.paletteStyle = PaletteStyle.expressive,
   });
@@ -43,8 +41,6 @@ class VisualThemeSettings {
   final Color seedColor;
   final ThemeMode themeMode;
   final bool useSystemDynamic;
-  final bool predictiveBackEnabled;
-  final double predictiveBackStrength;
   final double uiCornerRadius;
   final PaletteStyle paletteStyle;
 
@@ -56,8 +52,6 @@ class VisualThemeSettings {
           seedColor == other.seedColor &&
           themeMode == other.themeMode &&
           useSystemDynamic == other.useSystemDynamic &&
-          predictiveBackEnabled == other.predictiveBackEnabled &&
-          predictiveBackStrength == other.predictiveBackStrength &&
           uiCornerRadius == other.uiCornerRadius &&
           paletteStyle == other.paletteStyle;
 
@@ -66,8 +60,6 @@ class VisualThemeSettings {
       seedColor.hashCode ^
       themeMode.hashCode ^
       useSystemDynamic.hashCode ^
-      predictiveBackEnabled.hashCode ^
-      predictiveBackStrength.hashCode ^
       uiCornerRadius.hashCode ^
       paletteStyle.hashCode;
 }
@@ -86,8 +78,6 @@ class UiSettingsState {
     required this.timeZoneMode,
     required this.timeZoneId,
     required this.optimizeForWeakDevices,
-    required this.predictiveBackEnabled,
-    this.predictiveBackStrength = 1.0,
     required this.backgroundMode,
     required this.useSystemDynamic,
     required this.fontScale,
@@ -128,8 +118,6 @@ class UiSettingsState {
         seedColor: seedColor,
         themeMode: themeMode,
         useSystemDynamic: useSystemDynamic,
-        predictiveBackEnabled: predictiveBackEnabled,
-        predictiveBackStrength: predictiveBackStrength,
         uiCornerRadius: uiCornerRadius,
         paletteStyle: paletteStyle,
       );
@@ -147,8 +135,6 @@ class UiSettingsState {
       timeZoneMode = AppTimeZoneMode.auto,
       timeZoneId = null,
       optimizeForWeakDevices = false,
-      predictiveBackEnabled = true,
-      predictiveBackStrength = 1.0,
       backgroundMode = BackgroundMode.reliable,
       useSystemDynamic = false,
       fontScale = AppFontScale.normal,
@@ -196,8 +182,6 @@ class UiSettingsState {
   final AppTimeZoneMode timeZoneMode;
   final String? timeZoneId;
   final bool optimizeForWeakDevices;
-  final bool predictiveBackEnabled;
-  final double predictiveBackStrength;
   final BackgroundMode backgroundMode;
   final bool useSystemDynamic;
   final AppFontScale fontScale;
@@ -248,8 +232,6 @@ class UiSettingsState {
     String? timeZoneId,
     bool clearTimeZoneId = false,
     bool? optimizeForWeakDevices,
-    bool? predictiveBackEnabled,
-    double? predictiveBackStrength,
     BackgroundMode? backgroundMode,
     bool? useSystemDynamic,
     AppFontScale? fontScale,
@@ -299,10 +281,6 @@ class UiSettingsState {
       timeZoneId: clearTimeZoneId ? null : (timeZoneId ?? this.timeZoneId),
       optimizeForWeakDevices:
           optimizeForWeakDevices ?? this.optimizeForWeakDevices,
-      predictiveBackEnabled:
-          predictiveBackEnabled ?? this.predictiveBackEnabled,
-      predictiveBackStrength:
-          predictiveBackStrength ?? this.predictiveBackStrength,
       backgroundMode: backgroundMode ?? this.backgroundMode,
       useSystemDynamic: useSystemDynamic ?? this.useSystemDynamic,
       fontScale: fontScale ?? this.fontScale,
@@ -373,8 +351,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _timeZoneModeKey = 'ui.timeZoneMode';
   static const String _timeZoneIdKey = 'ui.timeZoneId';
   static const String _optimizeWeakKey = 'ui.optimizeWeak';
-  static const String _predictiveBackKey = 'ui.predictiveBack';
-  static const String _predictiveBackStrengthKey = 'ui.predictiveBackStrength';
   static const String _backgroundModeKey = 'ui.backgroundMode';
   static const String _useSystemDynamicKey = 'ui.useSystemDynamic';
   static const String _fontScaleKey = 'ui.fontScale';
@@ -446,11 +422,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       timeZoneId: (timeZoneIdRaw ?? '').trim().isEmpty ? null : timeZoneIdRaw,
       optimizeForWeakDevices:
           prefs.getBool(_optimizeWeakKey) ?? defaults.optimizeForWeakDevices,
-      predictiveBackEnabled:
-          prefs.getBool(_predictiveBackKey) ?? defaults.predictiveBackEnabled,
-      predictiveBackStrength: (prefs.getDouble(_predictiveBackStrengthKey) ??
-              defaults.predictiveBackStrength)
-          .clamp(0.5, 1.5),
       backgroundMode: BackgroundMode.values.firstWhere(
         (BackgroundMode mode) =>
             mode.name == prefs.getString(_backgroundModeKey),
@@ -686,19 +657,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     _persistKey(_optimizeWeakKey, value);
   }
 
-  void setPredictiveBackEnabled(bool value) {
-    debugPrint('[UiSettingsNotifier] setPredictiveBackEnabled -> $value');
-    state = state.copyWith(predictiveBackEnabled: value);
-    _persistKey(_predictiveBackKey, value);
-  }
-
-  void setPredictiveBackStrength(double value) {
-    debugPrint('[UiSettingsNotifier] setPredictiveBackStrength -> $value');
-    final double clamped = value.clamp(0.5, 1.5);
-    state = state.copyWith(predictiveBackStrength: clamped);
-    _persistKeyDebounced(_predictiveBackStrengthKey, clamped);
-  }
-
   void setBackgroundMode(BackgroundMode value) {
     state = state.copyWith(backgroundMode: value);
     _persistKey(_backgroundModeKey, value.name);
@@ -882,8 +840,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.remove(_timeZoneModeKey),
       prefs.remove(_timeZoneIdKey),
       prefs.remove(_optimizeWeakKey),
-      prefs.remove(_predictiveBackKey),
-      prefs.remove(_predictiveBackStrengthKey),
       prefs.remove(_backgroundModeKey),
       prefs.remove(_useSystemDynamicKey),
       prefs.remove(_fontScaleKey),

@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/router/app_navigation.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -743,8 +744,13 @@ Widget _feedVideoTile(BuildContext context, String url) {
   return Material(
     color: scheme.surfaceContainerHighest,
     child: InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => NiosgramVideoScreen(url: url)),
+      onTap: () => pushAppRoute<void>(
+        context,
+        Uri(
+          path: '/niosgram/video',
+          queryParameters: <String, String>{'url': url},
+        ).toString(),
+        fallback: (_) => NiosgramVideoScreen(url: url),
       ),
       child: Center(
         child: Column(

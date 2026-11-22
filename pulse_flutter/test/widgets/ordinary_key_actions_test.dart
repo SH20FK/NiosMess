@@ -153,7 +153,6 @@ void main() {
                 const VisualThemeSettings(
                   seedColor: Color(0xFFEAB0FF),
                   themeMode: ThemeMode.dark,
-                  predictiveBackEnabled: false,
                   useSystemDynamic: false,
                 ),
                 brightness,

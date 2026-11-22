@@ -183,7 +183,6 @@ void main() {
                   seedColor: Color(0xFFEAB0FF),
                   themeMode: ThemeMode.dark,
                   useSystemDynamic: false,
-                  predictiveBackEnabled: false,
                 ),
                 brightness,
               ),

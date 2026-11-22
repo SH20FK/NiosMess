@@ -433,13 +433,13 @@ class _VideoOverlayTile extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
+                      color: scheme.scrim.withValues(alpha: 0.65),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       timerLabel,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: CallTokens.onDarkSurface,
                         fontSize: 10,
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.w600,
@@ -465,7 +465,7 @@ class _VideoOverlayTile extends StatelessWidget {
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.65),
+                            color: scheme.scrim.withValues(alpha: 0.65),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -473,7 +473,9 @@ class _VideoOverlayTile extends StatelessWidget {
                                 ? Icons.mic_off_rounded
                                 : Icons.mic_rounded,
                             size: 15,
-                            color: data.isMuted ? scheme.error : Colors.white,
+                            color: data.isMuted
+                                ? scheme.error
+                                : CallTokens.onDarkSurface,
                           ),
                         ),
                       ),

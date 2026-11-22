@@ -276,7 +276,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withValues(alpha: 0.70),
+                        scheme.scrim.withValues(alpha: 0.70),
                         Colors.transparent,
                       ],
                     ),

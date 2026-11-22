@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/providers/token_provider.dart';
+import 'package:pulse_flutter/router/app_navigation.dart';
 import 'package:pulse_flutter/screens/plus_activation_screen.dart';
 import 'package:pulse_flutter/services/plus_activation_link.dart';
 import 'package:pulse_flutter/services/purchase_device_identity.dart';
@@ -106,8 +107,10 @@ class _PlusPurchaseOptionsState extends ConsumerState<PlusPurchaseOptions> {
     setState(() {
       linkError = null;
     });
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => PlusActivationScreen(code: code)),
+    await pushAppRoute<void>(
+      context,
+      Uri(path: '/plus/activate', fragment: code).toString(),
+      fallback: (_) => PlusActivationScreen(code: code),
     );
     if (mounted) widget.onChanged();
   }

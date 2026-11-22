@@ -32,6 +32,7 @@ import 'package:pulse_flutter/widgets/chat/desktop_drag_drop_area.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/router/app_navigation.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/bot_detector.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
@@ -2705,11 +2706,11 @@ class _ChatHeaderScope extends ConsumerWidget implements PreferredSizeWidget {
               ),
             ),
       onTopics: isGroup
-          ? () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) =>
-                    GroupTopicsScreen(chatId: chat?.topicParentId ?? chatId),
-              ),
+          ? () => pushAppRoute<void>(
+              context,
+              '/chat/${chat?.topicParentId ?? chatId}/topics',
+              fallback: (_) =>
+                  GroupTopicsScreen(chatId: chat?.topicParentId ?? chatId),
             )
           : null,
       onCreateInteractive:

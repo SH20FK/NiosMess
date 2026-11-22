@@ -37,11 +37,7 @@ class SettingsChatsScreen extends ConsumerWidget {
             SettingsListItem.nav(
               icon: Icons.folder_outlined,
               title: context.l10n.inboxFolders,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ChatFoldersScreen(),
-                ),
-              ),
+              onTap: () => openChatFolders(context),
             ),
             SettingsAnchor(
               id: 'chats.sendOnEnter',

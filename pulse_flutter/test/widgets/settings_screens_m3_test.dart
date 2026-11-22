@@ -108,7 +108,6 @@ Widget _wrapWithApp(Widget child, {Size surfaceSize = const Size(800, 1000)}) {
       seedColor: Color(0xFF6750A4),
       themeMode: ThemeMode.light,
       useSystemDynamic: false,
-      predictiveBackEnabled: false,
     ),
     Brightness.light,
   );

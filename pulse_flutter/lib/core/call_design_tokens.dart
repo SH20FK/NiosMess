@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 /// Material 3 Expressive design tokens for NiosMess calls.
 class CallTokens {
@@ -7,35 +8,27 @@ class CallTokens {
 
   // Expressive Corner Radii
   static const double cardBorderRadius = 24.0;
-  static const double dockBorderRadius = 28.0;
+  static const double dockBorderRadius = AppRadii.xl;
   static const double pipBorderRadius = 20.0;
   static const double buttonBorderRadius = 20.0;
-  static const double pillBorderRadius = 100.0;
-
-  // Elevation: strictly 0.0 per M3 Expressive protocol
-  static const double cardElevation = 0.0;
-  static const double dockElevation = 0.0;
+  static const double pillBorderRadius = AppRadii.full;
 
   // Component Dimensions
-  static const double avatarSmallSize = 48.0;
   static const double avatarLargeSize = 128.0;
-  static const double controlButtonSize = 56.0;
-  static const double endCallButtonSize = 64.0;
-  static const double incomingButtonSize = 56.0;
+  static const double incomingButtonSize = AppHeights.lg;
   static const double videoPipWidth = 120.0;
   static const double videoPipHeight = 180.0;
   static const double meetEndButtonWidth = 80.0;
-  static const double meetEndButtonHeight = 56.0;
-  static const double meetActionButtonSize = 56.0;
-  static const double meetTileBorderRadius = 24.0;
+  static const double meetEndButtonHeight = AppHeights.lg;
 
-  // Dark Tonal Palette Tokens for Call Screens
+  // Call screens are always dark. These mirror the dark ladder of
+  // AppSurfaces; test/unit/call_tokens_test.dart keeps them in sync.
   static const Color darkSurface = Color(0xFF1A1A1A);
-  static const Color meetSurface = Color(0xFF1A1A1A);
-  static const Color darkSurfaceContainerHigh = Color(0xFF2C2C2C);
-  static const Color darkSurfaceContainerHighest = Color(0xFF353535);
-  static const Color meetTileBackground = Color(0xFF202020);
-  static const Color meetChipBackground = Color(0xFF2C2C2C);
+  static const Color darkSurfaceContainerHigh = Color(0xFF343434);
+  static const Color darkSurfaceContainerHighest = Color(0xFF404040);
+
+  /// Text and icons drawn over video or a dark call surface.
+  static const Color onDarkSurface = Color(0xFFE6E6E6);
 
   // Animation Durations
   static const Duration incomingOverlayAnimationDuration = Duration(
