@@ -1,12 +1,9 @@
 import 'package:pulse_flutter/core/localization/secret_chat_l10n.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/settings/settings_node.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
 
 /// Search match result with full breadcrumb path and navigation target.
 class SettingsSearchResult {
@@ -318,20 +315,13 @@ class SettingsRegistry {
   /// Deeply searchable items mapped to their parent section and route.
   static final List<SettingsNode> _searchableChildren = <SettingsNode>[
     // Appearance items
-    SettingsSliderNode(
+    SettingsItemNode(
       id: 'ui_corner_radius',
       parentNavId: 'appearance',
       title: (AppLocalizations l) => l.appearanceUiRounding,
       subtitle: (AppLocalizations l) => l.appearanceUiRoundingDesc,
       icon: Icons.rounded_corner_rounded,
       group: SettingsGroup.appearance,
-      min: 8.0,
-      max: 28.0,
-      divisions: 20,
-      unit: 'dp',
-      valueSelector: (UiSettingsState s) => s.uiCornerRadius,
-      onChanged: (WidgetRef ref, double v) =>
-          ref.read(uiSettingsProvider.notifier).setUiCornerRadius(v),
       keywords: const <String>[
         'скругление интерфейса',
         'радиус',
@@ -342,19 +332,13 @@ class SettingsRegistry {
         'geometry',
       ],
     ),
-    SettingsChoiceNode<AppFontScale>(
-      id: 'font_scale',
+    SettingsItemNode(
+      id: 'appearance.font.scale',
       parentNavId: 'appearance',
       title: (AppLocalizations l) => l.appearanceFontSize,
       subtitle: (AppLocalizations l) => l.appearanceFontSizeSubtitle,
       icon: Icons.format_size_rounded,
       group: SettingsGroup.appearance,
-      options: AppFontScale.values,
-      optionLabel: (AppFontScale scale, AppLocalizations l) =>
-          '${(scale.scale * 100).toInt()}%',
-      valueSelector: (UiSettingsState s) => s.fontScale,
-      onChanged: (WidgetRef ref, AppFontScale scale) =>
-          ref.read(uiSettingsProvider.notifier).setFontScale(scale),
       keywords: const <String>[
         'шрифт',
         'текст',
@@ -365,17 +349,14 @@ class SettingsRegistry {
       ],
     ),
 
-    SettingsToggleNode(
-      id: 'system_dynamic_colors',
+    SettingsItemNode(
+      id: 'appearance.color.source',
       availability: () => !kIsWeb,
       parentNavId: 'appearance',
       title: (AppLocalizations l) => l.appearanceSystemColors,
       subtitle: (AppLocalizations l) => l.appearanceSystemColorsSubtitle,
       icon: Icons.auto_awesome_rounded,
       group: SettingsGroup.appearance,
-      valueSelector: (UiSettingsState s) => s.useSystemDynamic,
-      onChanged: (WidgetRef ref, bool v) =>
-          ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(v),
       keywords: const <String>[
         'динамические цвета',
         'системные цвета',
@@ -385,16 +366,13 @@ class SettingsRegistry {
     ),
 
     // Chats items
-    SettingsToggleNode(
-      id: 'send_on_enter',
+    SettingsItemNode(
+      id: 'chats.sendOnEnter',
       parentNavId: 'chats',
       title: (AppLocalizations l) => l.settingsChatsSendOnEnter,
       subtitle: (AppLocalizations l) => l.settingsChatsSendOnEnterDesc,
       icon: Icons.keyboard_return_rounded,
       group: SettingsGroup.chats,
-      valueSelector: (UiSettingsState s) => s.sendOnEnter,
-      onChanged: (WidgetRef ref, bool v) =>
-          ref.read(uiSettingsProvider.notifier).setSendOnEnter(v),
       keywords: const <String>[
         'enter',
         'отправка',
@@ -403,7 +381,7 @@ class SettingsRegistry {
         'keyboard',
       ],
     ),
-    SettingsToggleNode(
+    SettingsItemNode(
       id: 'auto_download_wifi',
       parentNavId: 'storage',
       title: (AppLocalizations l) =>
@@ -411,9 +389,6 @@ class SettingsRegistry {
       subtitle: (AppLocalizations l) => l.settingsChatsAutoDownloadWifiDesc,
       icon: Icons.wifi_rounded,
       group: SettingsGroup.storage,
-      valueSelector: (UiSettingsState s) => s.autoDownloadWifi,
-      onChanged: (WidgetRef ref, bool v) =>
-          ref.read(uiSettingsProvider.notifier).setAutoDownloadWifi(v),
       keywords: const <String>[
         'автозагрузка wifi',
         'вайфай',
@@ -423,7 +398,7 @@ class SettingsRegistry {
         'wifi download',
       ],
     ),
-    SettingsToggleNode(
+    SettingsItemNode(
       id: 'auto_download_cellular',
       availability: () => !kIsWeb,
       parentNavId: 'storage',
@@ -431,9 +406,6 @@ class SettingsRegistry {
       subtitle: (AppLocalizations l) => l.settingsChatsAutoDownloadCellularDesc,
       icon: Icons.signal_cellular_alt_rounded,
       group: SettingsGroup.storage,
-      valueSelector: (UiSettingsState s) => s.autoDownloadCellular,
-      onChanged: (WidgetRef ref, bool v) =>
-          ref.read(uiSettingsProvider.notifier).setAutoDownloadCellular(v),
       keywords: const <String>[
         'мобильная сеть',
         'сотовая сеть',
@@ -444,17 +416,13 @@ class SettingsRegistry {
     ),
 
     // Notifications items
-    SettingsToggleNode(
+    SettingsItemNode(
       id: 'push_notifications',
       parentNavId: 'notifications',
       title: (AppLocalizations l) => l.settingsPushNotifications,
       subtitle: (AppLocalizations l) => l.settingsPushNotificationsSubtitle,
       icon: Icons.notifications_active_rounded,
       group: SettingsGroup.notifications,
-      valueSelector: (UiSettingsState s) => s.notifications,
-      onChanged: (WidgetRef ref, bool v) async {
-        await updateNotificationPreference(ref, v);
-      },
       keywords: const <String>[
         'уведомления',
         'пуши',
@@ -463,20 +431,13 @@ class SettingsRegistry {
         'notifications',
       ],
     ),
-    SettingsSliderNode(
+    SettingsItemNode(
       id: 'sound_volume',
       parentNavId: 'notifications',
       title: (AppLocalizations l) => l.settingsVolume,
       subtitle: (AppLocalizations l) => l.noticeUiSoundsHint,
       icon: Icons.volume_up_rounded,
       group: SettingsGroup.notifications,
-      min: 0.0,
-      max: 1.0,
-      divisions: 10,
-      unit: '%',
-      valueSelector: (UiSettingsState s) => s.soundVolume,
-      onChanged: (WidgetRef ref, double v) =>
-          ref.read(uiSettingsProvider.notifier).setSoundVolume(v),
       keywords: const <String>[
         'громкость',
         'звук',
@@ -504,7 +465,7 @@ class SettingsRegistry {
       ],
     ),
     SettingsNavNode(
-      id: 'blocked_users',
+      id: 'privacy.blockedUsers',
       parentNavId: 'privacy',
       title: (AppLocalizations l) => l.privacyBlacklist,
       subtitle: (AppLocalizations l) => l.blockedUsersTitle,
@@ -839,15 +800,8 @@ class SettingsRegistry {
             breadcrumb: '$parentTitle › $title',
             targetRoute: route,
             targetSectionId: sectionId,
-            anchor: ownSection
-                ? null
-                : switch (childNode.id) {
-                    'send_on_enter' => 'chats.sendOnEnter',
-                    'font_scale' => 'appearance.font.scale',
-                    'system_dynamic_colors' => 'appearance.color.source',
-                    'blocked_users' => 'privacy.blockedUsers',
-                    _ => childNode.id,
-                  },
+            // The id of a row is its anchor on the screen.
+            anchor: ownSection ? null : childNode.id,
             score: score,
           ),
         );

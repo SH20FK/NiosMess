@@ -87,6 +87,25 @@ void main() {
       expect(reset.anchor, 'storage.reset');
     });
 
+    test('a row found by search is highlighted under its own id', () {
+      final ids = SettingsRegistry.getAllNodes().map((n) => n.id).toList();
+      expect(ids.toSet().length, ids.length, reason: 'ids must be unique');
+
+      var anchored = 0;
+      for (final node in SettingsRegistry.getAllNodes()) {
+        if (node.parentNavId == null || !node.isAvailable()) continue;
+        final result = SettingsRegistry.search(
+          node.title(l10nRu),
+          l10nRu,
+        ).firstWhere((r) => identical(r.node, node));
+        // A row that opens a screen of its own has nothing to highlight.
+        if (result.anchor == null) continue;
+        anchored++;
+        expect(result.anchor, node.id);
+      }
+      expect(anchored, greaterThanOrEqualTo(20));
+    });
+
     test('search finds UI corner radius in Russian and English', () {
       // Search Russian "скругление"
       final ruResults = SettingsRegistry.search('скругление', l10nRu);
@@ -146,8 +165,8 @@ void main() {
     test('search finds privacy rules and blocked users', () {
       final results = SettingsRegistry.search('черный список', l10nRu);
       expect(results.isNotEmpty, isTrue);
-      expect(results.any((r) => r.node.id == 'blocked_users'), isTrue);
-      final blocked = results.firstWhere((r) => r.node.id == 'blocked_users');
+      expect(results.any((r) => r.node.id == 'privacy.blockedUsers'), isTrue);
+      final blocked = results.firstWhere((r) => r.node.id == 'privacy.blockedUsers');
       expect(blocked.targetRoute, equals('/settings/privacy/blocked-users'));
     });
 

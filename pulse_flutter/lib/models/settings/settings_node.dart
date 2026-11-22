@@ -1,9 +1,7 @@
 import 'package:pulse_flutter/core/localization/secret_chat_l10n.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 /// Semantic grouping for settings items according to Part F of the audit.
 enum SettingsGroup {
@@ -79,79 +77,24 @@ final class SettingsNavNode extends SettingsNode {
     super.keywords,
     super.availability,
     super.parentNavId,
-    this.badgeValue,
   });
 
   final String route;
   final SettingsSectionId? sectionId;
-  final String? Function(AppLocalizations, UiSettingsState)? badgeValue;
 }
 
-/// A node that represents a toggle switch.
-final class SettingsToggleNode extends SettingsNode {
-  const SettingsToggleNode({
+/// A row on the screen of its parent section. Search opens that screen and
+/// highlights the row whose anchor is this node's [id]; the screen owns the
+/// control itself.
+final class SettingsItemNode extends SettingsNode {
+  const SettingsItemNode({
     required super.id,
     required super.title,
     super.subtitle,
     required super.icon,
     required super.group,
-    required this.valueSelector,
-    required this.onChanged,
     super.keywords,
     super.availability,
     super.parentNavId,
   });
-
-  final bool Function(UiSettingsState) valueSelector;
-  final void Function(WidgetRef, bool) onChanged;
-}
-
-/// A node that represents a multi-choice option (SegmentedButton or radio).
-final class SettingsChoiceNode<T> extends SettingsNode {
-  const SettingsChoiceNode({
-    required super.id,
-    required super.title,
-    super.subtitle,
-    required super.icon,
-    required super.group,
-    required this.options,
-    required this.optionLabel,
-    required this.valueSelector,
-    required this.onChanged,
-    super.keywords,
-    super.availability,
-    super.parentNavId,
-  });
-
-  final List<T> options;
-  final String Function(T, AppLocalizations) optionLabel;
-  final T Function(UiSettingsState) valueSelector;
-  final void Function(WidgetRef, T) onChanged;
-}
-
-/// A node that represents a continuous or stepped slider.
-final class SettingsSliderNode extends SettingsNode {
-  const SettingsSliderNode({
-    required super.id,
-    required super.title,
-    super.subtitle,
-    required super.icon,
-    required super.group,
-    required this.min,
-    required this.max,
-    required this.divisions,
-    required this.unit,
-    required this.valueSelector,
-    required this.onChanged,
-    super.keywords,
-    super.availability,
-    super.parentNavId,
-  });
-
-  final double min;
-  final double max;
-  final int divisions;
-  final String unit;
-  final double Function(UiSettingsState) valueSelector;
-  final void Function(WidgetRef, double) onChanged;
 }
