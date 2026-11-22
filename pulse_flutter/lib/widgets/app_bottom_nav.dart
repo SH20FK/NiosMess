@@ -56,7 +56,6 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
 
   @override
   Widget build(BuildContext context) {
-    final int totalUnread = ref.watch(totalUnreadCountProvider);
     final tier = ref.watch(adaptivePerformanceProvider.select((s) => s.tier));
     final bool animate = !context.reduceMotion;
     final scheme = Theme.of(context).colorScheme;
@@ -68,7 +67,7 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
         context.l10n.tabChats,
         Icons.chat_bubble_outline_rounded,
         Icons.chat_bubble_rounded,
-        badge: totalUnread,
+        unread: true,
       ),
       _NavItem(
         context.l10n.tabNiosgram,
@@ -143,16 +142,25 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
             );
             return NavigationDestination(
               label: item.label,
-              icon: _destinationIcon(
-                scheme: scheme,
-                icon: icon,
-                count: item.badge,
-                // M3 keeps the selected destination clean: the tonal pill and
-                // the filled icon already carry the state, and a badge sitting
-                // on top of the active icon was the unreadable case in the
-                // audit screenshot.
-                showBadge: !selected,
-              ),
+              // M3 keeps the selected destination clean: the tonal pill and
+              // the filled icon already carry the state, and a badge sitting
+              // on top of the active icon was the unreadable case in the
+              // audit screenshot.
+              icon: item.unread && !selected
+                  // The counter is watched here, not in `build`: a new
+                  // message repaints one badge instead of the whole bar.
+                  ? Consumer(
+                      builder:
+                          (BuildContext context, WidgetRef ref, Widget? child) {
+                            return _destinationIcon(
+                              scheme: scheme,
+                              icon: child!,
+                              count: ref.watch(totalUnreadCountProvider),
+                            );
+                          },
+                      child: icon,
+                    )
+                  : icon,
             );
           }),
         ),
@@ -171,9 +179,8 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
     required ColorScheme scheme,
     required Widget icon,
     required int count,
-    required bool showBadge,
   }) {
-    if (count <= 0 || !showBadge) return icon;
+    if (count <= 0) return icon;
     return Badge(
       backgroundColor: scheme.primary,
       textColor: scheme.onPrimary,
@@ -194,12 +201,19 @@ class _AppBottomNavState extends ConsumerState<AppBottomNav> {
 }
 
 class _NavItem {
-  const _NavItem(this.label, this.icon, this.selectedIcon, {this.badge = 0});
+  const _NavItem(
+    this.label,
+    this.icon,
+    this.selectedIcon, {
+    this.unread = false,
+  });
 
   final String label;
   final IconData icon;
   final IconData selectedIcon;
-  final int badge;
+
+  /// Whether this destination carries the total unread counter.
+  final bool unread;
 }
 
 class TabMorphIcon extends StatefulWidget {

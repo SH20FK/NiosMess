@@ -82,7 +82,11 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   late final Set<int> _activatedTabs;
   final TabTransitionController _tabTransition = TabTransitionController();
 
-  double _desktopChatListWidth = 360.0;
+  /// A notifier, not state: dragging the divider resizes the inbox pane alone
+  /// instead of rebuilding the whole shell on every pointer move.
+  final ValueNotifier<double> _desktopChatListWidth = ValueNotifier<double>(
+    360.0,
+  );
   DateTime? _lastBackPressTime;
   Timer? _startupTimer;
   Timer? _tabWarmupTimer;
@@ -328,6 +332,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     _performance?.setInteractionActive(this, false);
     _startupTimer?.cancel();
     _tabWarmupTimer?.cancel();
+    _desktopChatListWidth.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -486,10 +491,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                 minChatListWidth,
                 640.0,
               );
-              final double effectiveChatListWidth = _desktopChatListWidth.clamp(
-                minChatListWidth,
-                maxChatListWidth,
-              );
 
               final bool desktopChatOpen =
                   capabilities.browserWorkspace && desktopChatId != null;
@@ -505,8 +506,20 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      SizedBox(
-                        width: effectiveChatListWidth,
+                      ValueListenableBuilder<double>(
+                        valueListenable: _desktopChatListWidth,
+                        builder:
+                            (BuildContext context, double width, Widget? pane) {
+                              return SizedBox(
+                                // Clamped here as well: the window can shrink
+                                // below a width chosen earlier.
+                                width: width.clamp(
+                                  minChatListWidth,
+                                  maxChatListWidth,
+                                ),
+                                child: pane,
+                              );
+                            },
                         child: _InboxPane(
                           overlayComposer: true,
                           bottomInset: composerBottomInset,
@@ -514,19 +527,13 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                       ),
                       _DraggableSidebarDivider(
                         onDragUpdate: (double delta) {
-                          setState(() {
-                            _desktopChatListWidth =
-                                (_desktopChatListWidth + delta).clamp(
-                                  minChatListWidth,
-                                  maxChatListWidth,
-                                );
-                          });
+                          _desktopChatListWidth.value =
+                              (_desktopChatListWidth.value + delta).clamp(
+                                minChatListWidth,
+                                maxChatListWidth,
+                              );
                         },
-                        onReset: () {
-                          setState(() {
-                            _desktopChatListWidth = 360.0;
-                          });
-                        },
+                        onReset: () => _desktopChatListWidth.value = 360.0,
                       ),
                       Expanded(
                         child: AnimatedSwitcher(

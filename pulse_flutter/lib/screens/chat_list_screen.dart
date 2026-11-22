@@ -50,6 +50,66 @@ import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 
 enum _LastMessageKind { photo, video, audio, file }
 
+/// Trailing room for the composer button.
+///
+/// Its own widget on purpose: the button hides and returns while the list
+/// scrolls, and only this sliver has to follow, not the whole screen.
+class _ComposerClearance extends ConsumerWidget {
+  const _ComposerClearance();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool composerVisible =
+        ref.watch(chatListFabVisibleProvider) &&
+        !ref.watch(
+          inboxSearchProvider.select((InboxSearchState s) => s.active),
+        );
+    return SliverPadding(
+      padding: EdgeInsets.only(
+        // 24 resting + the 56 dp FAB and its 16 dp gap when the floating
+        // button is visible + the system inset.
+        bottom:
+            24 +
+            (composerVisible ? 72 : 0) +
+            MediaQuery.viewPaddingOf(context).bottom,
+      ),
+    );
+  }
+}
+
+/// The inbox snapshot the screen subscribes to. Two snapshots are equal when
+/// they differ only in presence, so `select` skips the screen for those.
+class _PresenceBlindChats {
+  const _PresenceBlindChats(this.chats);
+
+  final AsyncValue<List<ApiChatSummary>> chats;
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! _PresenceBlindChats) return false;
+    final AsyncValue<List<ApiChatSummary>> a = chats;
+    final AsyncValue<List<ApiChatSummary>> b = other.chats;
+    if (identical(a, b)) return true;
+    if (a.runtimeType != b.runtimeType ||
+        a.isLoading != b.isLoading ||
+        !identical(a.error, b.error)) {
+      return false;
+    }
+    final List<ApiChatSummary>? x = a.value;
+    final List<ApiChatSummary>? y = b.value;
+    if (x == null || y == null) return x == null && y == null;
+    if (x.length != y.length) return false;
+    for (int i = 0; i < x.length; i++) {
+      if (!x[i].sameExceptPresence(y[i])) return false;
+    }
+    return true;
+  }
+
+  // Only `==` is used by `select`; equal snapshots must share a hash.
+  @override
+  int get hashCode => 0;
+}
+
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
 
@@ -200,9 +260,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final bool isAuthenticated = ref.watch(
       authProvider.select((s) => s.isAuthenticated),
     );
-    final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.watch(
-      visibleChatsProvider,
-    );
+    // Presence is watched by each row: an online/offline push must not rebuild
+    // the whole list.
+    final AsyncValue<List<ApiChatSummary>> chatsAsync = ref
+        .watch(visibleChatsProvider.select(_PresenceBlindChats.new))
+        .chats;
     final filter = ref.watch(chatFilterProvider);
     final browserWorkspace = ref
         .watch(clientCapabilitiesProvider)
@@ -213,7 +275,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           )
         : ref.watch(desktopSelectedChatProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final bool fabVisible = ref.watch(chatListFabVisibleProvider);
     // With a query typed into the header, results replace the chat list.
     final bool searching = ref.watch(
       inboxSearchProvider.select((InboxSearchState s) => s.hasQuery),
@@ -271,16 +332,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       desktopChatId,
                     ),
                   ],
-                  SliverPadding(
-                    padding: EdgeInsets.only(
-                      // 24 resting + the 56 dp FAB and its 16 dp gap when the
-                      // floating button is visible + the system inset.
-                      bottom:
-                          24 +
-                          (fabVisible ? 72 : 0) +
-                          MediaQuery.viewPaddingOf(context).bottom,
-                    ),
-                  ),
+                  const _ComposerClearance(),
                 ],
               ),
             ),
@@ -572,10 +624,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           ? null
                           : _chatPreviewIcon(chat),
                       compact: compact,
+                      // Presence has its own subscription: the list snapshot
+                      // this row was built from is blind to it.
                       isOnline:
                           !chat.isSaved &&
                           chat.chatType == 'direct' &&
-                          chat.isOnline,
+                          ref.watch(chatOnlineProvider(chat.id)),
                       isSecret: chat.isSecret,
                       isSaved: chat.isSaved,
                       partnerBadges: chat.partnerBadges,

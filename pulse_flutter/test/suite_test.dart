@@ -254,6 +254,8 @@ import 'widgets/chat_tile_inbox_regressions_test.dart'
 import 'widgets/wave_a_visual_tokens_test.dart' as wave_a_visual_tokens;
 import 'widgets/app_bottom_nav_badge_test.dart' as app_bottom_nav_badge;
 import 'widgets/inbox_inline_search_test.dart' as inbox_inline_search;
+import 'widgets/inbox_presence_rebuild_test.dart' as inbox_presence_rebuild;
+import 'providers/inbox_cold_start_test.dart' as inbox_cold_start;
 
 void main() {
   group('Motion regressions', () {
@@ -512,6 +514,8 @@ void main() {
     group('wave_a_visual_tokens', wave_a_visual_tokens.main);
     group('app_bottom_nav_badge', app_bottom_nav_badge.main);
     group('inbox_inline_search', inbox_inline_search.main);
+    group('inbox_presence_rebuild', inbox_presence_rebuild.main);
+    group('inbox_cold_start', inbox_cold_start.main);
 
     // End-to-End & Integration Suites
     e2e_niosgram_and_settings.main();

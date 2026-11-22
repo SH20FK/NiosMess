@@ -223,8 +223,13 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       _readResets.clear();
     }
     _previewDecryptions.clear();
-    // An authenticated account change must clear previous AsyncValue data too.
-    state = const AsyncData([]);
+    // Riverpod carries the previous value through a rebuild, and another
+    // account must not inherit it. The first build has nothing to drop: an
+    // empty list published there read as "no chats" instead of loading.
+    if (state.hasValue) {
+      state = const AsyncData([]);
+      state = const AsyncLoading();
+    }
     if (identity.$1 == null || identity.$2 == null || identity.$2!.isEmpty) {
       return const <ApiChatSummary>[];
     }
@@ -300,6 +305,22 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       if (accountId != null) _flushPendingChats(onlyAccountId: accountId);
     });
 
+    // Cached ordinary chats go on screen before anything is awaited. Secret
+    // rows take their ids and previews from the secret store, which opens its
+    // boxes and secure storage first, so they join once it is ready.
+    List<ApiChatSummary> cached = const <ApiChatSummary>[];
+    try {
+      cached = ref
+          .read(cacheServiceProvider)
+          .getCachedChats(accountId: identity.$1);
+      final List<ApiChatSummary> plain = cached
+          .where((ApiChatSummary c) => !c.isSecret)
+          .toList(growable: false);
+      if (plain.isNotEmpty) state = AsyncData<List<ApiChatSummary>>(plain);
+    } catch (e) {
+      debugPrint('[backend_chat_provider.dart] Cache load error: $e');
+    }
+
     final secret = await ref.read(secretChatCoordinatorProvider.future);
     if (!_valid(generation)) return const [];
     if (secret != null) {
@@ -310,25 +331,33 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
         );
       });
       ref.onDispose(() => unawaited(subscription.cancel()));
-      final local = secret.mergeChats(const <ApiChatSummary>[]);
+      final local = secret.mergeChats(
+        state.value ?? const <ApiChatSummary>[],
+      );
       if (local.isNotEmpty) state = AsyncData(local);
     }
 
-    // Load cache immediately
-    try {
-      final List<ApiChatSummary> chats = ref
-          .read(cacheServiceProvider)
-          .getCachedChats(accountId: identity.$1);
-      if (chats.isNotEmpty) {
-        if (secret != null) await secret.importChats(chats);
+    if (cached.isNotEmpty) {
+      try {
+        if (secret != null) await secret.importChats(cached);
         if (!_valid(generation)) return const [];
-        state = AsyncData<List<ApiChatSummary>>(
-          secret?.mergeChats(chats) ?? chats,
-        );
-        unawaited(_hydrateInboxPreviews(chats));
+        if (cached.any((ApiChatSummary c) => c.isSecret)) {
+          // Ordinary rows are taken from the live state: a push may have
+          // updated them since they were published above.
+          final List<ApiChatSummary> rows = <ApiChatSummary>[
+            ...(state.value ?? const <ApiChatSummary>[]).where(
+              (ApiChatSummary c) => !c.isSecret,
+            ),
+            ...cached.where((ApiChatSummary c) => c.isSecret),
+          ];
+          state = AsyncData<List<ApiChatSummary>>(
+            secret?.mergeChats(rows) ?? (rows..sort(compareChatRecency)),
+          );
+        }
+        unawaited(_hydrateInboxPreviews(cached));
+      } catch (e) {
+        debugPrint('[backend_chat_provider.dart] Cache load error: $e');
       }
-    } catch (e) {
-      debugPrint('[backend_chat_provider.dart] Cache load error: $e');
     }
 
     final mesh = ref.read(bluetoothMeshProvider);
@@ -713,8 +742,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
   }
 
   void _applyNewMessagePush(ApiMessage message, {bool notify = true}) {
-    final List<ApiChatSummary>? currentChats = state.value;
-    if (currentChats == null) return;
+    // A list that is still loading counts as empty: the message then asks for
+    // a fresh list instead of being dropped before the first response.
+    final List<ApiChatSummary> currentChats =
+        state.value ?? const <ApiChatSummary>[];
 
     final int index = currentChats.indexWhere(
       (ApiChatSummary c) => c.id == message.chatId,
@@ -1150,6 +1181,26 @@ final chatByIdProvider = Provider.family<ApiChatSummary?, int>((
         if (chat.id == chatId) return chat;
       }
       return null;
+    }),
+  );
+});
+
+/// Presence of one chat, for the dot on its inbox row.
+///
+/// Auto-disposable and narrowed to a bool: an online/offline push rebuilds the
+/// one row that shows it, and a row that scrolls away releases its element.
+final chatOnlineProvider = Provider.autoDispose.family<bool, int>((
+  Ref ref,
+  int chatId,
+) {
+  return ref.watch(
+    chatsProvider.select((AsyncValue<List<ApiChatSummary>> value) {
+      final List<ApiChatSummary>? chats = value.value;
+      if (chats == null) return false;
+      for (final ApiChatSummary chat in chats) {
+        if (chat.id == chatId) return chat.isOnline;
+      }
+      return false;
     }),
   );
 });
@@ -1661,7 +1712,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     ApiChatSummary? summary = ref.read(chatByIdProvider(_chatId));
     if (summary == null) {
       try {
-        await ref.read(chatsProvider.future);
+        // The inbox may still be on its first load; do not hold the
+        // conversation behind it for longer than this.
+        await ref
+            .read(chatsProvider.future)
+            .timeout(const Duration(seconds: 8));
       } catch (_) {}
       summary = ref.read(chatByIdProvider(_chatId));
     }
@@ -2280,7 +2335,9 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     ApiChatSummary? chat = ref.read(chatByIdProvider(_chatId));
     if (chat == null) {
       try {
-        await ref.read(chatsProvider.future);
+        await ref
+            .read(chatsProvider.future)
+            .timeout(const Duration(seconds: 8));
         chat = ref.read(chatByIdProvider(_chatId));
       } catch (_) {}
     }

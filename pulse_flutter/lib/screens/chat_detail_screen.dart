@@ -809,7 +809,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     ApiChatSummary? currentChat = ref.read(chatByIdProvider(chatId));
     if (currentChat == null && !_isSecret) {
       try {
-        await ref.read(chatsProvider.future);
+        await ref
+            .read(chatsProvider.future)
+            .timeout(const Duration(seconds: 8));
       } catch (_) {}
       if (!mounted) return;
       currentChat = ref.read(chatByIdProvider(chatId));

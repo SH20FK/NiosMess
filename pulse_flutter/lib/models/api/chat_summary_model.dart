@@ -124,6 +124,44 @@ class ApiChatSummary {
   DateTime get lastActivity =>
       lastMessage?.sentAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// Whether [other] is this summary apart from [isOnline].
+  ///
+  /// The inbox uses it to ignore presence pushes for the list as a whole.
+  /// Nested objects are compared by identity: `copyWith` keeps the instance of
+  /// an untouched field, and a false negative only costs one rebuild. Every
+  /// new field has to be added here, or a change to it will not repaint.
+  bool sameExceptPresence(ApiChatSummary other) =>
+      identical(this, other) ||
+      id == other.id &&
+          chatType == other.chatType &&
+          name == other.name &&
+          unreadCount == other.unreadCount &&
+          membersCount == other.membersCount &&
+          username == other.username &&
+          avatarUrl == other.avatarUrl &&
+          identical(lastMessage, other.lastMessage) &&
+          identical(partnerBadges, other.partnerBadges) &&
+          keyMismatch == other.keyMismatch &&
+          identical(partnerStatusEmoji, other.partnerStatusEmoji) &&
+          description == other.description &&
+          commentsEnabled == other.commentsEnabled &&
+          commentsChatId == other.commentsChatId &&
+          inviteLink == other.inviteLink &&
+          shareLink == other.shareLink &&
+          isSecret == other.isSecret &&
+          partnerPublicKey == other.partnerPublicKey &&
+          isPrivate == other.isPrivate &&
+          inviteToken == other.inviteToken &&
+          autoDeleteSeconds == other.autoDeleteSeconds &&
+          partnerUserId == other.partnerUserId &&
+          isBlockedByMe == other.isBlockedByMe &&
+          isBlockedByUser == other.isBlockedByUser &&
+          isBlocked == other.isBlocked &&
+          isSaved == other.isSaved &&
+          topicsEnabled == other.topicsEnabled &&
+          topicClosed == other.topicClosed &&
+          topicParentId == other.topicParentId;
+
   bool get isBotChat =>
       partnerBadges.any(
         (ApiBadge b) =>

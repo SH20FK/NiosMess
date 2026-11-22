@@ -7,11 +7,8 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/features/chats/application/inbox_search_controller.dart';
-import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/chat_productivity.dart';
-import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/chat_filter_provider.dart';
-import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
@@ -51,14 +48,8 @@ class ChatFilterBar extends ConsumerWidget {
       inboxSearchProvider.select((InboxSearchState s) => (s.active, s.scope)),
     );
 
-    // Chat data is only needed for the per-folder unread badge; without folders
-    // the strip must not subscribe to the chat list at all.
-    final List<ApiChatSummary> chats = hasFolders
-        ? ref.watch(chatsProvider).value ?? const <ApiChatSummary>[]
-        : const <ApiChatSummary>[];
-    final Set<int> mutedChats = hasFolders
-        ? ref.watch(chatMuteHubProvider).value ?? const <int>{}
-        : const <int>{};
+    // Unread badges are watched by each folder pill: the strip itself never
+    // subscribes to the chat list.
 
     final bool haptics = ref.read(uiSettingsProvider).haptics;
 
@@ -103,15 +94,11 @@ class ChatFilterBar extends ConsumerWidget {
       ),
       if (hasFolders)
         for (final ChatFolder folder in folders)
-          _buildFolderPill(
+          _FolderPill(
+            key: ValueKey<String>('chat-filter-folder-${folder.id}'),
             folder: folder,
             selected: selectedFolderId == folder.id,
             minHeight: segmentHeight,
-            unread: _folderUnread(
-              folder: folder,
-              chats: chats,
-              muted: mutedChats,
-            ),
             onTap: () =>
                 selectFolder(selectedFolderId == folder.id ? null : folder.id),
             onLongPress: () => openChatFolders(context),
@@ -235,17 +222,32 @@ class ChatFilterBar extends ConsumerWidget {
     final double scaledLabel = MediaQuery.textScalerOf(context).scale(18);
     return math.max(base, scaledLabel + 6);
   }
+}
 
-  Widget _buildFolderPill({
-    required ChatFolder folder,
-    required bool selected,
-    required double minHeight,
-    required ({int unread, bool alert}) unread,
-    required VoidCallback onTap,
-    required VoidCallback onLongPress,
-  }) {
+/// Folder pill with its own unread counter subscription: a new message in a
+/// folder rebuilds this pill, not the whole strip.
+class _FolderPill extends ConsumerWidget {
+  const _FolderPill({
+    super.key,
+    required this.folder,
+    required this.selected,
+    required this.minHeight,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  final ChatFolder folder;
+  final bool selected;
+  final double minHeight;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ChatFolderUnread unread = ref.watch(
+      chatFolderUnreadProvider(folder.id),
+    );
     return _FilterPill(
-      key: ValueKey<String>('chat-filter-folder-${folder.id}'),
       label: CustomEmojiText(folder.title, maxLines: 1),
       selected: selected,
       minHeight: minHeight,
@@ -254,25 +256,6 @@ class ChatFilterBar extends ConsumerWidget {
       onTap: onTap,
       onLongPress: onLongPress,
     );
-  }
-
-  /// Unread total of a folder plus whether any unread chat is not muted.
-  ///
-  /// VK-style pill: the badge is tinted `primary` only when a muted chat is not
-  /// the sole reason for the count.
-  ({int unread, bool alert}) _folderUnread({
-    required ChatFolder folder,
-    required List<ApiChatSummary> chats,
-    required Set<int> muted,
-  }) {
-    int unread = 0;
-    bool alert = false;
-    for (final ApiChatSummary chat in chats) {
-      if (chat.unreadCount <= 0 || !folder.includes(chat)) continue;
-      unread += chat.unreadCount;
-      if (!muted.contains(chat.id)) alert = true;
-    }
-    return (unread: unread, alert: alert);
   }
 }
 

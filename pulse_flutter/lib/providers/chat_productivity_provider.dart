@@ -8,6 +8,7 @@ import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/chat_muted_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 
@@ -436,6 +437,51 @@ final visibleChatsProvider = Provider<AsyncValue<List<ApiChatSummary>>>(
     ];
   }),
 );
+
+/// Unread total of a folder plus whether any unread chat in it is not muted.
+///
+/// VK-style pill: the badge is tinted `primary` only when a muted chat is not
+/// the sole reason for the count.
+typedef ChatFolderUnread = ({int unread, bool alert});
+
+/// Counters of every folder, computed in one pass over the unread chats.
+final _chatFolderUnreadMapProvider =
+    Provider.autoDispose<Map<String, ChatFolderUnread>>((ref) {
+      final folders =
+          ref.watch(chatFoldersProvider).value ?? const <ChatFolder>[];
+      if (folders.isEmpty) return const <String, ChatFolderUnread>{};
+      final chats =
+          ref.watch(chatsProvider).value ?? const <ApiChatSummary>[];
+      final muted = ref.watch(chatMuteHubProvider).value ?? const <int>{};
+      final unread = <String, int>{};
+      final alert = <String>{};
+      for (final chat in chats) {
+        if (chat.unreadCount <= 0) continue;
+        for (final folder in folders) {
+          if (!folder.includes(chat)) continue;
+          unread[folder.id] = (unread[folder.id] ?? 0) + chat.unreadCount;
+          if (!muted.contains(chat.id)) alert.add(folder.id);
+        }
+      }
+      return <String, ChatFolderUnread>{
+        for (final folder in folders)
+          folder.id: (
+            unread: unread[folder.id] ?? 0,
+            alert: alert.contains(folder.id),
+          ),
+      };
+    });
+
+/// Counter of one folder. A record, so a folder pill is only notified when its
+/// own numbers change, not on every presence or preview update of the inbox.
+final chatFolderUnreadProvider = Provider.autoDispose
+    .family<ChatFolderUnread, String>(
+      (ref, folderId) =>
+          ref.watch(
+            _chatFolderUnreadMapProvider.select((counts) => counts[folderId]),
+          ) ??
+          (unread: 0, alert: false),
+    );
 
 final groupTopicsProvider = FutureProvider.autoDispose.family<GroupTopics, int>(
   (ref, id) async {
