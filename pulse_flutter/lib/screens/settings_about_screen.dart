@@ -17,9 +17,7 @@ import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
-import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
-import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/about/morphing_brand_mark.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
@@ -83,30 +81,6 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         subject: context.l10n.appName,
       ),
     );
-  }
-
-  Future<void> _resetPreferences() async {
-    final confirmed = await showAppConfirmDialog(
-      context: context,
-      title: context.l10n.settingsV2ResetConfirm,
-      subtitle: context.l10n.settingsV2ResetBody,
-      confirmLabel: context.l10n.settingsV2Reset,
-      cancelLabel: context.l10n.commonCancel,
-      destructive: true,
-    );
-    if (confirmed != true || !mounted) return;
-    try {
-      await ref.read(uiSettingsProvider.notifier).resetAll();
-      // Notification categories live under their own per-account key.
-      await ref.read(notificationPreferencesProvider.notifier).reset();
-      if (mounted) {
-        AppToast.showSuccess(context, context.l10n.settingsV2ResetDone);
-      }
-    } catch (_) {
-      if (mounted) {
-        AppToast.showError(context, context.l10n.settingsV2ResetFailed);
-      }
-    }
   }
 
   @override
@@ -253,12 +227,6 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                   }
                 },
               ),
-            SettingsListItem.danger(
-              icon: Icons.restart_alt_rounded,
-              title: l.settingsV2Reset,
-              subtitle: l.settingsV2ResetHint,
-              onTap: _resetPreferences,
-            ),
           ],
         ),
         Padding(

@@ -40,8 +40,8 @@ class SettingsHealthIssue {
     : this._(
         kind: SettingsHealthIssueKind.pushDenied,
         severity: SettingsHealthSeverity.warning,
-        route: '/settings/preferences',
-        sectionId: SettingsSectionId.preferences,
+        route: '/settings/notifications',
+        sectionId: SettingsSectionId.notifications,
         anchor: 'push_notifications',
       );
 

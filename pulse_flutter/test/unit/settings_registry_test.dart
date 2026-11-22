@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/l10n/app_localizations_ru.dart';
 import 'package:pulse_flutter/l10n/app_localizations_en.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
+import 'package:pulse_flutter/router/web_settings_location.dart';
 import 'package:pulse_flutter/services/settings/settings_registry.dart';
 
 void main() {
@@ -14,16 +15,76 @@ void main() {
       expect(sections.isNotEmpty, isTrue);
 
       final ids = sections.map((s) => s.id).toList();
-      expect(ids.first, 'account');
-      expect(ids, isNot(contains('system_device')));
-      expect(ids.length, 10); // Account, eight categories and Plus.
-      expect(ids, contains('appearance'));
-      expect(ids, contains('chats'));
-      expect(ids, contains('notifications'));
-      expect(ids, contains('privacy'));
-      expect(ids, contains('storage'));
-      expect(ids, contains('language'));
-      expect(ids, contains('about'));
+      // The hub is one flat list in this order. Device diagnostics is reached
+      // from Help; the motion section was dissolved into its neighbours.
+      expect(ids, <String>[
+        'account',
+        'devices',
+        'notifications',
+        'privacy',
+        'chats',
+        'appearance',
+        'storage',
+        'language',
+        'plus',
+        'about',
+      ]);
+    });
+
+    test('renamed and dissolved sections still resolve from old links', () {
+      expect(
+        SettingsSectionId.fromString('preferences'),
+        SettingsSectionId.notifications,
+      );
+      expect(
+        SettingsSectionId.fromString('energySaving'),
+        SettingsSectionId.chats,
+      );
+      expect(
+        SettingsSectionId.fromString('nonsense'),
+        SettingsSectionId.account,
+      );
+      expect(
+        webSettingsRedirect(Uri.parse('/settings/preferences')),
+        '/main/settings?section=notifications',
+      );
+      expect(
+        webSettingsRedirect(Uri.parse('/settings/energy-saving')),
+        '/main/settings?section=chats',
+      );
+    });
+
+    test('search opens moved toggles on the screens that took them', () {
+      final stickers = SettingsRegistry.search(
+        'стикеры',
+        l10nRu,
+      ).firstWhere((r) => r.node.id == 'motion.stickers');
+      expect(stickers.targetRoute, '/settings/chats');
+      expect(stickers.targetSectionId, SettingsSectionId.chats);
+      expect(stickers.anchor, 'motion.stickers');
+
+      final optimize = SettingsRegistry.search(
+        'optimize',
+        l10nEn,
+      ).firstWhere((r) => r.node.id == 'motion.optimization');
+      expect(optimize.targetRoute, '/settings/storage');
+      expect(optimize.targetSectionId, SettingsSectionId.storage);
+
+      final devices = SettingsRegistry.search(
+        'сеансы',
+        l10nRu,
+      ).firstWhere((r) => r.node.id == 'devices');
+      expect(devices.targetRoute, '/settings/sessions');
+    });
+
+    test('search finds the reset row on the storage screen', () {
+      final reset = SettingsRegistry.search(
+        'сброс',
+        l10nRu,
+      ).firstWhere((r) => r.node.id == 'storage.reset');
+      expect(reset.targetRoute, '/settings/storage');
+      expect(reset.targetSectionId, SettingsSectionId.storage);
+      expect(reset.anchor, 'storage.reset');
     });
 
     test('search finds UI corner radius in Russian and English', () {

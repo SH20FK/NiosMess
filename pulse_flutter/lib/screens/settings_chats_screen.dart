@@ -33,6 +33,8 @@ class SettingsChatsScreen extends ConsumerWidget {
         (UiSettingsState s) => (
           sendOnEnter: s.sendOnEnter,
           doubleTapReactionEmoji: s.doubleTapReactionEmoji,
+          animateStickers: s.animateStickers,
+          animateEmoji: s.animateEmoji,
         ),
       ),
     );
@@ -89,6 +91,36 @@ class SettingsChatsScreen extends ConsumerWidget {
                       ),
                     ),
                 ],
+              ),
+            ),
+          ],
+        ),
+        SettingsSection(
+          title: context.l10n.settingsV2ChatAnimations,
+          subtitle: context.l10n.settingsV2ChatAnimationsHint,
+          children: [
+            SettingsAnchor(
+              id: 'motion.stickers',
+              child: SettingsListItem.toggle(
+                icon: Icons.auto_awesome_motion_rounded,
+                title: context.l10n.settingsV2Stickers,
+                subtitle: context.l10n.settingsV2StickersHint,
+                value: settings.animateStickers,
+                onChanged: ref
+                    .read(uiSettingsProvider.notifier)
+                    .setAnimateStickers,
+              ),
+            ),
+            SettingsAnchor(
+              id: 'motion.emoji',
+              child: SettingsListItem.toggle(
+                icon: Icons.mood_rounded,
+                title: context.l10n.settingsV2Emoji,
+                subtitle: context.l10n.settingsV2EmojiHint,
+                value: settings.animateEmoji,
+                onChanged: ref
+                    .read(uiSettingsProvider.notifier)
+                    .setAnimateEmoji,
               ),
             ),
           ],

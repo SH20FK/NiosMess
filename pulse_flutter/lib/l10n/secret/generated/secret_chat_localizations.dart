@@ -1391,12 +1391,6 @@ abstract class SecretChatLocalizations {
   /// **'Download media automatically'**
   String get webAutoDownload;
 
-  /// No description provided for @webMotionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Motion and performance'**
-  String get webMotionTitle;
-
   /// No description provided for @webDownloadStarted.
   ///
   /// In en, this message translates to:
@@ -2090,7 +2084,7 @@ abstract class SecretChatLocalizations {
   /// No description provided for @settingsV2Chats.
   ///
   /// In en, this message translates to:
-  /// **'Chats and calls'**
+  /// **'Chats'**
   String get settingsV2Chats;
 
   /// No description provided for @settingsV2ChatsHint.
@@ -2102,7 +2096,7 @@ abstract class SecretChatLocalizations {
   /// No description provided for @settingsV2Notifications.
   ///
   /// In en, this message translates to:
-  /// **'Notifications and sounds'**
+  /// **'Notifications'**
   String get settingsV2Notifications;
 
   /// No description provided for @settingsV2NotificationsHint.
@@ -2135,22 +2129,10 @@ abstract class SecretChatLocalizations {
   /// **'Cache, media downloads and device data'**
   String get settingsV2StorageHint;
 
-  /// No description provided for @settingsV2Motion.
-  ///
-  /// In en, this message translates to:
-  /// **'Motion and battery'**
-  String get settingsV2Motion;
-
-  /// No description provided for @settingsV2MotionHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Stickers, emoji and performance'**
-  String get settingsV2MotionHint;
-
   /// No description provided for @settingsV2Language.
   ///
   /// In en, this message translates to:
-  /// **'Language and time'**
+  /// **'Language'**
   String get settingsV2Language;
 
   /// No description provided for @settingsV2LanguageHint.
@@ -2162,7 +2144,7 @@ abstract class SecretChatLocalizations {
   /// No description provided for @settingsV2About.
   ///
   /// In en, this message translates to:
-  /// **'Help and about'**
+  /// **'Help'**
   String get settingsV2About;
 
   /// No description provided for @settingsV2AboutHint.
@@ -2495,29 +2477,11 @@ abstract class SecretChatLocalizations {
   /// **'Other'**
   String get settingsV2StorageOther;
 
-  /// No description provided for @settingsV2SecurityLink.
-  ///
-  /// In en, this message translates to:
-  /// **'Security settings'**
-  String get settingsV2SecurityLink;
-
-  /// No description provided for @settingsV2SecurityLinkHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Sessions, app lock and account protection'**
-  String get settingsV2SecurityLinkHint;
-
   /// No description provided for @settingsV2ProfileCopied.
   ///
   /// In en, this message translates to:
   /// **'Profile link copied'**
   String get settingsV2ProfileCopied;
-
-  /// No description provided for @settingsV2IdCopied.
-  ///
-  /// In en, this message translates to:
-  /// **'Nios ID copied'**
-  String get settingsV2IdCopied;
 
   /// No description provided for @settingsV2Economy.
   ///
@@ -3508,30 +3472,6 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Profile saved'**
   String get settingsProfileSaved;
-
-  /// No description provided for @settingsGroupPersonalization.
-  ///
-  /// In en, this message translates to:
-  /// **'Personalization'**
-  String get settingsGroupPersonalization;
-
-  /// No description provided for @settingsGroupCommunication.
-  ///
-  /// In en, this message translates to:
-  /// **'Communication'**
-  String get settingsGroupCommunication;
-
-  /// No description provided for @settingsGroupSecurity.
-  ///
-  /// In en, this message translates to:
-  /// **'Account and security'**
-  String get settingsGroupSecurity;
-
-  /// No description provided for @settingsGroupApplication.
-  ///
-  /// In en, this message translates to:
-  /// **'Application'**
-  String get settingsGroupApplication;
 
   /// No description provided for @settingsProfileChoosePhoto.
   ///
@@ -5068,6 +5008,12 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Nothing to clear'**
   String get settingsStorageNothingToClear;
+
+  /// No description provided for @settingsDevicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Devices'**
+  String get settingsDevicesTitle;
 }
 
 class _SecretChatLocalizationsDelegate

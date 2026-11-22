@@ -753,9 +753,6 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get webAutoDownload => 'Download media automatically';
 
   @override
-  String get webMotionTitle => 'Motion and performance';
-
-  @override
   String get webDownloadStarted => 'Download started';
 
   @override
@@ -1125,13 +1122,13 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
       'Theme, palette, text and interface density';
 
   @override
-  String get settingsV2Chats => 'Chats and calls';
+  String get settingsV2Chats => 'Chats';
 
   @override
   String get settingsV2ChatsHint => 'Typing, reactions, microphone and camera';
 
   @override
-  String get settingsV2Notifications => 'Notifications and sounds';
+  String get settingsV2Notifications => 'Notifications';
 
   @override
   String get settingsV2NotificationsHint =>
@@ -1151,19 +1148,13 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get settingsV2StorageHint => 'Cache, media downloads and device data';
 
   @override
-  String get settingsV2Motion => 'Motion and battery';
-
-  @override
-  String get settingsV2MotionHint => 'Stickers, emoji and performance';
-
-  @override
-  String get settingsV2Language => 'Language and time';
+  String get settingsV2Language => 'Language';
 
   @override
   String get settingsV2LanguageHint => 'Interface language and time zone';
 
   @override
-  String get settingsV2About => 'Help and about';
+  String get settingsV2About => 'Help';
 
   @override
   String get settingsV2AboutHint => 'Version, updates, help and documents';
@@ -1337,17 +1328,7 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get settingsV2StorageOther => 'Other';
 
   @override
-  String get settingsV2SecurityLink => 'Security settings';
-
-  @override
-  String get settingsV2SecurityLinkHint =>
-      'Sessions, app lock and account protection';
-
-  @override
   String get settingsV2ProfileCopied => 'Profile link copied';
-
-  @override
-  String get settingsV2IdCopied => 'Nios ID copied';
 
   @override
   String get settingsV2Economy => 'Economy';
@@ -1883,18 +1864,6 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsProfileSaved => 'Profile saved';
-
-  @override
-  String get settingsGroupPersonalization => 'Personalization';
-
-  @override
-  String get settingsGroupCommunication => 'Communication';
-
-  @override
-  String get settingsGroupSecurity => 'Account and security';
-
-  @override
-  String get settingsGroupApplication => 'Application';
 
   @override
   String get settingsProfileChoosePhoto => 'Choose photo';
@@ -2762,4 +2731,7 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsStorageNothingToClear => 'Nothing to clear';
+
+  @override
+  String get settingsDevicesTitle => 'Devices';
 }

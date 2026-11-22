@@ -13,7 +13,7 @@ import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
-import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
+import 'package:pulse_flutter/screens/settings_notifications_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
@@ -95,9 +95,9 @@ Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
             const SettingsStorageScreen(),
       ),
       GoRoute(
-        path: '/settings/preferences',
+        path: '/settings/notifications',
         builder: (BuildContext context, GoRouterState state) =>
-            const SettingsPreferencesScreen(),
+            const SettingsNotificationsScreen(),
       ),
       GoRoute(
         path: '/settings/language-region',
@@ -253,6 +253,9 @@ void main() {
           'Оформление',
         );
         expect(appearanceTile, findsWidgets);
+        // Sixth row of the flat list: below the fold of an 800 dp window.
+        await tester.ensureVisible(appearanceTile.first);
+        await tester.pump();
         await tester.tap(appearanceTile.first);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
@@ -288,6 +291,8 @@ void main() {
         matching: find.widgetWithText(SettingsListItem, 'Оформление'),
       );
       expect(appearance, findsOneWidget);
+      await tester.ensureVisible(appearance);
+      await tester.pump();
       await tester.tap(appearance);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

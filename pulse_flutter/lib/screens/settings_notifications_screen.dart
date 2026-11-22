@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
@@ -9,20 +10,21 @@ import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/notifications/notification_settings_section.dart';
+import 'package:pulse_flutter/widgets/settings/background_delivery_section.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
 
-class SettingsPreferencesScreen extends ConsumerStatefulWidget {
-  const SettingsPreferencesScreen({this.isEmbedded = false, super.key});
+class SettingsNotificationsScreen extends ConsumerStatefulWidget {
+  const SettingsNotificationsScreen({this.isEmbedded = false, super.key});
   final bool isEmbedded;
 
   @override
-  ConsumerState<SettingsPreferencesScreen> createState() =>
-      _SettingsPreferencesScreenState();
+  ConsumerState<SettingsNotificationsScreen> createState() =>
+      _SettingsNotificationsScreenState();
 }
 
-class _SettingsPreferencesScreenState
-    extends ConsumerState<SettingsPreferencesScreen> {
+class _SettingsNotificationsScreenState
+    extends ConsumerState<SettingsNotificationsScreen> {
   Timer? _previewTimer;
   bool get _previewing => _previewTimer != null;
 
@@ -85,6 +87,7 @@ class _SettingsPreferencesScreenState
       isEmbedded: widget.isEmbedded,
       children: [
         const NotificationSettingsSection(),
+        if (!kIsWeb) const BackgroundDeliverySection(),
         SettingsAnchor(
           id: 'sound_volume',
           child: SettingsSection(

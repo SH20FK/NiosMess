@@ -18,7 +18,6 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
-import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _Auth extends AuthNotifier {
@@ -161,8 +160,18 @@ void main() {
     tester,
   ) async {
     await showSettings(tester);
-    expect(find.text('Александр'), findsWidgets);
-    expect(tester.widget<PulseAvatar>(find.byType(PulseAvatar)).radius, 52);
+    // The hub says who is signed in on one compact card; the photo, the QR
+    // code and editing live in the Account section it opens.
+    final card = find.byKey(const ValueKey<String>('settings-profile-card'));
+    expect(
+      find.descendant(of: card, matching: find.text('Александр')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('@alex_demo')),
+      findsOneWidget,
+    );
+    expect(tester.getSize(card).height, greaterThanOrEqualTo(48));
     await capture(tester, 'settings-dark-expanded');
     await tester.drag(
       find.byType(CustomScrollView).first,
@@ -170,12 +179,17 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(tester.widget<PulseAvatar>(find.byType(PulseAvatar)).radius, 52);
-    final avatarTarget = find
-        .ancestor(of: find.byType(PulseAvatar), matching: find.byType(InkWell))
-        .first;
-    expect(tester.getSize(avatarTarget).width, greaterThanOrEqualTo(48));
     await capture(tester, 'settings-dark-collapsed');
+  });
+
+  testWidgets('the profile card opens the account section', (tester) async {
+    await showSettings(tester);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('settings-profile-card')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Account destination'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('reduced motion reveal has no hidden animation ticker', (

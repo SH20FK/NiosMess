@@ -765,9 +765,6 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get webAutoDownload => 'Автоматически загружать медиа';
 
   @override
-  String get webMotionTitle => 'Анимации и производительность';
-
-  @override
   String get webDownloadStarted => 'Загрузка файла началась';
 
   @override
@@ -1138,13 +1135,13 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
       'Тема, палитра, текст и плотность интерфейса';
 
   @override
-  String get settingsV2Chats => 'Чаты и звонки';
+  String get settingsV2Chats => 'Чаты';
 
   @override
   String get settingsV2ChatsHint => 'Ввод, реакции, микрофон и камера';
 
   @override
-  String get settingsV2Notifications => 'Уведомления и звуки';
+  String get settingsV2Notifications => 'Уведомления';
 
   @override
   String get settingsV2NotificationsHint =>
@@ -1157,25 +1154,19 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get settingsV2PrivacyHint => 'Видимость данных, доступ и шифрование';
 
   @override
-  String get settingsV2Storage => 'Данные и память';
+  String get settingsV2Storage => 'Данные и хранилище';
 
   @override
   String get settingsV2StorageHint => 'Кэш, загрузка медиа и данные устройства';
 
   @override
-  String get settingsV2Motion => 'Анимации и энергосбережение';
-
-  @override
-  String get settingsV2MotionHint => 'Стикеры, эмодзи и производительность';
-
-  @override
-  String get settingsV2Language => 'Язык и время';
+  String get settingsV2Language => 'Язык';
 
   @override
   String get settingsV2LanguageHint => 'Язык интерфейса и часовой пояс';
 
   @override
-  String get settingsV2About => 'Помощь и о приложении';
+  String get settingsV2About => 'Помощь';
 
   @override
   String get settingsV2AboutHint => 'Версия, обновления, справка и документы';
@@ -1356,17 +1347,7 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get settingsV2StorageOther => 'Прочее';
 
   @override
-  String get settingsV2SecurityLink => 'Настройки безопасности';
-
-  @override
-  String get settingsV2SecurityLinkHint =>
-      'Сессии, блокировка приложения и защита аккаунта';
-
-  @override
   String get settingsV2ProfileCopied => 'Ссылка на профиль скопирована';
-
-  @override
-  String get settingsV2IdCopied => 'Nios ID скопирован';
 
   @override
   String get settingsV2Economy => 'Экономный';
@@ -1904,18 +1885,6 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsProfileSaved => 'Профиль сохранён';
-
-  @override
-  String get settingsGroupPersonalization => 'Оформление';
-
-  @override
-  String get settingsGroupCommunication => 'Общение';
-
-  @override
-  String get settingsGroupSecurity => 'Аккаунт и защита';
-
-  @override
-  String get settingsGroupApplication => 'Приложение';
 
   @override
   String get settingsProfileChoosePhoto => 'Выбрать фото';
@@ -2787,4 +2756,7 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsStorageNothingToClear => 'Очищать нечего';
+
+  @override
+  String get settingsDevicesTitle => 'Устройства';
 }

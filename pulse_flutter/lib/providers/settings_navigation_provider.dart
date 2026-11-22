@@ -4,25 +4,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Identifiers for each settings section in Master-Detail.
 enum SettingsSectionId {
   account,
-  appearance,
-  chats,
+  sessions,
+  notifications,
   privacy,
+  chats,
+  appearance,
   storage,
   languageRegion,
-  preferences,
-  systemDevice,
+  plus,
   about,
-  e2ee,
-  sessions,
-  energySaving,
-  plus;
+  systemDevice,
+  e2ee;
+
+  /// Names of sections that were renamed or dissolved: a saved link with
+  /// `?section=` in it still opens the screen that took the content over.
+  static const Map<String, SettingsSectionId> _legacyNames =
+      <String, SettingsSectionId>{
+        'preferences': SettingsSectionId.notifications,
+        'energySaving': SettingsSectionId.chats,
+      };
 
   static SettingsSectionId fromString(String? raw) {
     if (raw == null) return SettingsSectionId.account;
     for (final SettingsSectionId v in SettingsSectionId.values) {
       if (v.name == raw) return v;
     }
-    return SettingsSectionId.account;
+    return _legacyNames[raw] ?? SettingsSectionId.account;
   }
 }
 

@@ -1334,12 +1334,6 @@ abstract class AppLocalizations {
   /// **'Profile identity, security, sessions, and account recovery.'**
   String get settingsAccountSubtitle;
 
-  /// No description provided for @settingsAccountAccessTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Account access'**
-  String get settingsAccountAccessTitle;
-
   /// No description provided for @settingsAccountAccessSubtitle.
   ///
   /// In en, this message translates to:
@@ -1699,12 +1693,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Confirm your email for recovery and safer sign-in flows'**
   String get settingsVerifyEmailSubtitle;
-
-  /// No description provided for @settingsActiveSessions.
-  ///
-  /// In en, this message translates to:
-  /// **'Active sessions'**
-  String get settingsActiveSessions;
 
   /// No description provided for @settingsActiveSessionsSubtitle.
   ///

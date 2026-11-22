@@ -7,12 +7,13 @@ String? webSettingsRedirect(Uri uri) {
     '/settings/privacy': 'privacy',
     '/settings/storage': 'storage',
     '/settings/language-region': 'languageRegion',
-    '/settings/preferences': 'preferences',
+    '/settings/notifications': 'notifications',
+    '/settings/preferences': 'notifications',
     '/settings/system-device': 'about',
     '/settings/about': 'about',
     '/settings/e2ee': 'e2ee',
     '/settings/sessions': 'sessions',
-    '/settings/energy-saving': 'energySaving',
+    '/settings/energy-saving': 'chats',
     '/settings/plus': 'plus',
   };
   final section = sections[uri.path];

@@ -32,7 +32,6 @@ class SettingId {
   static const securityAppLock = SettingId('security.appLock.enabled');
   static const securityAppLockTimeout = SettingId('security.appLock.timeout');
   static const securityNiosId = SettingId('security.niosId');
-  static const securitySessionsActive = SettingId('security.sessions.active');
 
   @override
   bool operator ==(Object other) =>

@@ -15,10 +15,9 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
-import 'package:pulse_flutter/screens/settings_energy_saving_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_plus_screen.dart';
-import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
+import 'package:pulse_flutter/screens/settings_notifications_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _Sound extends SoundService {
@@ -131,7 +130,6 @@ void main() {
             SettingsAppearanceScreen(),
             SettingsChatsScreen(),
             SettingsLanguageRegionScreen(),
-            SettingsEnergySavingScreen(),
           ]) {
             await tester.pumpWidget(
               _app(screen, brightness: brightness, locale: locale, scale: 2),
@@ -318,7 +316,7 @@ void main() {
       addTearDown(container.dispose);
       container.read(uiSettingsProvider.notifier).setSoundEffects(true);
       Widget app(bool active) => _app(
-        TickerMode(enabled: active, child: const SettingsPreferencesScreen()),
+        TickerMode(enabled: active, child: const SettingsNotificationsScreen()),
         container: container,
       );
       await tester.pumpWidget(app(true));
@@ -347,11 +345,11 @@ void main() {
       await tester.ensureVisible(preview);
       await tester.tap(preview);
       await tester.pump();
-      final beforePause = tester.state(find.byType(SettingsPreferencesScreen));
+      final beforePause = tester.state(find.byType(SettingsNotificationsScreen));
       await tester.pumpWidget(app(false));
       await tester.pump(const Duration(seconds: 2));
       expect(
-        tester.state(find.byType(SettingsPreferencesScreen)),
+        tester.state(find.byType(SettingsNotificationsScreen)),
         same(beforePause),
       );
       expect(

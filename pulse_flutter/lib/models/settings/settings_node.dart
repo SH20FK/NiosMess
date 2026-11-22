@@ -13,7 +13,6 @@ enum SettingsGroup {
   notifications,
   privacy,
   storage,
-  motion,
   language,
   plus,
   about;
@@ -32,12 +31,10 @@ enum SettingsGroup {
         return l10n.settingsV2Privacy;
       case SettingsGroup.storage:
         return l10n.settingsV2Storage;
-      case SettingsGroup.motion:
-        return l10n.settingsV2Motion;
       case SettingsGroup.language:
         return l10n.settingsV2Language;
       case SettingsGroup.plus:
-        return 'Nios Plus';
+        return 'Nios+';
       case SettingsGroup.about:
         return l10n.settingsV2About;
     }

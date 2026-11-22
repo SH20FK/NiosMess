@@ -125,8 +125,8 @@ class SettingsRegistry {
       subtitle: (AppLocalizations l) => l.settingsV2NotificationsHint,
       icon: Icons.notifications_active_rounded,
       group: SettingsGroup.notifications,
-      route: '/settings/preferences',
-      sectionId: SettingsSectionId.preferences,
+      route: '/settings/notifications',
+      sectionId: SettingsSectionId.notifications,
       keywords: const <String>[
         'уведомления',
         'звуки',
@@ -139,6 +139,11 @@ class SettingsRegistry {
         'alerts',
         'haptics',
         'volume',
+        'фон',
+        'батарея',
+        'энергосбережение',
+        'background',
+        'battery',
       ],
     ),
 
@@ -157,7 +162,6 @@ class SettingsRegistry {
         'онлайн',
         'последняя активность',
         'черный список',
-        'сессии',
         'e2ee',
         'шифрование',
         'биометрия',
@@ -165,7 +169,6 @@ class SettingsRegistry {
         'security',
         'last seen',
         'blocklist',
-        'sessions',
         'encryption',
         'biometrics',
       ],
@@ -244,35 +247,30 @@ class SettingsRegistry {
       ],
     ),
 
-    // 9. Energy Saving
+    // Devices: the sessions signed in to this account.
     SettingsNavNode(
-      id: 'energy_saving',
-      title: (AppLocalizations l) =>
-          kIsWeb ? l.webMotionTitle : l.settingsV2Motion,
-      subtitle: (AppLocalizations l) => l.settingsV2MotionHint,
-      icon: Icons.battery_saver_rounded,
-      group: SettingsGroup.motion,
-      route: '/settings/energy-saving',
-      sectionId: SettingsSectionId.energySaving,
+      id: 'devices',
+      title: (AppLocalizations l) => l.settingsDevicesTitle,
+      subtitle: (AppLocalizations l) => l.settingsActiveSessionsSubtitle,
+      icon: Icons.devices_rounded,
+      group: SettingsGroup.privacy,
+      route: '/settings/sessions',
+      sectionId: SettingsSectionId.sessions,
       keywords: const <String>[
-        'энергосбережение',
-        'батарея',
-        'аккумулятор',
-        'анимации',
-        'стикеры',
-        'эмодзи',
-        'battery',
-        'energy',
-        'power',
-        'save',
-        'animation',
+        'сеансы',
+        'сессии',
+        'устройства',
+        'компьютеры',
+        'входы',
+        'sessions',
+        'devices',
       ],
     ),
 
     // 10. Nios Plus & AI
     SettingsNavNode(
       id: 'plus',
-      title: (AppLocalizations l) => 'Nios+ · NiosAI',
+      title: (AppLocalizations l) => 'Nios+',
       subtitle: (AppLocalizations l) => l.settingsPlusSummary,
       icon: Icons.stars_rounded,
       group: SettingsGroup.plus,
@@ -539,25 +537,6 @@ class SettingsRegistry {
         'encryption',
       ],
     ),
-    SettingsNavNode(
-      id: 'sessions_management',
-      parentNavId: 'privacy',
-      title: (AppLocalizations l) => l.settingsActiveSessions,
-      subtitle: (AppLocalizations l) => l.settingsActiveSessionsSubtitle,
-      icon: Icons.devices_rounded,
-      group: SettingsGroup.privacy,
-      route: '/settings/sessions',
-      sectionId: SettingsSectionId.sessions,
-      keywords: const <String>[
-        'сессии',
-        'устройства',
-        'компьютеры',
-        'входы',
-        'sessions',
-        'devices',
-      ],
-    ),
-
     // Storage items
     SettingsNavNode(
       id: 'cache_cleaning',
@@ -631,13 +610,29 @@ class SettingsRegistry {
       ],
     ),
     SettingsNavNode(
+      id: 'storage.reset',
+      parentNavId: 'storage',
+      title: (l) => l.settingsV2Reset,
+      icon: Icons.restart_alt_rounded,
+      group: SettingsGroup.storage,
+      route: '/settings/storage',
+      sectionId: SettingsSectionId.storage,
+      keywords: [
+        'сброс',
+        'сбросить настройки',
+        'по умолчанию',
+        'reset',
+        'defaults',
+      ],
+    ),
+    SettingsNavNode(
       id: 'motion.optimization',
-      parentNavId: 'energy_saving',
+      parentNavId: 'storage',
       title: (l) => l.appearanceOptimizeWeakDevices,
       icon: Icons.speed_rounded,
-      group: SettingsGroup.motion,
-      route: '/settings/energy-saving',
-      sectionId: SettingsSectionId.energySaving,
+      group: SettingsGroup.storage,
+      route: '/settings/storage',
+      sectionId: SettingsSectionId.storage,
       keywords: ["оптимизация", "fps", "слабые", "performance", "optimize"],
     ),
     SettingsNavNode(
@@ -646,8 +641,8 @@ class SettingsRegistry {
       title: (l) => l.settingsV2Preview,
       icon: Icons.visibility_outlined,
       group: SettingsGroup.notifications,
-      route: '/settings/preferences',
-      sectionId: SettingsSectionId.preferences,
+      route: '/settings/notifications',
+      sectionId: SettingsSectionId.notifications,
       keywords: ["превью", "текст уведомления", "preview"],
     ),
     SettingsNavNode(
@@ -668,12 +663,12 @@ class SettingsRegistry {
     ),
     SettingsNavNode(
       id: 'motion.stickers',
-      parentNavId: 'energy_saving',
+      parentNavId: 'chats',
       title: (l) => l.settingsV2Stickers,
       icon: Icons.sticky_note_2_outlined,
-      group: SettingsGroup.motion,
-      route: '/settings/energy-saving',
-      sectionId: SettingsSectionId.energySaving,
+      group: SettingsGroup.chats,
+      route: '/settings/chats',
+      sectionId: SettingsSectionId.chats,
       keywords: [
         'стикеры',
         'анимация стикеров',
@@ -683,12 +678,12 @@ class SettingsRegistry {
     ),
     SettingsNavNode(
       id: 'motion.emoji',
-      parentNavId: 'energy_saving',
+      parentNavId: 'chats',
       title: (l) => l.settingsV2Emoji,
       icon: Icons.emoji_emotions_outlined,
-      group: SettingsGroup.motion,
-      route: '/settings/energy-saving',
-      sectionId: SettingsSectionId.energySaving,
+      group: SettingsGroup.chats,
+      route: '/settings/chats',
+      sectionId: SettingsSectionId.chats,
       keywords: ['эмодзи', 'анимация эмодзи', 'emoji', 'animated emoji'],
     ),
     SettingsNavNode(
@@ -724,14 +719,29 @@ class SettingsRegistry {
     ),
   ];
 
-  /// Returns all top-level sections that are available in current runtime environment.
+  /// Rows of the settings hub, top to bottom. A section that is registered
+  /// but not listed here (device diagnostics) is reached from another one.
+  static const List<String> _hubOrder = <String>[
+    'account',
+    'devices',
+    'notifications',
+    'privacy',
+    'chats',
+    'appearance',
+    'storage',
+    'language',
+    'plus',
+    'about',
+  ];
+
+  /// The hub rows available in the current runtime environment.
   static List<SettingsNavNode> getTopLevelSections() {
-    return _topLevelSections
-        .where(
-          (SettingsNavNode node) =>
-              node.isAvailable() && node.id != 'system_device',
-        )
-        .toList();
+    return <SettingsNavNode>[
+      for (final String id in _hubOrder)
+        ..._topLevelSections.where(
+          (SettingsNavNode node) => node.id == id && node.isAvailable(),
+        ),
+    ];
   }
 
   /// Returns all registered nodes (sections and child items).

@@ -664,9 +664,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Profile identity, security, sessions, and account recovery.';
 
   @override
-  String get settingsAccountAccessTitle => 'Account access';
-
-  @override
   String get settingsAccountAccessSubtitle =>
       'Verification and recovery tools for your account.';
 
@@ -868,9 +865,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsVerifyEmailSubtitle =>
       'Confirm your email for recovery and safer sign-in flows';
-
-  @override
-  String get settingsActiveSessions => 'Active sessions';
 
   @override
   String get settingsActiveSessionsSubtitle => 'Manage logged-in devices';

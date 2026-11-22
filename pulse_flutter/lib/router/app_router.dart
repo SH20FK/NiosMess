@@ -27,7 +27,6 @@ import 'package:pulse_flutter/screens/onboarding_screen.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
 import 'package:pulse_flutter/screens/public_profile_screen.dart';
 import 'package:pulse_flutter/screens/sticker_set_screen.dart';
-import 'package:pulse_flutter/screens/settings_energy_saving_screen.dart';
 import 'package:pulse_flutter/screens/settings_plus_screen.dart';
 import 'package:pulse_flutter/screens/plus_activation_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
@@ -42,7 +41,7 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
-import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
+import 'package:pulse_flutter/screens/settings_notifications_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/privacy_rule_detail_screen.dart';
 import 'package:pulse_flutter/screens/blocked_users_screen.dart';
@@ -535,15 +534,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               : '/main/settings';
         },
       ),
+      // Dissolved into Chats, Notifications and Data: old links land on Chats.
       GoRoute(
         path: '/settings/energy-saving',
         redirect: (context, state) =>
-            kIsWeb ? webSettingsRedirect(state.uri) : null,
-        pageBuilder: (context, state) => _page(
-          state,
-          const SettingsEnergySavingScreen(),
-          pageKey: state.pageKey,
-        ),
+            kIsWeb ? webSettingsRedirect(state.uri) : '/settings/chats',
       ),
       GoRoute(
         path: '/settings/plus',
@@ -665,14 +660,20 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             _page(state, const E2eeSettingsScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
-        path: '/settings/preferences',
+        path: '/settings/notifications',
         redirect: (context, state) =>
             kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(
           state,
-          const SettingsPreferencesScreen(),
+          const SettingsNotificationsScreen(),
           pageKey: state.pageKey,
         ),
+      ),
+      GoRoute(
+        path: '/settings/preferences',
+        redirect: (context, state) => kIsWeb
+            ? webSettingsRedirect(state.uri)
+            : '/settings/notifications',
       ),
       GoRoute(
         path: '/settings/sessions',

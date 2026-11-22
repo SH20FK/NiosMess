@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -9,7 +8,8 @@ import 'package:pulse_flutter/features/account_deletion/presentation/account_del
 import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
+import 'package:pulse_flutter/core/services/app_url_launcher.dart';
+import 'package:pulse_flutter/widgets/settings/account_profile_section.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class SettingsAccountScreen extends ConsumerWidget {
@@ -34,6 +34,7 @@ class SettingsAccountScreen extends ConsumerWidget {
       title: context.l10n.settingsAccountTitle,
       isEmbedded: isEmbedded,
       children: <Widget>[
+        const AccountProfileSection(),
         SettingsSection(
           children: <Widget>[
             _copyableField(
@@ -64,20 +65,13 @@ class SettingsAccountScreen extends ConsumerWidget {
         SettingsSection(
           children: [
             SettingsListItem.nav(
-              icon: Icons.shield_outlined,
-              title: context.l10n.settingsV2SecurityLink,
-              subtitle: context.l10n.settingsV2SecurityLinkHint,
-              onTap: () {
-                if (kIsWeb) {
-                  context.go('/main/settings?section=privacy');
-                } else if (isEmbedded) {
-                  ref
-                      .read(desktopSelectedSettingsSectionProvider.notifier)
-                      .setSelectedSection(SettingsSectionId.privacy);
-                } else {
-                  context.push('/settings/privacy');
-                }
-              },
+              key: const ValueKey('settings-account-nios-id'),
+              icon: Icons.manage_accounts_outlined,
+              title: context.l10n.settingsV2NiosId,
+              onTap: () => AppUrlLauncher.openUrl(
+                context,
+                'https://ni-os.ru/id/account',
+              ),
             ),
           ],
         ),

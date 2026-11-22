@@ -1,8 +1,6 @@
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
@@ -13,7 +11,6 @@ import 'package:pulse_flutter/features/security/domain/app_lock_policy.dart';
 import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
-import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class AccountSecuritySection extends ConsumerStatefulWidget {
@@ -106,29 +103,6 @@ class _AccountSecuritySectionState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SettingsSection(
-          title: context.l10n.settingsAccountAccessTitle,
-          children: <Widget>[
-            SettingsRow(
-              anchor: SettingId.securitySessionsActive.value,
-              leading: Icon(Icons.devices_rounded, color: scheme.primary),
-              title: context.l10n.settingsActiveSessions,
-              subtitle: context.l10n.settingsActiveSessionsSubtitle,
-              control: const NavigationControl(),
-              onTap: () {
-                if (kIsWeb) {
-                  context.go('/main/settings?section=sessions');
-                } else if (widget.isEmbedded) {
-                  ref
-                      .read(desktopSelectedSettingsSectionProvider.notifier)
-                      .setSelectedSection(SettingsSectionId.sessions);
-                } else {
-                  context.push('/settings/sessions');
-                }
-              },
-            ),
-          ],
-        ),
         SettingsSection(
           title: context.l10n.settingsProtectionTitle,
           children: <Widget>[

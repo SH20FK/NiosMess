@@ -176,8 +176,6 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsV2PrivacyHint => _secret.settingsV2PrivacyHint;
   String get settingsV2Storage => _secret.settingsV2Storage;
   String get settingsV2StorageHint => _secret.settingsV2StorageHint;
-  String get settingsV2Motion => _secret.settingsV2Motion;
-  String get settingsV2MotionHint => _secret.settingsV2MotionHint;
   String get settingsV2Language => _secret.settingsV2Language;
   String get settingsV2LanguageHint => _secret.settingsV2LanguageHint;
   String get settingsV2About => _secret.settingsV2About;
@@ -239,10 +237,7 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsV2StorageAvatars => _secret.settingsV2StorageAvatars;
   String get settingsV2StorageDrafts => _secret.settingsV2StorageDrafts;
   String get settingsV2StorageOther => _secret.settingsV2StorageOther;
-  String get settingsV2SecurityLink => _secret.settingsV2SecurityLink;
-  String get settingsV2SecurityLinkHint => _secret.settingsV2SecurityLinkHint;
   String get settingsV2ProfileCopied => _secret.settingsV2ProfileCopied;
-  String get settingsV2IdCopied => _secret.settingsV2IdCopied;
 
   String get noticeSilentMessages => _secret.noticeSilentMessages;
   String get noticeDeviceRegistered => _secret.noticeDeviceRegistered;
@@ -584,7 +579,6 @@ extension SecretChatL10n on AppLocalizations {
   String get webWorkspaceHint => _secret.webWorkspaceHint;
   String get videoPreview => _secret.videoPreview;
   String get webAutoDownload => _secret.webAutoDownload;
-  String get webMotionTitle => _secret.webMotionTitle;
   String get webDownloadStarted => _secret.webDownloadStarted;
   String get pasteImageTitle => _secret.pasteImageTitle;
   String get pasteImageCaption => _secret.pasteImageCaption;
@@ -656,10 +650,6 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsProfileHoursConfigured => _secret.settingsProfileHoursConfigured;
   String get settingsProfileSaveFailed => _secret.settingsProfileSaveFailed;
   String get settingsProfileSaved => _secret.settingsProfileSaved;
-  String get settingsGroupPersonalization => _secret.settingsGroupPersonalization;
-  String get settingsGroupCommunication => _secret.settingsGroupCommunication;
-  String get settingsGroupSecurity => _secret.settingsGroupSecurity;
-  String get settingsGroupApplication => _secret.settingsGroupApplication;
   String get settingsProfileChoosePhoto => _secret.settingsProfileChoosePhoto;
   String get settingsProfilePhotoHint => _secret.settingsProfilePhotoHint;
   String get settingsProfileChooseVideo => _secret.settingsProfileChooseVideo;
@@ -879,4 +869,5 @@ extension SecretChatL10n on AppLocalizations {
       _secret.settingsNotificationsOffReason;
   String get settingsStorageNothingToClear =>
       _secret.settingsStorageNothingToClear;
+  String get settingsDevicesTitle => _secret.settingsDevicesTitle;
 }

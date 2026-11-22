@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
+import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -56,6 +57,30 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     await _runStorageAction(() async {
       return ref.read(localStorageServiceProvider).clearDrafts();
     });
+  }
+
+  Future<void> _resetPreferences() async {
+    final bool? confirmed = await showAppConfirmDialog(
+      context: context,
+      title: context.l10n.settingsV2ResetConfirm,
+      subtitle: context.l10n.settingsV2ResetBody,
+      confirmLabel: context.l10n.settingsV2Reset,
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(uiSettingsProvider.notifier).resetAll();
+      // Notification categories live under their own per-account key.
+      await ref.read(notificationPreferencesProvider.notifier).reset();
+      if (mounted) {
+        AppToast.showSuccess(context, context.l10n.settingsV2ResetDone);
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.showError(context, context.l10n.settingsV2ResetFailed);
+      }
+    }
   }
 
   Future<void> _runStorageAction(Future<int?> Function() action) async {
@@ -136,6 +161,8 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
               ),
             ],
           ),
+          _performanceSection(context),
+          _resetSection(context),
         ],
       );
     }
@@ -392,9 +419,46 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
               ),
           ],
         ),
+        _performanceSection(context),
+        _resetSection(context),
       ],
     );
   }
+
+  Widget _resetSection(BuildContext context) => SettingsSection(
+    children: [
+      SettingsAnchor(
+        id: 'storage.reset',
+        child: SettingsListItem.danger(
+          key: const ValueKey('settings-reset-preferences'),
+          icon: Icons.restart_alt_rounded,
+          title: context.l10n.settingsV2Reset,
+          subtitle: context.l10n.settingsV2ResetHint,
+          onTap: _resetPreferences,
+        ),
+      ),
+    ],
+  );
+
+  Widget _performanceSection(BuildContext context) => SettingsSection(
+    title: context.l10n.settingsV2Graphics,
+    children: [
+      SettingsAnchor(
+        id: 'motion.optimization',
+        child: SettingsListItem.toggle(
+          icon: Icons.speed_rounded,
+          title: context.l10n.appearanceOptimizeWeakDevices,
+          subtitle: context.l10n.settingsV2OptimizeHint,
+          value: ref.watch(
+            uiSettingsProvider.select((s) => s.optimizeForWeakDevices),
+          ),
+          onChanged: ref
+              .read(uiSettingsProvider.notifier)
+              .setOptimizeForWeakDevices,
+        ),
+      ),
+    ],
+  );
 
   String _categoryLabel(BuildContext context, StorageCategory category) =>
       switch (category) {

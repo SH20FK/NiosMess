@@ -258,12 +258,12 @@ void main() {
     );
   }
 
-  // 9. Check sound test tile in settings_preferences_screen.dart
-  final File prefScreenFile = File('lib/screens/settings_preferences_screen.dart');
+  // 9. Check sound test tile in settings_notifications_screen.dart
+  final File prefScreenFile = File('lib/screens/settings_notifications_screen.dart');
   if (prefScreenFile.existsSync()) {
     final String prefCode = prefScreenFile.readAsStringSync();
     report(
-      'Test sound sequence tile present in SettingsPreferencesScreen',
+      'Test sound sequence tile present in SettingsNotificationsScreen',
       prefCode.contains('Проверить звук') &&
           prefCode.contains('SoundEvent.uiTap') &&
           prefCode.contains('SoundEvent.messageReceive') &&

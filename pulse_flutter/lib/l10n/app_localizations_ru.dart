@@ -666,9 +666,6 @@ class AppLocalizationsRu extends AppLocalizations {
       'Профиль, безопасность, сессии и восстановление доступа.';
 
   @override
-  String get settingsAccountAccessTitle => 'Доступ к аккаунту';
-
-  @override
   String get settingsAccountAccessSubtitle =>
       'Инструменты подтверждения и восстановления доступа.';
 
@@ -869,9 +866,6 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get settingsVerifyEmailSubtitle =>
       'Подтвердите почту для восстановления и более безопасного входа';
-
-  @override
-  String get settingsActiveSessions => 'Активные сессии';
 
   @override
   String get settingsActiveSessionsSubtitle =>

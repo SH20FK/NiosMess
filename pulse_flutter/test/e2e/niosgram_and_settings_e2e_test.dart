@@ -19,7 +19,7 @@ import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
-import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
+import 'package:pulse_flutter/screens/settings_notifications_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
@@ -296,6 +296,8 @@ void main() {
       // Switch to Appearance section in master pane
       final appearanceTile = find.widgetWithText(SettingsListItem, 'Оформление');
       expect(appearanceTile, findsWidgets);
+      await tester.ensureVisible(appearanceTile.first);
+      await tester.pump();
       await tester.tap(appearanceTile.first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -499,6 +501,8 @@ void main() {
 
       // 1. Switch to Appearance & adjust font scale
       final appearanceTile = find.widgetWithText(SettingsListItem, 'Оформление');
+      await tester.ensureVisible(appearanceTile.first);
+      await tester.pump();
       await tester.tap(appearanceTile.first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -529,7 +533,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byType(SettingsPreferencesScreen), findsOneWidget);
+      expect(find.byType(SettingsNotificationsScreen), findsOneWidget);
       expect(find.byType(Slider), findsOneWidget);
 
       // 3. Switch to Privacy & toggle hideOnline

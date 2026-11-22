@@ -16,7 +16,7 @@ import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
-import 'package:pulse_flutter/screens/settings_preferences_screen.dart';
+import 'package:pulse_flutter/screens/settings_notifications_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/models/api/session_model.dart';
@@ -387,7 +387,7 @@ void main() {
     );
 
     testWidgets(
-      '1.12 SettingsPreferencesScreen instantiates with Volume Slider',
+      '1.12 SettingsNotificationsScreen instantiates with Volume Slider',
       (WidgetTester tester) async {
         SharedPreferences.setMockInitialValues(<String, Object>{
           'ui.soundEffects': true,
@@ -396,11 +396,11 @@ void main() {
         addTearDown(() => UiSettingsNotifier.cachedPrefs = null);
 
         await tester.pumpWidget(
-          _wrapWithApp(const SettingsPreferencesScreen(isEmbedded: true)),
+          _wrapWithApp(const SettingsNotificationsScreen(isEmbedded: true)),
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
-        expect(find.byType(SettingsPreferencesScreen), findsOneWidget);
+        expect(find.byType(SettingsNotificationsScreen), findsOneWidget);
         expect(find.byType(Slider), findsOneWidget);
       },
     );
@@ -473,7 +473,7 @@ void main() {
       );
 
       testWidgets(
-        '2.2 SettingsPreferencesScreen on ${vp['name']} renders with zero overflow',
+        '2.2 SettingsNotificationsScreen on ${vp['name']} renders with zero overflow',
         (WidgetTester tester) async {
           final Size size = vp['size'] as Size;
           tester.view.physicalSize = size;
@@ -483,7 +483,7 @@ void main() {
 
           await tester.pumpWidget(
             _wrapWithApp(
-              const SettingsPreferencesScreen(isEmbedded: false),
+              const SettingsNotificationsScreen(isEmbedded: false),
               surfaceSize: size,
             ),
           );
@@ -491,7 +491,7 @@ void main() {
           await tester.pump(const Duration(milliseconds: 300));
 
           expect(tester.takeException(), isNull);
-          expect(find.byType(SettingsPreferencesScreen), findsOneWidget);
+          expect(find.byType(SettingsNotificationsScreen), findsOneWidget);
         },
       );
     }

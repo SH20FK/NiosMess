@@ -15,9 +15,10 @@ const Map<String, List<String>> _screenSources = <String, List<String>>{
     'lib/screens/settings_appearance_screen.dart',
   ],
   '/settings/chats': <String>['lib/screens/settings_chats_screen.dart'],
-  '/settings/preferences': <String>[
-    'lib/screens/settings_preferences_screen.dart',
+  '/settings/notifications': <String>[
+    'lib/screens/settings_notifications_screen.dart',
     'lib/widgets/notifications/notification_settings_section.dart',
+    'lib/widgets/settings/background_delivery_section.dart',
   ],
   '/settings/privacy': <String>[
     'lib/screens/settings_privacy_screen.dart',
@@ -29,9 +30,6 @@ const Map<String, List<String>> _screenSources = <String, List<String>>{
   '/settings/storage': <String>['lib/screens/settings_storage_screen.dart'],
   '/settings/language-region': <String>[
     'lib/screens/settings_language_region_screen.dart',
-  ],
-  '/settings/energy-saving': <String>[
-    'lib/screens/settings_energy_saving_screen.dart',
   ],
   '/settings/system-device': <String>[
     'lib/screens/settings_system_device_screen.dart',
