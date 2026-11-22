@@ -36,6 +36,9 @@ import 'package:pulse_flutter/features/settings/application/settings_anchor_cont
 import 'package:pulse_flutter/features/settings/application/settings_health_controller.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_issue_card.dart';
+import 'package:pulse_flutter/core/services/push_notification_service.dart';
+import 'package:pulse_flutter/features/sessions/application/sessions_controller.dart';
+import 'package:pulse_flutter/providers/push_permission_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({this.initialSection, super.key});
@@ -147,6 +150,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           : context.l10n.languageEnglish;
     } else if (node.id == 'about') {
       return AppConstants.appVersionWithPrefix;
+    } else if (node.id == 'devices') {
+      // Nothing until the list has arrived: a dash would read as "none".
+      final SessionsState sessions = ref.watch(sessionsControllerProvider);
+      return sessions is SessionsReady && sessions.sessions.isNotEmpty
+          ? '${sessions.sessions.length}'
+          : '';
+    } else if (node.id == 'notifications') {
+      final bool enabled = ref.watch(
+        uiSettingsProvider.select((UiSettingsState s) => s.notifications),
+      );
+      // A switch that is on while the system refuses is still "off" for the
+      // user: nothing arrives.
+      final bool refused =
+          PushNotificationService.supportsPush &&
+          ref.watch(pushPermissionProvider).value == false;
+      return enabled && !refused
+          ? context.l10n.commonEnabled
+          : context.l10n.commonDisabled;
+    } else if (node.id == 'plus') {
+      return ref.watch(
+            authProvider.select(
+              (AuthState a) => a.profile?.isNiosPlus ?? false,
+            ),
+          )
+          ? context.l10n.settingsPlusActive
+          : '';
     }
     return '';
   }

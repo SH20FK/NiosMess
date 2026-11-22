@@ -19,6 +19,8 @@ import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
+import 'package:pulse_flutter/features/sessions/data/sessions_repository.dart';
+import 'package:pulse_flutter/features/sessions/domain/session_model.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -49,6 +51,16 @@ class _FakeAuthNotifier extends AuthNotifier {
 
   @override
   Future<void> refreshProfile() async {}
+}
+
+// The hub shows how many devices are signed in, so it asks for the list.
+class _NoSessions extends SessionsRepository {
+  _NoSessions(super.ref);
+
+  @override
+  Future<({int? currentSessionId, List<AccountSession> sessions})>
+  getSessions() async =>
+      (currentSessionId: null, sessions: const <AccountSession>[]);
 }
 
 Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
@@ -124,7 +136,10 @@ Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
 
   addTearDown(router.dispose);
   return ProviderScope(
-    overrides: [authProvider.overrideWith(() => _FakeAuthNotifier())],
+    overrides: [
+      authProvider.overrideWith(() => _FakeAuthNotifier()),
+      sessionsRepositoryProvider.overrideWith(_NoSessions.new),
+    ],
     child: MaterialApp.router(
       theme: theme,
       localizationsDelegates: AppLocalizations.localizationsDelegates,

@@ -17,6 +17,8 @@ import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
+import 'package:pulse_flutter/features/sessions/data/sessions_repository.dart';
+import 'package:pulse_flutter/features/sessions/domain/session_model.dart';
 import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,6 +44,29 @@ class _Auth extends AuthNotifier {
   );
   @override
   Future<void> refreshProfile() async {}
+}
+
+AccountSession _device(int id, {bool current = false}) => AccountSession(
+  id: id,
+  isCurrent: current,
+  deviceName: 'Device $id',
+  platform: 'Android',
+  ipAddress: '2001:db8::$id',
+  appVersion: '3.143.0',
+  approximateRegion: 'Test region',
+  createdAt: DateTime.utc(2026, 11, 8),
+  lastActiveAt: DateTime.utc(2026, 11, 8, 10),
+);
+
+class _Sessions extends SessionsRepository {
+  _Sessions(super.ref);
+
+  @override
+  Future<({int? currentSessionId, List<AccountSession> sessions})>
+  getSessions() async => (
+    currentSessionId: 1,
+    sessions: <AccountSession>[_device(1, current: true), _device(2)],
+  );
 }
 
 class _Storage extends StorageSnapshotNotifier {
@@ -107,6 +132,7 @@ void main() {
         overrides: [
           authProvider.overrideWith(_Auth.new),
           storageSnapshotProvider.overrideWith(_Storage.new),
+          sessionsRepositoryProvider.overrideWith(_Sessions.new),
           settingsHealthProvider.overrideWithValue(
             const <SettingsHealthIssue>[],
           ),
@@ -180,6 +206,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await capture(tester, 'settings-dark-collapsed');
+  });
+
+  testWidgets('hub rows show the state of their sections', (tester) async {
+    await showSettings(tester);
+    Finder inRow(String id, String text) => find.descendant(
+      of: find.byKey(ValueKey<String>('settings-destination-$id')),
+      matching: find.text(text),
+    );
+    // Two devices are signed in; the theme of a fresh install follows the
+    // system.
+    expect(inRow('devices', '2'), findsOneWidget);
+    expect(inRow('appearance', 'Системная'), findsOneWidget);
+    expect(inRow('language', 'Русский'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the profile card opens the account section', (tester) async {

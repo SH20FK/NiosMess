@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/widgets/settings/account_security_section.dart';
+import 'package:pulse_flutter/widgets/settings/privacy_rule_row.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,10 +20,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
   const SettingsPrivacyScreen({this.isEmbedded = false, super.key});
 
   final bool isEmbedded;
-
-  void _openRule(BuildContext context, String key) {
-    context.push('/settings/privacy/rule/$key');
-  }
 
   void _openBlockedUsers(BuildContext context) {
     context.push('/settings/privacy/blocked-users');
@@ -69,40 +66,26 @@ class SettingsPrivacyScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.privacyCategoryCommunication,
           children: <Widget>[
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'calls',
               enabled: available && !pending,
               anchor: SettingId.privacyCalls.value,
-              leading: Icon(Icons.call_rounded, color: scheme.primary),
+              icon: Icons.call_rounded,
               title: context.l10n.privacyRuleCalls,
-              control: NavigationControl(
-                value: privacy.policyFor('calls').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'calls'),
             ),
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'messages',
               enabled: available && !pending,
               anchor: SettingId.privacyMessages.value,
-              leading: Icon(
-                Icons.chat_bubble_outline_rounded,
-                color: scheme.primary,
-              ),
+              icon: Icons.chat_bubble_outline_rounded,
               title: context.l10n.privacyRuleDirectMessages,
-              control: NavigationControl(
-                value: privacy.policyFor('messages').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'messages'),
             ),
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'voice_messages',
               enabled: available && !pending,
               anchor: SettingId.privacyVoiceMessages.value,
-              leading: Icon(Icons.mic_none_rounded, color: scheme.primary),
+              icon: Icons.mic_none_rounded,
               title: context.l10n.privacyRuleVoiceMessages,
-              control: NavigationControl(
-                value: privacy
-                    .policyFor('voice_messages')
-                    .localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'voice_messages'),
             ),
             SettingsRow(
               enabled: available && !pending,
@@ -161,73 +144,47 @@ class SettingsPrivacyScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.privacyCategoryPersonalData,
           children: <Widget>[
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'phone',
               enabled: available && !pending,
               anchor: SettingId.privacyPhone.value,
-              leading: Icon(Icons.phone_rounded, color: scheme.secondary),
+              icon: Icons.phone_rounded,
               title: context.l10n.privacyRulePhone,
-              control: NavigationControl(
-                value: privacy.policyFor('phone').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'phone'),
             ),
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'birthday',
               enabled: available && !pending,
               anchor: SettingId.privacyBirthday.value,
-              leading: Icon(Icons.cake_rounded, color: scheme.secondary),
+              icon: Icons.cake_rounded,
               title: context.l10n.privacyRuleBirthDate,
-              control: NavigationControl(
-                value: privacy.policyFor('birthday').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'birthday'),
             ),
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'profile_photos',
               enabled: available && !pending,
               anchor: SettingId.privacyAvatar.value,
-              leading: Icon(
-                Icons.account_circle_outlined,
-                color: scheme.secondary,
-              ),
+              icon: Icons.account_circle_outlined,
               title: context.l10n.privacyRuleAvatar,
-              control: NavigationControl(
-                value: privacy
-                    .policyFor('profile_photos')
-                    .localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'profile_photos'),
             ),
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'bio',
               enabled: available && !pending,
               anchor: SettingId.privacyBio.value,
-              leading: Icon(Icons.notes_rounded, color: scheme.secondary),
+              icon: Icons.notes_rounded,
               title: context.l10n.privacyRuleBio,
-              control: NavigationControl(
-                value: privacy.policyFor('bio').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'bio'),
             ),
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'gifts',
               enabled: available && !pending,
               anchor: SettingId.privacyGifts.value,
-              leading: Icon(
-                Icons.card_giftcard_rounded,
-                color: scheme.secondary,
-              ),
+              icon: Icons.card_giftcard_rounded,
               title: context.l10n.privacyRuleGifts,
-              control: NavigationControl(
-                value: privacy.policyFor('gifts').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'gifts'),
             ),
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'saved_music',
               enabled: available && !pending,
               anchor: SettingId.privacyMusic.value,
-              leading: Icon(Icons.music_note_rounded, color: scheme.secondary),
+              icon: Icons.music_note_rounded,
               title: context.l10n.privacyRuleMusic,
-              control: NavigationControl(
-                value: privacy.policyFor('saved_music').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'saved_music'),
             ),
           ],
         ),
@@ -236,35 +193,26 @@ class SettingsPrivacyScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.privacyCategoryActivity,
           children: <Widget>[
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'last_seen',
               enabled: available && !pending,
               anchor: SettingId.privacyLastSeen.value,
-              leading: Icon(Icons.access_time_rounded, color: scheme.tertiary),
+              icon: Icons.access_time_rounded,
               title: context.l10n.privacyRuleLastSeen,
-              control: NavigationControl(
-                value: privacy.policyFor('last_seen').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'last_seen'),
             ),
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'forwards',
               enabled: available && !pending,
               anchor: SettingId.privacyForwards.value,
-              leading: Icon(Icons.forward_rounded, color: scheme.tertiary),
+              icon: Icons.forward_rounded,
               title: context.l10n.privacyRuleForwards,
-              control: NavigationControl(
-                value: privacy.policyFor('forwards').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'forwards'),
             ),
-            SettingsRow(
+            PrivacyRuleRow(
+              ruleKey: 'invites',
               enabled: available && !pending,
               anchor: SettingId.privacyInvites.value,
-              leading: Icon(Icons.group_add_rounded, color: scheme.tertiary),
+              icon: Icons.group_add_rounded,
               title: context.l10n.privacyRuleInvites,
-              control: NavigationControl(
-                value: privacy.policyFor('invites').localized(context.l10n),
-              ),
-              onTap: () => _openRule(context, 'invites'),
             ),
           ],
         ),

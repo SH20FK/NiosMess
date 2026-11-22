@@ -7,7 +7,7 @@ import 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
 import 'package:pulse_flutter/widgets/settings/settings_group_scope.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
-enum SettingsListItemType { nav, toggle, value, action, danger }
+enum SettingsListItemType { nav, toggle, value, choice, action, danger }
 
 /// The one Material 3 Expressive row for settings lists and grouped cards:
 /// a 40x40 icon slot, 68dp text alignment, and spring touch physics.
@@ -183,7 +183,8 @@ class SettingsListItem extends ConsumerWidget {
     // there, so it wraps under the title instead.
     final inlineValue =
         (type == SettingsListItemType.nav ||
-            type == SettingsListItemType.value) &&
+            type == SettingsListItemType.value ||
+            type == SettingsListItemType.choice) &&
         value?.trim().isNotEmpty == true &&
         value!.length <= 18 &&
         MediaQuery.textScalerOf(context).scale(14) <= 18;
@@ -222,6 +223,12 @@ class SettingsListItem extends ConsumerWidget {
                     value: boolValue ?? false,
                     onChanged: interactive && onChanged != null ? change : null,
                   ),
+                ),
+                // Opens a menu in place, so it does not point onwards.
+                SettingsListItemType.choice => Icon(
+                  Icons.unfold_more_rounded,
+                  color: scheme.onSurfaceVariant,
+                  size: 22,
                 ),
                 _ => null,
               };

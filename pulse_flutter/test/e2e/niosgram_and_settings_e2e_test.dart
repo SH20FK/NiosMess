@@ -22,6 +22,8 @@ import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_notifications_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/profile_screen.dart';
+import 'package:pulse_flutter/features/sessions/data/sessions_repository.dart';
+import 'package:pulse_flutter/features/sessions/domain/session_model.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/widgets/post_card.dart';
@@ -184,6 +186,16 @@ List<NgPost> _generateSampleFeed() {
 
 // ── E2E Router & App Harness ────────────────────────────────────────────────
 
+// The hub shows how many devices are signed in, so it asks for the list.
+class _NoSessions extends SessionsRepository {
+  _NoSessions(super.ref);
+
+  @override
+  Future<({int? currentSessionId, List<AccountSession> sessions})>
+  getSessions() async =>
+      (currentSessionId: null, sessions: const <AccountSession>[]);
+}
+
 Widget _buildE2eApp({
   required GoRouter router,
   required MockE2eNiosgramNotifier niosgramNotifier,
@@ -198,6 +210,7 @@ Widget _buildE2eApp({
       notificationsProvider.overrideWith(MockE2eNotificationsNotifier.new),
       adaptivePerformanceProvider.overrideWith(_StubAdaptivePerformanceNotifier.new),
       privacyProvider.overrideWith(_StubPrivacyNotifier.new),
+      sessionsRepositoryProvider.overrideWith(_NoSessions.new),
     ],
     child: Consumer(
       builder: (context, ref, _) {

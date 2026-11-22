@@ -26,6 +26,9 @@ import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/models/api/privacy_model.dart';
+import 'package:pulse_flutter/providers/privacy_provider.dart';
+import 'package:pulse_flutter/widgets/settings/privacy_rule_row.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_sticker_player.dart';
 
 class _Performance extends AdaptivePerformanceNotifier {
@@ -37,6 +40,35 @@ class _Performance extends AdaptivePerformanceNotifier {
     recentJankRatio: 0,
     isDegraded: false,
   );
+}
+
+class _Privacy extends PrivacyNotifier {
+  final List<(String, PrivacyPolicy)> writes = <(String, PrivacyPolicy)>[];
+  bool fail = false;
+
+  @override
+  PrivacyState build() => const PrivacyState(
+    rules: <String, PrivacyRule>{
+      'calls': PrivacyRule(key: 'calls', policy: PrivacyPolicy.contacts),
+    },
+  );
+
+  @override
+  Future<void> updateRule({
+    required String key,
+    required PrivacyPolicy policy,
+    List<int>? alwaysAllow,
+    List<int>? neverAllow,
+  }) async {
+    writes.add((key, policy));
+    if (fail) throw StateError('synthetic failure');
+    state = state.copyWith(
+      rules: <String, PrivacyRule>{
+        ...state.rules,
+        key: PrivacyRule(key: key, policy: policy),
+      },
+    );
+  }
 }
 
 class _ForbiddenAppLock extends AppLockNotifier {
@@ -188,6 +220,77 @@ void main() {
         isTrue,
       );
       semantics.dispose();
+    });
+
+    testWidgets('a privacy rule is chosen from a menu on its own row', (
+      tester,
+    ) async {
+      final privacy = _Privacy();
+      await tester.pumpWidget(
+        _app(
+          ProviderScope(
+            overrides: [privacyProvider.overrideWith(() => privacy)],
+            child: const PrivacyRuleRow(
+              ruleKey: 'calls',
+              anchor: 'privacy.calls',
+              icon: Icons.call_rounded,
+              title: 'Calls',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Мои контакты'), findsOneWidget);
+
+      await tester.tap(find.text('Calls'));
+      await tester.pumpAndSettle();
+      // All three answers, and the way to per-person exceptions.
+      expect(find.text('Все'), findsOneWidget);
+      expect(find.text('Никто'), findsOneWidget);
+      expect(find.text('Исключения'), findsOneWidget);
+
+      await tester.tap(find.text('Никто'));
+      await tester.pumpAndSettle();
+      expect(privacy.writes, [('calls', PrivacyPolicy.nobody)]);
+      expect(find.text('Никто'), findsOneWidget);
+      expect(find.text('Мои контакты'), findsNothing);
+
+      // Picking the current answer again writes nothing.
+      await tester.tap(find.text('Calls'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Никто').last);
+      await tester.pumpAndSettle();
+      expect(privacy.writes, hasLength(1));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a refused privacy rule says so and keeps the old answer', (
+      tester,
+    ) async {
+      final privacy = _Privacy()..fail = true;
+      await tester.pumpWidget(
+        _app(
+          ProviderScope(
+            overrides: [privacyProvider.overrideWith(() => privacy)],
+            child: const PrivacyRuleRow(
+              ruleKey: 'calls',
+              anchor: 'privacy.calls',
+              icon: Icons.call_rounded,
+              title: 'Calls',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Calls'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Все'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(privacy.writes, [('calls', PrivacyPolicy.everyone)]);
+      expect(find.text('Мои контакты'), findsOneWidget);
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('a disabled row shows its reason in place of the hint', (
