@@ -91,7 +91,14 @@ class M3ModalSurface extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
-        if (isScrollable) Flexible(child: content) else content,
+        // A side sheet spans the full height. Its child is a whole screen,
+        // which needs a bounded height instead of the column's unbounded one.
+        if (variant == ModalVariant.sideSheet)
+          Expanded(child: content)
+        else if (isScrollable)
+          Flexible(child: content)
+        else
+          content,
       ],
     );
 

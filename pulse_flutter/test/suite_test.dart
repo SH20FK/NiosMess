@@ -242,6 +242,7 @@ import 'widgets/expression_panel_frame_test.dart'
 import 'widgets/app_refresh_indicator_test.dart'
     as widgets_app_refresh_indicator;
 import 'widgets/app_navigation_test.dart' as widgets_app_navigation;
+import 'widgets/app_side_sheet_test.dart' as widgets_app_side_sheet;
 import 'widgets/swipe_action_row_test.dart' as widgets_swipe_action_row;
 import 'widgets/reorder_slide_test.dart' as widgets_reorder_slide;
 import 'widgets/m3_entrance_test.dart' as widgets_m3_entrance;
@@ -500,6 +501,7 @@ void main() {
     widgets_expression_panel_frame.main();
     widgets_app_refresh_indicator.main();
     widgets_app_navigation.main();
+    widgets_app_side_sheet.main();
     widgets_swipe_action_row.main();
     widgets_reorder_slide.main();
     widgets_m3_entrance.main();
