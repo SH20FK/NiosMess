@@ -14,9 +14,9 @@ void main() {
       expect(sections.isNotEmpty, isTrue);
 
       final ids = sections.map((s) => s.id).toList();
-      expect(ids, isNot(contains('account')));
+      expect(ids.first, 'account');
       expect(ids, isNot(contains('system_device')));
-      expect(ids.length, 9); // Eight categories and the separate Plus entry.
+      expect(ids.length, 10); // Account, eight categories and Plus.
       expect(ids, contains('appearance'));
       expect(ids, contains('chats'));
       expect(ids, contains('notifications'));
@@ -66,6 +66,21 @@ void main() {
         );
       },
     );
+
+    test('search leads to the wallpaper entry in Appearance', () {
+      final results = SettingsRegistry.search('обои', l10nRu);
+      final wallpaper = results.firstWhere(
+        (r) => r.node.id == 'appearance.wallpaper',
+      );
+      expect(wallpaper.targetRoute, equals('/settings/appearance'));
+      expect(wallpaper.anchor, equals('appearance.wallpaper'));
+      expect(
+        SettingsRegistry.search('wallpaper', l10nEn).any(
+          (r) => r.node.id == 'appearance.wallpaper',
+        ),
+        isTrue,
+      );
+    });
 
     test('search finds privacy rules and blocked users', () {
       final results = SettingsRegistry.search('черный список', l10nRu);

@@ -314,8 +314,8 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               SettingsRow(
                 leading: Icon(Icons.block_rounded, color: scheme.error),
                 title: context.l10n.settingsServerLimitsTitle,
-                subtitle: context.l10n.settingsServerLimitsSubtitle,
-                control: ValueControl(context.l10n.settingsProduction),
+                subtitle: context.l10n.settingsSpamBlockServerHint,
+                control: const ValueControl(''),
               ),
             ],
           ),

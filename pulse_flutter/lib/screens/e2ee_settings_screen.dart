@@ -228,7 +228,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
         ),
         if (_hasKey)
           SettingsSection(
-            title: context.l10n.profileDangerZone,
+            title: context.l10n.settingsDangerZone,
             children: [
               SettingsTile(
                 icon: Icons.delete_sweep_rounded,

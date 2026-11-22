@@ -1,113 +1,115 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
 
-class SettingsIssueCard extends ConsumerWidget {
+class SettingsIssueCard extends StatelessWidget {
   const SettingsIssueCard({
     required this.issue,
-    this.onDismiss,
+    required this.onOpen,
     super.key,
   });
 
   final SettingsHealthIssue issue;
-  final VoidCallback? onDismiss;
+
+  /// The hub decides how to open the target: a pushed screen on a phone, the
+  /// detail pane in two panes.
+  final VoidCallback onOpen;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final TextTheme textTheme = theme.textTheme;
+    final l10n = context.l10n;
 
-    final Color cardBg;
-    final Color iconColor;
-    final IconData icon;
-
-    switch (issue.severity) {
-      case SettingsHealthSeverity.critical:
-        cardBg = scheme.errorContainer.withValues(alpha: 0.35);
-        iconColor = scheme.error;
-        icon = Icons.warning_rounded;
-      case SettingsHealthSeverity.warning:
-        cardBg = scheme.tertiaryContainer.withValues(alpha: 0.35);
-        iconColor = scheme.tertiary;
-        icon = Icons.info_rounded;
-      case SettingsHealthSeverity.advisory:
-        cardBg = scheme.surfaceContainerHigh;
-        iconColor = scheme.primary;
-        icon = Icons.tips_and_updates_rounded;
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: iconColor.withValues(alpha: 0.25),
-        ),
+    final (String title, String body, String action) = switch (issue.kind) {
+      SettingsHealthIssueKind.pushDenied => (
+        l10n.settingsIssuePushTitle,
+        l10n.settingsIssuePushBody,
+        l10n.settingsIssuePushAction,
       ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Icon(icon, color: iconColor, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      issue.title,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      issue.description,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (issue.canDismiss && onDismiss != null)
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                  onPressed: onDismiss,
-                  tooltip: 'Скрыть',
-                ),
-            ],
+      SettingsHealthIssueKind.cacheLarge => (
+        l10n.settingsIssueCacheTitle(
+          FileTypeDetector.formatFileSize(issue.bytes),
+        ),
+        l10n.settingsIssueCacheBody,
+        l10n.settingsIssueCacheAction,
+      ),
+      SettingsHealthIssueKind.updateFailed => (
+        l10n.settingsIssueUpdateTitle,
+        l10n.settingsIssueUpdateBody,
+        l10n.settingsIssueUpdateAction,
+      ),
+    };
+    final (Color background, Color accent, IconData icon) =
+        switch (issue.severity) {
+          SettingsHealthSeverity.warning => (
+            scheme.tertiaryContainer.withValues(alpha: 0.35),
+            scheme.tertiary,
+            Icons.info_rounded,
           ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.tonal(
-              onPressed: () {
-                context.push(issue.route);
-                ref.read(settingsAnchorControllerProvider.notifier).request(
-                  route: issue.route,
-                  anchor: issue.anchor,
-                );
-              },
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(100, 36),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text(
-                issue.actionLabel,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+          SettingsHealthSeverity.advisory => (
+            scheme.surfaceContainerHigh,
+            scheme.primary,
+            Icons.tips_and_updates_rounded,
+          ),
+        };
+
+    return Semantics(
+      container: true,
+      child: Container(
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(AppShape.card),
+          border: Border.all(color: accent.withValues(alpha: 0.25)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(icon, color: accent, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        title,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        body,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: FilledButton.tonal(
+                onPressed: onOpen,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(100, 48),
+                ),
+                child: Text(action),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

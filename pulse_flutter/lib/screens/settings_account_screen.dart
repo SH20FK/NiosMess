@@ -46,7 +46,7 @@ class SettingsAccountScreen extends ConsumerWidget {
                 context,
                 anchor: SettingId.accountUsername.value,
                 icon: Icons.alternate_email_rounded,
-                title: context.l10n.profileUsername,
+                title: context.l10n.settingsAccountUsername,
                 value: '@$username',
               ),
             if (niosId != null && niosId.isNotEmpty)

@@ -171,7 +171,8 @@ class PushNotificationService {
     }
   }
 
-  static Future<bool> isPermissionGranted() async {
+  /// Null when the status cannot be read, which is not the same as a refusal.
+  static Future<bool?> permissionState() async {
     try {
       await _firebaseBootstrap?.future;
       final NotificationSettings settings = await _fcm
@@ -179,9 +180,12 @@ class PushNotificationService {
       return settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
     } catch (_) {
-      return false;
+      return null;
     }
   }
+
+  static Future<bool> isPermissionGranted() async =>
+      await permissionState() ?? false;
 
   static bool _shouldIgnorePush(
     String title,

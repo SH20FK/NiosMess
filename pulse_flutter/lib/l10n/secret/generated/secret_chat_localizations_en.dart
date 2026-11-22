@@ -2556,4 +2556,93 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   @override
   String get inboxScheduleLockedPreview =>
       'Connect a device with encryption keys to read this message';
+
+  @override
+  String get settingsIssuePushTitle =>
+      'Notifications are off in system settings';
+
+  @override
+  String get settingsIssuePushBody =>
+      'Until the system allows them, you will not see new messages and calls while the app is closed.';
+
+  @override
+  String get settingsIssuePushAction => 'Open notifications';
+
+  @override
+  String settingsIssueCacheTitle(String size) {
+    return 'Cache takes up $size';
+  }
+
+  @override
+  String get settingsIssueCacheBody =>
+      'Temporary files can be deleted. Your chats stay in place.';
+
+  @override
+  String get settingsIssueCacheAction => 'Open storage';
+
+  @override
+  String get settingsIssueUpdateTitle => 'The update was not installed';
+
+  @override
+  String get settingsIssueUpdateBody =>
+      'Checking or downloading the update ended with an error.';
+
+  @override
+  String get settingsIssueUpdateAction => 'Open update';
+
+  @override
+  String get noticeOpenSystemSettings => 'Open system settings';
+
+  @override
+  String get noticeOpenSystemSettingsHint =>
+      'Allow notifications for NiosMess, then come back here.';
+
+  @override
+  String get noticePermissionDenied => 'The system did not allow notifications';
+
+  @override
+  String get settingsAccountUsername => 'Username';
+
+  @override
+  String get settingsDangerZone => 'Danger zone';
+
+  @override
+  String get settingsLockTimeoutImmediately => 'Immediately';
+
+  @override
+  String get settingsLockTimeout30Seconds => 'After 30 seconds';
+
+  @override
+  String get settingsLockTimeout1Minute => 'After 1 minute';
+
+  @override
+  String get settingsLockTimeout5Minutes => 'After 5 minutes';
+
+  @override
+  String get settingsLockTimeout30Minutes => 'After 30 minutes';
+
+  @override
+  String get settingsWallpaperEntryHint =>
+      'Pattern, colors and a photo behind your chats';
+
+  @override
+  String wallpaperForChatNamed(String title) {
+    return 'For “$title”';
+  }
+
+  @override
+  String get wallpaperTabPresets => 'Presets';
+
+  @override
+  String get wallpaperTabEffects => 'Effects';
+
+  @override
+  String get wallpaperResetDefault => 'Reset to default';
+
+  @override
+  String get wallpaperCopyCode => 'Copy wallpaper code';
+
+  @override
+  String get settingsSpamBlockServerHint =>
+      'This limit is set by the server and cannot be lifted from the app.';
 }

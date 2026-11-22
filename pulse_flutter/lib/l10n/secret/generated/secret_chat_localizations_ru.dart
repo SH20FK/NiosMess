@@ -2073,7 +2073,7 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get settingsE2eeOfflineTitle => 'Без интернета';
 
   @override
-  String get settingsE2eeMeshTitle => 'Если нет интернета использовать блютуз';
+  String get settingsE2eeMeshTitle => 'Использовать Bluetooth без интернета';
 
   @override
   String get settingsE2eeMeshDescription =>
@@ -2582,4 +2582,91 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   @override
   String get inboxScheduleLockedPreview =>
       'Подключите устройство к шифрованию, чтобы прочитать сообщение';
+
+  @override
+  String get settingsIssuePushTitle => 'Уведомления выключены в системе';
+
+  @override
+  String get settingsIssuePushBody =>
+      'Пока система их не разрешит, вы не увидите новые сообщения и звонки, когда приложение закрыто.';
+
+  @override
+  String get settingsIssuePushAction => 'Открыть уведомления';
+
+  @override
+  String settingsIssueCacheTitle(String size) {
+    return 'Кэш занимает $size';
+  }
+
+  @override
+  String get settingsIssueCacheBody =>
+      'Временные файлы можно удалить: чаты останутся на месте.';
+
+  @override
+  String get settingsIssueCacheAction => 'Открыть хранилище';
+
+  @override
+  String get settingsIssueUpdateTitle => 'Обновление не установилось';
+
+  @override
+  String get settingsIssueUpdateBody =>
+      'Проверка или загрузка обновления закончилась ошибкой.';
+
+  @override
+  String get settingsIssueUpdateAction => 'Открыть обновление';
+
+  @override
+  String get noticeOpenSystemSettings => 'Открыть настройки системы';
+
+  @override
+  String get noticeOpenSystemSettingsHint =>
+      'Разрешите уведомления для NiosMess и вернитесь сюда.';
+
+  @override
+  String get noticePermissionDenied => 'Система не разрешила уведомления';
+
+  @override
+  String get settingsAccountUsername => 'Имя пользователя';
+
+  @override
+  String get settingsDangerZone => 'Опасные действия';
+
+  @override
+  String get settingsLockTimeoutImmediately => 'Сразу';
+
+  @override
+  String get settingsLockTimeout30Seconds => 'Через 30 секунд';
+
+  @override
+  String get settingsLockTimeout1Minute => 'Через 1 минуту';
+
+  @override
+  String get settingsLockTimeout5Minutes => 'Через 5 минут';
+
+  @override
+  String get settingsLockTimeout30Minutes => 'Через 30 минут';
+
+  @override
+  String get settingsWallpaperEntryHint => 'Узор, цвета и фото для фона чатов';
+
+  @override
+  String wallpaperForChatNamed(String title) {
+    return 'Для «$title»';
+  }
+
+  @override
+  String get wallpaperTabPresets => 'Готовые';
+
+  @override
+  String get wallpaperTabEffects => 'Эффекты';
+
+  @override
+  String get wallpaperResetDefault => 'Сбросить по умолчанию';
+
+  @override
+  String get wallpaperCopyCode => 'Скопировать код обоев';
+
+  @override
+  String get settingsSpamBlockServerHint =>
+      'Ограничение установлено сервером. Из приложения его не снять.';
 }

@@ -15,6 +15,8 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
+import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
@@ -94,6 +96,8 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     if (confirmed != true || !mounted) return;
     try {
       await ref.read(uiSettingsProvider.notifier).resetAll();
+      // Notification categories live under their own per-account key.
+      await ref.read(notificationPreferencesProvider.notifier).reset();
       if (mounted) {
         AppToast.showSuccess(context, context.l10n.settingsV2ResetDone);
       }
@@ -149,7 +153,12 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             ],
           ),
         ),
-        if (!kIsWeb) const SettingsSection(children: [AboutUpdateTile()]),
+        if (!kIsWeb)
+          const SettingsSection(
+            children: [
+              SettingsAnchor(id: 'about.update', child: AboutUpdateTile()),
+            ],
+          ),
         SettingsChoiceButtons<int>(
           segments: [
             ButtonSegment(value: 0, label: Text(l.aboutTabWhatsNew)),

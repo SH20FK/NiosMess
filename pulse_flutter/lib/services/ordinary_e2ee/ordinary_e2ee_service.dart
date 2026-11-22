@@ -347,7 +347,7 @@ class OrdinaryE2eeService extends ChangeNotifier {
   Future<void> setEnabled(bool value) async {
     if (!value && meshEnabled()) {
       throw StateError(
-        'Сначала отключите «Если нет интернета использовать блютуз»',
+        'Сначала отключите «Использовать Bluetooth без интернета»',
       );
     }
     if (isOnline()) {

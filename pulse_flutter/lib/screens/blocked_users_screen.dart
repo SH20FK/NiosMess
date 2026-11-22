@@ -9,6 +9,7 @@ import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/common/user_search_picker_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -48,8 +49,24 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
       excludedUserIds: privacy.blockedUsers.map((u) => u.id).toSet(),
     );
     if (!mounted) return;
+    if (picked == null || owner != ref.read(authProvider).session) {
+      setState(() => _picking = false);
+      return;
+    }
+    // Blocking cuts off messages and calls: ask the same question as the
+    // profile does. Unblocking stays instant because it is reversible.
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: context.l10n.profileBlock,
+      subtitle: context.l10n.blockUserConfirmDesc(picked.username),
+      confirmLabel: context.l10n.profileBlock,
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
+      icon: Icons.block_rounded,
+    );
+    if (!mounted) return;
     setState(() => _picking = false);
-    if (picked == null || owner != ref.read(authProvider).session) return;
+    if (confirmed != true || owner != ref.read(authProvider).session) return;
     HapticService.confirm();
     final success = await ref
         .read(privacyProvider.notifier)
@@ -192,9 +209,10 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
 
   Widget _blockedRow(BlockedUser user, int index, int count, bool pending) {
     final scheme = Theme.of(context).colorScheme;
+    final outer = SettingsSection.outerRadius(context);
     final radius = BorderRadius.vertical(
-      top: Radius.circular(index == 0 ? 26 : 4),
-      bottom: Radius.circular(index == count - 1 ? 26 : 4),
+      top: Radius.circular(index == 0 ? outer : 4),
+      bottom: Radius.circular(index == count - 1 ? outer : 4),
     );
     return Padding(
       key: ValueKey(user.id),

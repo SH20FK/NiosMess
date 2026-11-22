@@ -133,7 +133,7 @@ void main() {
           });
         }
         if (find
-            .text('Если нет интернета использовать блютуз')
+            .text('Использовать Bluetooth без интернета')
             .evaluate()
             .isNotEmpty) {
           expect(
@@ -146,7 +146,7 @@ void main() {
           );
           if (Platform.environment['NIOS_E2EE_PREVIEW'] == '1') {
             await tester.ensureVisible(
-              find.text('Если нет интернета использовать блютуз'),
+              find.text('Использовать Bluetooth без интернета'),
             );
             await tester.pumpAndSettle();
             await tester.runAsync(() async {

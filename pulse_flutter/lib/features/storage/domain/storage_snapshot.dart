@@ -11,52 +11,6 @@ enum StorageCategory {
   secretChatCache,
   other;
 
-  String get labelRu {
-    switch (this) {
-      case StorageCategory.images:
-        return 'Изображения';
-      case StorageCategory.videos:
-        return 'Видео';
-      case StorageCategory.audio:
-        return 'Аудио и голосовые';
-      case StorageCategory.files:
-        return 'Файлы и документы';
-      case StorageCategory.stickers:
-        return 'Стикеры';
-      case StorageCategory.avatars:
-        return 'Аватары';
-      case StorageCategory.drafts:
-        return 'Черновики';
-      case StorageCategory.secretChatCache:
-        return 'Секретные чаты';
-      case StorageCategory.other:
-        return 'Прочее';
-    }
-  }
-
-  String get labelEn {
-    switch (this) {
-      case StorageCategory.images:
-        return 'Images';
-      case StorageCategory.videos:
-        return 'Videos';
-      case StorageCategory.audio:
-        return 'Audio & Voice';
-      case StorageCategory.files:
-        return 'Files & Documents';
-      case StorageCategory.stickers:
-        return 'Stickers';
-      case StorageCategory.avatars:
-        return 'Avatars';
-      case StorageCategory.drafts:
-        return 'Drafts';
-      case StorageCategory.secretChatCache:
-        return 'Secret chats';
-      case StorageCategory.other:
-        return 'Other';
-    }
-  }
-
   static StorageCategory detectFromFilePath(String path) {
     final String lower = path.toLowerCase();
 

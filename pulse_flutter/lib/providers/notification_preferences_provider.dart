@@ -42,29 +42,49 @@ class NotificationPreferencesNotifier
     );
   }
 
-  Future<void> setPreference(String key, bool enabled) async {
+  Future<void> _writes = Future<void>.value();
+
+  /// Writes run one after another. Each starts from the result of the
+  /// previous one, so two switches flipped back to back keep both values.
+  Future<void> _apply(
+    NotificationPreferences? Function(NotificationPreferences current) change,
+  ) async {
+    final Future<bool> write = _writes.then((_) => _write(change));
+    _writes = write.then<void>((_) {}, onError: (Object _) {});
+    if (!await write || !ref.mounted) return;
+    await ref.read(authProvider.notifier).refreshFcmTokenRegistration();
+  }
+
+  /// A null result of [change] removes the stored value.
+  Future<bool> _write(
+    NotificationPreferences? Function(NotificationPreferences current) change,
+  ) async {
     final account = ref.read(authProvider).session?.userId;
     final current = await future;
     if (!ref.mounted || ref.read(authProvider).session?.userId != account) {
-      return;
+      return false;
     }
-    final next = NotificationPreferences.fromJson({
-      ...current.toJson(),
-      key: enabled,
-    });
+    final next = change(current);
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setString(
-      'notification_preferences_$account',
-      jsonEncode(next.toJson()),
-    )) {
-      throw StateError('NOTIFICATION_PREFERENCE_WRITE');
-    }
+    final storageKey = 'notification_preferences_$account';
+    final stored = next == null
+        ? await prefs.remove(storageKey)
+        : await prefs.setString(storageKey, jsonEncode(next.toJson()));
+    if (!stored) throw StateError('NOTIFICATION_PREFERENCE_WRITE');
     if (!ref.mounted || ref.read(authProvider).session?.userId != account) {
-      return;
+      return false;
     }
-    state = AsyncData(next);
-    await ref.read(authProvider.notifier).refreshFcmTokenRegistration();
+    state = AsyncData(next ?? const NotificationPreferences());
+    return true;
   }
+
+  Future<void> setPreference(String key, bool enabled) => _apply(
+    (current) =>
+        NotificationPreferences.fromJson({...current.toJson(), key: enabled}),
+  );
+
+  /// Back to defaults: every category on.
+  Future<void> reset() => _apply((_) => null);
 }
 
 final notificationPreferencesProvider =

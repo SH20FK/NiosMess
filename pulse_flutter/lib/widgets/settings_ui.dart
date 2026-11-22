@@ -170,13 +170,18 @@ class SettingsSection extends StatelessWidget {
   final List<Widget> children;
   final bool isCard;
 
+  /// Outer corner of a group. Follows the corner radius setting across its
+  /// whole 8-28 range; the default 20 gives 24.
+  static double outerRadius(BuildContext context) =>
+      (AppRadii.of(context).lg + 4).clamp(12.0, 32.0);
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final items = children.where((child) => child is! Divider).toList();
     if (items.isEmpty) return const SizedBox.shrink();
-    final outer = AppRadii.of(context).lg.clamp(24.0, 32.0);
+    final outer = outerRadius(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(

@@ -50,23 +50,6 @@ const Map<String, List<String>> _screenSources = <String, List<String>>{
   ],
 };
 
-/// Links that point at an anchor the target screen does not declare.
-/// The list must shrink, never grow: fixing a link means deleting its entry.
-const Set<String> _knownDanglingAnchors = <String>{
-  'registry:blocked_users -> /settings/privacy/blocked-users#privacy.blockedUsers',
-  'registry:e2ee_security -> /settings/e2ee#e2ee_security',
-  'registry:sessions_management -> /settings/sessions#security.sessions.active',
-  'issue:notifications_denied -> /settings/notifications#notifications-permission',
-  'issue:reauthentication_required -> /settings/account#account-security',
-  'issue:storage_low -> /settings/storage#storage-cache-clear',
-  'issue:update_integrity_failure -> /settings/about#app-update',
-};
-
-/// Links that point at a route the router does not declare.
-const Set<String> _knownMissingRoutes = <String>{
-  'issue:notifications_denied -> /settings/notifications',
-};
-
 Map<String, String> _settingIdValues() {
   final String src = File(
     'lib/features/settings/domain/setting_id.dart',
@@ -112,16 +95,21 @@ Set<String> _routerPaths() => RegExp(r"path:\s*'([^']+)'")
     .map((RegExpMatch m) => m.group(1)!)
     .toSet();
 
-List<SettingsHealthIssue> _allIssues() => <SettingsHealthIssue>[
-  SettingsHealthIssue.notificationsDenied(),
-  SettingsHealthIssue.reauthenticationRequired(),
-  SettingsHealthIssue.storageLow(0),
-  SettingsHealthIssue.updateIntegrityFailure(),
+List<SettingsHealthIssue> _allIssues() => const <SettingsHealthIssue>[
+  SettingsHealthIssue.pushDenied(),
+  SettingsHealthIssue.cacheLarge(0),
+  SettingsHealthIssue.updateFailed(),
 ];
 
 void main() {
   final AppLocalizationsRu l10n = AppLocalizationsRu();
   final Map<String, String> settingIds = _settingIdValues();
+  final Map<SettingsSectionId?, String> sectionRoutes =
+      <SettingsSectionId?, String>{
+        for (final SettingsNavNode node
+            in SettingsRegistry.getAllNodes().whereType<SettingsNavNode>())
+          if (node.parentNavId == null) node.sectionId: node.route,
+      };
 
   bool declares(String route, String anchor) => _declaredAnchors(
     route,
@@ -155,7 +143,11 @@ void main() {
         final String? anchor = result.anchor;
         if (anchor == null || anchor.isEmpty) continue;
         checked++;
-        if (!declares(result.targetRoute, anchor)) {
+        // Two panes select the result's section instead of pushing its
+        // route, so the anchor may live on either screen.
+        final String? sectionRoute = sectionRoutes[result.targetSectionId];
+        if (!declares(result.targetRoute, anchor) &&
+            (sectionRoute == null || !declares(sectionRoute, anchor))) {
           dangling.add(
             'registry:${node.id} -> ${result.targetRoute}#$anchor',
           );
@@ -170,13 +162,7 @@ void main() {
       }
 
       expect(checked, greaterThanOrEqualTo(20));
-      expect(
-        dangling,
-        _knownDanglingAnchors,
-        reason:
-            'A new dangling anchor must be fixed; a fixed one must be '
-            'removed from _knownDanglingAnchors.',
-      );
+      expect(dangling, isEmpty);
     });
 
     test('registry and issue routes exist in the router', () {
@@ -193,15 +179,12 @@ void main() {
         if (!paths.contains(issue.route)) {
           missing.add('issue:${issue.id} -> ${issue.route}');
         }
+        // Two panes open the section, a phone pushes the route: both must
+        // lead to the same screen.
+        expect(sectionRoutes[issue.sectionId], issue.route, reason: issue.id);
       }
 
-      expect(
-        missing,
-        _knownMissingRoutes,
-        reason:
-            'A new missing route must be fixed; a fixed one must be '
-            'removed from _knownMissingRoutes.',
-      );
+      expect(missing, isEmpty);
     });
 
     test('web redirect maps every top-level route to a real section', () {

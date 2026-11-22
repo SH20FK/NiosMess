@@ -18,6 +18,8 @@ Future<bool> updateNotificationPreference(WidgetRef ref, bool enabled) async {
   }
   if (!ref.context.mounted || action != _latestNotificationAction) return false;
   if (!identical(ref.read(authProvider).session, session)) return false;
+  // The system refused: a switch left on would promise push that cannot arrive.
+  if (enabled && !granted) return false;
   ref.read(uiSettingsProvider.notifier).setNotifications(enabled);
   await (await SharedPreferences.getInstance()).setBool(
     'ui.notifications',

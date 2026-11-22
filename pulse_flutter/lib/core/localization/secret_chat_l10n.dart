@@ -811,4 +811,36 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsHoursCopyAll => _secret.settingsHoursCopyAll;
   String get settingsHoursCopied => _secret.settingsHoursCopied;
   String get settingsHoursTimezone => _secret.settingsHoursTimezone;
+  String get settingsIssuePushTitle => _secret.settingsIssuePushTitle;
+  String get settingsIssuePushBody => _secret.settingsIssuePushBody;
+  String get settingsIssuePushAction => _secret.settingsIssuePushAction;
+  String settingsIssueCacheTitle(String size) =>
+      _secret.settingsIssueCacheTitle(size);
+  String get settingsIssueCacheBody => _secret.settingsIssueCacheBody;
+  String get settingsIssueCacheAction => _secret.settingsIssueCacheAction;
+  String get settingsIssueUpdateTitle => _secret.settingsIssueUpdateTitle;
+  String get settingsIssueUpdateBody => _secret.settingsIssueUpdateBody;
+  String get settingsIssueUpdateAction => _secret.settingsIssueUpdateAction;
+  String get noticeOpenSystemSettings => _secret.noticeOpenSystemSettings;
+  String get noticeOpenSystemSettingsHint =>
+      _secret.noticeOpenSystemSettingsHint;
+  String get noticePermissionDenied => _secret.noticePermissionDenied;
+  String get settingsAccountUsername => _secret.settingsAccountUsername;
+  String get settingsDangerZone => _secret.settingsDangerZone;
+  String get settingsLockTimeoutImmediately =>
+      _secret.settingsLockTimeoutImmediately;
+  String get settingsLockTimeout30Seconds =>
+      _secret.settingsLockTimeout30Seconds;
+  String get settingsLockTimeout1Minute => _secret.settingsLockTimeout1Minute;
+  String get settingsLockTimeout5Minutes => _secret.settingsLockTimeout5Minutes;
+  String get settingsLockTimeout30Minutes =>
+      _secret.settingsLockTimeout30Minutes;
+  String get settingsWallpaperEntryHint => _secret.settingsWallpaperEntryHint;
+  String wallpaperForChatNamed(String title) =>
+      _secret.wallpaperForChatNamed(title);
+  String get wallpaperTabPresets => _secret.wallpaperTabPresets;
+  String get wallpaperTabEffects => _secret.wallpaperTabEffects;
+  String get wallpaperResetDefault => _secret.wallpaperResetDefault;
+  String get wallpaperCopyCode => _secret.wallpaperCopyCode;
+  String get settingsSpamBlockServerHint => _secret.settingsSpamBlockServerHint;
 }

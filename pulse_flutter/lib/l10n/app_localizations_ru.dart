@@ -311,9 +311,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get profileDisplayName => 'Имя';
 
   @override
-  String get profileUsername => 'Username';
-
-  @override
   String get profileDescription => 'Описание';
 
   @override
@@ -357,9 +354,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get profileAccountSection => 'Аккаунт';
-
-  @override
-  String get profileDangerZone => 'Тут лучше аккуратно трогать';
 
   @override
   String get profileAppearance => 'Внешний вид';
@@ -771,9 +765,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsLocalStorage => 'Локальное хранилище';
 
   @override
-  String get settingsProduction => 'Продакшн';
-
-  @override
   String get settingsClientCache => 'Клиентский кэш';
 
   @override
@@ -857,9 +848,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsServerLimitsTitle => 'Серверные ограничения';
-
-  @override
-  String get settingsServerLimitsSubtitle => 'Пака не сделано';
 
   @override
   String get settingsTwoFactorStatus => 'Статус двухфакторной защиты';

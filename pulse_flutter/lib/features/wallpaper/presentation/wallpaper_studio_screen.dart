@@ -125,7 +125,7 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
           child: Row(
             children: <Widget>[
               ChoiceChip(
-                label: const Text('Для всех чатов'),
+                label: Text(context.l10n.wallpaperForAllChats),
                 selected: !_applyToChatOnly,
                 onSelected: (bool selected) {
                   if (selected) setState(() => _applyToChatOnly = false);
@@ -136,8 +136,8 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
                 ChoiceChip(
                   label: Text(
                     widget.chatTitle != null
-                        ? 'Для «${widget.chatTitle}»'
-                        : 'Для этого чата',
+                        ? context.l10n.wallpaperForChatNamed(widget.chatTitle!)
+                        : context.l10n.wallpaperForThisChat,
                   ),
                   selected: _applyToChatOnly,
                   onSelected: (bool selected) {
@@ -155,11 +155,11 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
           unselectedLabelColor: scheme.onSurfaceVariant,
           indicatorColor: scheme.primary,
           indicatorSize: TabBarIndicatorSize.tab,
-          tabs: const <Widget>[
-            Tab(text: 'Готовые'),
-            Tab(text: 'Узор'),
-            Tab(text: 'Цвета'),
-            Tab(text: 'Эффекты'),
+          tabs: <Widget>[
+            Tab(text: context.l10n.wallpaperTabPresets),
+            Tab(text: context.l10n.wallpaperTabPattern),
+            Tab(text: context.l10n.wallpaperTabColors),
+            Tab(text: context.l10n.wallpaperTabEffects),
           ],
         );
 
@@ -197,9 +197,9 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'Применить',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  child: Text(
+                    context.l10n.wallpaperApply,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -212,7 +212,7 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text('Отмена'),
+                child: Text(context.l10n.wallpaperDiscard),
               ),
             ],
           ),
@@ -221,19 +221,31 @@ class _WallpaperStudioScreenState extends ConsumerState<WallpaperStudioScreen>
         final PreferredSizeWidget appBar = AppBar(
           title: Text(context.l10n.wallpaperScreenTitle),
           actions: <Widget>[
-            PopupMenuButton<String>(
-              onSelected: (String val) {
-                if (val == 'reset') _resetToDefault();
-                if (val == 'export') _exportCode();
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'reset',
-                  child: Text('Сбросить по умолчанию'),
+            MenuAnchor(
+              builder:
+                  (
+                    BuildContext context,
+                    MenuController controller,
+                    Widget? child,
+                  ) => IconButton(
+                    icon: const Icon(Icons.more_vert_rounded),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).moreButtonTooltip,
+                    onPressed: () => controller.isOpen
+                        ? controller.close()
+                        : controller.open(),
+                  ),
+              menuChildren: <Widget>[
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.restart_alt_rounded),
+                  onPressed: _resetToDefault,
+                  child: Text(context.l10n.wallpaperResetDefault),
                 ),
-                const PopupMenuItem<String>(
-                  value: 'export',
-                  child: Text('Скопировать код обоев'),
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.copy_rounded),
+                  onPressed: _exportCode,
+                  child: Text(context.l10n.wallpaperCopyCode),
                 ),
               ],
             ),

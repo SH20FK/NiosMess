@@ -684,12 +684,6 @@ abstract class AppLocalizations {
   /// **'Display name'**
   String get profileDisplayName;
 
-  /// No description provided for @profileUsername.
-  ///
-  /// In en, this message translates to:
-  /// **'Username'**
-  String get profileUsername;
-
   /// No description provided for @profileDescription.
   ///
   /// In en, this message translates to:
@@ -768,12 +762,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account'**
   String get profileAccountSection;
-
-  /// No description provided for @profileDangerZone.
-  ///
-  /// In en, this message translates to:
-  /// **'Danger zone'**
-  String get profileDangerZone;
 
   /// No description provided for @profileAppearance.
   ///
@@ -1526,12 +1514,6 @@ abstract class AppLocalizations {
   /// **'Local storage'**
   String get settingsLocalStorage;
 
-  /// No description provided for @settingsProduction.
-  ///
-  /// In en, this message translates to:
-  /// **'Production'**
-  String get settingsProduction;
-
   /// No description provided for @settingsClientCache.
   ///
   /// In en, this message translates to:
@@ -1681,12 +1663,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Server-side limits'**
   String get settingsServerLimitsTitle;
-
-  /// No description provided for @settingsServerLimitsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Typing indicator and read receipts are currently enforced by the backend and will become configurable later.'**
-  String get settingsServerLimitsSubtitle;
 
   /// No description provided for @settingsTwoFactorStatus.
   ///

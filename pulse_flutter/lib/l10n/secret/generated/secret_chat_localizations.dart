@@ -4732,6 +4732,162 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Connect a device with encryption keys to read this message'**
   String get inboxScheduleLockedPreview;
+
+  /// No description provided for @settingsIssuePushTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are off in system settings'**
+  String get settingsIssuePushTitle;
+
+  /// No description provided for @settingsIssuePushBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Until the system allows them, you will not see new messages and calls while the app is closed.'**
+  String get settingsIssuePushBody;
+
+  /// No description provided for @settingsIssuePushAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open notifications'**
+  String get settingsIssuePushAction;
+
+  /// No description provided for @settingsIssueCacheTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache takes up {size}'**
+  String settingsIssueCacheTitle(String size);
+
+  /// No description provided for @settingsIssueCacheBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Temporary files can be deleted. Your chats stay in place.'**
+  String get settingsIssueCacheBody;
+
+  /// No description provided for @settingsIssueCacheAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open storage'**
+  String get settingsIssueCacheAction;
+
+  /// No description provided for @settingsIssueUpdateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The update was not installed'**
+  String get settingsIssueUpdateTitle;
+
+  /// No description provided for @settingsIssueUpdateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking or downloading the update ended with an error.'**
+  String get settingsIssueUpdateBody;
+
+  /// No description provided for @settingsIssueUpdateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open update'**
+  String get settingsIssueUpdateAction;
+
+  /// No description provided for @noticeOpenSystemSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open system settings'**
+  String get noticeOpenSystemSettings;
+
+  /// No description provided for @noticeOpenSystemSettingsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow notifications for NiosMess, then come back here.'**
+  String get noticeOpenSystemSettingsHint;
+
+  /// No description provided for @noticePermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'The system did not allow notifications'**
+  String get noticePermissionDenied;
+
+  /// No description provided for @settingsAccountUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get settingsAccountUsername;
+
+  /// No description provided for @settingsDangerZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Danger zone'**
+  String get settingsDangerZone;
+
+  /// No description provided for @settingsLockTimeoutImmediately.
+  ///
+  /// In en, this message translates to:
+  /// **'Immediately'**
+  String get settingsLockTimeoutImmediately;
+
+  /// No description provided for @settingsLockTimeout30Seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'After 30 seconds'**
+  String get settingsLockTimeout30Seconds;
+
+  /// No description provided for @settingsLockTimeout1Minute.
+  ///
+  /// In en, this message translates to:
+  /// **'After 1 minute'**
+  String get settingsLockTimeout1Minute;
+
+  /// No description provided for @settingsLockTimeout5Minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'After 5 minutes'**
+  String get settingsLockTimeout5Minutes;
+
+  /// No description provided for @settingsLockTimeout30Minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'After 30 minutes'**
+  String get settingsLockTimeout30Minutes;
+
+  /// No description provided for @settingsWallpaperEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pattern, colors and a photo behind your chats'**
+  String get settingsWallpaperEntryHint;
+
+  /// No description provided for @wallpaperForChatNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'For “{title}”'**
+  String wallpaperForChatNamed(String title);
+
+  /// No description provided for @wallpaperTabPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Presets'**
+  String get wallpaperTabPresets;
+
+  /// No description provided for @wallpaperTabEffects.
+  ///
+  /// In en, this message translates to:
+  /// **'Effects'**
+  String get wallpaperTabEffects;
+
+  /// No description provided for @wallpaperResetDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default'**
+  String get wallpaperResetDefault;
+
+  /// No description provided for @wallpaperCopyCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy wallpaper code'**
+  String get wallpaperCopyCode;
+
+  /// No description provided for @settingsSpamBlockServerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This limit is set by the server and cannot be lifted from the app.'**
+  String get settingsSpamBlockServerHint;
 }
 
 class _SecretChatLocalizationsDelegate

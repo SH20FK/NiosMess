@@ -1,69 +1,59 @@
 import 'package:flutter/foundation.dart';
+import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 
-enum SettingsHealthSeverity { critical, warning, advisory }
+enum SettingsHealthSeverity { warning, advisory }
 
+enum SettingsHealthIssueKind { pushDenied, cacheLarge, updateFailed }
+
+/// A problem the settings hub shows above the section list. The issue says
+/// what is wrong and where to fix it; the card owns the localized texts.
 @immutable
 class SettingsHealthIssue {
-  const SettingsHealthIssue({
-    required this.id,
-    required this.title,
-    required this.description,
+  const SettingsHealthIssue._({
+    required this.kind,
     required this.severity,
     required this.route,
+    required this.sectionId,
     required this.anchor,
-    required this.actionLabel,
-    this.canDismiss = false,
+    this.bytes = 0,
   });
 
-  final String id;
-  final String title;
-  final String description;
+  const SettingsHealthIssue.pushDenied()
+    : this._(
+        kind: SettingsHealthIssueKind.pushDenied,
+        severity: SettingsHealthSeverity.warning,
+        route: '/settings/preferences',
+        sectionId: SettingsSectionId.preferences,
+        anchor: 'push_notifications',
+      );
+
+  const SettingsHealthIssue.cacheLarge(int bytes)
+    : this._(
+        kind: SettingsHealthIssueKind.cacheLarge,
+        severity: SettingsHealthSeverity.advisory,
+        route: '/settings/storage',
+        sectionId: SettingsSectionId.storage,
+        anchor: 'cache_cleaning',
+        bytes: bytes,
+      );
+
+  const SettingsHealthIssue.updateFailed()
+    : this._(
+        kind: SettingsHealthIssueKind.updateFailed,
+        severity: SettingsHealthSeverity.warning,
+        route: '/settings/about',
+        sectionId: SettingsSectionId.about,
+        anchor: 'about.update',
+      );
+
+  final SettingsHealthIssueKind kind;
   final SettingsHealthSeverity severity;
   final String route;
+  final SettingsSectionId sectionId;
   final String anchor;
-  final String actionLabel;
-  final bool canDismiss;
 
-  factory SettingsHealthIssue.notificationsDenied() => const SettingsHealthIssue(
-        id: 'notifications_denied',
-        title: 'Уведомления отключены',
-        description: 'Вы можете пропустить важные звонки и личные сообщения',
-        severity: SettingsHealthSeverity.warning,
-        route: '/settings/notifications',
-        anchor: 'notifications-permission',
-        actionLabel: 'Включить',
-      );
+  /// Size the card reports; only [SettingsHealthIssueKind.cacheLarge] sets it.
+  final int bytes;
 
-  factory SettingsHealthIssue.reauthenticationRequired() => const SettingsHealthIssue(
-        id: 'reauthentication_required',
-        title: 'Требуется подтверждение входа',
-        description: 'Срок действия сессии подходит к концу. Подтвердите вход для защиты чатов',
-        severity: SettingsHealthSeverity.critical,
-        route: '/settings/account',
-        anchor: 'account-security',
-        actionLabel: 'Подтвердить',
-      );
-
-  factory SettingsHealthIssue.storageLow(int freeBytes) {
-    final int mb = (freeBytes / (1024 * 1024)).round();
-    return SettingsHealthIssue(
-      id: 'storage_low',
-      title: 'Мало свободного места',
-      description: 'На устройстве осталось $mb МБ. Очистите временные файлы и кэш',
-      severity: SettingsHealthSeverity.warning,
-      route: '/settings/storage',
-      anchor: 'storage-cache-clear',
-      actionLabel: 'Очистить кэш',
-    );
-  }
-
-  factory SettingsHealthIssue.updateIntegrityFailure() => const SettingsHealthIssue(
-        id: 'update_integrity_failure',
-        title: 'Ошибка проверки обновления',
-        description: 'Контрольная сумма пакета обновления не совпала с серверной',
-        severity: SettingsHealthSeverity.critical,
-        route: '/settings/about',
-        anchor: 'app-update',
-        actionLabel: 'Повторить',
-      );
+  String get id => kind.name;
 }

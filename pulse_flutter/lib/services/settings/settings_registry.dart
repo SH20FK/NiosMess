@@ -509,8 +509,8 @@ class SettingsRegistry {
     SettingsNavNode(
       id: 'blocked_users',
       parentNavId: 'privacy',
-      title: (AppLocalizations l) => 'Чёрный список',
-      subtitle: (AppLocalizations l) => 'Заблокированные пользователи',
+      title: (AppLocalizations l) => l.privacyBlacklist,
+      subtitle: (AppLocalizations l) => l.blockedUsersTitle,
       icon: Icons.block_rounded,
       group: SettingsGroup.privacy,
       route: '/settings/privacy/blocked-users',
@@ -525,8 +525,8 @@ class SettingsRegistry {
     SettingsNavNode(
       id: 'e2ee_security',
       parentNavId: 'privacy',
-      title: (AppLocalizations l) => 'Сквозное шифрование E2EE',
-      subtitle: (AppLocalizations l) => 'Ключи безопасности и секретные чаты',
+      title: (AppLocalizations l) => l.settingsSecretChatsTitle,
+      subtitle: (AppLocalizations l) => l.settingsSecretChatsSubtitle,
       icon: Icons.lock_outline_rounded,
       group: SettingsGroup.privacy,
       route: '/settings/e2ee',
@@ -543,9 +543,8 @@ class SettingsRegistry {
     SettingsNavNode(
       id: 'sessions_management',
       parentNavId: 'privacy',
-      title: (AppLocalizations l) => 'Активные сессии',
-      subtitle: (AppLocalizations l) =>
-          'Устройства и браузеры с доступом к аккаунту',
+      title: (AppLocalizations l) => l.settingsActiveSessions,
+      subtitle: (AppLocalizations l) => l.settingsActiveSessionsSubtitle,
       icon: Icons.devices_rounded,
       group: SettingsGroup.privacy,
       route: '/settings/sessions',
@@ -564,9 +563,7 @@ class SettingsRegistry {
     SettingsNavNode(
       id: 'cache_cleaning',
       parentNavId: 'storage',
-      title: (AppLocalizations l) => 'Очистить кэш медиа',
-      subtitle: (AppLocalizations l) =>
-          'Очистка загруженных фото, аудио и превью',
+      title: (AppLocalizations l) => l.settingsStorageClearTemporary,
       icon: Icons.cleaning_services_rounded,
       group: SettingsGroup.storage,
       route: '/settings/storage',
@@ -607,6 +604,16 @@ class SettingsRegistry {
       route: '/settings/appearance',
       sectionId: SettingsSectionId.appearance,
       keywords: ["плотность", "компактность", "compact", "density"],
+    ),
+    SettingsNavNode(
+      id: 'appearance.wallpaper',
+      parentNavId: 'appearance',
+      title: (l) => l.appearanceChatWallpaperTitle,
+      icon: Icons.texture_rounded,
+      group: SettingsGroup.appearance,
+      route: '/settings/appearance',
+      sectionId: SettingsSectionId.appearance,
+      keywords: ['обои', 'фон чата', 'узор', 'wallpaper', 'background'],
     ),
     SettingsNavNode(
       id: 'motion.optimization',
@@ -701,9 +708,7 @@ class SettingsRegistry {
     return _topLevelSections
         .where(
           (SettingsNavNode node) =>
-              node.isAvailable() &&
-              node.id != 'account' &&
-              node.id != 'system_device',
+              node.isAvailable() && node.id != 'system_device',
         )
         .toList();
   }
@@ -785,6 +790,12 @@ class SettingsRegistry {
             (childNode is SettingsNavNode && childNode.sectionId != null)
             ? childNode.sectionId
             : parent?.sectionId;
+        // A node with its own section opens that screen: there is no row
+        // to highlight on it.
+        final bool ownSection =
+            childNode is SettingsNavNode &&
+            childNode.sectionId != null &&
+            childNode.sectionId != parent?.sectionId;
         final String parentTitle = parent != null
             ? parent.title(l10n)
             : childNode.group.localizedTitle(l10n);
@@ -797,14 +808,15 @@ class SettingsRegistry {
             breadcrumb: '$parentTitle › $title',
             targetRoute: route,
             targetSectionId: sectionId,
-            anchor: switch (childNode.id) {
-              'send_on_enter' => 'chats.sendOnEnter',
-              'font_scale' => 'appearance.font.scale',
-              'system_dynamic_colors' => 'appearance.color.source',
-              'blocked_users' => 'privacy.blockedUsers',
-              'sessions_management' => 'security.sessions.active',
-              _ => childNode.id,
-            },
+            anchor: ownSection
+                ? null
+                : switch (childNode.id) {
+                    'send_on_enter' => 'chats.sendOnEnter',
+                    'font_scale' => 'appearance.font.scale',
+                    'system_dynamic_colors' => 'appearance.color.source',
+                    'blocked_users' => 'privacy.blockedUsers',
+                    _ => childNode.id,
+                  },
             score: score,
           ),
         );

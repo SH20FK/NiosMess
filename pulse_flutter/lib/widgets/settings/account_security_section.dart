@@ -32,6 +32,15 @@ class _AccountSecuritySectionState
     await AppUrlLauncher.openUrl(context, 'https://ni-os.ru/id/account');
   }
 
+  String _timeoutLabel(AppLocalizations l10n, AppLockTimeout timeout) =>
+      switch (timeout) {
+        AppLockTimeout.immediately => l10n.settingsLockTimeoutImmediately,
+        AppLockTimeout.after30Seconds => l10n.settingsLockTimeout30Seconds,
+        AppLockTimeout.after1Minute => l10n.settingsLockTimeout1Minute,
+        AppLockTimeout.after5Minutes => l10n.settingsLockTimeout5Minutes,
+        AppLockTimeout.after30Minutes => l10n.settingsLockTimeout30Minutes,
+      };
+
   Future<void> _showTimeoutPicker(AppLockTimeout currentTimeout) async {
     final selected = await AppModal.showSheet<AppLockTimeout>(
       context: context,
@@ -48,9 +57,7 @@ class _AccountSecuritySectionState
                   icon: timeout == currentTimeout
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_off_rounded,
-                  title: sheetContext.l10n.localeName.startsWith('ru')
-                      ? timeout.labelRu
-                      : timeout.labelEn,
+                  title: _timeoutLabel(sheetContext.l10n, timeout),
                   type: SettingsListItemType.action,
                   isSelected: timeout == currentTimeout,
                   onTap: () => Navigator.of(sheetContext).pop(timeout),
@@ -157,9 +164,7 @@ class _AccountSecuritySectionState
                   title: context.l10n.settingsV2LockTimeout,
                   subtitle: context.l10n.settingsV2LockTimeoutHint,
                   control: NavigationControl(
-                    value: context.l10n.localeName.startsWith('ru')
-                        ? appLock.timeout.labelRu
-                        : appLock.timeout.labelEn,
+                    value: _timeoutLabel(context.l10n, appLock.timeout),
                   ),
                   onTap: () => _showTimeoutPicker(appLock.timeout),
                 ),

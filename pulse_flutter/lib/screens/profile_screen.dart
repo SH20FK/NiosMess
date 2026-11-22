@@ -46,6 +46,7 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
 import 'package:pulse_flutter/features/settings/application/settings_health_controller.dart';
+import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_issue_card.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -377,6 +378,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   List<({String title, Set<SettingsGroup> groups})> _groups() => [
     (
+      title: context.l10n.settingsAccountTitle,
+      groups: {SettingsGroup.account},
+    ),
+    (
       title: context.l10n.settingsGroupCommunication,
       groups: {SettingsGroup.chats, SettingsGroup.notifications},
     ),
@@ -390,7 +395,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ),
     (
       title: context.l10n.settingsGroupSecurity,
-      groups: {SettingsGroup.account, SettingsGroup.privacy},
+      groups: {SettingsGroup.privacy},
     ),
     (
       title: context.l10n.settingsGroupApplication,
@@ -435,13 +440,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ];
   }
 
-  List<Widget> _healthIssues() => ref
+  // Same rule as a search result: two panes select the section in place,
+  // a phone pushes the screen.
+  void _openIssue(SettingsHealthIssue issue, {required bool wide}) {
+    ref
+        .read(settingsAnchorControllerProvider.notifier)
+        .request(route: issue.route, anchor: issue.anchor);
+    if (_browser || wide) {
+      _selectSection(issue.sectionId);
+    } else {
+      context.push(issue.route);
+    }
+  }
+
+  List<Widget> _healthIssues({required bool wide}) => ref
       .watch(settingsHealthProvider)
       .take(2)
       .map(
-        (issue) => Padding(
+        (SettingsHealthIssue issue) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: SettingsIssueCard(issue: issue),
+          child: SettingsIssueCard(
+            issue: issue,
+            onOpen: () => _openIssue(issue, wide: wide),
+          ),
         ),
       )
       .toList();
@@ -557,7 +578,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               delegate: SliverChildListDelegate.fixed([
                 _buildSearchAnchor(isWide: false),
                 const SizedBox(height: 20),
-                ..._healthIssues(),
+                ..._healthIssues(wide: false),
                 ..._sectionGroups(settings, storageSnapshot),
                 _logoutAction(),
               ]),
@@ -652,7 +673,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 _buildSearchAnchor(isWide: true),
                 const SizedBox(height: 20),
-                ..._healthIssues(),
+                ..._healthIssues(wide: true),
                 ..._sectionGroups(
                   settings,
                   storageSnapshot,

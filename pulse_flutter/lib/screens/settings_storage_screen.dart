@@ -196,7 +196,9 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
           child: Container(
             decoration: BoxDecoration(
               color: scheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(26),
+              borderRadius: BorderRadius.circular(
+                SettingsSection.outerRadius(context),
+              ),
             ),
             padding: const EdgeInsets.all(18),
             child: Column(

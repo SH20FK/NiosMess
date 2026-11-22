@@ -22,36 +22,6 @@ enum AppLockTimeout {
     }
   }
 
-  String get labelRu {
-    switch (this) {
-      case AppLockTimeout.immediately:
-        return 'Сразу';
-      case AppLockTimeout.after30Seconds:
-        return 'Через 30 секунд';
-      case AppLockTimeout.after1Minute:
-        return 'Через 1 минуту';
-      case AppLockTimeout.after5Minutes:
-        return 'Через 5 минут';
-      case AppLockTimeout.after30Minutes:
-        return 'Через 30 минут';
-    }
-  }
-
-  String get labelEn {
-    switch (this) {
-      case AppLockTimeout.immediately:
-        return 'Immediately';
-      case AppLockTimeout.after30Seconds:
-        return 'After 30 seconds';
-      case AppLockTimeout.after1Minute:
-        return 'After 1 minute';
-      case AppLockTimeout.after5Minutes:
-        return 'After 5 minutes';
-      case AppLockTimeout.after30Minutes:
-        return 'After 30 minutes';
-    }
-  }
-
   static AppLockTimeout fromString(String? raw) {
     if (raw == null) return AppLockTimeout.immediately;
     for (final AppLockTimeout v in AppLockTimeout.values) {

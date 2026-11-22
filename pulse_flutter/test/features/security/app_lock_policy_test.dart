@@ -21,12 +21,6 @@ void main() {
       expect(AppLockTimeout.fromString(null), AppLockTimeout.immediately);
     });
 
-    test('labels are non-empty', () {
-      for (final AppLockTimeout t in AppLockTimeout.values) {
-        expect(t.labelRu.isNotEmpty, isTrue);
-        expect(t.labelEn.isNotEmpty, isTrue);
-      }
-    });
   });
 
   group('AppLockState', () {

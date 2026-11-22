@@ -310,9 +310,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileDisplayName => 'Display name';
 
   @override
-  String get profileUsername => 'Username';
-
-  @override
   String get profileDescription => 'Description';
 
   @override
@@ -356,9 +353,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileAccountSection => 'Account';
-
-  @override
-  String get profileDangerZone => 'Danger zone';
 
   @override
   String get profileAppearance => 'Appearance';
@@ -771,9 +765,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLocalStorage => 'Local storage';
 
   @override
-  String get settingsProduction => 'Production';
-
-  @override
   String get settingsClientCache => 'Client cache';
 
   @override
@@ -856,10 +847,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsServerLimitsTitle => 'Server-side limits';
-
-  @override
-  String get settingsServerLimitsSubtitle =>
-      'Typing indicator and read receipts are currently enforced by the backend and will become configurable later.';
 
   @override
   String get settingsTwoFactorStatus => 'Two-factor status';
