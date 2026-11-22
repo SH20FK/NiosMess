@@ -116,7 +116,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
-      tester.view.physicalSize = const Size(900, 700);
+      // 89 dp of rail leave 911: still room for the list and a 560 dp section.
+      tester.view.physicalSize = const Size(1000, 700);
       await tester.pump();
       expect(
         find.byKey(const ValueKey('settings-master-pane')),

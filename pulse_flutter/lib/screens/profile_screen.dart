@@ -3,6 +3,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/settings/settings_profile_card.dart';
 import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
@@ -52,6 +53,13 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final SearchController _searchController = SearchController();
 
+  // Whether the last layout showed two panes. Set while building, read by
+  // callbacks that run after it.
+  bool _wide = false;
+
+  // The section row the keyboard focus is on, if it is in the list.
+  SettingsSectionId? _focusedSection;
+
   bool get _browser => ref.read(clientCapabilitiesProvider).browserWorkspace;
   SettingsSectionId get _webSection =>
       widget.initialSection == SettingsSectionId.systemDevice
@@ -75,6 +83,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  // Escape on the settings tab goes one level up: from a section reached
+  // through another one to that one, from anything else to the chats.
+  void _keyBack() {
+    if (_browser && !_wide && widget.initialSection != null) {
+      context.go('/main/settings');
+      return;
+    }
+    final SettingsSectionId? current = !_wide
+        ? null
+        : _browser
+        ? _webSection
+        : ref.read(desktopSelectedSettingsSectionProvider);
+    final SettingsSectionId? parent = switch (current) {
+      SettingsSectionId.e2ee => SettingsSectionId.privacy,
+      SettingsSectionId.systemDevice => SettingsSectionId.about,
+      _ => null,
+    };
+    if (parent != null) {
+      _selectSection(parent);
+    } else {
+      context.go('/main/chats');
+    }
+  }
+
+  // Arrow keys in the list of sections: the neighbour of the focused row
+  // opens beside the list and the focus moves onto it.
+  void _stepSection(int delta) {
+    final List<SettingsNavNode> sections =
+        SettingsRegistry.getTopLevelSections();
+    final SettingsSectionId current =
+        _focusedSection ??
+        (_browser
+            ? _webSection
+            : ref.read(desktopSelectedSettingsSectionProvider));
+    final int index = sections.indexWhere((n) => n.sectionId == current);
+    final int next = index + delta;
+    if (index >= 0 && next >= 0 && next < sections.length) {
+      final SettingsSectionId? id = sections[next].sectionId;
+      if (id != null) _selectSection(id);
+    }
+    // Past either end the focus still leaves the list: to the search above
+    // or to the row below.
+    primaryFocus?.focusInDirection(
+      delta > 0 ? TraversalDirection.down : TraversalDirection.up,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -85,7 +140,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ref
             .read(desktopSelectedSettingsSectionProvider.notifier)
             .setSelectedSection(widget.initialSection!);
-        if (MediaQuery.sizeOf(context).width < Breakpoints.medium) {
+        if (!_wide) {
           final List<SettingsNavNode> sections =
               SettingsRegistry.getTopLevelSections();
           final SettingsNavNode? target = sections
@@ -278,47 +333,105 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final selectedIndex = selected == null
         ? -1
         : sections.indexWhere((node) => node.sectionId == selected);
-    return [
-      SettingsSection(
-        stagger: true,
-        // The open section rounds off on every side, not only recolours.
-        selectedIndex: selectedIndex < 0 ? null : selectedIndex,
-        children: [
-          for (final node in sections)
-            SettingsListItem.nav(
+    // Beside an open section the list is navigation: low rows, and a problem
+    // is a dot on the row of its section instead of a card above the list.
+    final bool dense = selected != null;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final Map<SettingsSectionId, SettingsHealthIssue> marks =
+        <SettingsSectionId, SettingsHealthIssue>{
+          if (dense)
+            // Reversed, so the first problem of a section is the one kept.
+            for (final SettingsHealthIssue issue
+                in ref.watch(settingsHealthProvider).reversed)
+              issue.sectionId: issue,
+        };
+    final Widget list = SettingsSection(
+      stagger: true,
+      // The open section rounds off on every side, not only recolours.
+      selectedIndex: selectedIndex < 0 ? null : selectedIndex,
+      children: [
+        for (final node in sections)
+          // Notes which row the keyboard is on, so the arrows step from it
+          // and not from the open section.
+          Focus(
+            canRequestFocus: false,
+            skipTraversal: true,
+            includeSemantics: false,
+            onFocusChange: (bool focused) {
+              if (focused) {
+                _focusedSection = node.sectionId;
+              } else if (_focusedSection == node.sectionId) {
+                _focusedSection = null;
+              }
+            },
+            child: SettingsListItem.nav(
               key: ValueKey('settings-destination-${node.id}'),
               icon: node.icon,
               title: node.title(context.l10n),
               value: _getSectionBadgeValue(node, themeMode, snapshot),
               isSection: true,
               isSelected: selected != null && node.sectionId == selected,
+              dense: dense,
+              attention: switch (marks[node.sectionId]) {
+                final SettingsHealthIssue issue => settingsIssueTitle(
+                  context.l10n,
+                  issue,
+                ),
+                null => null,
+              },
+              attentionColor: switch (marks[node.sectionId]?.severity) {
+                SettingsHealthSeverity.critical => scheme.error,
+                SettingsHealthSeverity.warning => scheme.tertiary,
+                SettingsHealthSeverity.advisory => scheme.primary,
+                null => null,
+              },
               onTap: () {
                 if (selected != null && node.sectionId != null) {
+                  // A marked row leads to the control that fixes the problem.
+                  final SettingsHealthIssue? issue = marks[node.sectionId];
+                  if (issue != null) {
+                    ref
+                        .read(settingsAnchorControllerProvider.notifier)
+                        .request(route: issue.route, anchor: issue.anchor);
+                  }
                   _selectSection(node.sectionId!);
                 } else {
                   _openSection(node);
                 }
               },
             ),
-        ],
+          ),
+      ],
+    );
+    // On a phone the rows push screens, so the arrows keep their usual job.
+    if (selected == null) return [list];
+    return [
+      CallbackShortcuts(
+        bindings: <ShortcutActivator, VoidCallback>{
+          const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
+              _stepSection(1),
+          const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
+              _stepSection(-1),
+        },
+        child: list,
       ),
     ];
   }
 
-  // Same rule as a search result: two panes select the section in place,
-  // a phone pushes the screen.
-  void _openIssue(SettingsHealthIssue issue, {required bool wide}) {
+  // Cards exist only in the single-column hub: a browser keeps the section
+  // in the address, a phone pushes the screen.
+  void _openIssue(SettingsHealthIssue issue) {
     ref
         .read(settingsAnchorControllerProvider.notifier)
         .request(route: issue.route, anchor: issue.anchor);
-    if (_browser || wide) {
+    if (_browser) {
       _selectSection(issue.sectionId);
     } else {
       context.push(issue.route);
     }
   }
 
-  List<Widget> _healthIssues({required bool wide}) => ref
+  List<Widget> _healthIssues() => ref
       .watch(settingsHealthProvider)
       .take(2)
       .map(
@@ -326,17 +439,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           padding: const EdgeInsets.only(bottom: 12),
           child: SettingsIssueCard(
             issue: issue,
-            onOpen: () => _openIssue(issue, wide: wide),
+            onOpen: () => _openIssue(issue),
           ),
         ),
       )
       .toList();
 
-  Widget _logoutAction() => SettingsSection(
+  Widget _logoutAction({bool dense = false}) => SettingsSection(
     children: [
-      SettingsListItem.danger(
+      SettingsListItem(
         icon: Icons.logout_rounded,
         title: context.l10n.profileLogout,
+        type: SettingsListItemType.danger,
+        dense: dense,
         onTap: _logout,
       ),
     ],
@@ -363,6 +478,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       displayName: displayName,
       username: username,
       avatarUrl: auth.profile?.avatarUrl,
+      dense: wide,
       onTap: () => _openAccount(wide: wide),
     ),
   );
@@ -411,7 +527,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   _buildSearchAnchor(isWide: false),
                   const SizedBox(height: 20),
-                  ..._healthIssues(wide: false),
+                  ..._healthIssues(),
                   ..._sectionGroups(themeMode, storageSnapshot),
                   _logoutAction(),
                 ]),
@@ -462,8 +578,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ThemeMode themeMode,
     LocalStorageSnapshot? storageSnapshot,
     String displayName,
-    String username,
-  ) {
+    String username, {
+    required double width,
+  }) {
     final selected = _browser
         ? _webSection
         : ref.watch(desktopSelectedSettingsSectionProvider);
@@ -474,9 +591,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           Container(
             key: const ValueKey('settings-master-pane'),
-            width: _browser
-                ? (MediaQuery.sizeOf(context).width * .27).clamp(300.0, 360.0)
-                : 340,
+            // The same share on Windows and the web, and never so wide that
+            // the section beside it drops under its own minimum.
+            width: (width * .27).clamp(Breakpoints.settingsNavMinWidth, 340.0),
             decoration: BoxDecoration(
               color: scheme.surface,
               border: Border(
@@ -485,32 +602,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             ),
-            child: ListView(
-              key: const PageStorageKey('settings-navigation-scroll'),
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
+            // Navigation that stays on screen: the search on top, the
+            // sections under it, who is signed in at the foot. The section
+            // beside it carries the heading, so the list has none.
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(
-                    context.l10n.tabSettings,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
+                  padding: const EdgeInsets.fromLTRB(
+                    14,
+                    AppSpacing.lg,
+                    14,
+                    AppSpacing.md,
+                  ),
+                  child: _buildSearchAnchor(isWide: true),
+                ),
+                Expanded(
+                  child: SettingsPaneScrollbar(
+                    builder: (context, controller) => ListView(
+                      key: const PageStorageKey('settings-navigation-scroll'),
+                      controller: controller,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      children: [
+                        ..._sectionGroups(
+                          themeMode,
+                          storageSnapshot,
+                          selected: selected,
+                        ),
+                        _logoutAction(dense: true),
+                      ],
                     ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                  child: _profileCard(auth, displayName, username, wide: true),
+                  padding: EdgeInsets.fromLTRB(
+                    14,
+                    AppSpacing.sm,
+                    14,
+                    AppSpacing.lg + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  child: _profileCard(
+                    auth,
+                    displayName,
+                    username,
+                    wide: true,
+                  ),
                 ),
-                _buildSearchAnchor(isWide: true),
-                const SizedBox(height: 20),
-                ..._healthIssues(wide: true),
-                ..._sectionGroups(
-                  themeMode,
-                  storageSnapshot,
-                  selected: selected,
-                ),
-                _logoutAction(),
               ],
             ),
           ),
@@ -557,6 +694,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(settingsKeyCommandProvider, (_, next) {
+      if (next == null) return;
+      switch (next.command) {
+        case SettingsKeyCommand.search:
+          // A compact page of one section has no search field.
+          if (_searchController.isAttached) _searchController.openView();
+        case SettingsKeyCommand.back:
+          _keyBack();
+      }
+    });
     final AuthState auth = ref.watch(authProvider);
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final ThemeMode themeMode = ref.watch(
@@ -579,9 +726,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
         final browser = ref.watch(clientCapabilitiesProvider).browserWorkspace;
-        final bool isWide =
-            width >= (browser ? 720 : Breakpoints.medium) &&
-            MediaQuery.sizeOf(context).width >= Breakpoints.medium;
+        // One rule for Windows and the web, counted from the room the open
+        // section needs and not from the window: the app rail is already
+        // taken out of these constraints.
+        final bool isWide = Breakpoints.settingsTwoPane(
+          Size(
+            width,
+            constraints.maxHeight.isFinite
+                ? constraints.maxHeight
+                : MediaQuery.sizeOf(context).height,
+          ),
+        );
+        _wide = isWide;
         if (browser && !isWide && widget.initialSection != null) {
           final section = _webSection;
           final node = SettingsRegistry.getAllNodes()
@@ -599,12 +755,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 node?.title(context.l10n) ?? context.l10n.tabSettings,
               ),
             ),
-            body: KeyedSubtree(
-              key: ValueKey(section),
-              child: SettingsHeadingScope(
-                showEmbeddedHeading: false,
-                child: _buildDetailPane(section),
-              ),
+            // The same cross-fade between sections as beside the list.
+            body: SettingsHeadingScope(
+              showEmbeddedHeading: false,
+              child: _animatedDetail(section),
             ),
           );
         }
@@ -618,6 +772,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             storageSnapshot,
             displayName,
             username,
+            width: width,
           );
         }
 

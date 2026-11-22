@@ -1,9 +1,12 @@
 import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/settings/settings_pane_scrollbar.dart';
 
 /// Compact web pages already receive a title from their persistent app bar.
 class SettingsHeadingScope extends InheritedWidget {
@@ -54,6 +57,11 @@ class SettingsShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final bool keyboard = ref.watch(
+      clientCapabilitiesProvider.select(
+        (c) => c.desktopFiles || c.browserWorkspace,
+      ),
+    );
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -151,39 +159,48 @@ class SettingsShell extends ConsumerWidget {
           ...?sliversAfter,
         ];
 
-        final Widget rawScrollView = CustomScrollView(
-          physics: kIsWeb
-              ? const ClampingScrollPhysics()
-              : const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-          slivers: slivers,
+        // The thumb sits at the edge of the pane, not of the centred column.
+        final Widget body = SettingsPaneScrollbar(
+          builder: (BuildContext context, ScrollController? controller) {
+            final Widget scrolling = CustomScrollView(
+              controller: controller,
+              physics: kIsWeb
+                  ? const ClampingScrollPhysics()
+                  : const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+              slivers: slivers,
+            );
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: onRefresh != null
+                    ? AppRefreshIndicator(
+                        onRefresh: onRefresh!,
+                        child: scrolling,
+                      )
+                    : scrolling,
+              ),
+            );
+          },
         );
 
-        final Widget scrolling = rawScrollView;
-        final Widget bodyContent = onRefresh != null
-            ? AppRefreshIndicator(onRefresh: onRefresh!, child: scrolling)
-            : scrolling;
-
-        if (isEmbedded) {
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              child: bodyContent,
-            ),
-          );
-        }
-
-        return Scaffold(
+        if (isEmbedded) return body;
+        final Widget page = Scaffold(
           backgroundColor: scheme.surface,
-          body: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              child: bodyContent,
-            ),
-          ),
+          body: body,
+        );
+        if (!keyboard) return page;
+        // A pushed settings page closes on Escape where there is a keyboard.
+        // The focus node gives the key somewhere to land before anything on
+        // the page has been focused.
+        return CallbackShortcuts(
+          bindings: <ShortcutActivator, VoidCallback>{
+            const SingleActivator(LogicalKeyboardKey.escape): () =>
+                Navigator.maybePop(context),
+          },
+          child: Focus(autofocus: true, child: page),
         );
       },
     );

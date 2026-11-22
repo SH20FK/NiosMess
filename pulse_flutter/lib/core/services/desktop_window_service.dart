@@ -34,7 +34,7 @@ class DesktopWindowService with WindowListener, TrayListener {
       await windowManager.ensureInitialized();
 
       const WindowOptions windowOptions = WindowOptions(
-        minimumSize: Size(680, 520),
+        minimumSize: minimumWindowSize,
         skipTaskbar: false,
         titleBarStyle: TitleBarStyle.normal,
         title: 'NiosMess',
@@ -96,6 +96,26 @@ class DesktopWindowService with WindowListener, TrayListener {
     } catch (e) {
       debugPrint('[DesktopWindowService] Tray setup failed: $e');
     }
+  }
+
+  /// Name of the app in the window title.
+  static const String appTitle = 'NiosMess';
+
+  /// Smallest window, frame included. Wide enough for settings to keep the
+  /// list of sections beside the open one: the app rail (97), the list (300)
+  /// and the section (560), plus what the frame takes.
+  static const Size minimumWindowSize = Size(980, 560);
+
+  String _title = appTitle;
+
+  /// Shows [title] in the title bar. Does nothing before the window is set
+  /// up, off the desktop, or when the title is already there.
+  Future<void> setTitle(String title) async {
+    if (!isDesktop || !_initialized || title == _title) return;
+    _title = title;
+    try {
+      await windowManager.setTitle(title);
+    } catch (_) {}
   }
 
   /// Brings window to front and focuses it.

@@ -6,6 +6,7 @@ import 'package:pulse_flutter/features/chats/application/inbox_selection_control
 import 'package:pulse_flutter/widgets/nav/app_nav_destination.dart';
 import 'package:pulse_flutter/widgets/nav/app_nav_item.dart';
 import 'package:pulse_flutter/widgets/nav/app_nav_rail.dart';
+import 'package:pulse_flutter/widgets/nav/shell_window_title.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -547,6 +548,28 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   alt: true,
                 ): () =>
                     context.push('/new-message'),
+                // The usual desktop key for settings.
+                const SingleActivator(LogicalKeyboardKey.comma, control: true):
+                    () => _onTapTab(AppNavDestination.settings.index),
+                const SingleActivator(LogicalKeyboardKey.comma, meta: true):
+                    () => _onTapTab(AppNavDestination.settings.index),
+                // Bound only on the settings tab, so Escape is not swallowed
+                // elsewhere. The hub acts on them.
+                if (currentIndex == AppNavDestination.settings.index) ...{
+                  const SingleActivator(LogicalKeyboardKey.escape): () => ref
+                      .read(settingsKeyCommandProvider.notifier)
+                      .send(SettingsKeyCommand.back),
+                  const SingleActivator(
+                    LogicalKeyboardKey.keyF,
+                    control: true,
+                  ): () => ref
+                      .read(settingsKeyCommandProvider.notifier)
+                      .send(SettingsKeyCommand.search),
+                  const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+                      () => ref
+                          .read(settingsKeyCommandProvider.notifier)
+                          .send(SettingsKeyCommand.search),
+                },
               }
             : const {},
         child: Focus(
@@ -728,7 +751,19 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                 ),
               );
 
-              return Scaffold(
+              return ShellWindowTitle(
+                settingsOpen: currentIndex == AppNavDestination.settings.index,
+                // The same rule the hub applies to the room it is given.
+                sectionVisible:
+                    Breakpoints.settingsTwoPane(
+                      Size(workspaceWidth, constraints.maxHeight),
+                    ) ||
+                    (capabilities.browserWorkspace &&
+                        widget.settingsSection != null),
+                webSection: capabilities.browserWorkspace
+                    ? SettingsSectionId.fromString(widget.settingsSection)
+                    : null,
+                child: Scaffold(
                 extendBody: false,
                 body: Column(
                   children: [
@@ -777,6 +812,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                             desktopChatId != null)
                     ? const InboxComposeButton()
                     : null,
+                ),
               );
             },
           ),

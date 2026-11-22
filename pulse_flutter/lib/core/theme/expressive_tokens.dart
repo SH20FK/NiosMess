@@ -204,6 +204,20 @@ abstract final class Breakpoints {
   /// pushing its route asks this, so they cannot disagree.
   static bool twoPane(Size size) =>
       size.width >= medium && size.height >= twoPaneMinHeight;
+
+  /// Narrowest list of settings sections beside an open section.
+  static const double settingsNavMinWidth = 300.0;
+
+  /// Narrowest open settings section beside the list. Below this its forms
+  /// are tighter than on a phone.
+  static const double settingsDetailMinWidth = 560.0;
+
+  /// Whether settings laid out in [area] show the section list and the open
+  /// section side by side. [area] is what the settings get, with the app rail
+  /// already taken out. One rule for Windows and the web.
+  static bool settingsTwoPane(Size area) =>
+      area.width >= settingsNavMinWidth + settingsDetailMinWidth &&
+      area.height >= twoPaneMinHeight;
 }
 
 /// Canonical 4dp spacing scale. Use these instead of magic padding numbers so

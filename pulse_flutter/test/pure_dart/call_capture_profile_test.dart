@@ -51,6 +51,10 @@ void main() {
         '/main/settings?section=about',
       );
       expect(
+        webSettingsRedirect(Uri.parse('/settings/privacy#privacy.calls')),
+        '/main/settings?section=privacy#privacy.calls',
+      );
+      expect(
         webSettingsRedirect(Uri.parse('/settings/privacy/blocked-users')),
         isNull,
       );

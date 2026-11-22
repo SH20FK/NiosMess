@@ -5,6 +5,21 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/features/account_deletion/presentation/account_deletion_texts.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
 
+/// What is wrong, in one line: the heading of the card, and what a marked
+/// section row tells a screen reader.
+String settingsIssueTitle(AppLocalizations l10n, SettingsHealthIssue issue) =>
+    switch (issue.kind) {
+      SettingsHealthIssueKind.deletionPending => accountDeletionPendingTitle(
+        l10n,
+        issue.scheduledAt,
+      ),
+      SettingsHealthIssueKind.pushDenied => l10n.settingsIssuePushTitle,
+      SettingsHealthIssueKind.cacheLarge => l10n.settingsIssueCacheTitle(
+        FileTypeDetector.formatFileSize(issue.bytes),
+      ),
+      SettingsHealthIssueKind.updateFailed => l10n.settingsIssueUpdateTitle,
+    };
+
 class SettingsIssueCard extends StatelessWidget {
   const SettingsIssueCard({
     required this.issue,
@@ -25,26 +40,21 @@ class SettingsIssueCard extends StatelessWidget {
     final TextTheme textTheme = theme.textTheme;
     final l10n = context.l10n;
 
-    final (String title, String body, String action) = switch (issue.kind) {
+    final String title = settingsIssueTitle(l10n, issue);
+    final (String body, String action) = switch (issue.kind) {
       SettingsHealthIssueKind.deletionPending => (
-        accountDeletionPendingTitle(l10n, issue.scheduledAt),
         l10n.accountDeletePendingBody,
         l10n.settingsIssueDeletionAction,
       ),
       SettingsHealthIssueKind.pushDenied => (
-        l10n.settingsIssuePushTitle,
         l10n.settingsIssuePushBody,
         l10n.settingsIssuePushAction,
       ),
       SettingsHealthIssueKind.cacheLarge => (
-        l10n.settingsIssueCacheTitle(
-          FileTypeDetector.formatFileSize(issue.bytes),
-        ),
         l10n.settingsIssueCacheBody,
         l10n.settingsIssueCacheAction,
       ),
       SettingsHealthIssueKind.updateFailed => (
-        l10n.settingsIssueUpdateTitle,
         l10n.settingsIssueUpdateBody,
         l10n.settingsIssueUpdateAction,
       ),

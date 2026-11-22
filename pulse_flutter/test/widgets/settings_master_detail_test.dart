@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
-import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/api/auth_models.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
@@ -22,6 +24,15 @@ import 'package:pulse_flutter/screens/profile_screen.dart';
 import 'package:pulse_flutter/features/sessions/data/sessions_repository.dart';
 import 'package:pulse_flutter/features/sessions/domain/session_model.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+import 'package:pulse_flutter/l10n/app_localizations_ru.dart';
+import 'package:pulse_flutter/widgets/nav/shell_window_title.dart';
+import 'package:pulse_flutter/widgets/nav/app_nav_item.dart';
+import 'package:pulse_flutter/core/services/desktop_window_service.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
+import 'package:pulse_flutter/features/settings/application/settings_health_controller.dart';
+import 'package:pulse_flutter/features/settings/domain/settings_issue.dart';
+import 'package:pulse_flutter/features/settings/presentation/settings_issue_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeAuthNotifier extends AuthNotifier {
@@ -63,7 +74,11 @@ class _NoSessions extends SessionsRepository {
       (currentSessionId: null, sessions: const <AccountSession>[]);
 }
 
-Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
+Widget _buildProfileScreenTestHarness({
+  required Size surfaceSize,
+  bool desktop = false,
+  List<SettingsHealthIssue>? issues,
+}) {
   final ThemeData theme = AppTheme.themed(
     const VisualThemeSettings(
       seedColor: Color(0xFF6750A4),
@@ -85,6 +100,11 @@ Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
         path: '/main/profile',
         builder: (BuildContext context, GoRouterState state) =>
             const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/main/chats',
+        builder: (BuildContext context, GoRouterState state) =>
+            const Scaffold(body: Text('chats-tab')),
       ),
       GoRoute(
         path: '/settings/account',
@@ -139,6 +159,14 @@ Widget _buildProfileScreenTestHarness({required Size surfaceSize}) {
     overrides: [
       authProvider.overrideWith(() => _FakeAuthNotifier()),
       sessionsRepositoryProvider.overrideWith(_NoSessions.new),
+      if (issues != null) settingsHealthProvider.overrideWithValue(issues),
+      if (desktop)
+        clientCapabilitiesProvider.overrideWithValue(
+          const ClientCapabilities(
+            isWeb: false,
+            platform: TargetPlatform.windows,
+          ),
+        ),
     ],
     child: MaterialApp.router(
       theme: theme,
@@ -195,6 +223,56 @@ void main() {
           equals(section),
         );
       }
+    });
+  });
+
+  group('Tier 1: the open section is remembered between launches', () {
+    test('1.2a a chosen section is stored and read back by a new session', () async {
+      final ProviderContainer first = ProviderContainer();
+      addTearDown(first.dispose);
+      first
+          .read(desktopSelectedSettingsSectionProvider.notifier)
+          .setSelectedSection(SettingsSectionId.privacy);
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        UiSettingsNotifier.cachedPrefs!.getString(
+          DesktopSettingsSectionNotifier.storageKey,
+        ),
+        'privacy',
+      );
+
+      final ProviderContainer second = ProviderContainer();
+      addTearDown(second.dispose);
+      expect(
+        second.read(desktopSelectedSettingsSectionProvider),
+        SettingsSectionId.privacy,
+      );
+    });
+
+    test('1.2b a stored name of a dissolved or unknown section still opens '
+        'a real one', () async {
+      final prefs = UiSettingsNotifier.cachedPrefs!;
+      await prefs.setString(
+        DesktopSettingsSectionNotifier.storageKey,
+        'energySaving',
+      );
+      final ProviderContainer renamed = ProviderContainer();
+      addTearDown(renamed.dispose);
+      expect(
+        renamed.read(desktopSelectedSettingsSectionProvider),
+        SettingsSectionId.chats,
+      );
+
+      await prefs.setString(
+        DesktopSettingsSectionNotifier.storageKey,
+        'no-such-section',
+      );
+      final ProviderContainer unknown = ProviderContainer();
+      addTearDown(unknown.dispose);
+      expect(
+        unknown.read(desktopSelectedSettingsSectionProvider),
+        SettingsSectionId.account,
+      );
     });
   });
 
@@ -324,6 +402,396 @@ void main() {
       expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
       expect(find.byType(SettingsAccountScreen), findsNothing);
     });
+
+    testWidgets('1.5a Both panes carry a scrollbar in a desktop window', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = desktopSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildProfileScreenTestHarness(surfaceSize: desktopSize, desktop: true),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('settings-master-pane')),
+          matching: find.byType(Scrollbar),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(SettingsAccountScreen),
+          matching: find.byType(Scrollbar),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('1.5b A touch device gets no scrollbar in either pane', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = desktopSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildProfileScreenTestHarness(surfaceSize: desktopSize),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.byKey(const ValueKey('settings-master-pane')),
+        findsOneWidget,
+      );
+      expect(find.byType(Scrollbar), findsNothing);
+    });
+
+    testWidgets('1.5c Arrow keys in the list open the next and previous '
+        'section and carry the focus along', (WidgetTester tester) async {
+      tester.view.physicalSize = desktopSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildProfileScreenTestHarness(surfaceSize: desktopSize),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      final ProviderContainer container = ProviderScope.containerOf(
+        tester.element(find.byType(ProfileScreen)),
+      );
+
+      Focus.of(
+        tester.element(
+          find
+              .descendant(
+                of: find.byKey(const ValueKey('settings-destination-account')),
+                matching: find.byType(AnimatedContainer),
+              )
+              .first,
+        ),
+      ).requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        container.read(desktopSelectedSettingsSectionProvider),
+        SettingsSectionId.sessions,
+      );
+
+      // Up steps from the row the focus moved to. Had the focus stayed on
+      // the first row, there would be nothing above it to open.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        container.read(desktopSelectedSettingsSectionProvider),
+        SettingsSectionId.account,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('1.5d The search key of the shell opens the settings search', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = desktopSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildProfileScreenTestHarness(surfaceSize: desktopSize),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      final BuildContext hub = tester.element(find.byType(ProfileScreen));
+      final String emptyHint = hub.l10n.settingsV2SearchEmpty;
+      expect(find.text(emptyHint), findsNothing);
+
+      ProviderScope.containerOf(hub)
+          .read(settingsKeyCommandProvider.notifier)
+          .send(SettingsKeyCommand.search);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text(emptyHint), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('1.5e The back key of the shell leaves a top-level section '
+        'for the chats', (WidgetTester tester) async {
+      tester.view.physicalSize = desktopSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildProfileScreenTestHarness(surfaceSize: desktopSize),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('chats-tab'), findsNothing);
+
+      ProviderScope.containerOf(tester.element(find.byType(ProfileScreen)))
+          .read(settingsKeyCommandProvider.notifier)
+          .send(SettingsKeyCommand.back);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('chats-tab'), findsOneWidget);
+      expect(find.byType(ProfileScreen), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('1.5i Beside a section the list is navigation: low rows '
+        'without chevrons, the account pinned at its foot', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = desktopSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildProfileScreenTestHarness(surfaceSize: desktopSize),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final Finder master = find.byKey(const ValueKey('settings-master-pane'));
+      final Finder account = find.byKey(
+        const ValueKey('settings-destination-account'),
+      );
+      expect(
+        find.descendant(
+          of: master,
+          matching: find.byIcon(Icons.chevron_right_rounded),
+        ),
+        findsNothing,
+      );
+      expect(tester.getSize(account).height, lessThan(AppHeights.rowCompact));
+
+      final Finder card = find.byKey(
+        const ValueKey<String>('settings-profile-card'),
+      );
+      expect(find.descendant(of: master, matching: card), findsOneWidget);
+      // Outside the scrolling list, so it does not leave with the rows.
+      expect(
+        find.ancestor(of: card, matching: find.byType(ListView)),
+        findsNothing,
+      );
+      expect(
+        tester.getRect(card).top,
+        greaterThan(tester.getRect(account).bottom),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('1.5j A problem marks the row of its section instead of '
+        'showing a card, and the row leads to the fix', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = desktopSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final SemanticsHandle semantics = tester.ensureSemantics();
+
+      await tester.pumpWidget(
+        _buildProfileScreenTestHarness(
+          surfaceSize: desktopSize,
+          issues: const <SettingsHealthIssue>[
+            SettingsHealthIssue.deletionPending(null),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(SettingsIssueCard), findsNothing);
+      final Finder account = find.byKey(
+        const ValueKey('settings-destination-account'),
+      );
+      final String? said = tester.widget<SettingsListItem>(account).attention;
+      expect(said, isNotNull);
+      expect(said, isNotEmpty);
+      expect(
+        tester
+            .widget<SettingsListItem>(
+              find.byKey(const ValueKey('settings-destination-privacy')),
+            )
+            .attention,
+        isNull,
+      );
+      // The dot is silent: a screen reader hears what is wrong on the row.
+      expect(
+        find.descendant(
+          of: account,
+          matching: find.bySemanticsLabel(RegExp(RegExp.escape(said!))),
+        ),
+        findsWidgets,
+      );
+
+      await tester.tap(account);
+      await tester.pump();
+      expect(
+        ProviderScope.containerOf(
+          tester.element(find.byType(ProfileScreen)),
+        ).read(settingsAnchorControllerProvider).highlightedAnchor,
+        'account.delete',
+      );
+      // The highlight clears itself after a second.
+      await tester.pump(const Duration(milliseconds: 1100));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(tester.takeException(), isNull);
+      semantics.dispose();
+    });
+
+    testWidgets('1.5k A single column keeps the card for the same problem', (
+      WidgetTester tester,
+    ) async {
+      const Size phone = Size(400, 800);
+      tester.view.physicalSize = phone;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildProfileScreenTestHarness(
+          surfaceSize: phone,
+          issues: const <SettingsHealthIssue>[
+            SettingsHealthIssue.deletionPending(null),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(SettingsIssueCard), findsOneWidget);
+      expect(
+        tester
+            .widget<SettingsListItem>(
+              find.byKey(const ValueKey('settings-destination-account')),
+            )
+            .attention,
+        isNull,
+      );
+      // Rows that push a screen keep their chevrons.
+      expect(find.byIcon(Icons.chevron_right_rounded), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    test('1.5l the smallest window still fits both panes', () {
+      // What the frame takes from the window: resize borders at the sides,
+      // the title bar on top.
+      const Size frame = Size(16, 40);
+      const Size smallest = DesktopWindowService.minimumWindowSize;
+      expect(
+        Breakpoints.settingsTwoPane(
+          Size(
+            smallest.width - frame.width - AppNavMetrics.railWidth - 1,
+            smallest.height - frame.height,
+          ),
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  group('Tier 1: the window title names the open section', () {
+    test('1.5f the title is built from the tab and the section', () {
+      final l10n = AppLocalizationsRu();
+      expect(
+        ShellWindowTitle.compose(
+          l10n,
+          settingsOpen: false,
+          section: SettingsSectionId.appearance,
+        ),
+        'NiosMess',
+      );
+      expect(
+        ShellWindowTitle.compose(l10n, settingsOpen: true),
+        '${l10n.tabSettings} — NiosMess',
+      );
+      expect(
+        ShellWindowTitle.compose(
+          l10n,
+          settingsOpen: true,
+          section: SettingsSectionId.appearance,
+        ),
+        '${l10n.tabSettings} · Оформление — NiosMess',
+      );
+    });
+
+    Widget titled({required bool web, required SettingsSectionId section}) =>
+        ProviderScope(
+          overrides: [
+            clientCapabilitiesProvider.overrideWithValue(
+              ClientCapabilities(isWeb: web, platform: TargetPlatform.windows),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('ru'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: ShellWindowTitle(
+              settingsOpen: true,
+              sectionVisible: true,
+              webSection: section,
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        );
+
+    testWidgets('1.5g a browser tab is titled with the section from the '
+        'address', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        titled(web: true, section: SettingsSectionId.appearance),
+      );
+      await tester.pump();
+      final l10n = AppLocalizationsRu();
+      expect(
+        tester.widgetList<Title>(find.byType(Title)).last.title,
+        '${l10n.tabSettings} · Оформление — NiosMess',
+      );
+
+      // Device diagnostics do not exist in a browser: the link shows About.
+      await tester.pumpWidget(
+        titled(web: true, section: SettingsSectionId.systemDevice),
+      );
+      await tester.pump();
+      expect(
+        tester.widgetList<Title>(find.byType(Title)).last.title,
+        ShellWindowTitle.compose(
+          l10n,
+          settingsOpen: true,
+          section: SettingsSectionId.about,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('1.5h a desktop window adds no browser title of its own', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        titled(web: false, section: SettingsSectionId.appearance),
+      );
+      await tester.pump();
+      // Only the one the app itself always carries.
+      expect(find.byType(Title), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('Tier 1: ProfileScreen Mobile Fallback Tests (<840dp)', () {
@@ -369,10 +837,22 @@ void main() {
         'size': const Size(390, 844),
         'isWide': false,
       },
+      // The rail breakpoint alone no longer splits settings: the open section
+      // would get 500 dp, less than a phone.
       {
-        'name': 'Breakpoint Threshold 840x1024',
+        'name': 'Below Split Threshold 840x1024',
         'size': const Size(840, 1024),
+        'isWide': false,
+      },
+      {
+        'name': 'Split Threshold 860x1024',
+        'size': const Size(860, 1024),
         'isWide': true,
+      },
+      {
+        'name': 'Wide But Low 1200x400',
+        'size': const Size(1200, 400),
+        'isWide': false,
       },
       {
         'name': 'Laptop 1366x768',

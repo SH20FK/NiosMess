@@ -89,8 +89,10 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(800, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
+      // The shell asks the platform capabilities whether to draw a scrollbar.
       await tester.pumpWidget(
-        MaterialApp(
+        ProviderScope(
+          child: MaterialApp(
           home: Scaffold(
             body: SettingsShell(
               isEmbedded: true,
@@ -108,6 +110,7 @@ void main() {
                 ),
               ],
             ),
+          ),
           ),
         ),
       );

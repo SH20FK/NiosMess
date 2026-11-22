@@ -33,6 +33,9 @@ class SettingsListItem extends ConsumerWidget {
     this.showIcon = true,
     this.pending = false,
     this.disabledReason,
+    this.dense = false,
+    this.attention,
+    this.attentionColor,
     super.key,
   });
 
@@ -48,6 +51,9 @@ class SettingsListItem extends ConsumerWidget {
     bool enabled = true,
     bool isSelected = false,
     bool isSection = false,
+    bool dense = false,
+    String? attention,
+    Color? attentionColor,
     Key? key,
   }) : this(
          icon: icon,
@@ -61,6 +67,9 @@ class SettingsListItem extends ConsumerWidget {
          enabled: enabled,
          isSelected: isSelected,
          isSection: isSection,
+         dense: dense,
+         attention: attention,
+         attentionColor: attentionColor,
          key: key,
        );
 
@@ -144,6 +153,17 @@ class SettingsListItem extends ConsumerWidget {
   final bool showIcon;
   final bool pending;
 
+  /// A row of a navigation list that stays on screen beside its content:
+  /// lower, with a smaller icon slot and no chevron.
+  final bool dense;
+
+  /// Something in this section needs the user. Shows a dot at the trailing
+  /// edge; the text is what a screen reader says about it.
+  final String? attention;
+
+  /// Colour of the [attention] dot. The error colour when not given.
+  final Color? attentionColor;
+
   /// Shown in place of [subtitle] while the row is not [enabled], so a
   /// greyed-out row says what would bring it back.
   final String? disabledReason;
@@ -211,13 +231,18 @@ class SettingsListItem extends ConsumerWidget {
           )
         : trailing ??
               switch (type) {
-                SettingsListItemType.nav => Icon(
-                  Icons.chevron_right_rounded,
-                  color: isSelected
-                      ? scheme.onSecondaryContainer
-                      : scheme.onSurfaceVariant,
-                  size: 22,
-                ),
+                // In a dense list the fill of the open row says where it
+                // leads, so the chevron goes.
+                SettingsListItemType.nav =>
+                  dense
+                      ? null
+                      : Icon(
+                          Icons.chevron_right_rounded,
+                          color: isSelected
+                              ? scheme.onSecondaryContainer
+                              : scheme.onSurfaceVariant,
+                          size: 22,
+                        ),
                 // The row is the control: one Tab stop, not a row and then
                 // its switch.
                 SettingsListItemType.toggle => ExcludeFocus(
@@ -263,18 +288,37 @@ class SettingsListItem extends ConsumerWidget {
         ],
       );
     }
+    if (attention != null) {
+      final Widget dot = SizedBox.square(
+        dimension: AppSpacing.sm,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: attentionColor ?? scheme.error,
+            shape: BoxShape.circle,
+          ),
+        ),
+      );
+      action = action == null
+          ? dot
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [dot, const SizedBox(width: AppSpacing.sm), action],
+            );
+    }
     final content = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: AppHeights.rowCompact),
+      constraints: BoxConstraints(
+        minHeight: dense ? AppHeights.md : AppHeights.rowCompact,
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
+        padding: EdgeInsets.symmetric(
+          horizontal: dense ? AppSpacing.md : AppSpacing.lg,
+          vertical: dense ? AppSpacing.xs : AppSpacing.md,
         ),
         child: Row(
           children: [
             if (showIcon) ...[
               SizedBox.square(
-                dimension: AppHeights.sm,
+                dimension: dense ? AppHeights.controlCompact : AppHeights.sm,
                 child: isSection
                     ? DecoratedBox(
                         decoration: BoxDecoration(
@@ -348,6 +392,7 @@ class SettingsListItem extends ConsumerWidget {
       title,
       if (hint?.trim().isNotEmpty == true) hint!,
       if (value?.trim().isNotEmpty == true && value != hint) value!,
+      if (attention?.trim().isNotEmpty == true) attention!,
       // The spinner in the trailing slot is hidden with the other children.
       if (pending) context.l10n.commonLoading,
     ].join(', ');

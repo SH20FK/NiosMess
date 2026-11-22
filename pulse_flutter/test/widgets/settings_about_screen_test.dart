@@ -25,6 +25,8 @@ void main() {
   group('SettingsAboutScreen 3-Tab Material 3 Expressive Tests', () {
     testWidgets('reduced motion opens the selected tab immediately', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1200));
+      // Left in place, the size leaks into every test that runs after this
+      // file in the shared suite.
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(_wrapWithApp(Builder(
         builder: (context) => MediaQuery(
@@ -43,6 +45,9 @@ void main() {
     testWidgets('Renders Hero header, 3 Pill tabs, and initial Whats New tab',
         (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1200));
+      // Left in place, the size leaks into every test that runs after this
+      // file in the shared suite.
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(_wrapWithApp(const SettingsAboutScreen(isEmbedded: true)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
@@ -62,6 +67,9 @@ void main() {
     testWidgets('Switching to Documents tab displays all 4 legal documents',
         (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1200));
+      // Left in place, the size leaks into every test that runs after this
+      // file in the shared suite.
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(_wrapWithApp(const SettingsAboutScreen(isEmbedded: true)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -81,6 +89,9 @@ void main() {
     testWidgets('Switching to Team tab displays core contributors',
         (WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(1000, 1200));
+      // Left in place, the size leaks into every test that runs after this
+      // file in the shared suite.
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(_wrapWithApp(const SettingsAboutScreen(isEmbedded: true)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));

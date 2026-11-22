@@ -12,8 +12,13 @@ class SettingsProfileCard extends StatelessWidget {
     required this.username,
     required this.onTap,
     this.avatarUrl,
+    this.dense = false,
     super.key,
   });
+
+  /// One low row at the foot of a navigation list: a small photo, a line
+  /// for the name and a line for the username, no chevron.
+  final bool dense;
 
   final String displayName;
   final String username;
@@ -36,7 +41,7 @@ class SettingsProfileCard extends StatelessWidget {
           SettingsSection.outerRadius(context),
         ),
         color: scheme.surfaceContainerLow,
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: EdgeInsets.all(dense ? AppSpacing.md : AppSpacing.lg),
         child: Semantics(
           label: username.isEmpty ? displayName : '$displayName, @$username',
           excludeSemantics: true,
@@ -45,11 +50,11 @@ class SettingsProfileCard extends StatelessWidget {
               PulseAvatar(
                 name: displayName,
                 avatarUrl: avatarUrl,
-                radius: 28,
+                radius: dense ? 16 : 28,
                 fallbackColor: scheme.primaryContainer,
                 textColor: scheme.onPrimaryContainer,
               ),
-              const SizedBox(width: AppSpacing.lg),
+              SizedBox(width: dense ? AppSpacing.md : AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,27 +62,31 @@ class SettingsProfileCard extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       displayName,
-                      maxLines: 2,
+                      maxLines: dense ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
-                      style: text.titleLarge?.copyWith(
-                        color: foreground,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: (dense ? text.titleSmall : text.titleLarge)
+                          ?.copyWith(
+                            color: foreground,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                     if (username.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: AppSpacing.xs),
+                      if (!dense) const SizedBox(height: AppSpacing.xs),
                       Text(
                         '@$username',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(color: secondary),
+                        style: (dense ? text.bodySmall : text.bodyMedium)
+                            ?.copyWith(color: secondary),
                       ),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
-              Icon(Icons.chevron_right_rounded, color: secondary, size: 22),
+              if (!dense) ...<Widget>[
+                const SizedBox(width: AppSpacing.md),
+                Icon(Icons.chevron_right_rounded, color: secondary, size: 22),
+              ],
             ],
           ),
         ),

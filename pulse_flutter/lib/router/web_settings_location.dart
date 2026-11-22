@@ -21,5 +21,7 @@ String? webSettingsRedirect(Uri uri) {
   return Uri(
     path: '/main/settings',
     queryParameters: {...uri.queryParameters, 'section': section},
+    // An empty fragment would leave a bare '#' at the end of the address.
+    fragment: uri.fragment.isEmpty ? null : uri.fragment,
   ).toString();
 }
