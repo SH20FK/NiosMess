@@ -219,8 +219,9 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsV2StorageDetails => _secret.settingsV2StorageDetails;
   String get settingsV2StorageDetailsHint =>
       _secret.settingsV2StorageDetailsHint;
-  String get settingsV2AutoDownload => _secret.settingsV2AutoDownload;
-  String get settingsV2AutoDownloadHint => _secret.settingsV2AutoDownloadHint;
+  String get autoDownloadPhotos => _secret.autoDownloadPhotos;
+  String get autoDownloadVideos => _secret.autoDownloadVideos;
+  String get autoDownloadAutomatic => _secret.autoDownloadAutomatic;
   String get settingsV2Wifi => _secret.settingsV2Wifi;
   String get settingsV2MobileData => _secret.settingsV2MobileData;
   String get settingsV2MobileDataHint => _secret.settingsV2MobileDataHint;
@@ -578,7 +579,6 @@ extension SecretChatL10n on AppLocalizations {
   String get deliveryRead => _secret.deliveryRead;
   String get webWorkspaceHint => _secret.webWorkspaceHint;
   String get videoPreview => _secret.videoPreview;
-  String get webAutoDownload => _secret.webAutoDownload;
   String get webDownloadStarted => _secret.webDownloadStarted;
   String get pasteImageTitle => _secret.pasteImageTitle;
   String get pasteImageCaption => _secret.pasteImageCaption;

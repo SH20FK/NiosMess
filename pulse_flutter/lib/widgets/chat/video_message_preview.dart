@@ -11,6 +11,7 @@ import 'package:pulse_flutter/core/media/media_playback_visibility.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
+import 'package:pulse_flutter/models/settings/auto_download.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -89,7 +90,7 @@ class _VideoMessagePreviewState extends ConsumerState<VideoMessagePreview> {
     if (!mounted ||
         !_visible ||
         _attempted ||
-        !ref.read(autoDownloadAllowedProvider)) {
+        !ref.read(autoDownloadAllowedProvider(AutoDownloadMediaType.video))) {
       return;
     }
     _attempted = true;

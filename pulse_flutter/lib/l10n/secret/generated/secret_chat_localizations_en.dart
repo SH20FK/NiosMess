@@ -750,9 +750,6 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get videoPreview => 'Play video';
 
   @override
-  String get webAutoDownload => 'Download media automatically';
-
-  @override
   String get webDownloadStarted => 'Download started';
 
   @override
@@ -1273,13 +1270,6 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
       'Downloaded media and temporary files';
 
   @override
-  String get settingsV2AutoDownload => 'Automatic media downloads';
-
-  @override
-  String get settingsV2AutoDownloadHint =>
-      'Choose when to download photos, videos and voice messages';
-
-  @override
   String get settingsV2Wifi => 'On Wi-Fi';
 
   @override
@@ -1287,6 +1277,15 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsV2MobileDataHint => 'May use your mobile data allowance';
+
+  @override
+  String get autoDownloadPhotos => 'Auto-download photos';
+
+  @override
+  String get autoDownloadVideos => 'Auto-download videos';
+
+  @override
+  String get autoDownloadAutomatic => 'Download automatically';
 
   @override
   String get settingsV2SecretCache => 'Secret chat cache';

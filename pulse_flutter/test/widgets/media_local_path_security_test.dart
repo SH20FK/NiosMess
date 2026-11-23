@@ -26,7 +26,9 @@ void main() {
     for (final path in ['local://${file.path}', file.path]) {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [autoDownloadAllowedProvider.overrideWithValue(false)],
+          overrides: [
+            autoDownloadAllowedProvider.overrideWith((ref, type) => false),
+          ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,

@@ -48,7 +48,10 @@ void main() {
           addTearDown(tester.view.resetPhysicalSize);
           addTearDown(tester.view.resetDevicePixelRatio);
           final container = ProviderContainer(
-            overrides: [uiSettingsProvider.overrideWith(_Settings.new), autoDownloadAllowedProvider.overrideWithValue(false)],
+            overrides: [
+              uiSettingsProvider.overrideWith(_Settings.new),
+              autoDownloadAllowedProvider.overrideWith((ref, type) => false),
+            ],
           );
           addTearDown(container.dispose);
           final capture = GlobalKey();

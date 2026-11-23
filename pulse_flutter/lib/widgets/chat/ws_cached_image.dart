@@ -5,6 +5,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/models/settings/auto_download.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
@@ -60,7 +61,9 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
     super.initState();
     _checkSyncCache();
     if (_bytes == null) {
-      final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
+      final bool autoAllowed = ref.read(
+        autoDownloadAllowedProvider(AutoDownloadMediaType.photo),
+      );
       final bool isLocal = widget.mediaUrl.startsWith('local://');
       _load(cacheOnly: !autoAllowed && !isLocal);
     }
@@ -97,7 +100,9 @@ class _WsCachedImageState extends ConsumerState<WsCachedImage> {
       _bytes = null;
       _checkSyncCache();
       if (_bytes == null) {
-        final bool autoAllowed = ref.read(autoDownloadAllowedProvider);
+        final bool autoAllowed = ref.read(
+          autoDownloadAllowedProvider(AutoDownloadMediaType.photo),
+        );
         final bool isLocal = widget.mediaUrl.startsWith('local://');
         _load(cacheOnly: !autoAllowed && !isLocal);
       } else {

@@ -762,9 +762,6 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get videoPreview => 'Воспроизвести видео';
 
   @override
-  String get webAutoDownload => 'Автоматически загружать медиа';
-
-  @override
   String get webDownloadStarted => 'Загрузка файла началась';
 
   @override
@@ -1291,13 +1288,6 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
       'Загруженные медиа и временные файлы';
 
   @override
-  String get settingsV2AutoDownload => 'Автозагрузка медиа';
-
-  @override
-  String get settingsV2AutoDownloadHint =>
-      'Выберите, когда загружать фото, видео и голосовые';
-
-  @override
   String get settingsV2Wifi => 'Через Wi-Fi';
 
   @override
@@ -1305,6 +1295,15 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsV2MobileDataHint => 'Может расходовать мобильный трафик';
+
+  @override
+  String get autoDownloadPhotos => 'Автозагрузка фото';
+
+  @override
+  String get autoDownloadVideos => 'Автозагрузка видео';
+
+  @override
+  String get autoDownloadAutomatic => 'Загружать автоматически';
 
   @override
   String get settingsV2SecretCache => 'Кэш секретных чатов';

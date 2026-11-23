@@ -1385,12 +1385,6 @@ abstract class SecretChatLocalizations {
   /// **'Play video'**
   String get videoPreview;
 
-  /// No description provided for @webAutoDownload.
-  ///
-  /// In en, this message translates to:
-  /// **'Download media automatically'**
-  String get webAutoDownload;
-
   /// No description provided for @webDownloadStarted.
   ///
   /// In en, this message translates to:
@@ -2369,18 +2363,6 @@ abstract class SecretChatLocalizations {
   /// **'Downloaded media and temporary files'**
   String get settingsV2StorageDetailsHint;
 
-  /// No description provided for @settingsV2AutoDownload.
-  ///
-  /// In en, this message translates to:
-  /// **'Automatic media downloads'**
-  String get settingsV2AutoDownload;
-
-  /// No description provided for @settingsV2AutoDownloadHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose when to download photos, videos and voice messages'**
-  String get settingsV2AutoDownloadHint;
-
   /// No description provided for @settingsV2Wifi.
   ///
   /// In en, this message translates to:
@@ -2398,6 +2380,24 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'May use your mobile data allowance'**
   String get settingsV2MobileDataHint;
+
+  /// No description provided for @autoDownloadPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download photos'**
+  String get autoDownloadPhotos;
+
+  /// No description provided for @autoDownloadVideos.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download videos'**
+  String get autoDownloadVideos;
+
+  /// No description provided for @autoDownloadAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Download automatically'**
+  String get autoDownloadAutomatic;
 
   /// No description provided for @settingsV2SecretCache.
   ///

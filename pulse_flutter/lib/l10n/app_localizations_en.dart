@@ -4668,19 +4668,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsChatsSelectedEmoji => 'Selected emoji';
   @override
   String get settingsChatsDoubleTapHint => 'Double-tapping a message will send this reaction';
-  @override
-  String get settingsChatsAutoDownload => 'Media Auto-Download';
-  @override
-  String get settingsChatsAutoDownloadDesc => 'Data usage and automatic media saving settings';
-  @override
-  String get settingsChatsAutoDownloadWifi => 'When connected to Wi-Fi';
-  @override
-  String get settingsChatsAutoDownloadWifiDesc => 'Automatically download photos, videos, and voice messages';
-  @override
-  String get settingsChatsAutoDownloadCellular => 'When using Cellular data';
-  @override
-  String get settingsChatsAutoDownloadCellularDesc => 'Save data: preview media and download only when tapped';
-  @override
   String get settingsChatsWallpaperSection => 'Wallpaper & Background';
   @override
   String get settingsChatsWallpaperSectionDesc => 'Custom chat wallpapers and vector pattern generator';

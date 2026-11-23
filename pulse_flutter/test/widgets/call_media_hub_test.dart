@@ -163,7 +163,9 @@ void main() {
       final transport = _AlbumTransport();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [autoDownloadAllowedProvider.overrideWithValue(false)],
+          overrides: [
+            autoDownloadAllowedProvider.overrideWith((ref, type) => false),
+          ],
           child: app(
             MediaAlbumBubble(
               url: '/uploads/offline.niosalbum.zip',

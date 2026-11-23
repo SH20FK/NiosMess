@@ -4697,19 +4697,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsChatsSelectedEmoji => 'Выбранный эмодзи';
   @override
   String get settingsChatsDoubleTapHint => 'Двойной тап по сообщению отправит эту реакцию';
-  @override
-  String get settingsChatsAutoDownload => 'Автозагрузка медиафайлов';
-  @override
-  String get settingsChatsAutoDownloadDesc => 'Настройка автоматического сохранения трафика';
-  @override
-  String get settingsChatsAutoDownloadWifi => 'Через сеть Wi-Fi';
-  @override
-  String get settingsChatsAutoDownloadWifiDesc => 'Автоматически загружать фото, видео и голосовые сообщения';
-  @override
-  String get settingsChatsAutoDownloadCellular => 'Через мобильную сеть';
-  @override
-  String get settingsChatsAutoDownloadCellularDesc => 'Экономия трафика: предпросмотр медиа только по нажатию';
-  @override
   String get settingsChatsWallpaperSection => 'Оформление и фон';
   @override
   String get settingsChatsWallpaperSectionDesc => 'Индивидуальные обои и генератор векторных узоров';

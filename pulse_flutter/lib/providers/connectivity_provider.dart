@@ -1,6 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/models/settings/auto_download.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 enum NetworkType { wifi, cellular, other, none }
@@ -69,26 +70,31 @@ final networkTypeProvider = StreamProvider<NetworkType>((ref) async* {
 });
 
 /// Reactive provider indicating if automatic media downloading is allowed
-/// based on the current network connection and user settings.
-final autoDownloadAllowedProvider = Provider<bool>((ref) {
-  final settings = ref.watch(
-    uiSettingsProvider.select(
-      (UiSettingsState s) => (
-        autoDownloadWifi: s.autoDownloadWifi,
-        autoDownloadCellular: s.autoDownloadCellular,
-      ),
-    ),
-  );
-  if (kIsWeb) {
-    return (ref.watch(connectivityProvider).value ?? true) &&
-        settings.autoDownloadWifi;
-  }
-  final NetworkType netType =
-      ref.watch(networkTypeProvider).value ?? NetworkType.wifi;
-  if (netType == NetworkType.wifi || netType == NetworkType.other) {
-    return settings.autoDownloadWifi;
-  } else if (netType == NetworkType.cellular) {
-    return settings.autoDownloadCellular;
-  }
-  return false;
-});
+/// for [AutoDownloadMediaType] based on the current network connection and
+/// the user settings for that media type.
+final autoDownloadAllowedProvider =
+    Provider.family<bool, AutoDownloadMediaType>((ref, type) {
+      final bool wifiAllowed = ref.watch(
+        uiSettingsProvider.select(
+          (UiSettingsState s) =>
+              s.autoDownloadFor(type, AutoDownloadNetwork.wifi),
+        ),
+      );
+      if (kIsWeb) {
+        return (ref.watch(connectivityProvider).value ?? true) && wifiAllowed;
+      }
+      final bool cellularAllowed = ref.watch(
+        uiSettingsProvider.select(
+          (UiSettingsState s) =>
+              s.autoDownloadFor(type, AutoDownloadNetwork.cellular),
+        ),
+      );
+      final NetworkType netType =
+          ref.watch(networkTypeProvider).value ?? NetworkType.wifi;
+      if (netType == NetworkType.wifi || netType == NetworkType.other) {
+        return wifiAllowed;
+      } else if (netType == NetworkType.cellular) {
+        return cellularAllowed;
+      }
+      return false;
+    });

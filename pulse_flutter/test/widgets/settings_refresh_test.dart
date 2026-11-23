@@ -15,6 +15,7 @@ import 'package:video_player_platform_interface/video_player_platform_interface.
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
+import 'package:pulse_flutter/core/storage/local_storage_service.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_save_failure_listener.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -24,6 +25,7 @@ import 'package:pulse_flutter/l10n/app_localizations_ru.dart';
 import 'package:pulse_flutter/l10n/app_localizations_en.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
+import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/models/api/privacy_model.dart';
@@ -87,6 +89,12 @@ class _ForbiddenAppLock extends AppLockNotifier {
   @override
   AppLockState build() =>
       throw StateError('Native biometrics must not initialize in a browser');
+}
+
+class _Storage extends StorageSnapshotNotifier {
+  @override
+  Future<LocalStorageSnapshot> build() async =>
+      const LocalStorageSnapshot.empty();
 }
 
 class _Video extends VideoPlayerPlatform {
@@ -899,6 +907,63 @@ void main() {
         }
       },
     );
+
+    testWidgets('photos and videos keep their own auto-download switches', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(900, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _app(
+          ProviderScope(
+            overrides: [storageSnapshotProvider.overrideWith(_Storage.new)],
+            child: const SettingsStorageScreen(isEmbedded: true),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(SettingsStorageScreen)),
+      );
+      Finder switchOf(String anchor) => find.descendant(
+        of: find.byKey(ValueKey<String>(anchor)),
+        matching: find.byType(Switch),
+      );
+      bool valueOf(String anchor) =>
+          tester.widget<Switch>(switchOf(anchor)).value;
+
+      const List<String> anchors = <String>[
+        'auto_download_wifi',
+        'auto_download_cellular',
+        'auto_download_video_wifi',
+        'auto_download_video_cellular',
+      ];
+      for (final String anchor in anchors) {
+        expect(switchOf(anchor), findsOneWidget, reason: anchor);
+      }
+      expect(valueOf('auto_download_wifi'), isTrue);
+      expect(valueOf('auto_download_video_wifi'), isTrue);
+
+      // Turning photos off over Wi-Fi leaves videos alone.
+      await tester.ensureVisible(switchOf('auto_download_wifi'));
+      await tester.tap(switchOf('auto_download_wifi'));
+      await tester.pumpAndSettle();
+
+      final UiSettingsState state = container.read(uiSettingsProvider);
+      expect(state.autoDownloadPhotoWifi, isFalse);
+      expect(state.autoDownloadVideoWifi, isTrue);
+      expect(valueOf('auto_download_wifi'), isFalse);
+      expect(valueOf('auto_download_video_wifi'), isTrue);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+    });
 
     testWidgets(
       'sticker preference pauses and resumes a live video controller',

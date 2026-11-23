@@ -12,6 +12,7 @@ import 'package:pulse_flutter/core/media/media_playback_visibility.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/models/settings/auto_download.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -63,7 +64,10 @@ class _MediaAlbumBubbleState extends ConsumerState<MediaAlbumBubble> {
   void _visibility(bool visible) {
     _visible = visible;
     if (visible &&
-        (widget.localBytes != null || ref.read(autoDownloadAllowedProvider))) {
+        (widget.localBytes != null ||
+            ref.read(
+              autoDownloadAllowedProvider(AutoDownloadMediaType.photo),
+            ))) {
       _load();
     } else if (!visible && _images != null) {
       // Keep decoded private albums scoped to the visible message/viewer.
@@ -80,7 +84,9 @@ class _MediaAlbumBubbleState extends ConsumerState<MediaAlbumBubble> {
       _images = null;
       if (_visible &&
           (widget.localBytes != null ||
-              ref.read(autoDownloadAllowedProvider))) {
+              ref.read(
+                autoDownloadAllowedProvider(AutoDownloadMediaType.photo),
+              ))) {
         _images = _read();
       }
     }

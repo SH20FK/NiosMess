@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pulse_flutter/models/settings/auto_download.dart';
+import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -116,17 +118,47 @@ final List<_Case> _cases = <_Case>[
     '🔥',
   ),
   _Case(
-    'ui.autoDownloadWifi',
+    'ui.autoDownload.photo.wifi',
     false,
-    (n) => n.setAutoDownloadWifi(false),
-    (s) => s.autoDownloadWifi,
+    (n) => n.setAutoDownload(
+      AutoDownloadMediaType.photo,
+      AutoDownloadNetwork.wifi,
+      false,
+    ),
+    (s) => s.autoDownloadPhotoWifi,
     false,
   ),
   _Case(
-    'ui.autoDownloadCellular',
+    'ui.autoDownload.photo.cellular',
     true,
-    (n) => n.setAutoDownloadCellular(true),
-    (s) => s.autoDownloadCellular,
+    (n) => n.setAutoDownload(
+      AutoDownloadMediaType.photo,
+      AutoDownloadNetwork.cellular,
+      true,
+    ),
+    (s) => s.autoDownloadPhotoCellular,
+    true,
+  ),
+  _Case(
+    'ui.autoDownload.video.wifi',
+    false,
+    (n) => n.setAutoDownload(
+      AutoDownloadMediaType.video,
+      AutoDownloadNetwork.wifi,
+      false,
+    ),
+    (s) => s.autoDownloadVideoWifi,
+    false,
+  ),
+  _Case(
+    'ui.autoDownload.video.cellular',
+    true,
+    (n) => n.setAutoDownload(
+      AutoDownloadMediaType.video,
+      AutoDownloadNetwork.cellular,
+      true,
+    ),
+    (s) => s.autoDownloadVideoCellular,
     true,
   ),
   _Case(
@@ -432,6 +464,157 @@ void main() {
 
       expect(container.read(uiSettingsProvider).uiCornerRadius, before);
       expect(container.read(settingsSaveFailureProvider), isNotNull);
+    });
+  });
+
+  group('Auto download migration', () {
+    test('legacy keys seed both photos and videos', () async {
+      final (ProviderContainer container, _) = await boot(<String, Object>{
+        'ui.autoDownloadWifi': false,
+        'ui.autoDownloadCellular': true,
+      });
+      final UiSettingsState state = container.read(uiSettingsProvider);
+
+      expect(state.autoDownloadPhotoWifi, isFalse);
+      expect(state.autoDownloadPhotoCellular, isTrue);
+      expect(state.autoDownloadVideoWifi, isFalse);
+      expect(state.autoDownloadVideoCellular, isTrue);
+    });
+
+    test('a per-type key wins over the legacy one', () async {
+      final (ProviderContainer container, _) = await boot(<String, Object>{
+        'ui.autoDownloadWifi': false,
+        'ui.autoDownloadCellular': true,
+        'ui.autoDownload.photo.wifi': true,
+        'ui.autoDownload.video.cellular': false,
+      });
+      final UiSettingsState state = container.read(uiSettingsProvider);
+
+      expect(state.autoDownloadPhotoWifi, isTrue);
+      expect(state.autoDownloadPhotoCellular, isTrue);
+      expect(state.autoDownloadVideoWifi, isFalse);
+      expect(state.autoDownloadVideoCellular, isFalse);
+    });
+
+    test('resetAll clears the per-type and the legacy keys', () async {
+      final (ProviderContainer container, SharedPreferences prefs) =
+          await boot(<String, Object>{
+            'ui.autoDownloadWifi': false,
+            'ui.autoDownloadCellular': true,
+          });
+
+      await container.read(uiSettingsProvider.notifier).resetAll();
+      await pumpEventQueue();
+
+      expect(
+        prefs.getKeys().where((String k) => k.startsWith('ui.autoDownload')),
+        isEmpty,
+      );
+    });
+  });
+
+  group('Auto download by media type', () {
+    Future<ProviderContainer> bootNetwork(NetworkType type) async {
+      SharedPreferences.setMockInitialValues(const <String, Object>{});
+      UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+      final ProviderContainer container = ProviderContainer(
+        overrides: [
+          networkTypeProvider.overrideWith(
+            (ref) => Stream<NetworkType>.value(type),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final ProviderSubscription<UiSettingsState> keepAlive = container.listen(
+        uiSettingsProvider,
+        (_, _) {},
+      );
+      addTearDown(keepAlive.close);
+      // A stream provider only subscribes while someone listens to it.
+      final ProviderSubscription<AsyncValue<NetworkType>> network =
+          container.listen(networkTypeProvider, (_, _) {});
+      addTearDown(network.close);
+      await pumpEventQueue();
+      expect(container.read(networkTypeProvider).value, type);
+      return container;
+    }
+
+    bool allowed(ProviderContainer c, AutoDownloadMediaType type) =>
+        c.read(autoDownloadAllowedProvider(type));
+
+    void setRule(
+      ProviderContainer container,
+      AutoDownloadMediaType type,
+      AutoDownloadNetwork network,
+      bool value,
+    ) => container
+        .read(uiSettingsProvider.notifier)
+        .setAutoDownload(type, network, value);
+
+    test('a wifi network follows the wifi flag of each type', () async {
+      final ProviderContainer container = await bootNetwork(NetworkType.wifi);
+      expect(allowed(container, AutoDownloadMediaType.photo), isTrue);
+      expect(allowed(container, AutoDownloadMediaType.video), isTrue);
+
+      setRule(
+        container,
+        AutoDownloadMediaType.video,
+        AutoDownloadNetwork.wifi,
+        false,
+      );
+      expect(allowed(container, AutoDownloadMediaType.photo), isTrue);
+      expect(allowed(container, AutoDownloadMediaType.video), isFalse);
+    });
+
+    test('a wired or unknown network follows the wifi flag', () async {
+      final ProviderContainer container = await bootNetwork(NetworkType.other);
+      expect(allowed(container, AutoDownloadMediaType.photo), isTrue);
+      expect(allowed(container, AutoDownloadMediaType.video), isTrue);
+
+      setRule(
+        container,
+        AutoDownloadMediaType.photo,
+        AutoDownloadNetwork.wifi,
+        false,
+      );
+      setRule(
+        container,
+        AutoDownloadMediaType.photo,
+        AutoDownloadNetwork.cellular,
+        true,
+      );
+      // Cellular permission must not leak onto a wired or unknown network.
+      expect(allowed(container, AutoDownloadMediaType.photo), isFalse);
+      expect(allowed(container, AutoDownloadMediaType.video), isTrue);
+    });
+
+    test('a cellular network follows the cellular flag of each type', () async {
+      final ProviderContainer container = await bootNetwork(
+        NetworkType.cellular,
+      );
+      expect(allowed(container, AutoDownloadMediaType.photo), isFalse);
+      expect(allowed(container, AutoDownloadMediaType.video), isFalse);
+
+      setRule(
+        container,
+        AutoDownloadMediaType.photo,
+        AutoDownloadNetwork.cellular,
+        true,
+      );
+      expect(allowed(container, AutoDownloadMediaType.photo), isTrue);
+      expect(allowed(container, AutoDownloadMediaType.video), isFalse);
+    });
+
+    test('no network allows nothing, whatever the flags say', () async {
+      final ProviderContainer container = await bootNetwork(NetworkType.none);
+      for (final AutoDownloadMediaType type in AutoDownloadMediaType.values) {
+        for (final AutoDownloadNetwork network
+            in AutoDownloadNetwork.values) {
+          setRule(container, type, network, true);
+        }
+      }
+      expect(allowed(container, AutoDownloadMediaType.photo), isFalse);
+      expect(allowed(container, AutoDownloadMediaType.video), isFalse);
     });
   });
 }

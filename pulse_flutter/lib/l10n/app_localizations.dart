@@ -7367,12 +7367,6 @@ abstract class AppLocalizations {
   String get settingsChatsQuickReactionDesc;
   String get settingsChatsSelectedEmoji;
   String get settingsChatsDoubleTapHint;
-  String get settingsChatsAutoDownload;
-  String get settingsChatsAutoDownloadDesc;
-  String get settingsChatsAutoDownloadWifi;
-  String get settingsChatsAutoDownloadWifiDesc;
-  String get settingsChatsAutoDownloadCellular;
-  String get settingsChatsAutoDownloadCellularDesc;
   String get settingsChatsWallpaperSection;
   String get settingsChatsWallpaperSectionDesc;
   String get settingsChatsWallpaperGenerator;

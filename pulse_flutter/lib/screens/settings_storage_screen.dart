@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
+import 'package:pulse_flutter/models/settings/auto_download.dart';
 import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -146,20 +147,29 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
               ),
             ],
           ),
+          // A browser still separates photos from videos: one switch for both
+          // would leave the type it does not touch unreachable.
           SettingsSection(
-            title: context.l10n.webAutoDownload,
-            children: [
-              SettingsRow(
+            title: context.l10n.autoDownloadPhotos,
+            children: <Widget>[
+              _autoDownloadRow(
                 anchor: 'auto_download_wifi',
-                title: context.l10n.webAutoDownload,
-                control: ToggleControl(
-                  value: ref.watch(
-                    uiSettingsProvider.select((s) => s.autoDownloadWifi),
-                  ),
-                  onChanged: (value) => ref
-                      .read(uiSettingsProvider.notifier)
-                      .setAutoDownloadWifi(value),
-                ),
+                type: AutoDownloadMediaType.photo,
+                network: AutoDownloadNetwork.wifi,
+                icon: Icons.image_rounded,
+                web: true,
+              ),
+            ],
+          ),
+          SettingsSection(
+            title: context.l10n.autoDownloadVideos,
+            children: <Widget>[
+              _autoDownloadRow(
+                anchor: 'auto_download_video_wifi',
+                type: AutoDownloadMediaType.video,
+                network: AutoDownloadNetwork.wifi,
+                icon: Icons.video_library_rounded,
+                web: true,
               ),
             ],
           ),
@@ -377,51 +387,43 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
           ],
         ),
 
-        // 1. Media Auto-Download
+        // 1. Media Auto-Download: photos and videos keep their own rules.
         SettingsSection(
-          title: context.l10n.settingsV2AutoDownload,
-          subtitle: context.l10n.settingsV2AutoDownloadHint,
+          title: context.l10n.autoDownloadPhotos,
           children: <Widget>[
-            SettingsRow(
+            _autoDownloadRow(
               anchor: 'auto_download_wifi',
-              leading: Icon(Icons.wifi_rounded, color: scheme.primary),
-              title: kIsWeb
-                  ? context.l10n.webAutoDownload
-                  : context.l10n.settingsV2Wifi,
-              subtitle: context.l10n.settingsChatsAutoDownloadWifiDesc,
-              control: ToggleControl(
-                value: ref.watch(
-                  uiSettingsProvider.select((s) => s.autoDownloadWifi),
-                ),
-                onChanged: (bool val) {
-                  ref
-                      .read(uiSettingsProvider.notifier)
-                      .setAutoDownloadWifi(val);
-                },
-              ),
+              type: AutoDownloadMediaType.photo,
+              network: AutoDownloadNetwork.wifi,
+              icon: Icons.wifi_rounded,
             ),
             if (!kIsWeb)
-              SettingsRow(
+              _autoDownloadRow(
                 anchor: 'auto_download_cellular',
-                leading: Icon(
-                  Icons.signal_cellular_alt_rounded,
-                  color: scheme.primary,
-                ),
-                title: context.l10n.settingsV2MobileData,
-                subtitle: context.l10n.settingsV2MobileDataHint,
-                control: ToggleControl(
-                  value: ref.watch(
-                    uiSettingsProvider.select((s) => s.autoDownloadCellular),
-                  ),
-                  onChanged: (bool val) {
-                    ref
-                        .read(uiSettingsProvider.notifier)
-                        .setAutoDownloadCellular(val);
-                  },
-                ),
+                type: AutoDownloadMediaType.photo,
+                network: AutoDownloadNetwork.cellular,
+                icon: Icons.signal_cellular_alt_rounded,
               ),
           ],
         ),
+        if (!kIsWeb)
+          SettingsSection(
+            title: context.l10n.autoDownloadVideos,
+            children: <Widget>[
+              _autoDownloadRow(
+                anchor: 'auto_download_video_wifi',
+                type: AutoDownloadMediaType.video,
+                network: AutoDownloadNetwork.wifi,
+                icon: Icons.wifi_rounded,
+              ),
+              _autoDownloadRow(
+                anchor: 'auto_download_video_cellular',
+                type: AutoDownloadMediaType.video,
+                network: AutoDownloadNetwork.cellular,
+                icon: Icons.signal_cellular_alt_rounded,
+              ),
+            ],
+          ),
         _performanceSection(context),
         _resetSection(context),
       ],
@@ -461,6 +463,35 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
         ),
       ),
     ],
+  );
+
+  /// One network switch of a per-type auto-download group.
+  Widget _autoDownloadRow({
+    required String anchor,
+    required AutoDownloadMediaType type,
+    required AutoDownloadNetwork network,
+    required IconData icon,
+    bool web = false,
+  }) => SettingsRow(
+    anchor: anchor,
+    leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+    title: web
+        ? context.l10n.autoDownloadAutomatic
+        : network == AutoDownloadNetwork.wifi
+        ? context.l10n.settingsV2Wifi
+        : context.l10n.settingsV2MobileData,
+    // Mobile traffic is the one choice people regret, so it says so.
+    subtitle: !web && network == AutoDownloadNetwork.cellular
+        ? context.l10n.settingsV2MobileDataHint
+        : null,
+    control: ToggleControl(
+      value: ref.watch(
+        uiSettingsProvider.select((s) => s.autoDownloadFor(type, network)),
+      ),
+      onChanged: (bool value) => ref
+          .read(uiSettingsProvider.notifier)
+          .setAutoDownload(type, network, value),
+    ),
   );
 
   String _categoryLabel(BuildContext context, StorageCategory category) =>

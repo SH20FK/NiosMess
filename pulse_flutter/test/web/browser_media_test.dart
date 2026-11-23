@@ -163,7 +163,7 @@ void main() {
         ProviderScope(
           overrides: [
             adaptivePerformanceProvider.overrideWith(_Performance.new),
-            autoDownloadAllowedProvider.overrideWithValue(true),
+            autoDownloadAllowedProvider.overrideWith((ref, type) => true),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -242,7 +242,7 @@ void main() {
         ProviderScope(
           overrides: [
             adaptivePerformanceProvider.overrideWith(_Performance.new),
-            autoDownloadAllowedProvider.overrideWithValue(true),
+            autoDownloadAllowedProvider.overrideWith((ref, type) => true),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,

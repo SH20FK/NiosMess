@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pulse_flutter/models/settings/auto_download.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppTimeZoneMode { auto, manual }
@@ -83,8 +84,10 @@ class UiSettingsState {
     required this.fontScale,
     this.sendOnEnter = true,
     this.doubleTapReactionEmoji = '❤️',
-    this.autoDownloadWifi = true,
-    this.autoDownloadCellular = false,
+    this.autoDownloadPhotoWifi = true,
+    this.autoDownloadPhotoCellular = false,
+    this.autoDownloadVideoWifi = true,
+    this.autoDownloadVideoCellular = false,
     this.autoDownloadRoaming = false,
     this.messageBubbleRadius = 16.0,
     this.uiCornerRadius = 20.0,
@@ -108,6 +111,21 @@ class UiSettingsState {
         paletteStyle: paletteStyle,
       );
 
+  /// The stored rule for [type] over [network].
+  bool autoDownloadFor(
+    AutoDownloadMediaType type,
+    AutoDownloadNetwork network,
+  ) => switch ((type, network)) {
+    (AutoDownloadMediaType.photo, AutoDownloadNetwork.wifi) =>
+      autoDownloadPhotoWifi,
+    (AutoDownloadMediaType.photo, AutoDownloadNetwork.cellular) =>
+      autoDownloadPhotoCellular,
+    (AutoDownloadMediaType.video, AutoDownloadNetwork.wifi) =>
+      autoDownloadVideoWifi,
+    (AutoDownloadMediaType.video, AutoDownloadNetwork.cellular) =>
+      autoDownloadVideoCellular,
+  };
+
   const UiSettingsState.defaults()
     : themeMode = ThemeMode.system,
       seedColor = const Color(0xFF6750A4),
@@ -126,8 +144,10 @@ class UiSettingsState {
       fontScale = AppFontScale.normal,
       sendOnEnter = true,
       doubleTapReactionEmoji = '❤️',
-      autoDownloadWifi = true,
-      autoDownloadCellular = false,
+      autoDownloadPhotoWifi = true,
+      autoDownloadPhotoCellular = false,
+      autoDownloadVideoWifi = true,
+      autoDownloadVideoCellular = false,
       autoDownloadRoaming = false,
       messageBubbleRadius = 16.0,
       uiCornerRadius = 20.0,
@@ -159,8 +179,10 @@ class UiSettingsState {
   final AppFontScale fontScale;
   final bool sendOnEnter;
   final String doubleTapReactionEmoji;
-  final bool autoDownloadWifi;
-  final bool autoDownloadCellular;
+  final bool autoDownloadPhotoWifi;
+  final bool autoDownloadPhotoCellular;
+  final bool autoDownloadVideoWifi;
+  final bool autoDownloadVideoCellular;
   final bool autoDownloadRoaming;
   final double messageBubbleRadius;
   final double uiCornerRadius;
@@ -195,8 +217,10 @@ class UiSettingsState {
     AppFontScale? fontScale,
     bool? sendOnEnter,
     String? doubleTapReactionEmoji,
-    bool? autoDownloadWifi,
-    bool? autoDownloadCellular,
+    bool? autoDownloadPhotoWifi,
+    bool? autoDownloadPhotoCellular,
+    bool? autoDownloadVideoWifi,
+    bool? autoDownloadVideoCellular,
     bool? autoDownloadRoaming,
     double? messageBubbleRadius,
     double? uiCornerRadius,
@@ -231,9 +255,14 @@ class UiSettingsState {
       sendOnEnter: sendOnEnter ?? this.sendOnEnter,
       doubleTapReactionEmoji:
           doubleTapReactionEmoji ?? this.doubleTapReactionEmoji,
-      autoDownloadWifi: autoDownloadWifi ?? this.autoDownloadWifi,
-      autoDownloadCellular:
-          autoDownloadCellular ?? this.autoDownloadCellular,
+      autoDownloadPhotoWifi:
+          autoDownloadPhotoWifi ?? this.autoDownloadPhotoWifi,
+      autoDownloadPhotoCellular:
+          autoDownloadPhotoCellular ?? this.autoDownloadPhotoCellular,
+      autoDownloadVideoWifi:
+          autoDownloadVideoWifi ?? this.autoDownloadVideoWifi,
+      autoDownloadVideoCellular:
+          autoDownloadVideoCellular ?? this.autoDownloadVideoCellular,
       autoDownloadRoaming:
           autoDownloadRoaming ?? this.autoDownloadRoaming,
       messageBubbleRadius: messageBubbleRadius ?? this.messageBubbleRadius,
@@ -282,8 +311,17 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _fontScaleKey = 'ui.fontScale';
   static const String _sendOnEnterKey = 'ui.sendOnEnter';
   static const String _doubleTapReactionEmojiKey = 'ui.doubleTapReactionEmoji';
-  static const String _autoDownloadWifiKey = 'ui.autoDownloadWifi';
-  static const String _autoDownloadCellularKey = 'ui.autoDownloadCellular';
+  static const String _autoDownloadPhotoWifiKey = 'ui.autoDownload.photo.wifi';
+  static const String _autoDownloadPhotoCellularKey =
+      'ui.autoDownload.photo.cellular';
+  static const String _autoDownloadVideoWifiKey = 'ui.autoDownload.video.wifi';
+  static const String _autoDownloadVideoCellularKey =
+      'ui.autoDownload.video.cellular';
+
+  /// Keys written before one rule covered both photos and videos. Nothing
+  /// writes them any more; they are read once to seed the per-type keys.
+  static const String _legacyAutoDownloadWifiKey = 'ui.autoDownloadWifi';
+  static const String _legacyAutoDownloadCellularKey = 'ui.autoDownloadCellular';
   static const String _autoDownloadRoamingKey = 'ui.autoDownloadRoaming';
   static const String _messageBubbleRadiusKey = 'ui.messageBubbleRadius';
   static const String _uiCornerRadiusKey = 'ui.cornerRadius';
@@ -370,10 +408,22 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       sendOnEnter: prefs.getBool(_sendOnEnterKey) ?? defaults.sendOnEnter,
       doubleTapReactionEmoji:
           prefs.getString(_doubleTapReactionEmojiKey) ?? defaults.doubleTapReactionEmoji,
-      autoDownloadWifi:
-          prefs.getBool(_autoDownloadWifiKey) ?? defaults.autoDownloadWifi,
-      autoDownloadCellular:
-          prefs.getBool(_autoDownloadCellularKey) ?? defaults.autoDownloadCellular,
+      autoDownloadPhotoWifi:
+          prefs.getBool(_autoDownloadPhotoWifiKey) ??
+          prefs.getBool(_legacyAutoDownloadWifiKey) ??
+          defaults.autoDownloadPhotoWifi,
+      autoDownloadPhotoCellular:
+          prefs.getBool(_autoDownloadPhotoCellularKey) ??
+          prefs.getBool(_legacyAutoDownloadCellularKey) ??
+          defaults.autoDownloadPhotoCellular,
+      autoDownloadVideoWifi:
+          prefs.getBool(_autoDownloadVideoWifiKey) ??
+          prefs.getBool(_legacyAutoDownloadWifiKey) ??
+          defaults.autoDownloadVideoWifi,
+      autoDownloadVideoCellular:
+          prefs.getBool(_autoDownloadVideoCellularKey) ??
+          prefs.getBool(_legacyAutoDownloadCellularKey) ??
+          defaults.autoDownloadVideoCellular,
       autoDownloadRoaming:
           prefs.getBool(_autoDownloadRoamingKey) ?? defaults.autoDownloadRoaming,
       messageBubbleRadius:
@@ -688,19 +738,39 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     (s, v) => s.copyWith(doubleTapReactionEmoji: v),
   );
 
-  void setAutoDownloadWifi(bool value) => _set<bool>(
-    _autoDownloadWifiKey,
-    value,
-    (s) => s.autoDownloadWifi,
-    (s, v) => s.copyWith(autoDownloadWifi: v),
-  );
-
-  void setAutoDownloadCellular(bool value) => _set<bool>(
-    _autoDownloadCellularKey,
-    value,
-    (s) => s.autoDownloadCellular,
-    (s, v) => s.copyWith(autoDownloadCellular: v),
-  );
+  void setAutoDownload(
+    AutoDownloadMediaType type,
+    AutoDownloadNetwork network,
+    bool value,
+  ) {
+    final String key = switch ((type, network)) {
+      (AutoDownloadMediaType.photo, AutoDownloadNetwork.wifi) =>
+        _autoDownloadPhotoWifiKey,
+      (AutoDownloadMediaType.photo, AutoDownloadNetwork.cellular) =>
+        _autoDownloadPhotoCellularKey,
+      (AutoDownloadMediaType.video, AutoDownloadNetwork.wifi) =>
+        _autoDownloadVideoWifiKey,
+      (AutoDownloadMediaType.video, AutoDownloadNetwork.cellular) =>
+        _autoDownloadVideoCellularKey,
+    };
+    _set<bool>(
+      key,
+      value,
+      (s) => s.autoDownloadFor(type, network),
+      (s, v) => switch ((type, network)) {
+        (AutoDownloadMediaType.photo, AutoDownloadNetwork.wifi) => s.copyWith(
+          autoDownloadPhotoWifi: v,
+        ),
+        (AutoDownloadMediaType.photo, AutoDownloadNetwork.cellular) =>
+          s.copyWith(autoDownloadPhotoCellular: v),
+        (AutoDownloadMediaType.video, AutoDownloadNetwork.wifi) => s.copyWith(
+          autoDownloadVideoWifi: v,
+        ),
+        (AutoDownloadMediaType.video, AutoDownloadNetwork.cellular) =>
+          s.copyWith(autoDownloadVideoCellular: v),
+      },
+    );
+  }
 
   void setAutoDownloadRoaming(bool value) => _set<bool>(
     _autoDownloadRoamingKey,
@@ -809,8 +879,12 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       prefs.remove(_fontScaleKey),
       prefs.remove(_sendOnEnterKey),
       prefs.remove(_doubleTapReactionEmojiKey),
-      prefs.remove(_autoDownloadWifiKey),
-      prefs.remove(_autoDownloadCellularKey),
+      prefs.remove(_autoDownloadPhotoWifiKey),
+      prefs.remove(_autoDownloadPhotoCellularKey),
+      prefs.remove(_autoDownloadVideoWifiKey),
+      prefs.remove(_autoDownloadVideoCellularKey),
+      prefs.remove(_legacyAutoDownloadWifiKey),
+      prefs.remove(_legacyAutoDownloadCellularKey),
       prefs.remove(_autoDownloadRoamingKey),
       prefs.remove(_messageBubbleRadiusKey),
       prefs.remove(_uiCornerRadiusKey),

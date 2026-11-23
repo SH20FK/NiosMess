@@ -37,7 +37,7 @@ void main() {
     });
 
     Widget subject(String id) => ProviderScope(
-      overrides: [autoDownloadAllowedProvider.overrideWithValue(false)],
+      overrides: [autoDownloadAllowedProvider.overrideWith((ref, type) => false)],
       child: MaterialApp(
         home: WsCachedImage(
           mediaUrl: 'secret-local://$id',
