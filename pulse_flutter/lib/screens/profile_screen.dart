@@ -721,9 +721,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           child: sub.fullWidth
               ? back
-              // Over the same centred column the screen below lays out in.
+              // Over the same column the screen below lays out in: pinned to
+              // the list of sections on a wide window, not centred.
               : Align(
-                  alignment: Alignment.topCenter,
+                  alignment: Alignment.topLeft,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 860),
                     child: back,

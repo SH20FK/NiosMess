@@ -329,6 +329,55 @@ void main() {
     );
 
     testWidgets(
+      '1.3a On a very wide window the column of the section stays beside the '
+      'list instead of drifting into the middle of its pane',
+      (WidgetTester tester) async {
+        const Size wide = Size(2560, 1440);
+        tester.view.physicalSize = wide;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          _buildProfileScreenTestHarness(surfaceSize: wide),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final Rect master = tester.getRect(
+          find.byKey(const ValueKey('settings-master-pane')),
+        );
+        // The shell's column, not the pane that carries it: the pane fills the
+        // whole free width, so only the column shows where it was put.
+        final Finder column = find.descendant(
+          of: find.byType(SettingsAccountScreen),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is ConstrainedBox &&
+                widget.constraints.maxWidth == 860.0,
+          ),
+        );
+        expect(column, findsOneWidget);
+        final Rect content = tester.getRect(column);
+        expect(content.width, 860.0);
+
+        final double leftGap = content.left - master.right;
+        final double rightGap = wide.width - content.right;
+        // The pane is everything right of the list; the column may not use all
+        // of it. The two gaps are what a centred column would split evenly.
+        final double freeSpace = (wide.width - master.right) - content.width;
+        // Right beside the list, give or take the gutters of the shell.
+        expect(leftGap, lessThan(100));
+        // The emptiness of a wide window belongs on the right: the gap on the
+        // left is far less than the half of what the column leaves free.
+        expect(leftGap, lessThan(freeSpace / 2 - 200));
+        expect(rightGap, greaterThan(freeSpace / 2 + 200));
+        expect(content.left, lessThan(wide.width / 2));
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
       '1.4 Switching master pane section updates detail pane to target sub-screen in-place',
       (WidgetTester tester) async {
         tester.view.physicalSize = desktopSize;

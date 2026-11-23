@@ -27,8 +27,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Settings Desktop Restructuring Tests', () {
-    testWidgets('SettingsShell in embedded mode centers content with default maxWidth 860',
-        (WidgetTester tester) async {
+    testWidgets('SettingsShell in embedded mode pins content to the left of '
+        'its pane with default maxWidth 860', (WidgetTester tester) async {
       const Size desktopSize = Size(1920, 1080);
       tester.view.physicalSize = desktopSize;
       tester.view.devicePixelRatio = 1.0;
@@ -81,7 +81,7 @@ void main() {
       final alignFinder = find.byWidgetPredicate(
         (widget) =>
             widget is Align &&
-            widget.alignment == Alignment.topCenter &&
+            widget.alignment == Alignment.topLeft &&
             widget.child is ConstrainedBox,
       );
       expect(alignFinder, findsOneWidget);
@@ -96,8 +96,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Wide custom studio with maxWidth 1120 is properly constrained and centered',
-        (WidgetTester tester) async {
+    testWidgets('Wide custom studio with maxWidth 1120 is properly constrained '
+        'and starts at the left of its pane', (WidgetTester tester) async {
       const Size desktopSize = Size(2560, 1440);
       tester.view.physicalSize = desktopSize;
       tester.view.devicePixelRatio = 1.0;
@@ -127,7 +127,7 @@ void main() {
       final alignFinder = find.byWidgetPredicate(
         (widget) =>
             widget is Align &&
-            widget.alignment == Alignment.topCenter &&
+            widget.alignment == Alignment.topLeft &&
             widget.child is ConstrainedBox,
       );
       expect(alignFinder, findsOneWidget);

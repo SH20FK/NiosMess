@@ -172,7 +172,14 @@ class SettingsShell extends ConsumerWidget {
               slivers: slivers,
             );
             return Align(
-              alignment: Alignment.topCenter,
+              // A pushed page has the window to itself, so its column is
+              // centred. An embedded one stands beside the list of sections:
+              // it stays next to that list, and a wide window keeps its
+              // emptiness on the right instead of pushing the column into
+              // the middle of the pane.
+              alignment: isEmbedded
+                  ? Alignment.topLeft
+                  : Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxWidth),
                 child: onRefresh != null
