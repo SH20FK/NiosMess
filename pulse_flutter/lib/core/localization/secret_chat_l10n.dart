@@ -274,6 +274,9 @@ extension SecretChatL10n on AppLocalizations {
   String get noticePermissionHint => _secret.noticePermissionHint;
   String get noticeDeviceHint => _secret.noticeDeviceHint;
   String get noticeMessages => _secret.noticeMessages;
+  String get noticeMessagesPrivate => _secret.noticeMessagesPrivate;
+  String get noticeMessagesGroups => _secret.noticeMessagesGroups;
+  String get noticeMessagesChannels => _secret.noticeMessagesChannels;
   String get noticeCalls => _secret.noticeCalls;
   String get noticeActivity => _secret.noticeActivity;
   String get noticePreview => _secret.noticePreview;

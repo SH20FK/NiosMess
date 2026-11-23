@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/notifications/notification_event.dart';
 import 'package:pulse_flutter/core/notifications/notification_web_bridge.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 
 @pragma('vm:entry-point')
 Future<void> _onBackgroundMessage(RemoteMessage message) async {
@@ -322,16 +323,19 @@ class PushNotificationService {
       return;
     }
     if (event.expiredAt(DateTime.now())) return;
-    final options =
+    final Map<String, dynamic> raw =
         jsonDecode(prefs.getString('notification_preferences_$account') ?? '{}')
             as Map<String, dynamic>;
+    // One parser for the screen, the in-app gate and this background path.
+    final NotificationPreferences options =
+        NotificationPreferences.fromJson(raw);
+    final bool allowed = event.isCall
+        ? options.calls
+        : event.chatId != null
+        ? options.messagesEnabledFor(data['chat_kind']?.toString())
+        : options.activity;
     if (!(prefs.getBool('ui.notifications') ?? true) ||
-        options[event.isCall
-                ? 'calls'
-                : event.chatId != null
-                ? 'messages'
-                : 'activity'] ==
-            false ||
+        !allowed ||
         (event.chatId != null &&
             (prefs.getBool(
                   'chat_notifications_muted_${account}_${event.chatId}',
@@ -343,7 +347,7 @@ class PushNotificationService {
     final title = event.title;
     final body = event.isCall
         ? strings.noticeIncomingCall
-        : options['preview'] == false
+        : !options.preview
         ? strings.noticeNewMessage
         : data['is_secret']?.toString() == 'true'
         ? strings.noticeEncrypted
@@ -406,7 +410,7 @@ class PushNotificationService {
           isCall: event.isCall,
           chatId: chatId,
           strings: strings,
-          sound: options['sound'] != false,
+          sound: options.sound,
           conversation: conversation,
         ),
         payload: jsonEncode({...data, 'account_id': account}),

@@ -5,28 +5,59 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 
 class NotificationPreferences {
   const NotificationPreferences({
-    this.messages = true,
+    this.privateMessages = true,
+    this.groups = true,
+    this.channels = true,
     this.calls = true,
     this.activity = true,
     this.preview = true,
     this.sound = true,
   });
-  final bool messages, calls, activity, preview, sound;
+  final bool privateMessages, groups, channels, calls, activity, preview, sound;
+
+  /// Whether message notifications for [chatKind] are on. `chatKind` is the
+  /// wire discriminator (`private`, `group`, `channel`) or a local chat type
+  /// (`direct`). Unknown kinds — legacy pushes without `chat_kind`, reminders —
+  /// stay visible unless every kind is switched off.
+  bool messagesEnabledFor(String? chatKind) => switch (chatKind) {
+    'private' || 'direct' => privateMessages,
+    'group' => groups,
+    'channel' => channels,
+    _ => privateMessages || groups || channels,
+  };
+
   Map<String, dynamic> toJson() => {
-    'messages': messages,
+    'private': privateMessages,
+    'groups': groups,
+    'channels': channels,
+    // Belt for a server that predates the three kinds: anything switched on
+    // keeps its old behaviour, everything off stays silent.
+    'messages': privateMessages || groups || channels,
     'calls': calls,
     'activity': activity,
     'preview': preview,
     'sound': sound,
   };
-  factory NotificationPreferences.fromJson(Map<String, dynamic> json) =>
-      NotificationPreferences(
-        messages: json['messages'] != false,
-        calls: json['calls'] != false,
-        activity: json['activity'] != false,
-        preview: json['preview'] != false,
-        sound: json['sound'] != false,
-      );
+  factory NotificationPreferences.fromJson(Map<String, dynamic> json) {
+    // Legacy JSON stored one `messages` switch. Without any new key it decides
+    // all three kinds; once a new key appears the new keys win and `messages`
+    // is ignored.
+    final bool legacyMessages = json['messages'] != false;
+    final bool hasNewKeys =
+        json.containsKey('private') ||
+        json.containsKey('groups') ||
+        json.containsKey('channels');
+    bool kind(String key) => hasNewKeys ? json[key] != false : legacyMessages;
+    return NotificationPreferences(
+      privateMessages: kind('private'),
+      groups: kind('groups'),
+      channels: kind('channels'),
+      calls: json['calls'] != false,
+      activity: json['activity'] != false,
+      preview: json['preview'] != false,
+      sound: json['sound'] != false,
+    );
+  }
 }
 
 class NotificationPreferencesNotifier

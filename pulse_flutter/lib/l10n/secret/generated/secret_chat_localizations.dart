@@ -1823,6 +1823,24 @@ abstract class SecretChatLocalizations {
   /// **'Messages'**
   String get noticeMessages;
 
+  /// No description provided for @noticeMessagesPrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Private chats'**
+  String get noticeMessagesPrivate;
+
+  /// No description provided for @noticeMessagesGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get noticeMessagesGroups;
+
+  /// No description provided for @noticeMessagesChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels'**
+  String get noticeMessagesChannels;
+
   /// No description provided for @noticeCalls.
   ///
   /// In en, this message translates to:

@@ -167,9 +167,19 @@ class _NotificationSettingsSectionState
           ),
         ),
         toggle(
-          'messages',
+          'private',
           Icons.chat_bubble_outline_rounded,
-          l10n.noticeMessages,
+          l10n.noticeMessagesPrivate,
+        ),
+        toggle(
+          'groups',
+          Icons.groups_outlined,
+          l10n.noticeMessagesGroups,
+        ),
+        toggle(
+          'channels',
+          Icons.campaign_outlined,
+          l10n.noticeMessagesChannels,
         ),
         toggle('calls', Icons.call_outlined, l10n.noticeCalls),
         toggle('activity', Icons.alternate_email_rounded, l10n.noticeActivity),

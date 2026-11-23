@@ -985,6 +985,15 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get noticeMessages => 'Messages';
 
   @override
+  String get noticeMessagesPrivate => 'Private chats';
+
+  @override
+  String get noticeMessagesGroups => 'Groups';
+
+  @override
+  String get noticeMessagesChannels => 'Channels';
+
+  @override
   String get noticeCalls => 'Incoming calls';
 
   @override

@@ -12,6 +12,8 @@ import 'widgets/settings_redesign_system_test.dart'
     as settings_redesign_system_test;
 import 'widgets/settings_redesign_system_dialogs_test.dart'
     as settings_redesign_system_dialogs_test;
+import 'widgets/notification_settings_kinds_test.dart'
+    as notification_settings_kinds;
 import 'widgets/chat_productivity_test.dart' as chat_productivity;
 import 'providers/feed_poll_vote_test.dart' as feed_poll_vote;
 import 'services/encrypted_draft_sync_test.dart' as encrypted_draft_sync;
@@ -511,6 +513,7 @@ void main() {
     password_reset_service.main();
     password_reset_screen.main();
     notification_preferences.main();
+    notification_settings_kinds.main();
     settings_group_radius.main();
     settings_performance_phase4.main();
     chat_productivity.main();

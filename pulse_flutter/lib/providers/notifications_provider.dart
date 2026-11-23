@@ -269,7 +269,11 @@ class NotificationsNotifier extends Notifier<NotificationsState> {
       }
       if (!ref.mounted || _account != account) return;
       if (!ref.read(uiSettingsProvider).notifications ||
-          (event.chatId != null ? !prefs.messages : !prefs.activity)) {
+          (event.chatId != null
+              ? !prefs.messagesEnabledFor(
+                  event.data['chat_kind']?.toString(),
+                )
+              : !prefs.activity)) {
         return;
       }
       final previous = state.notifications

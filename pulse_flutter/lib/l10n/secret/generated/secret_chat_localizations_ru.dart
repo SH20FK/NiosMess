@@ -998,6 +998,15 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get noticeMessages => 'Сообщения';
 
   @override
+  String get noticeMessagesPrivate => 'Личные чаты';
+
+  @override
+  String get noticeMessagesGroups => 'Группы';
+
+  @override
+  String get noticeMessagesChannels => 'Каналы';
+
+  @override
   String get noticeCalls => 'Входящие звонки';
 
   @override

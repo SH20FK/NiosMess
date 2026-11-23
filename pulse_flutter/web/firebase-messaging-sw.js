@@ -98,8 +98,13 @@ messaging.onBackgroundMessage(async payload => {
   if (expired(data) || (data.type === 'incoming_call' && ((await read('ended')) || []).includes(data.room_id))) return;
   const options = settings?.preferences || {};
   const isCall = data.type === 'incoming_call';
-  const category = isCall ? 'calls' : data.chat_id ? 'messages' : 'activity';
-  if (options[category] === false || (options.muted_chat_ids || []).map(String).includes(String(data.chat_id))) return;
+  // The chat type picks the switch; pushes from an older server carry no
+  // chat_kind and fall back to the legacy message switch.
+  const kindKey = {private:'private', group:'groups', channel:'channels'}[data.chat_kind];
+  const category = isCall ? 'calls' : data.chat_id ? (kindKey || 'messages') : 'activity';
+  const allMessagesOff = options.private === false && options.groups === false && options.channels === false;
+  if (options[category] === false || (data.chat_id && allMessagesOff) ||
+      (options.muted_chat_ids || []).map(String).includes(String(data.chat_id))) return;
   const id = data.event_id || (data.message_id ? 'message:' + data.chat_id + ':' + data.message_id : payload.messageId);
   // Store only a bounded recent ID set, never message bodies or encryption keys.
   const seen = (await read('seen')) || [];

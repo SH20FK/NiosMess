@@ -3113,10 +3113,12 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     final generation = _generation;
     try {
       final options = await ref.read(notificationPreferencesProvider.future);
+      final String? chatKind =
+          ref.read(chatByIdProvider(_chatId))?.chatType;
       if (!ref.mounted ||
           generation != _generation ||
           !options.sound ||
-          !options.messages) {
+          !options.messagesEnabledFor(chatKind)) {
         return;
       }
       final bool isMuted = await ref.read(chatMutedProvider(_chatId).future);
