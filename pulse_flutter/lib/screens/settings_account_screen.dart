@@ -72,6 +72,17 @@ class SettingsAccountScreen extends ConsumerWidget {
                 'https://ni-os.ru/id/account',
               ),
             ),
+            SettingsAnchor(
+              id: 'account.password',
+              child: SettingsListItem.nav(
+                key: const ValueKey('settings-account-password'),
+                icon: Icons.password_rounded,
+                title: context.l10n.settingsPasswordEntry,
+                subtitle: context.l10n.settingsPasswordEntryHint,
+                onTap: () =>
+                    openSettingsPage(context, '/settings/account/password'),
+              ),
+            ),
           ],
         ),
         SettingsSection(

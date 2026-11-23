@@ -49,6 +49,8 @@ import 'unit/settings_persistence_test.dart' as settings_persistence;
 import 'unit/settings_health_test.dart' as settings_health;
 import 'unit/account_deletion_test.dart' as account_deletion;
 import 'widgets/account_deletion_screen_test.dart' as account_deletion_screen;
+import 'unit/password_reset_service_test.dart' as password_reset_service;
+import 'widgets/settings_password_screen_test.dart' as password_reset_screen;
 import 'providers/notification_preferences_test.dart'
     as notification_preferences;
 import 'widgets/settings_group_radius_test.dart' as settings_group_radius;
@@ -506,6 +508,8 @@ void main() {
     settings_health.main();
     account_deletion.main();
     account_deletion_screen.main();
+    password_reset_service.main();
+    password_reset_screen.main();
     notification_preferences.main();
     settings_group_radius.main();
     settings_performance_phase4.main();

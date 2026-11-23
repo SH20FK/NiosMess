@@ -37,6 +37,10 @@ class ApiConstants {
   static String get oauthDeviceCodeUrl => '$devProxyOrigin/oauth/device/code';
   static String get accountCheckUrl => '$devProxyOrigin/id/api/v1/account';
   static String get centralLogoutUrl => '$devProxyOrigin/id/api/v1/logout';
+  static String get passwordRequestUrl =>
+      '$devProxyOrigin/id/api/v1/password/request';
+  static String get passwordResetUrl =>
+      '$devProxyOrigin/id/api/v1/password/reset';
 
   static String resolve(String? url) {
     if (url == null || url.trim().isEmpty) return '';

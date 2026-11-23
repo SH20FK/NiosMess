@@ -33,6 +33,7 @@ class ApiProfile {
     this.niosPlusTrialUsed = false,
     this.isPendingDeletion = false,
     this.deletionScheduledAt,
+    this.email,
   });
 
   final int id;
@@ -63,6 +64,10 @@ class ApiProfile {
   /// not cancel it, so the app has to keep saying so.
   final bool isPendingDeletion;
   final DateTime? deletionScheduledAt;
+
+  /// Own profile only, from `me_info`: the address of the Nios ID the account
+  /// signs in with. Other profiles never carry it.
+  final String? email;
 
   bool get isNiosPlus =>
       isNiosPlusCustom == true ||
@@ -200,6 +205,7 @@ class ApiProfile {
           false,
       isPendingDeletion: json['is_pending_deletion'] == true,
       deletionScheduledAt: parseServerUtc(json['deletion_scheduled_at']),
+      email: json['email'] as String?,
     );
   }
 
@@ -230,6 +236,7 @@ class ApiProfile {
       'is_pending_deletion': isPendingDeletion,
       if (deletionScheduledAt != null)
         'deletion_scheduled_at': deletionScheduledAt!.toIso8601String(),
+      if (email != null) 'email': email,
     };
   }
 
@@ -254,6 +261,7 @@ class ApiProfile {
     bool? isBlocked,
     bool? isOnline,
     DateTime? lastSeen,
+    String? email,
   }) {
     return ApiProfile(
       id: id ?? this.id,
@@ -276,6 +284,7 @@ class ApiProfile {
       isBlocked: isBlocked ?? this.isBlocked,
       isOnline: isOnline ?? this.isOnline,
       lastSeen: lastSeen ?? this.lastSeen,
+      email: email ?? this.email,
       isPendingDeletion: isPendingDeletion,
       deletionScheduledAt: deletionScheduledAt,
     );

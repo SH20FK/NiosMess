@@ -2736,4 +2736,89 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsDevicesTitle => 'Devices';
+
+  @override
+  String get settingsPasswordEntry => 'Password';
+
+  @override
+  String get settingsPasswordEntryHint => 'Reset with a code from your email';
+
+  @override
+  String get settingsPasswordTitle => 'Password reset';
+
+  @override
+  String settingsPasswordCodeIntro(String email) {
+    return 'We will send a six-digit code to the email of your Nios ID — $email. The code is valid for 15 minutes, and a new request retires the previous one.';
+  }
+
+  @override
+  String get settingsPasswordRequest => 'Email me a code';
+
+  @override
+  String get settingsPasswordResend => 'Send the code again';
+
+  @override
+  String get settingsPasswordRequested =>
+      'If your Nios ID has an email, the code is on its way. It is valid for 15 minutes; sending again replaces the previous code. No letter after a couple of minutes? Send it again.';
+
+  @override
+  String get settingsPasswordCodeLabel => 'Code from the letter';
+
+  @override
+  String get settingsPasswordNewPasswordLabel => 'New password';
+
+  @override
+  String get settingsPasswordRepeatLabel => 'Repeat the password';
+
+  @override
+  String get settingsPasswordRuleHint =>
+      'At least 10 characters, one uppercase Latin letter and one digit.';
+
+  @override
+  String get settingsPasswordShow => 'Show password';
+
+  @override
+  String get settingsPasswordHide => 'Hide password';
+
+  @override
+  String get settingsPasswordSubmit => 'Change password';
+
+  @override
+  String get settingsPasswordErrorWeak =>
+      'This password will not do: at least 10 characters, an uppercase letter and a digit.';
+
+  @override
+  String get settingsPasswordErrorCode =>
+      'The code is wrong or has expired. Check the letter or request a new code.';
+
+  @override
+  String get settingsPasswordErrorRate =>
+      'Too many attempts. Wait a minute and try again.';
+
+  @override
+  String get settingsPasswordErrorNetwork =>
+      'No connection. Check the network and try again.';
+
+  @override
+  String get settingsPasswordErrorUnknown => 'That did not work. Try again.';
+
+  @override
+  String get settingsPasswordDoneTitle => 'Password changed';
+
+  @override
+  String get settingsPasswordDoneBody =>
+      'The password of your Nios ID is updated and its central sessions are signed out. Use the new password the next time you sign in to Nios ID.';
+
+  @override
+  String get settingsPasswordDoneAction => 'Done';
+
+  @override
+  String get settingsPasswordNoEmailTitle => 'No email on file';
+
+  @override
+  String get settingsPasswordNoEmailBody =>
+      'The reset code is sent to an email, and your Nios ID does not have one. Add an email in the account settings at ni-os.ru and come back.';
+
+  @override
+  String get settingsPasswordOpenNiosId => 'Open Nios ID settings';
 }

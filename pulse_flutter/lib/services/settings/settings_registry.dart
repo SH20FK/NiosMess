@@ -562,6 +562,22 @@ class SettingsRegistry {
       sectionId: SettingsSectionId.appearance,
       keywords: ['обои', 'фон чата', 'узор', 'wallpaper', 'background'],
     ),
+    // Account items
+    SettingsItemNode(
+      id: 'account.password',
+      parentNavId: 'account',
+      title: (AppLocalizations l) => l.settingsPasswordEntry,
+      subtitle: (AppLocalizations l) => l.settingsPasswordEntryHint,
+      icon: Icons.password_rounded,
+      group: SettingsGroup.account,
+      keywords: const <String>[
+        'пароль',
+        'сброс пароля',
+        'изменить пароль',
+        'код с почты',
+        'password',
+      ],
+    ),
     SettingsNavNode(
       id: 'account.delete',
       parentNavId: 'account',

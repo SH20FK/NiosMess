@@ -5020,6 +5020,156 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Devices'**
   String get settingsDevicesTitle;
+
+  /// No description provided for @settingsPasswordEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get settingsPasswordEntry;
+
+  /// No description provided for @settingsPasswordEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset with a code from your email'**
+  String get settingsPasswordEntryHint;
+
+  /// No description provided for @settingsPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Password reset'**
+  String get settingsPasswordTitle;
+
+  /// No description provided for @settingsPasswordCodeIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'We will send a six-digit code to the email of your Nios ID — {email}. The code is valid for 15 minutes, and a new request retires the previous one.'**
+  String settingsPasswordCodeIntro(String email);
+
+  /// No description provided for @settingsPasswordRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Email me a code'**
+  String get settingsPasswordRequest;
+
+  /// No description provided for @settingsPasswordResend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the code again'**
+  String get settingsPasswordResend;
+
+  /// No description provided for @settingsPasswordRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'If your Nios ID has an email, the code is on its way. It is valid for 15 minutes; sending again replaces the previous code. No letter after a couple of minutes? Send it again.'**
+  String get settingsPasswordRequested;
+
+  /// No description provided for @settingsPasswordCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Code from the letter'**
+  String get settingsPasswordCodeLabel;
+
+  /// No description provided for @settingsPasswordNewPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get settingsPasswordNewPasswordLabel;
+
+  /// No description provided for @settingsPasswordRepeatLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat the password'**
+  String get settingsPasswordRepeatLabel;
+
+  /// No description provided for @settingsPasswordRuleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'At least 10 characters, one uppercase Latin letter and one digit.'**
+  String get settingsPasswordRuleHint;
+
+  /// No description provided for @settingsPasswordShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get settingsPasswordShow;
+
+  /// No description provided for @settingsPasswordHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get settingsPasswordHide;
+
+  /// No description provided for @settingsPasswordSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get settingsPasswordSubmit;
+
+  /// No description provided for @settingsPasswordErrorWeak.
+  ///
+  /// In en, this message translates to:
+  /// **'This password will not do: at least 10 characters, an uppercase letter and a digit.'**
+  String get settingsPasswordErrorWeak;
+
+  /// No description provided for @settingsPasswordErrorCode.
+  ///
+  /// In en, this message translates to:
+  /// **'The code is wrong or has expired. Check the letter or request a new code.'**
+  String get settingsPasswordErrorCode;
+
+  /// No description provided for @settingsPasswordErrorRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Wait a minute and try again.'**
+  String get settingsPasswordErrorRate;
+
+  /// No description provided for @settingsPasswordErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. Check the network and try again.'**
+  String get settingsPasswordErrorNetwork;
+
+  /// No description provided for @settingsPasswordErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'That did not work. Try again.'**
+  String get settingsPasswordErrorUnknown;
+
+  /// No description provided for @settingsPasswordDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Password changed'**
+  String get settingsPasswordDoneTitle;
+
+  /// No description provided for @settingsPasswordDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The password of your Nios ID is updated and its central sessions are signed out. Use the new password the next time you sign in to Nios ID.'**
+  String get settingsPasswordDoneBody;
+
+  /// No description provided for @settingsPasswordDoneAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get settingsPasswordDoneAction;
+
+  /// No description provided for @settingsPasswordNoEmailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No email on file'**
+  String get settingsPasswordNoEmailTitle;
+
+  /// No description provided for @settingsPasswordNoEmailBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The reset code is sent to an email, and your Nios ID does not have one. Add an email in the account settings at ni-os.ru and come back.'**
+  String get settingsPasswordNoEmailBody;
+
+  /// No description provided for @settingsPasswordOpenNiosId.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Nios ID settings'**
+  String get settingsPasswordOpenNiosId;
 }
 
 class _SecretChatLocalizationsDelegate

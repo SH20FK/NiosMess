@@ -26,6 +26,7 @@ import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
+import 'package:pulse_flutter/screens/settings_password_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
@@ -670,6 +671,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       '/settings/account/delete' => (
         page: const AccountDeletionScreen(isEmbedded: true),
+        fullWidth: false,
+      ),
+      '/settings/account/password' => (
+        page: const SettingsPasswordScreen(isEmbedded: true),
         fullWidth: false,
       ),
       // The studio lays itself out across the whole pane.

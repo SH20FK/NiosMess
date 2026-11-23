@@ -2761,4 +2761,90 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsDevicesTitle => 'Устройства';
+
+  @override
+  String get settingsPasswordEntry => 'Пароль';
+
+  @override
+  String get settingsPasswordEntryHint => 'Сброс по коду с почты';
+
+  @override
+  String get settingsPasswordTitle => 'Сброс пароля';
+
+  @override
+  String settingsPasswordCodeIntro(String email) {
+    return 'Отправим код из шести цифр на почту вашего Nios ID — $email. Код действует 15 минут, новый запрос отменяет прежний код.';
+  }
+
+  @override
+  String get settingsPasswordRequest => 'Отправить код на почту';
+
+  @override
+  String get settingsPasswordResend => 'Отправить код ещё раз';
+
+  @override
+  String get settingsPasswordRequested =>
+      'Если почта указана в Nios ID, код отправлен. Он действует 15 минут; повторный запрос отменяет прежний код. Письма нет через пару минут — запросите код ещё раз.';
+
+  @override
+  String get settingsPasswordCodeLabel => 'Код из письма';
+
+  @override
+  String get settingsPasswordNewPasswordLabel => 'Новый пароль';
+
+  @override
+  String get settingsPasswordRepeatLabel => 'Повторите пароль';
+
+  @override
+  String get settingsPasswordRuleHint =>
+      'От 10 символов, заглавная латинская буква и цифра.';
+
+  @override
+  String get settingsPasswordShow => 'Показать пароль';
+
+  @override
+  String get settingsPasswordHide => 'Скрыть пароль';
+
+  @override
+  String get settingsPasswordSubmit => 'Сменить пароль';
+
+  @override
+  String get settingsPasswordErrorWeak =>
+      'Пароль не подходит: нужно не меньше 10 символов, заглавная буква и цифра.';
+
+  @override
+  String get settingsPasswordErrorCode =>
+      'Код неверный или устарел. Проверьте письмо или запросите код заново.';
+
+  @override
+  String get settingsPasswordErrorRate =>
+      'Слишком много попыток. Подождите минуту и попробуйте снова.';
+
+  @override
+  String get settingsPasswordErrorNetwork =>
+      'Нет соединения. Проверьте сеть и попробуйте снова.';
+
+  @override
+  String get settingsPasswordErrorUnknown =>
+      'Не получилось. Попробуйте ещё раз.';
+
+  @override
+  String get settingsPasswordDoneTitle => 'Пароль изменён';
+
+  @override
+  String get settingsPasswordDoneBody =>
+      'Пароль вашего Nios ID обновлён, его центральные сеансы завершены. При следующем входе в Nios ID вводите новый пароль.';
+
+  @override
+  String get settingsPasswordDoneAction => 'Готово';
+
+  @override
+  String get settingsPasswordNoEmailTitle => 'Почта не указана';
+
+  @override
+  String get settingsPasswordNoEmailBody =>
+      'Код сброса высылается на почту, а у вашего Nios ID её нет. Добавьте почту в настройках аккаунта на портале ni-os.ru — и возвращайтесь.';
+
+  @override
+  String get settingsPasswordOpenNiosId => 'Открыть настройки Nios ID';
 }

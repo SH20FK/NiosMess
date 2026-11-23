@@ -286,6 +286,26 @@ void main() {
       },
     );
     test(
+      'a profile edit keeps the email that only me_info carries',
+      () async {
+        final refresh = auth.refreshProfile();
+        repository.profiles.single.complete(
+          _profile(1).copyWith(email: 'user@example.com'),
+        );
+        await refresh;
+        expect(container.read(authProvider).profile?.email, 'user@example.com');
+
+        // The answer to an edit has no email: losing it here would make the
+        // password screen claim the account has no address.
+        final update = auth.updateProfile(displayName: 'changed');
+        repository.updates.single.complete(
+          _profile(1).copyWith(displayName: 'Changed'),
+        );
+        await update;
+        expect(container.read(authProvider).profile?.email, 'user@example.com');
+      },
+    );
+    test(
       'latest login wins and a delayed older login cannot replace credentials',
       () async {
         final first = auth.loginWithOAuth(oauthAccessToken: 'first');

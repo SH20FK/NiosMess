@@ -455,9 +455,12 @@ class AuthNotifier extends Notifier<AuthState> {
       if (!_current(epoch, session) || request != _profileMutation) {
         return const AuthActionResult(success: false);
       }
-      final ApiProfile effectiveProfile = profile.aiUsage != null
-          ? profile
-          : profile.copyWith(aiUsage: state.profile?.aiUsage);
+      // The profile edit answer lacks the fields only me_info carries: the
+      // quota and the email. Keep them until the next full refresh.
+      final ApiProfile effectiveProfile = profile.copyWith(
+        aiUsage: profile.aiUsage ?? state.profile?.aiUsage,
+        email: profile.email ?? state.profile?.email,
+      );
       final nextSession = AuthSession(
         accessToken: session.accessToken,
         userId: session.userId,

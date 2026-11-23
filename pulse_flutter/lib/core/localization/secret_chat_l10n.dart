@@ -871,4 +871,34 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsStorageNothingToClear =>
       _secret.settingsStorageNothingToClear;
   String get settingsDevicesTitle => _secret.settingsDevicesTitle;
+  String get settingsPasswordEntry => _secret.settingsPasswordEntry;
+  String get settingsPasswordEntryHint => _secret.settingsPasswordEntryHint;
+  String get settingsPasswordTitle => _secret.settingsPasswordTitle;
+  String settingsPasswordCodeIntro(String email) =>
+      _secret.settingsPasswordCodeIntro(email);
+  String get settingsPasswordRequest => _secret.settingsPasswordRequest;
+  String get settingsPasswordResend => _secret.settingsPasswordResend;
+  String get settingsPasswordRequested => _secret.settingsPasswordRequested;
+  String get settingsPasswordCodeLabel => _secret.settingsPasswordCodeLabel;
+  String get settingsPasswordNewPasswordLabel =>
+      _secret.settingsPasswordNewPasswordLabel;
+  String get settingsPasswordRepeatLabel =>
+      _secret.settingsPasswordRepeatLabel;
+  String get settingsPasswordRuleHint => _secret.settingsPasswordRuleHint;
+  String get settingsPasswordShow => _secret.settingsPasswordShow;
+  String get settingsPasswordHide => _secret.settingsPasswordHide;
+  String get settingsPasswordSubmit => _secret.settingsPasswordSubmit;
+  String get settingsPasswordErrorWeak => _secret.settingsPasswordErrorWeak;
+  String get settingsPasswordErrorCode => _secret.settingsPasswordErrorCode;
+  String get settingsPasswordErrorRate => _secret.settingsPasswordErrorRate;
+  String get settingsPasswordErrorNetwork =>
+      _secret.settingsPasswordErrorNetwork;
+  String get settingsPasswordErrorUnknown =>
+      _secret.settingsPasswordErrorUnknown;
+  String get settingsPasswordDoneTitle => _secret.settingsPasswordDoneTitle;
+  String get settingsPasswordDoneBody => _secret.settingsPasswordDoneBody;
+  String get settingsPasswordDoneAction => _secret.settingsPasswordDoneAction;
+  String get settingsPasswordNoEmailTitle => _secret.settingsPasswordNoEmailTitle;
+  String get settingsPasswordNoEmailBody => _secret.settingsPasswordNoEmailBody;
+  String get settingsPasswordOpenNiosId => _secret.settingsPasswordOpenNiosId;
 }
