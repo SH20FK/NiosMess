@@ -69,7 +69,8 @@ class SessionsScreen extends ConsumerWidget {
         (ready.terminatingOthers || ready.revokingIds.isNotEmpty);
     final scheme = Theme.of(context).colorScheme;
     return SettingsShell(
-      title: context.l10n.sessionsTitle,
+      // The same name as the hub row that opens this screen.
+      title: context.l10n.settingsDevicesTitle,
       isEmbedded: isEmbedded,
       onRefresh: () => ref.read(sessionsControllerProvider.notifier).load(),
       actions: [

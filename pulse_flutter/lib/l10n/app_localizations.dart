@@ -3830,12 +3830,6 @@ abstract class AppLocalizations {
   /// **'Password reset successfully'**
   String get resetPasswordConfirmDone;
 
-  /// No description provided for @sessionsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Active sessions'**
-  String get sessionsTitle;
-
   /// No description provided for @sessionsRevokeTitle.
   ///
   /// In en, this message translates to:

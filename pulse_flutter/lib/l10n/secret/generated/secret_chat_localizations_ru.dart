@@ -105,7 +105,7 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get secretLogoutWarning =>
-      'При выходе секретная история и неотправленные сообщения на этом устройстве будут удалены. История собеседника сохранится.';
+      'Вы выйдете из аккаунта на этом устройстве. Обычные чаты останутся на сервере. Секретная история и неотправленные сообщения на этом устройстве будут удалены, у собеседника они сохранятся.';
 
   @override
   String get secretRetry => 'Повторить отправку';
@@ -123,7 +123,7 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
       'Удалить эту переписку из вашего списка чатов?';
 
   @override
-  String get modalSessionTitle => 'Завершить сессию?';
+  String get modalSessionTitle => 'Завершить сеанс?';
 
   @override
   String modalSessionBody(String device) {
@@ -134,7 +134,7 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get modalSessionConfirm => 'Завершить';
 
   @override
-  String get modalSessionsTitle => 'Завершить все остальные сессии?';
+  String get modalSessionsTitle => 'Завершить все остальные сеансы?';
 
   @override
   String get modalSessionsBody =>
@@ -2138,11 +2138,11 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
       'Вы вошли в аккаунт только с этого устройства.';
 
   @override
-  String get settingsSessionsEndedOthers => 'Все остальные сессии завершены';
+  String get settingsSessionsEndedOthers => 'Все остальные сеансы завершены';
 
   @override
   String get settingsSessionsEndFailed =>
-      'Не удалось завершить сессию. Попробуйте ещё раз.';
+      'Не удалось завершить сеанс. Попробуйте ещё раз.';
 
   @override
   String get settingsSessionsApp => 'Приложение';
@@ -2160,13 +2160,13 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get settingsSessionsLastActive => 'Последняя активность';
 
   @override
-  String get settingsSessionsEndThis => 'Завершить эту сессию';
+  String get settingsSessionsEndThis => 'Завершить этот сеанс';
 
   @override
   String get settingsSessionsCurrentDevice => 'Текущее устройство';
 
   @override
-  String get settingsSessionsNoOtherDevices => 'Нет других активных сессий';
+  String get settingsSessionsNoOtherDevices => 'Других активных сеансов нет';
 
   @override
   String get settingsE2eeMeshSearching => 'Ищем устройства рядом';

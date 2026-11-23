@@ -266,7 +266,7 @@ abstract class SecretChatLocalizations {
   /// No description provided for @secretLogoutWarning.
   ///
   /// In en, this message translates to:
-  /// **'Logging out deletes secret history and unsent messages on this device. Your contact\'s history is kept.'**
+  /// **'You will be signed out on this device. Regular chats stay on the server. Secret history and unsent messages on this device will be deleted. Your contact keeps their copy.'**
   String get secretLogoutWarning;
 
   /// No description provided for @secretRetry.

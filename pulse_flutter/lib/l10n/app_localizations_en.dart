@@ -2094,9 +2094,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetPasswordConfirmDone => 'Password reset successfully';
 
   @override
-  String get sessionsTitle => 'Active sessions';
-
-  @override
   String get sessionsRevokeTitle => 'Revoke session?';
 
   @override
@@ -2109,7 +2106,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsRevokeTooltip => 'Revoke session';
 
   @override
-  String get sessionsRevokedSuccess => 'Session revoked';
+  String get sessionsRevokedSuccess => 'Session ended';
 
   @override
   String get sessionsEmpty => 'No active sessions';
@@ -3966,7 +3963,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use colors from your device wallpaper';
 
   @override
-  String get sessionsTerminateAll => 'Terminate all other sessions';
+  String get sessionsTerminateAll => 'End all other sessions';
 
   @override
   String get sessionsTerminateAllConfirmTitle =>

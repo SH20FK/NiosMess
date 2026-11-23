@@ -2116,9 +2116,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get resetPasswordConfirmDone => 'Пароль успешно изменён';
 
   @override
-  String get sessionsTitle => 'Активные сессии';
-
-  @override
   String get sessionsRevokeTitle => 'Отозвать сессию?';
 
   @override
@@ -2131,7 +2128,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sessionsRevokeTooltip => 'Отозвать сессию';
 
   @override
-  String get sessionsRevokedSuccess => 'Сессия отозвана';
+  String get sessionsRevokedSuccess => 'Сеанс завершён';
 
   @override
   String get sessionsEmpty => 'Нет активных сессий';
@@ -3995,7 +3992,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appearanceSystemColorsSubtitle => 'Цвета из обоев устройства';
 
   @override
-  String get sessionsTerminateAll => 'Завершить все остальные сессии';
+  String get sessionsTerminateAll => 'Завершить все остальные сеансы';
 
   @override
   String get sessionsTerminateAllConfirmTitle =>

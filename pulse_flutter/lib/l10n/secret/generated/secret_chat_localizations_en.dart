@@ -105,7 +105,7 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get secretLogoutWarning =>
-      'Logging out deletes secret history and unsent messages on this device. Your contact\'s history is kept.';
+      'You will be signed out on this device. Regular chats stay on the server. Secret history and unsent messages on this device will be deleted. Your contact keeps their copy.';
 
   @override
   String get secretRetry => 'Retry sending';
