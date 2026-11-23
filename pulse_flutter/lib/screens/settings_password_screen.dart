@@ -120,9 +120,14 @@ class _SettingsPasswordScreenState
     final String? email = ref
         .watch(authProvider.select((AuthState a) => a.profile?.email))
         ?.trim();
+    // Only whether the profile exists: watching the whole state would rebuild
+    // the form on every useless change of the account.
+    final bool hasProfile = ref.watch(
+      authProvider.select((AuthState a) => a.profile != null),
+    );
     final String? stage;
     final Widget body;
-    if (email == null && ref.watch(authProvider).profile != null) {
+    if (email == null && hasProfile) {
       stage = 'no-email';
       body = _noEmail();
     } else if (email == null) {
