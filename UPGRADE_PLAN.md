@@ -326,9 +326,21 @@
 `grep -c "package:flutter/cupertino.dart"` = 0 (остался только `cupertino_ui`);
 `flutter analyze --fatal-infos` чистый; тесты зелёные; `flutter build windows` + web.
 
-### 7.5. Волна E — три пакета
+### 7.5. Волна E — пакеты
 
-`cached_network_image` 4, `dynamic_color` 2, `go_router` 18 — **только после** D,
+**Поправка по факту (dry-run 26.11):** `dynamic_color` 2.x **недостижим**. Цепочка
+`loading_indicator_m3e 0.1.1 → m3e_design ^0.2.0 → dynamic_color ^1.8.1` жёстко держит 1.x,
+а `AppLoadingIndicator` обязателен по `AGENTS.md` (140 использований). Поэтому:
+
+- `material_ui` ^1.11.1 и `cupertino_ui` ^1.1.7 — добавляются как прямые зависимости
+  (сейчас они уже транзитивные через `chewie 1.18.1` и `flutter_riverpod 3.5.0`);
+- `cached_network_image` 4 и `go_router` 18 — поднимаются;
+- `dynamic_color` остаётся **1.9.0**, и `AppTheme.themed` переделывается так, чтобы
+  принимать seed-`Color` вместо целого `ColorScheme` (`main.dart:397` сейчас передаёт
+  `dynamicScheme: lightDynamic`). `Color` — общий `dart:ui`-тип, поэтому граница остаётся
+  целой, а функция динамических цветов сохраняется.
+
+`cached_network_image` 4, `go_router` 18 — **только после** D,
 потому что они приносят `material_ui`-типы, а до миграции это гарантированный разъезд.
 Проверить особенно: `DynamicColorBuilder` в `main.dart` → `AppTheme.themed(...)`
 и `MaterialPage` в роутере.
