@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The surface and shape shared by a row in a connected settings group.
 class SettingsGroupScope extends InheritedWidget {

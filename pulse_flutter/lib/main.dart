@@ -1,7 +1,7 @@
 import 'package:pulse_flutter/providers/notifications_provider.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/services/protocol/nios_protocol_licenses.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'dart:async';
 import 'dart:ui';
 
@@ -365,7 +365,10 @@ class _PulseAppState extends ConsumerState<PulseApp> {
     _syncTimeSettings(effectiveLocaleCode, timeZoneMode, timeZoneId);
 
     return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+      // dynamic_color 1.x is still on package:flutter/material.dart, so the
+      // builder types come from there; only the seed Color (a dart:ui type)
+      // crosses into our material_ui theme.
+      builder: (lightDynamic, darkDynamic) {
         final bool isHighContrast = WidgetsBinding
             .instance
             .platformDispatcher
@@ -394,13 +397,13 @@ class _PulseAppState extends ConsumerState<PulseApp> {
           theme: AppTheme.themed(
             visualTheme,
             Brightness.light,
-            dynamicScheme: lightDynamic,
+            dynamicSeed: lightDynamic?.primary,
             contrastLevel: contrastLevel,
           ),
           darkTheme: AppTheme.themed(
             visualTheme,
             Brightness.dark,
-            dynamicScheme: darkDynamic,
+            dynamicSeed: darkDynamic?.primary,
             contrastLevel: contrastLevel,
           ),
           themeMode: themeMode,

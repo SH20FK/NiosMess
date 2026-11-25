@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
@@ -13,6 +13,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/theme/markdown_theme.dart';
 import 'package:pulse_flutter/core/media/media_playback_source.dart';
 import 'package:pulse_flutter/core/media/browser_playback_stub.dart'
     if (dart.library.js_interop) 'package:pulse_flutter/core/media/browser_playback_web.dart';
@@ -525,7 +526,7 @@ class _MarkdownViewerState extends State<_MarkdownViewer> {
                 launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
               }
             },
-            styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+            styleSheet: buildMarkdownStyleSheet(Theme.of(context)).copyWith(
               p: textTheme.bodyLarge?.copyWith(
                 height: 1.6,
                 color: scheme.onSurface,

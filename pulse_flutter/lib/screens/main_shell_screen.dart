@@ -9,7 +9,7 @@ import 'package:pulse_flutter/widgets/nav/app_nav_rail.dart';
 import 'package:pulse_flutter/widgets/nav/shell_window_title.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 
 /// Reusable horizontal strip displaying attached photos/videos for post composers.

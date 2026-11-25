@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 
 class PulseScaffoldBody extends StatelessWidget {

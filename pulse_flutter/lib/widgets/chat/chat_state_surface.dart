@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/widgets/chat/chat_empty_state.dart';
 
 export 'chat_empty_state.dart';

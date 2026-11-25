@@ -7,7 +7,7 @@ import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
 import 'package:pulse_flutter/widgets/feed_poll_card.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

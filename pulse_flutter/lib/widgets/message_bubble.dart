@@ -9,7 +9,7 @@ import 'package:pulse_flutter/widgets/chat/live_location_card.dart';
 import 'package:pulse_flutter/widgets/chat/file_request_action.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_message_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';

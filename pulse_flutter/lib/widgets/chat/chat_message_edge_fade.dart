@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Material 3 Expressive edge fade for chat message viewports.
 /// Uses pure tonal LinearGradients with zero live blurs or save-layers,

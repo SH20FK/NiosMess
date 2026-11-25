@@ -1,7 +1,7 @@
 import 'package:pulse_flutter/widgets/calls/call_devices_dialog.dart';
 import 'package:pulse_flutter/widgets/calls/call_quality_badge.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';

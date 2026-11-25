@@ -3,7 +3,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -83,15 +83,17 @@ class _AppearanceScreen extends ConsumerWidget {
     final Brightness brightness = Theme.of(context).brightness;
 
     return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        final ColorScheme? dynamicScheme = brightness == Brightness.light
-            ? lightDynamic
-            : darkDynamic;
+      // dynamic_color 1.x still uses package:flutter/material.dart types; only
+      // the seed Color crosses into the material_ui theme.
+      builder: (lightDynamic, darkDynamic) {
+        final Color? dynamicSeed = brightness == Brightness.light
+            ? lightDynamic?.primary
+            : darkDynamic?.primary;
         final ThemeData targetTheme = useSystemDynamic
             ? AppTheme.themed(
                 visualTheme,
                 brightness,
-                dynamicScheme: dynamicScheme,
+                dynamicSeed: dynamicSeed,
               )
             : ref.watch(_appearanceThemeProvider(brightness));
 

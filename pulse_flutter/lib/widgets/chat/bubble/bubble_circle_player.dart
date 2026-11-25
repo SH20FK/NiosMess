@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:universal_io/io.dart';
 import 'package:video_player/video_player.dart';
 import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';

@@ -40,7 +40,7 @@ import 'package:pulse_flutter/core/theme/nios_chroma.dart';
 import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart'
     show ValueListenable, compute, kIsWeb;
 import 'package:flutter/services.dart';

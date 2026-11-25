@@ -555,3 +555,45 @@
 - [ ] Лента, комментарии и сообщения с markdown рендерятся; custom emoji работают.
 - [ ] Версия и `CHANGELOG.md` обновлены; `audit/deps/00-summary.md` актуализирован.
 - [ ] Временный dev-экран и маршрут удалены.
+
+---
+
+## 16. Итог сессии 26.11.2026
+
+### Закрыто с доказательствами
+- Фазы 0–4: SDK/CI выровнены, мёртвое удалено, 15 patch/minor, file_picker 13.4.1,
+  open_file 4.0.0, markdown -> flutter_markdown_plus 1.0.12.
+- Фаза 6.1: flutter_secure_storage 11.2.0.
+- Версия 3.149.0+4337 и CHANGELOG запушены.
+- Локально и на CI: analyze чист, suite_test 1912/1912, Build Web зелёный.
+
+### Фазы 5 и 6.2 — откачены по факту
+irebase_core 5.2.0 и irebase_messaging 17.1.0 оставлены.
+lutter_local_notifications 23, permission_handler 13, lutter_foreground_task 11,
+ecord 7 откачены вместе с AGP 9 (9.3.1/9.5.0/2.4.20) на AGP 8.11.1 / Gradle 8.14 /
+Kotlin 2.2.20 / compileSdk от Flutter.
+
+**Причина откатa установлена не полностью:** после отката Build Android всё равно
+упал (прогон 45701980638, шаг «Build Android APKs and App Bundle»). То есть дело не в
+AGP 9 и не в откаченных пакетах: единственная оставшаяся переменная — Flutter 3.50.1
+(на 3.47.6 Android собирался за 12 минут). Диапазон AGP, который допускает Flutter 3.50,
+— 8.2.2…9.3.99, так что «слишком старый AGP» тоже исключён. Для дальнейшего нужен лог
+джобы; GitHub отдаёт его только с токеном.
+
+### Фаза 7 — сделана на 99.7%, лежит в ветке upgrade/7-material-ui
+Коммиты 43a2a19 + 740bc75e.
+- 410 файлов переведены на material_ui, 1 — на cupertino_ui.
+- AppTheme.themed принимает seed-Color (обход недостижимого dynamic_color 2).
+- MarkdownStyleSheet.fromTheme заменён на uildMarkdownStyleSheet.
+- pp_localizations.dart регистрирует делегаты material_ui/cupertino_ui — это сняло
+  388 из 394 падений («No MaterialLocalizations found» в AppBar).
+- cached_network_image 4.0.7, go_router 18.1.4.
+- dart analyze lib test — No issues found; suite_test — **1906/1912**.
+- Остались 6 визуальных: delivery transitions geometry, noto_visual dark/light,
+  pending footer hit target и ещё два «виджет не найден».
+
+### Что нужно для завершения
+1. Лог uild-android (токен epo+workflow или текст ошибки) — иначе причина
+   падения Android остаётся недоказанной.
+2. Добить 6 визуальных тестов фазы 7 и смержить ветку.
+3. Запушить улучшения workflow из stash@{0} (нужен workflow scope).

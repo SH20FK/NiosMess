@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/noto_emoji.dart';

@@ -1,7 +1,7 @@
 import 'dart:collection';
 
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/core/motion/m3_page_transitions.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
@@ -31,7 +31,7 @@ class AppTheme {
   static ThemeData themed(
     VisualThemeSettings settings,
     Brightness brightness, {
-    ColorScheme? dynamicScheme,
+    Color? dynamicSeed,
     double contrastLevel = 0.0,
   }) {
     final int cacheKey = Object.hash(
@@ -42,7 +42,7 @@ class AppTheme {
       settings.uiCornerRadius.round(),
       settings.paletteStyle.index,
       (contrastLevel * 100).round(),
-      dynamicScheme?.primary.toARGB32(),
+      dynamicSeed?.toARGB32(),
     );
     final ThemeData? cached = _themeCache.remove(cacheKey);
     if (cached != null) {
@@ -51,9 +51,9 @@ class AppTheme {
     }
 
     final ColorScheme baseScheme =
-        (settings.useSystemDynamic && dynamicScheme != null)
+        (settings.useSystemDynamic && dynamicSeed != null)
         ? ColorScheme.fromSeed(
-            seedColor: dynamicScheme.primary,
+            seedColor: dynamicSeed,
             brightness: brightness,
             dynamicSchemeVariant: settings.paletteStyle.variant,
             contrastLevel: contrastLevel,

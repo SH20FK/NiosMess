@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 
 final RegExp _interactiveTokenRegExp = RegExp(

@@ -1,5 +1,5 @@
 import 'package:pulse_flutter/core/media/media_album.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/core/clipboard/pasted_image.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';

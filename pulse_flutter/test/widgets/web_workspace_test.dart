@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
@@ -517,7 +517,14 @@ void main() {
           expect(tester.takeException(), isNull);
         }
       }
-      expect(find.byTooltip('Прочитано'), findsOneWidget);
+      expect(
+        // find.byTooltip is typed against package:flutter/material.dart's
+        // Tooltip; the app now uses material_ui's Tooltip.
+        find.byWidgetPredicate(
+          (Widget w) => w is Tooltip && w.message == 'Прочитано',
+        ),
+        findsOneWidget,
+      );
     },
   );
 
