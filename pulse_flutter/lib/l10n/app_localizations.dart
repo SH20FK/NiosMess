@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    as flutter_l10n;
 import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart' as intl;
 
@@ -88,8 +90,15 @@ abstract class AppLocalizations {
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
         delegate,
+        // material_ui widgets need material_ui's MaterialLocalizations;
+        // third-party packages still on package:flutter/material.dart (for
+        // example emoji_picker_flutter's TabBar) need flutter's own set.
+        // The two MaterialLocalizations types are distinct, so both can live
+        // in one Localizations widget.
         ...GlobalMaterialLocalizations.delegates,
         GlobalCupertinoLocalizations.delegate,
+        flutter_l10n.GlobalMaterialLocalizations.delegate,
+        flutter_l10n.GlobalCupertinoLocalizations.delegate,
       ];
 
   /// A list of this localizations delegate's supported locales.
