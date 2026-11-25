@@ -40,7 +40,9 @@ class ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
   Widget _buildFadedLayer(double opacity, Widget child) {
     if (opacity <= 0.0) return const SizedBox.shrink();
     if (opacity >= 0.98) return child;
-    return Opacity(opacity: opacity, child: child);
+    // The boundary goes inside the opacity: the layer then fades a cached
+    // raster instead of re-recording the header on every scrolled pixel.
+    return Opacity(opacity: opacity, child: RepaintBoundary(child: child));
   }
 
   @override

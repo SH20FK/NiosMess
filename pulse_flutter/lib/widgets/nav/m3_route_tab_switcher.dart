@@ -207,9 +207,12 @@ class _M3RouteTabSwitcherState extends State<M3RouteTabSwitcher>
                   excluding: i != widget.index || _phase != _Phase.idle,
                   child: IgnorePointer(
                     ignoring: i != widget.index || _phase != _Phase.idle,
-                    child: RepaintBoundary(
-                      child: Opacity(
-                        opacity: i == _visible ? _opacity.value : 1,
+                    // The boundary belongs *inside* the opacity: the composite
+                    // layer can then fade the cached child instead of
+                    // re-rasterizing the whole page into a saveLayer per frame.
+                    child: Opacity(
+                      opacity: i == _visible ? _opacity.value : 1,
+                      child: RepaintBoundary(
                         child: Transform.translate(
                           offset: Offset(i == _visible ? _offset : 0, 0),
                           child: Transform.scale(

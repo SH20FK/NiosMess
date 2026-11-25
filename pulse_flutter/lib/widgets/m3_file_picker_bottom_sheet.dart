@@ -508,7 +508,8 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
       }
 
       final int fileSize =
-          fileBytes?.length ?? (filePath != null ? await file.length() : 0);
+          fileBytes?.length ??
+          (filePath != null ? (await file.length() ?? 0) : 0);
 
       pickerResults.add(
         M3FilePickerResult(

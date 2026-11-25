@@ -9,6 +9,10 @@ import 'package:pulse_flutter/models/api/message_model.dart';
 class InteractiveMessage {
   const InteractiveMessage(this.data, this.preview);
   static const marker = '\n\u2063nios-interactive-v1:';
+  static final RegExp _documentIdPattern = RegExp(r'^[a-zA-Z0-9_-]{8,64}$');
+  static final RegExp _definitionPattern = RegExp(r'^[a-f0-9]{64}$');
+  static const Set<String> _kinds = {'poll', 'quiz', 'list', 'update'};
+  static const Set<String> _actions = {'vote', 'check', 'close', 'assign'};
   final Map<String, dynamic> data;
   final String preview;
   String get kind => data['kind'] as String;
@@ -44,18 +48,18 @@ class InteractiveMessage {
       final raw = jsonDecode(text.substring(start + marker.length));
       if (raw is! Map<String, dynamic> || raw['v'] != 1) return null;
       final id = raw['document'];
-      if (id is! String || !RegExp(r'^[a-zA-Z0-9_-]{8,64}$').hasMatch(id)) {
+      if (id is! String || !_documentIdPattern.hasMatch(id)) {
         return null;
       }
       final kind = raw['kind'];
-      if (!{'poll', 'quiz', 'list', 'update'}.contains(kind)) return null;
+      if (!_kinds.contains(kind)) return null;
       if (kind == 'update') {
         if (raw['definition'] is! String ||
-            !RegExp(r'^[a-f0-9]{64}$').hasMatch(raw['definition'])) {
+            !_definitionPattern.hasMatch(raw['definition'])) {
           return null;
         }
         if (raw['root'] is! int || (raw['root'] as int) <= 0) return null;
-        if (!{'vote', 'check', 'close', 'assign'}.contains(raw['action'])) {
+        if (!_actions.contains(raw['action'])) {
           return null;
         }
         if (raw['action'] == 'assign' &&

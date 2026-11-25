@@ -136,49 +136,54 @@ class M3VideoPlaybackBar extends StatelessWidget {
                 : Icons.volume_up_rounded,
           ),
         );
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(26),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 420 ||
-                  MediaQuery.textScalerOf(context).scale(1) > 1.5) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        play,
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: time,
+        // Chewie 1.18 opens the fullscreen route without a Material ancestor,
+        // and a Slider asserts without one; the bar brings its own.
+        return Material(
+          type: MaterialType.transparency,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 420 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.5) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          play,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: time,
+                            ),
                           ),
-                        ),
-                        speed,
-                        mute,
-                        fullscreen,
-                      ],
-                    ),
-                    slider,
+                          speed,
+                          mute,
+                          fullscreen,
+                        ],
+                      ),
+                      slider,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    play,
+                    Expanded(child: slider),
+                    time,
+                    speed,
+                    mute,
+                    fullscreen,
                   ],
                 );
-              }
-              return Row(
-                children: [
-                  play,
-                  Expanded(child: slider),
-                  time,
-                  speed,
-                  mute,
-                  fullscreen,
-                ],
-              );
-            },
+              },
+            ),
           ),
         );
       },

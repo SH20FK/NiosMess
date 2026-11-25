@@ -7,7 +7,6 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:nios_mls/nios_mls.dart';
 import 'package:nios_sdk/link.dart';
 import 'package:nios_sdk/media.dart';
 import 'package:nios_sdk/stream.dart';
@@ -212,7 +211,6 @@ final class NiosProtocolAccount {
   final Directory directory;
   final Uint8List _rootKey;
   DurableSession? _delivery;
-  NiosMlsClient? _groups;
   HiveTransparencyStateStore? _trustStore;
   KeyTransparencyClient? _trust;
   final _cancellation = StreamCancellation();
@@ -510,22 +508,6 @@ final class NiosProtocolAccount {
     }
   });
 
-  /// The caller must bind credentials to a pinned account identity or a verified
-  /// transparency bundle. There is deliberately no permissive default callback.
-  Future<NiosMlsClient> openGroups({
-    required MlsDeviceAuthorizer authorizeDevice,
-  }) => _serial(() async {
-    final groups = _groups ??= await NiosMlsClient.open(
-      path: p.join(directory.path, 'mls'),
-      storageKey: await _key('mls-state'),
-      accountId: accountId,
-      deviceId: deviceId,
-      authorizeDevice: authorizeDevice,
-    );
-    _checkOpen();
-    return groups;
-  });
-
   Future<void> close() {
     if (_closing != null) return _closing!;
     final completion = Completer<void>();
@@ -587,9 +569,6 @@ final class NiosProtocolAccount {
         } else {
           await _delivery?.close();
         }
-      });
-      await attempt(() async {
-        await _groups?.close();
       });
       await attempt(() async {
         await _trust?.close();

@@ -264,6 +264,10 @@ class AdaptivePerformanceNotifier extends Notifier<AdaptivePerformanceState>
   }
 
   void _publishTelemetry(DateTime? currentTime) {
+    // The app itself never subscribes to performanceTelemetryProvider, so in
+    // profile/release the 7200-frame percentile buffers (three sorts a second)
+    // bought only jank. It stays live for debug runs and PERF_TRACE tooling.
+    if (!kDebugMode && !const bool.fromEnvironment('PERF_TRACE')) return;
     final now = currentTime ?? DateTime.now();
     if (_lastTelemetryAt != null &&
         now.difference(_lastTelemetryAt!) < const Duration(seconds: 1)) {

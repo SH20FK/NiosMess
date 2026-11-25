@@ -59,6 +59,11 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
 
   int _retryCount = 0;
 
+  // Seed-derived scheme (CAM16) is expensive and this screen rebuilds on every
+  // call tick, so it is memoized per seed color.
+  Color? _cachedSeed;
+  ColorScheme? _cachedCallScheme;
+
   void _listenToState() {
     final session = ref.read(callSessionProvider)?.session;
     if (session == null) {
@@ -89,8 +94,9 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
         }
         _popOrGoHome();
       }
+      // The screen rebuilds from callSessionProvider and the timer is a
+      // ValueNotifier, so this setState only doubled the per-tick cost.
       _timerNotifier.value = data.durationSeconds;
-      setState(() {});
     });
   }
 
@@ -123,12 +129,16 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
     super.build(context);
     final session = ref.watch(callSessionProvider)?.session;
     final ColorScheme appScheme = Theme.of(context).colorScheme;
-    final ColorScheme callScheme = AppSurfaces.neutralize(
-      ColorScheme.fromSeed(
-        seedColor: appScheme.primary,
-        brightness: Brightness.dark,
-      ),
-    );
+    if (_cachedCallScheme == null || _cachedSeed != appScheme.primary) {
+      _cachedSeed = appScheme.primary;
+      _cachedCallScheme = AppSurfaces.neutralize(
+        ColorScheme.fromSeed(
+          seedColor: appScheme.primary,
+          brightness: Brightness.dark,
+        ),
+      );
+    }
+    final ColorScheme callScheme = _cachedCallScheme!;
     final textTheme = Theme.of(context).textTheme;
 
     if (session == null) {

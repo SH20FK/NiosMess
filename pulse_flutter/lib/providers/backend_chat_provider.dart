@@ -1615,6 +1615,11 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
   int _generation = 0;
 
   static const maxVisibleMessages = 300;
+
+  /// A reconnect must not walk the whole server history: past this many pages
+  /// the visible window is already filled, and the older gap is picked up by
+  /// the normal "load older" pagination.
+  static const maxCatchUpPages = 4;
   EncryptedHistoryArchive? _historyArchive;
   final Map<int, ApiMessage> _persistedWindow = {};
   List<ApiMessage>? _archivePending;
@@ -2608,7 +2613,8 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
       if (!catchUp ||
           newestKnown == 0 ||
           batch.length < 80 ||
-          batch.any((message) => message.id <= newestKnown)) {
+          batch.any((message) => message.id <= newestKnown) ||
+          page >= maxCatchUpPages) {
         break;
       }
       page++;

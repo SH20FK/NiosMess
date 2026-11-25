@@ -22,6 +22,7 @@ import 'package:pulse_flutter/widgets/chat_productivity.dart'
 import 'package:pulse_flutter/widgets/quick_camera_capture_screen.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/screens/create_post_screen.dart';
+import 'package:pulse_flutter/screens/dev/extended_image_demo_screen.dart';
 import 'package:pulse_flutter/screens/group_profile_screen.dart';
 import 'package:pulse_flutter/screens/onboarding_screen.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
@@ -128,7 +129,9 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
 
   return GoRouter(
     navigatorKey: AppRouter.navigatorKey,
-    initialLocation: '/',
+    initialLocation: const bool.fromEnvironment('IMAGE_DEMO')
+        ? ExtendedImageDemoScreen.routePath
+        : '/',
     refreshListenable: refreshListenable,
     redirect: (BuildContext context, GoRouterState state) {
       final AuthState authState = ref.read(authProvider);
@@ -178,6 +181,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           path.startsWith('/c/') ||
           path.startsWith('/g/') ||
           path.startsWith('/stickers/') ||
+          path.startsWith('/dev/') ||
           path.startsWith('/join');
 
       if (!isAuth && !isPublic) {
@@ -198,6 +202,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       return null;
     },
     routes: <RouteBase>[
+      // Временный dev-экран сравнения просмотрщиков изображений.
+      GoRoute(
+        path: ExtendedImageDemoScreen.routePath,
+        pageBuilder: (context, state) =>
+            _page(state, const ExtendedImageDemoScreen()),
+      ),
       GoRoute(
         path: '/plus/activate',
         builder: (context, state) =>

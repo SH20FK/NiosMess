@@ -4,7 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:pulse_flutter/widgets/feed_poll_card.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -74,6 +74,23 @@ class _PostCardState extends ConsumerState<PostCard>
   bool _showHeart = false;
   bool _contentExpanded = false;
   late bool _isBookmarked;
+  MarkdownStyleSheet? _markdownStyle;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // MarkdownStyleSheet.fromTheme builds dozens of text styles; recomputing it
+    // on every card rebuild re-parsed the styles for the whole feed.
+    final ThemeData theme = Theme.of(context);
+    _markdownStyle = MarkdownStyleSheet.fromTheme(theme).copyWith(
+      p: theme.textTheme.bodyMedium?.copyWith(fontSize: 15, height: 1.45),
+      code: TextStyle(
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        fontFamily: 'monospace',
+        fontSize: 13,
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -361,22 +378,14 @@ class _PostCardState extends ConsumerState<PostCard>
   }
 
   Widget _buildPostContent(BuildContext context, NgPost post) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
     final collapsible =
         post.content.length > 400 || '\n'.allMatches(post.content).length > 6;
     final markdown = MarkdownBody(
       data: post.content,
       inlineSyntaxes: [CustomEmojiSyntax()],
       builders: {'nios-emoji': CustomEmojiMarkdownBuilder()},
-      styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-        p: textTheme.bodyMedium?.copyWith(fontSize: 15, height: 1.45),
-        code: TextStyle(
-          backgroundColor: scheme.surfaceContainerHighest,
-          fontFamily: 'monospace',
-          fontSize: 13,
-        ),
-      ),
+      // Cached in didChangeDependencies: fromTheme() builds dozens of styles.
+      styleSheet: _markdownStyle,
       onTapLink: (text, href, title) {
         if (href != null) AppUrlLauncher.openUrl(context, href);
       },

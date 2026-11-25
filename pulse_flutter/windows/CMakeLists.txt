@@ -2,6 +2,11 @@
 cmake_minimum_required(VERSION 3.14)
 project(pulse_flutter LANGUAGES CXX)
 
+# flutter_local_notifications 23 compiles its Windows plugin with C++20; the
+# standard has to be visible from the top-level project as well.
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "pulse_flutter")

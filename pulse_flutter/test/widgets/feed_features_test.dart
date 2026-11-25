@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:pulse_flutter/models/api/post_model.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/models/api/custom_emoji_model.dart';

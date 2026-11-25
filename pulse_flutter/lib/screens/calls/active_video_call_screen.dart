@@ -54,6 +54,12 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
   final ValueNotifier<int> _timerNotifier = ValueNotifier<int>(0);
   StreamSubscription<CallSessionData>? _stateSubscription;
 
+  // Seed-derived schemes (CAM16) and their TextTheme are expensive and this
+  // screen rebuilds on every call tick, so they are memoized per seed color.
+  Color? _cachedSeed;
+  ColorScheme? _cachedScheme;
+  TextTheme? _cachedTextTheme;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -107,8 +113,9 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
         }
         _popOrGoHome();
       }
+      // The screen already rebuilds from callSessionProvider and the timer is a
+      // ValueNotifier, so a setState here only doubled the per-tick cost.
       _timerNotifier.value = data.durationSeconds;
-      setState(() {});
     });
     setState(() {});
   }
@@ -204,16 +211,21 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
 
     final data = session.currentData;
     final appScheme = Theme.of(context).colorScheme;
-    final scheme = AppSurfaces.neutralize(
-      ColorScheme.fromSeed(
-        seedColor: appScheme.primary,
+    if (_cachedScheme == null || _cachedSeed != appScheme.primary) {
+      _cachedSeed = appScheme.primary;
+      _cachedScheme = AppSurfaces.neutralize(
+        ColorScheme.fromSeed(
+          seedColor: appScheme.primary,
+          brightness: Brightness.dark,
+        ),
+      );
+      _cachedTextTheme = ThemeData(
         brightness: Brightness.dark,
-      ),
-    );
-    final textTheme = ThemeData(
-      brightness: Brightness.dark,
-      colorScheme: scheme,
-    ).textTheme;
+        colorScheme: _cachedScheme,
+      ).textTheme;
+    }
+    final scheme = _cachedScheme!;
+    final textTheme = _cachedTextTheme!;
 
     final size = MediaQuery.sizeOf(context);
     final topPadding = MediaQuery.paddingOf(context).top;

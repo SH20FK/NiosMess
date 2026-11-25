@@ -369,7 +369,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
     CancellationToken? cancellation,
   }) async {
     cancellation?.throwIfCancelled();
-    final length = await file.length();
+    final int length = await file.length() ?? 0;
     if (length <= 0 || length > _maxFileBytes) throw FormatException(sizeError);
     final bytes = BytesBuilder(copy: false);
     await for (final chunk in file.readAsByteStream()) {
@@ -422,7 +422,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
           selectionError = l10n.niosgramVideoAlone;
           continue;
         }
-        final length = await file.length();
+        final int length = await file.length() ?? 0;
         if (!active()) return;
         if (length <= 0 || length > _maxFileBytes) {
           selectionError = l10n.niosgramMediaTooLarge;

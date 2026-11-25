@@ -528,17 +528,18 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
       bottomInset.clamp(0.0, 440.0),
     );
 
-    final media = MediaQuery.of(context);
+    // Narrow lookups: this panel rebuilds on every keyboard/IME frame, so it
+    // must not depend on the whole MediaQuery.
+    final Size screenSize = MediaQuery.sizeOf(context);
+    final EdgeInsets screenPadding = MediaQuery.paddingOf(context);
+    final double safeHeight = screenSize.height - screenPadding.vertical;
     // Keep the picker above the IME, within the remaining chat viewport.
-    final available = math.max(
-      0.0,
-      media.size.height - media.padding.vertical - bottomInset - 160,
-    );
+    final available = math.max(0.0, safeHeight - bottomInset - 160);
     final compactHeight = math.min(
       effectiveKeyboardHeight,
-      math.max(0.0, media.size.height - media.padding.vertical - 160),
+      math.max(0.0, safeHeight - 160),
     );
-    final expandedHeight = math.min(media.size.height * .72, available);
+    final expandedHeight = math.min(screenSize.height * .72, available);
     final panelLayoutHeight = _pickerExpanded ? expandedHeight : compactHeight;
     final double effectivePanelHeight;
     if (!_showEmojiPicker) {

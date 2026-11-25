@@ -915,6 +915,11 @@ class MessageBubble extends ConsumerWidget {
           child: Image.memory(
             uploadTask!.bytes!,
             width: double.infinity,
+            // Full-resolution decode of a 12 MP photo is ~48 MB of RGBA for a
+            // bubble that never exceeds the screen width.
+            cacheWidth: (MediaQuery.sizeOf(context).width *
+                    MediaQuery.devicePixelRatioOf(context))
+                .round(),
             fit: BoxFit.cover,
           ),
         );
@@ -930,6 +935,9 @@ class MessageBubble extends ConsumerWidget {
           child: Image.file(
             localFile,
             width: double.infinity,
+            cacheWidth: (MediaQuery.sizeOf(context).width *
+                    MediaQuery.devicePixelRatioOf(context))
+                .round(),
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) => WsCachedImage(
               e2eeFileKey: e2eeFileKey,
