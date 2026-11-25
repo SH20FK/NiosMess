@@ -290,8 +290,13 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(
-          find.byTooltip(
-            locale == 'ru' ? 'Ожидает отправки' : 'Waiting to send',
+          // find.byTooltip is typed against package:flutter/material.dart's
+          // Tooltip; the app now uses material_ui's Tooltip.
+          find.byWidgetPredicate(
+            (Widget w) =>
+                w is Tooltip &&
+                w.message ==
+                    (locale == 'ru' ? 'Ожидает отправки' : 'Waiting to send'),
           ),
           findsOneWidget,
         );
