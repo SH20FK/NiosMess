@@ -478,7 +478,22 @@
   VS Build Tools (`Microsoft.VisualStudio.Component.VC.Tools.x86.x64`). CI (`windows-latest`)
   ограничение не затрагивает.
 
+### Фаза 5/6.2 — статус проверки
+- Применено: `firebase_core` 5.2.0, `firebase_messaging` 17.1.0,
+  `flutter_local_notifications` 23.0.4, `permission_handler` 13.0.2,
+  `flutter_foreground_task` 11.0.3, `record` 7.2.0, AGP 9.3.1, Gradle 9.5.0,
+  Kotlin 2.4.20, compileSdk 37, Windows C++20.
+- Версии Android выровнены по шаблону самого Flutter 3.50.1
+  (`flutter_tools/lib/src/android/gradle_utils.dart`): первая попытка с
+  AGP 9.5.3 / Gradle 9.9.2 / Kotlin 2.2.20 упала на шаге сборки APK.
+- Найдена и исправлена причина красного `Analyze & Test` в прогоне 45695405914:
+  рукописный `BuildInfo` (`lib/core/constants/build_info.dart`) разошёлся с
+  `pubspec.yaml` после бампа версии; тест `settings_integrity_test.dart:209`
+  это ловит. Локально после фикса: **1912/1912 passed**.
+- ОТКР Гейт `build-android` / `build-windows` — прогон 45697454971.
+
 ### Фаза 8 (DoD) — частично
+
 - OK Web-сборка на CI: `Build Web` — success за 2 мин (прогон 45692760314).
 - OK Версия `3.148.0+4336` → **`3.149.0+4337`**, чейнджлог `assets/CHANGELOG.md`
   дописан секцией `[3.149.0]`.
