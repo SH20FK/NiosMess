@@ -13,6 +13,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
+import 'package:pulse_flutter/core/theme/markdown_theme.dart';
 import 'package:pulse_flutter/core/media/media_playback_source.dart';
 import 'package:pulse_flutter/core/media/browser_playback_stub.dart'
     if (dart.library.js_interop) 'package:pulse_flutter/core/media/browser_playback_web.dart';
