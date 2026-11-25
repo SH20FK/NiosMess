@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'dart:ui' show PointerDeviceKind, Tristate;
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/features/settings/application/settings_anchor_controller.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

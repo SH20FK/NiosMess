@@ -2,7 +2,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'dart:math' as math;
 import 'package:camera/camera.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/router/app_navigation.dart';
 import 'package:pulse_flutter/widgets/motion/m3_press_scale.dart';

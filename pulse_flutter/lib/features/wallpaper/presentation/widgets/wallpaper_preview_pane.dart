@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';

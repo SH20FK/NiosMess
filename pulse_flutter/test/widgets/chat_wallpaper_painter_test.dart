@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_painter.dart';

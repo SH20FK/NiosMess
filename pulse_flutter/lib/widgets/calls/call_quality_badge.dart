@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/services/calls/call_quality.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';

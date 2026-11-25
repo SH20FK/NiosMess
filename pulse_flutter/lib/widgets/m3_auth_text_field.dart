@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A Material 3 Expressive authentication input field with 20dp squircle styling,
 /// tonal surfaceContainerHighest background, and dynamic state-reactive borders and icons.

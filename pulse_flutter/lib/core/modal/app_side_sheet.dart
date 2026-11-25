@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/modal/m3_modal_route.dart';
 import 'package:pulse_flutter/core/modal/m3_modal_surface.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';

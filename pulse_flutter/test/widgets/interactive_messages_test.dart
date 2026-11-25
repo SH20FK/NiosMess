@@ -1,6 +1,6 @@
 import 'package:universal_io/io.dart';
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';

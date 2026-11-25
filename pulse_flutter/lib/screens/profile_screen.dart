@@ -2,7 +2,7 @@ import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/settings/settings_profile_card.dart';

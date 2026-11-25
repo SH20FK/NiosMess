@@ -4,7 +4,7 @@
 // * a chat from a server without that state keeps the old menu and swipe;
 // * a swipe towards the start edge archives, with a way back in the toast.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

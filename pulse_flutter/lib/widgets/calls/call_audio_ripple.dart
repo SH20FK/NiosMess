@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 
 class CallAudioRipple extends StatelessWidget {

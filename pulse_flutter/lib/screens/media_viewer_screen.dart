@@ -4,7 +4,7 @@ import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart' show DeviceOrientation;
 import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';

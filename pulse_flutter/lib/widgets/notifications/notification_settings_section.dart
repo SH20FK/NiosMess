@@ -1,6 +1,6 @@
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';

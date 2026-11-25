@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/features/wallpaper/domain/wallpaper_preset.dart';
 import 'package:pulse_flutter/models/chat_wallpaper_config.dart';

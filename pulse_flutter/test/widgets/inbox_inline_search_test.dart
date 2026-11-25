@@ -1,7 +1,7 @@
 // In-place inbox search: the header becomes the field and the results replace
 // the chat list, so nothing here pushes a route.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

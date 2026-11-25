@@ -3,7 +3,7 @@ import 'package:pulse_flutter/screens/feed_post_screen.dart';
 import 'package:pulse_flutter/router/web_settings_location.dart';
 import 'package:pulse_flutter/core/services/incoming_app_route.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';

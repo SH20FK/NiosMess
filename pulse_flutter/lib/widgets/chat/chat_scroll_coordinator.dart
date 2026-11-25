@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/chat/chat_history_scroll_controller.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';

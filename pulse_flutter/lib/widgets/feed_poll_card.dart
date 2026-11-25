@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/providers/feed_poll_vote_provider.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_text_renderer.dart';

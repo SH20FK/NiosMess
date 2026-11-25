@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/clipboard/pasted_image.dart';
 import 'package:pulse_flutter/core/clipboard/image_paste_stub.dart'
     if (dart.library.js_interop) 'package:pulse_flutter/core/clipboard/image_paste_web.dart';

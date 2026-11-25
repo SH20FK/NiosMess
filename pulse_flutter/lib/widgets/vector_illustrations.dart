@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 import 'package:flutter_svg/flutter_svg.dart';

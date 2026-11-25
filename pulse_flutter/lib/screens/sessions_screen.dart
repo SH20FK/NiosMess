@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/features/sessions/presentation/sessions_screen.dart' as feature;
 
 class SessionsScreen extends StatelessWidget {

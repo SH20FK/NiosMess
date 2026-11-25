@@ -1,7 +1,7 @@
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/widgets/feed_poll_card.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -30,6 +30,7 @@ import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/vector_illustrations.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/theme/markdown_theme.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
@@ -82,7 +83,7 @@ class _PostCardState extends ConsumerState<PostCard>
     // MarkdownStyleSheet.fromTheme builds dozens of text styles; recomputing it
     // on every card rebuild re-parsed the styles for the whole feed.
     final ThemeData theme = Theme.of(context);
-    _markdownStyle = MarkdownStyleSheet.fromTheme(theme).copyWith(
+    _markdownStyle = buildMarkdownStyleSheet(theme).copyWith(
       p: theme.textTheme.bodyMedium?.copyWith(fontSize: 15, height: 1.45),
       code: TextStyle(
         backgroundColor: theme.colorScheme.surfaceContainerHighest,

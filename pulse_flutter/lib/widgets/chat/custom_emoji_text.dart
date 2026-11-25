@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/models/api/custom_emoji_model.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji.dart';

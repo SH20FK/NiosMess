@@ -1,6 +1,6 @@
 import 'package:pulse_flutter/core/localization/secret_chat_l10n.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/models/settings/settings_node.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';

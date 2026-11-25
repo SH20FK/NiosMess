@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
@@ -525,7 +525,7 @@ class _MarkdownViewerState extends State<_MarkdownViewer> {
                 launchUrl(Uri.parse(href), mode: LaunchMode.externalApplication);
               }
             },
-            styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+            styleSheet: buildMarkdownStyleSheet(Theme.of(context)).copyWith(
               p: textTheme.bodyLarge?.copyWith(
                 height: 1.6,
                 color: scheme.onSurface,

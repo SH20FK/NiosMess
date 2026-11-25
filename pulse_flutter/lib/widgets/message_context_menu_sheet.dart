@@ -1,7 +1,7 @@
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';

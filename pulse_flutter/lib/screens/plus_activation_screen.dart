@@ -3,7 +3,7 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:pulse_flutter/core/network/api_constants.dart';

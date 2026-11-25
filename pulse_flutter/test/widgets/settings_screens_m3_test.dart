@@ -1,6 +1,6 @@
 import 'package:pulse_flutter/widgets/settings/settings_group_scope.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';

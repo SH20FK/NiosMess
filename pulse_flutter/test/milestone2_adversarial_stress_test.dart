@@ -1,6 +1,6 @@
 import 'support/fake_public_media_upload.dart';
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/models/api/badge_model.dart';

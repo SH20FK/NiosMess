@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/screens/post_comments_screen.dart';
 
 class CommentsBottomSheet extends StatelessWidget {
