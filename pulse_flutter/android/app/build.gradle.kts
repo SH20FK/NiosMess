@@ -8,8 +8,7 @@ plugins {
 
 android {
     namespace = "com.niosmess.pulse"
-    // flutter_local_notifications 23 and permission_handler 13 require 37.
-    compileSdk = 37
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
