@@ -597,3 +597,29 @@ AGP 9 и не в откаченных пакетах: единственная �
    падения Android остаётся недоказанной.
 2. Добить 6 визуальных тестов фазы 7 и смержить ветку.
 3. Запушить улучшения workflow из stash@{0} (нужен workflow scope).
+---
+
+## 17. Фаза 7 — смержена, и урок про проверки
+
+- 5cae493 — merge фазы 7 в main (410 импортов, seed-Color в AppTheme.themed,
+  uildMarkdownStyleSheet, оба стека локализаций, cached_network_image 4, go_router 18).
+- 8b7e077 — замена импортов в integration_test/.
+
+**Урок:** локальная проверка должна повторять команду CI дословно. Я гонял
+`dart analyze lib test`, а CI гоняет `flutter analyze --fatal-infos` по всему пакету,
+включая `integration_test/` и `tool/`. Из-за этого `Static Analysis` упал на CI
+(`performance_test.dart:49`: ThemeData из material_ui против lutter/material),
+хотя локально было «No issues found». Правильная локальная команда:
+
+`powershell
+flutter analyze --fatal-infos      # как в CI, а не dart analyze lib test
+flutter test test/suite_test.dart
+`
+
+**Android всё ещё не закрыт.** Проверены вслепую три конфигурации, все падают на шаге
+`Build Android APKs and App Bundle (Release)` примерно за 5 минут:
+1) AGP 9.3.1 / Gradle 9.5.0 / Kotlin 2.4.20;
+2) AGP 8.11.1 / Gradle 8.14 / Kotlin 2.2.20;
+3) AGP 8.11.1 / Kotlin 2.4.20 без `com.google.android.play:core`.
+Лог джобы недоступен: GitHub отдаёт его только с токеном, браузер офлайн.
+Дальнейший перебор без лога — лотерея по 25 минут на прогон.
