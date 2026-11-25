@@ -271,6 +271,10 @@
 
 ### 7.1. Волна A — инвентаризация (10–12 агентов, только чтение)
 
+**Замерено 26.11 на текущем коде:** 410 файлов импортируют `package:flutter/material.dart`
+(`lib` + `test`), 1 файл — `package:flutter/cupertino.dart`, 1631 вхождение material-типов,
+из них в сигнатурах (кандидаты в «границы») — ~140 файлов. Это и есть реальный объём.
+
 Срезы: `core/theme` + `core/motion`, остальной `core/`, `widgets/chat`,
 остальные `widgets/`, `screens/`, `features/`, `providers/`, `services/`,
 `models` + `repositories`, `router` + `main.dart`, `test/`, `packages/`.
@@ -461,6 +465,18 @@
   в `audit/desktop_window_service.nativeapi.dart.txt`; применить после установки
   VS Build Tools (`Microsoft.VisualStudio.Component.VC.Tools.x86.x64`). CI (`windows-latest`)
   ограничение не затрагивает.
+
+### Фаза 8 (DoD) — частично
+- OK Web-сборка на CI: `Build Web` — success за 2 мин (прогон 45692760314).
+- OK Версия `3.148.0+4336` → **`3.149.0+4337`**, чейнджлог `assets/CHANGELOG.md`
+  дописан секцией `[3.149.0]`.
+- OK `audit/deps/00-summary.md` дополнен фактическим результатом (раздел 6).
+- OK `audit/material_ui-map.md` — карта фазы 7: 410 импортов material, 1 cupertino,
+  135 файлов-границ.
+- ОТКР `Build Android APK` и `Build Windows Installer` — идут в прогоне 45692760314.
+- ОТКР Dev-экран `/dev/image-viewer` **оставлен намеренно**: это инструмент, который
+  запросил владелец, и на нём завязан пакет `extended_image`. Удаление — отдельным
+  решением, не в рамках апгрейда.
 
 <!-- дальше: фаза 5 (native), 6 (поведение), 7 (material_ui) -->
 

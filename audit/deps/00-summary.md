@@ -85,3 +85,40 @@ iOS SDK 13, C++20), 2 — реальные изменения поведения
 3. Мажоры по группам, не одной кучей: сначала нативные, потом поведенческие,
    `material_ui`-группу — только после решения по самой платформе.
 4. `photo_view` убрать вместе с переходом просмотрщика на `extended_image`.
+
+---
+
+## 6. Фактический результат (26.11.2026)
+
+Применено и проверено:
+
+- Фаза 0: Flutter 3.50.1 / Dart 3.14.0 и локально, и в CI; анализатор чист.
+- Фаза 1: удалены cupertino_icons, google_fonts, shimmer, ndroid_intent_plus,
+  udio_waveforms, msix, 
+ios_mls (+ MLS-заглушка в 
+ios_protocol_accounts.dart).
+  Lock: 306 → 299 пакетов.
+- Фаза 2: поднято 15 patch/minor, включая lutter_riverpod 3.5, chewie 1.18,
+  lottie 3.8, lutter_svg 2.5, image 4.13, rchive 4.7.
+- Фаза 3: ile_picker 13.4.1 (PlatformFile.length() стал Future<int?> — 3 правки),
+  open_file 4.0.0.
+- Фаза 4: lutter_markdown → lutter_markdown_plus 1.0.12, 4 файла импортов.
+- Фаза 5: irebase_core 5.2.0, irebase_messaging 17.1.0,
+  lutter_local_notifications 23.0.4, permission_handler 13.0.2,
+  lutter_foreground_task 11.0.3; AGP 9.5.3, Gradle 9.9.2, compileSdk 37, C++20.
+- Фаза 6: lutter_secure_storage 11.2.0, ecord 7.2.0.
+- Регресс chewie 1.18 (нет Material-предка в fullscreen) исправлен в
+  widgets/media/m3_video_controls.dart.
+
+Доказательства: dart analyze lib test — No issues found;
+lutter test test/suite_test.dart — 1912/1912 passed (дважды: после фаз 2–3 и после 6.1).
+
+Осталось:
+
+- Фаза 7 — миграция на material_ui: 410 импортов package:flutter/material.dart,
+  1 cupertino, ~140 файлов с material-типами в сигнатурах; пакеты
+  cached_network_image 4, dynamic_color 2, go_router 18.
+- Заблокировано апстримом: desktop_drop 0.9.2 (конфликт cross_file с ile_picker).
+- Заблокировано тулчейном: window_manager 0.7.1 / 	ray_manager 0.9.1
+  (nativeapi собирается через native_toolchain_c, нужен MSVC; готовая миграция —
+  udit/desktop_window_service.nativeapi.dart.txt).
