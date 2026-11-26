@@ -1,3 +1,5 @@
+import com.android.build.api.dsl.ApplicationExtension
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -6,19 +8,19 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-android {
+// AGP 9 defaults to the new DSL (`android.newDsl=true`) and marks the old
+// `BaseAppModuleExtension` accessors as errors, so configure the extension
+// explicitly by its new type.
+extensions.configure<ApplicationExtension> {
     namespace = "com.niosmess.pulse"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_local_notifications 23 and permission_handler 13 require 37.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -77,12 +79,8 @@ flutter {
     source = "../.."
 }
 
-// Flutter registers its ABI-offset callback during plugin application. Register
-// immediately after it: AGP locks output properties before afterEvaluate returns.
-android.applicationVariants.configureEach {
-    outputs.forEach { output ->
-        @Suppress("DEPRECATION")
-        val apkOutput = output as com.android.build.gradle.api.ApkVariantOutput
-        apkOutput.versionCodeOverride = flutter.versionCode
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
