@@ -26,14 +26,13 @@ subprojects {
 //   Execution failed for task ':camera_android_camerax:lintVitalAnalyzeRelease'
 //   NoSuchMethodError: 'java.lang.Object java.util.List.removeLast()'
 //
-// Release lint for plugin library modules is therefore switched off. Our own
-// code is still covered by `flutter analyze --fatal-infos` and by the app
-// module's lint; the artifact checks live in tool/verify_android_artifacts.py.
+// `lint.checkReleaseBuilds = false` does not stop AGP 9 from creating the
+// library module's lintVital task, so the tasks themselves are disabled. Our
+// own code is still covered by `flutter analyze --fatal-infos`, the app
+// module's lint, and tool/verify_android_artifacts.py checks the artifacts.
 subprojects {
-    plugins.withId("com.android.library") {
-        extensions.configure<com.android.build.api.dsl.LibraryExtension> {
-            lint.checkReleaseBuilds = false
-        }
+    tasks.matching { it.name.startsWith("lintVital") }.configureEach {
+        enabled = false
     }
 }
 
