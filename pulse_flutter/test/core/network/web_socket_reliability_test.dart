@@ -146,6 +146,11 @@ void main() {
       expect(results.every((r) => r['ok'] == true), true);
       expect(s.peers.length, 1);
       expect(s.requests.where((r) => r['action'] == 'get_retry').length, 2);
+      expect(s.hellos.length, 1);
+      final payload = s.hellos.single['payload'] as Map<String, dynamic>;
+      expect(payload['app'], 'niosmess');
+      expect(payload['version'], isNotEmpty);
+      expect(payload['build_number'], isNotEmpty);
     }),
   );
 

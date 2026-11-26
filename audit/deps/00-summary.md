@@ -93,32 +93,45 @@ iOS SDK 13, C++20), 2 — реальные изменения поведения
 Применено и проверено:
 
 - Фаза 0: Flutter 3.50.1 / Dart 3.14.0 и локально, и в CI; анализатор чист.
-- Фаза 1: удалены cupertino_icons, google_fonts, shimmer, ndroid_intent_plus,
-  udio_waveforms, msix, 
-ios_mls (+ MLS-заглушка в 
-ios_protocol_accounts.dart).
+- Фаза 1: удалены cupertino_icons, google_fonts, shimmer, android_intent_plus,
+  audio_waveforms, msix, nios_mls (+ MLS-заглушка в nios_protocol_accounts.dart).
   Lock: 306 → 299 пакетов.
-- Фаза 2: поднято 15 patch/minor, включая lutter_riverpod 3.5, chewie 1.18,
-  lottie 3.8, lutter_svg 2.5, image 4.13, rchive 4.7.
-- Фаза 3: ile_picker 13.4.1 (PlatformFile.length() стал Future<int?> — 3 правки),
+- Фаза 2: поднято 15 patch/minor, включая flutter_riverpod 3.5, chewie 1.18,
+  lottie 3.8, flutter_svg 2.5, image 4.13, archive 4.7.
+- Фаза 3: file_picker 13.4.1 (PlatformFile.length() стал Future<int?> — 3 правки),
   open_file 4.0.0.
-- Фаза 4: lutter_markdown → lutter_markdown_plus 1.0.12, 4 файла импортов.
-- Фаза 5: irebase_core 5.2.0, irebase_messaging 17.1.0,
-  lutter_local_notifications 23.0.4, permission_handler 13.0.2,
-  lutter_foreground_task 11.0.3; AGP 9.5.3, Gradle 9.9.2, compileSdk 37, C++20.
-- Фаза 6: lutter_secure_storage 11.2.0, ecord 7.2.0.
+- Фаза 4: flutter_markdown → flutter_markdown_plus 1.0.12, 4 файла импортов.
+- Фаза 5: firebase_core 5.2.0, firebase_messaging 17.1.0,
+  flutter_local_notifications 23.0.4, permission_handler 13.0.2,
+  flutter_foreground_task 11.0.3; Gradle 9.5.0, AGP 9.3.1, Kotlin 2.4.20 (built-in Kotlin),
+  compileSdk 37.
+- Фаза 6: flutter_secure_storage 11.2.0, record 7.2.0.
 - Регресс chewie 1.18 (нет Material-предка в fullscreen) исправлен в
   widgets/media/m3_video_controls.dart.
 
+Итог: фазы 5 и 6.2 закрыты (`flutter_local_notifications 23.0.4`,
+`permission_handler 13.0.2`, `flutter_foreground_task 11.0.3`, `record 7.2.0`).
+
+- CI-прогон 45826065004 зелёный целиком: Android APK + startup gate на API 29,
+  Windows Installer, Web, Analyze & Test, оба Protocol SDK, Publish Release.
+- По пути нашлось три грабли:
+  - release-lint AGP 9.3.1 падает на camera
+    (`NoSuchMethodError: java.util.List.removeLast()` — JDK 21 API на демоне JDK 17);
+    отключены все задачи `lintVital*`.
+  - глобальный `CMAKE_CXX_STANDARD 20` ломал window_manager 0.5.2 (`error C4596`);
+    убран — C++20 включает сам `flutter_local_notifications_windows`.
+  - `audioplayers_android` 5.3.0 тянет junit5-плагин, несовместимый с AGP 9;
+    вендорен в `packages/audioplayers_android` (`README-vendor.md`).
+
 Доказательства: dart analyze lib test — No issues found;
-lutter test test/suite_test.dart — 1912/1912 passed (дважды: после фаз 2–3 и после 6.1).
+flutter test test/suite_test.dart — 1912/1912 passed (дважды: после фаз 2–3 и после 6.1).
 
 Осталось:
 
 - Фаза 7 — миграция на material_ui: 410 импортов package:flutter/material.dart,
   1 cupertino, ~140 файлов с material-типами в сигнатурах; пакеты
   cached_network_image 4, dynamic_color 2, go_router 18.
-- Заблокировано апстримом: desktop_drop 0.9.2 (конфликт cross_file с ile_picker).
-- Заблокировано тулчейном: window_manager 0.7.1 / 	ray_manager 0.9.1
+- Заблокировано апстримом: desktop_drop 0.9.2 (конфликт cross_file с file_picker).
+- Заблокировано тулчейном: window_manager 0.7.1 / tray_manager 0.9.1
   (nativeapi собирается через native_toolchain_c, нужен MSVC; готовая миграция —
-  udit/desktop_window_service.nativeapi.dart.txt).
+  audit/desktop_window_service.nativeapi.dart.txt).

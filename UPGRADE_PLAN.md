@@ -643,6 +643,14 @@ flutter test test/suite_test.dart
 | `flutter_foreground_task` | 11.0.3 |
 | `record` | 7.2.0 (`record_linux` override 1.3.1 снят) |
 
+Эти релизы (`record` 6→7 с переименованием darwin-плагина в `record_darwin`,
+`flutter_local_notifications` 22→23, `permission_handler` 12→13,
+`flutter_foreground_task` 10→11) затрагивают и iOS/macOS/Linux-части, но на этих
+платформах сборка **ни разу не запускалась**: CI собирает только Android, Windows
+и Web. macOS к тому же невоспроизводима — в `pulse_flutter/macos/` нет Podfile.
+Первый реальный билд на iOS/macOS/Linux — отдельная проверка, а не следствие
+зелёного прогона Android/Windows/Web.
+
 Итоговый тулчейн:
 
 ```
@@ -659,9 +667,10 @@ Windows             C++20 + CMake 3.14 (требует local_notifications 23)
 
 Каждая итерация открывала следующую проверку, невидимую локально:
 
-1. Flutter 3.50.1 **не принимает Gradle ниже 9.3.1** — откат на AGP 8.11.1 +
-   Gradle 8.14 был заведомо мёртвым.
-2. AGP 9.3.1 **требует Gradle >= 9.5.0** — минимум Flutter и минимум AGP не совпадают.
+1. Flutter 3.50.1 требует **AGP не ниже 9.3.1** (это минимум AGP, а не Gradle) —
+   откат на AGP 8.11.1 был заведомо мёртвым.
+2. AGP 9.3.1 в свою очередь **требует Gradle >= 9.5.0** — минимум Flutter и
+   минимум AGP относятся к разным инструментам и не совпадают.
 3. AGP 9 **не принимает `desugar_jdk_libs` 2.1.4**.
 4. AGP 9.3.1 объявляет старый DSL **ошибкой компиляции Kotlin-скрипта**, а не
    предупреждением: `android { }` (`BaseAppModuleExtension`), `kotlinOptions`,
@@ -739,9 +748,12 @@ subprojects {
 }
 ```
 
-Наш код по-прежнему закрыт `flutter analyze --fatal-infos`, линтом приложения и
-проверкой артефактов. Когда AGP перестанет падать (или CI переедет на JDK 21),
-задачу можно вернуть.
+Наш код по-прежнему закрыт `flutter analyze --fatal-infos` (только Dart) и
+проверкой артефактов `tool/verify_android_artifacts.py`. Это не замена lint:
+`subprojects {}` отключает `lintVital*` и для `:app`, поэтому release-lint
+сейчас не выполняется нигде — ни у плагинов, ни у приложения, и покрытие
+Android-lint нулевое. Вернуть задачи можно после исправления AGP или перехода
+CI на JDK 21.
 
 **2. C++20 на Windows.** Глобальный `set(CMAKE_CXX_STANDARD 20)`, добавленный ради
 `flutter_local_notifications`, ломал `window_manager 0.5.2`:

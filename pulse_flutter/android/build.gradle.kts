@@ -27,9 +27,13 @@ subprojects {
 //   NoSuchMethodError: 'java.lang.Object java.util.List.removeLast()'
 //
 // `lint.checkReleaseBuilds = false` does not stop AGP 9 from creating the
-// library module's lintVital task, so the tasks themselves are disabled. Our
-// own code is still covered by `flutter analyze --fatal-infos`, the app
-// module's lint, and tool/verify_android_artifacts.py checks the artifacts.
+// lintVital task, so the tasks themselves are disabled here. `subprojects {}`
+// covers `:app` as well, so release lint now runs nowhere — neither for the
+// plugins nor for the application. `flutter analyze --fatal-infos` checks Dart
+// only and is not a replacement for Android lint.
+//
+// TODO: re-enable lintVital once either an AGP release fixes the
+// CommentDetector crash on JDK 17, or the Android build moves to JDK 21.
 subprojects {
     tasks.matching { it.name.startsWith("lintVital") }.configureEach {
         enabled = false

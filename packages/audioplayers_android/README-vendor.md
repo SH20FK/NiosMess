@@ -1,13 +1,17 @@
 # audioplayers_android (vendored)
 
-Копия `audioplayers_android` **5.3.0** из pub.dev (sha пакета: см. `pubspec.lock`
-основного проекта до вендоринга), подключённая через `dependency_overrides`:
+Копия `audioplayers_android` **5.3.0** из pub.dev, подключённая через
+`dependency_overrides`:
 
 ```yaml
 dependency_overrides:
   audioplayers_android:
     path: ../packages/audioplayers_android
 ```
+
+Sha256 официального архива для сверки при следующем re-vendor:
+`f5ff5b15620fbab8cb0849e9636c48e2b96c3f0f71723bbbe2ad3c761b205f05`
+(`https://pub.dev/api/archives/audioplayers_android-5.3.0.tar.gz`).
 
 ## Зачем
 
@@ -30,16 +34,35 @@ Failed to apply plugin 'de.mannodermaus.android-junit5'
 
 ## Что изменено относительно 5.3.0
 
+Изменены два файла — `android/build.gradle` и `pubspec.yaml` — плюс добавлен
+этот README. Dart-код, Kotlin-исходники и манифест не менялись.
+
+`android/build.gradle`:
+
 - удалён `apply plugin: 'de.mannodermaus.android-junit5'` и его classpath;
 - удалён `buildscript` с AGP 7.3.1 / KGP 1.7.10 (AGP и Kotlin даёт корневая сборка);
 - удалены `testImplementation junit-jupiter` / `assertj-core` (тесты пакета не запускаются);
 - `minSdkVersion` 19 → 23 (AGP 9 не поддерживает 19);
-- `kotlin-stdlib-jdk7` убран: со Kotlin 2.x stdlib добавляется автоматически.
+- `kotlin-stdlib-jdk7` убран: со Kotlin 2.x stdlib добавляется автоматически;
+- убран блок `kotlin { compilerOptions { jvmTarget = JVM_17 } }`: при built-in
+  Kotlin AGP `jvmTarget` берётся из `compileOptions` (там уже 17);
+- убран условный `if (project.android.hasProperty('namespace'))` — `namespace`
+  задан безусловно.
 
-Dart-код, манифест, `pluginClass` и версия (`5.3.0`) не менялись.
+`pubspec.yaml`:
 
-## Когда убрать
+- удалена строка `resolution: workspace` (иначе как path-зависимость пакет
+  не резолвится).
 
-Как только выйдет стабильный `audioplayers_android` без плагина junit5
-(в 6.x), удалить этот каталог и `dependency_overrides` из
-`pulse_flutter/pubspec.yaml`.
+Версия пакета по-прежнему `5.3.0`: `pluginClass` и `implements` не менялись.
+
+## Когда снимать вендор
+
+При обновлении `audioplayers` проверить `dart pub deps`:
+
+- если констрейнт на `audioplayers_android` стал `^6.x`, или
+- если в `audioplayers_android` больше нет плагина `de.mannodermaus.android-junit5`,
+
+удалить этот каталог и `dependency_overrides` из `pulse_flutter/pubspec.yaml`.
+Стабильный 6.x ещё не вышел: 6.0.0-dev.0 тянет dev-каскад
+(`audioplayers_platform_interface ^8.0.0-dev`).
