@@ -4168,7 +4168,8 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get supportCannotBeReported => 'На службу поддержки NiosMess нельзя пожаловаться';
   @override
-  String get reportSentSuccess => 'Жалоба отправлена';
+  String get reportSentSuccess => 'Жалоба отправлена';
+  String get reportNeedsChat => 'Жалоба станет доступна после начала чата с этим пользователем';
   @override
   String get blockedUsersTitle => 'Заблокированные пользователи';
   @override

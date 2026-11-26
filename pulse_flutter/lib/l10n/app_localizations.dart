@@ -7126,7 +7126,8 @@ abstract class AppLocalizations {
   String get userUnblockFailed;
   String get supportCannotBeBlocked;
   String get supportCannotBeReported;
-  String get reportSentSuccess;
+  String get reportSentSuccess;
+  String get reportNeedsChat;
   String get blockedUsersTitle;
   String get searchByUsernameOrName;
   String get searchByUsernameOrNameHint;

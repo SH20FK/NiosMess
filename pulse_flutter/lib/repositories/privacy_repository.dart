@@ -131,20 +131,30 @@ class PrivacyRepository {
     return PrivacyRuleResult(rule: rule, revision: newRevision);
   }
 
+  /// Interprets a block/unblock acknowledgement without inventing success.
+  /// The server answers `{blocked: bool}`; older replies carried `{success}`.
+  /// Anything else is not a confirmation, so the caller keeps the previous
+  /// state instead of silently treating an empty payload as "done".
+  static bool _acknowledged(Map<String, dynamic> map, {required bool blocked}) {
+    final dynamic success = map['success'];
+    if (success is bool) return success;
+    final dynamic value = map['blocked'];
+    if (value is bool) return blocked ? value : !value;
+    return false;
+  }
+
   Future<bool> blockUser(int userId) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request('block_user', payload: <String, dynamic>{'user_id': userId});
-    final Map<String, dynamic> map = asStringMap(response);
-    return (map['blocked'] == true) || (map['success'] as bool? ?? true);
+    return _acknowledged(asStringMap(response), blocked: true);
   }
 
   Future<bool> unblockUser(int userId) async {
     final dynamic response = await _ref
         .read(webSocketClientProvider)
         .request('unblock_user', payload: <String, dynamic>{'user_id': userId});
-    final Map<String, dynamic> map = asStringMap(response);
-    return (map['blocked'] == false) || (map['success'] as bool? ?? true);
+    return _acknowledged(asStringMap(response), blocked: false);
   }
 
   Future<List<BlockedUser>> listBlockedUsers() async {

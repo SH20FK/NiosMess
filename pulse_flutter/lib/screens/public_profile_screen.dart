@@ -1273,11 +1273,19 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }
 
   Future<void> _submitUserReport(ApiProfile profile, String reason) async {
+    final int? chatId =
+        (_resolvedChatId != null && _resolvedChatId! > 0) ? _resolvedChatId : null;
+    // The server requires a positive chat_id for a report, so reporting from a
+    // public profile is only possible once a direct chat exists.
+    if (chatId == null) {
+      if (!mounted) return;
+      HapticService.destructive();
+      AppToast.showError(context, context.l10n.reportNeedsChat);
+      return;
+    }
     try {
       await ref.read(reportRepositoryProvider).report(
-            chatId: (_resolvedChatId != null && _resolvedChatId! > 0)
-                ? _resolvedChatId
-                : null,
+            chatId: chatId,
             reportedUserId: profile.id,
             reason: reason,
           );

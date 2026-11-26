@@ -482,6 +482,10 @@ class ChatRepository {
 
   static const int _parallelThresholdBytes = 4 * 1024 * 1024;
 
+  /// Chunk size both chunked transports declare to the server. It matches
+  /// `MIN_PARALLEL_CHUNK_SIZE` (262144) in the deployed `fast_uploads.py`.
+  static const int _uploadChunkSize = 256 * 1024;
+
   Future<String> uploadStreamInChunks({
     Uint8List? bytes,
     String? filePath,
@@ -883,6 +887,8 @@ class ChatRepository {
 
     final request = http.MultipartRequest('POST', uri);
     request.headers['Authorization'] = 'Bearer $token';
+    // The server accepts either `Authorization: Bearer` or a multipart `token`
+    // field (`extract_bearer_or_token` in app/main.py), so the header is enough.
     if (localId != null && localId.isNotEmpty) {
       request.headers['X-Upload-Local-Id'] = localId;
     }
@@ -1031,7 +1037,7 @@ class ChatRepository {
         throw Exception('File data is empty');
       }
 
-      const int requestChunkSize = 256 * 1024;
+      const int requestChunkSize = _uploadChunkSize;
       final int initialChunks = (actualFileSize / requestChunkSize).ceil();
 
       final UploadInitResult init = await initUpload(

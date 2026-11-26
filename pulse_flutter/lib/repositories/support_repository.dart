@@ -64,10 +64,19 @@ class SupportRepository {
         );
 
     final map = _asMap(response);
-    if (map.isNotEmpty) {
-      return SupportTicket.fromJson(map);
-    }
-    return null;
+    if (map.isEmpty) return null;
+    // `handle_create_support_ticket` answers with `{ticket_id, status}` and
+    // none of the request fields, while older/newer variants answer with the
+    // ticket itself. Keep the fields the caller just sent so the returned
+    // ticket still carries its type, subject and body.
+    return SupportTicket.fromJson(<String, dynamic>{
+      'ticket_type': ticketType,
+      if (category != null && category.isNotEmpty) 'category': category,
+      if (priority != null && priority.isNotEmpty) 'priority': priority,
+      'subject': subject,
+      'body': body,
+      ...map,
+    });
   }
 
   Future<SupportTicketsBundle> listTicketsWithStatus({
@@ -83,6 +92,18 @@ class SupportRepository {
             if (category != null && category.isNotEmpty) 'category': category,
           },
         );
+
+    // The server has answered with a bare list (`handle_list_support_tickets`)
+    // as well as with `{tickets, spam_block}`; accept both so a list-shaped
+    // answer is not silently rendered as "no tickets".
+    if (response is List) {
+      return SupportTicketsBundle(
+        tickets: response
+            .whereType<Map>()
+            .map((m) => SupportTicket.fromJson(_asMap(m)))
+            .toList(growable: false),
+      );
+    }
 
     final map = _asMap(response);
     final rawTickets = map['tickets'];

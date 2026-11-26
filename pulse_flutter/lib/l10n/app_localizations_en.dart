@@ -4139,7 +4139,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get supportCannotBeReported => 'Cannot report NiosMess support';
   @override
-  String get reportSentSuccess => 'Report submitted';
+  String get reportSentSuccess => 'Report submitted';
+  String get reportNeedsChat => 'Reporting becomes available after you start a chat with this user';
   @override
   String get blockedUsersTitle => 'Blocked Users';
   @override
