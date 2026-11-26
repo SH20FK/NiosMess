@@ -226,6 +226,13 @@ flutter:
       fonts:
         - asset: assets/fonts/material_symbols/MaterialSymbolsSharp.ttf
 
+dependency_overrides:
+  # audioplayers_android 5.3.0 applies the junit5 Gradle plugin, which casts the
+  # Android extension to BaseExtension - impossible under AGP 9's new DSL.
+  # See packages/audioplayers_android/README-vendor.md.
+  audioplayers_android:
+    path: ../packages/audioplayers_android
+
 flutter_launcher_icons:
   android: true
   ios: true
