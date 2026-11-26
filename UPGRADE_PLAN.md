@@ -570,7 +570,8 @@
 ### Фазы 5 и 6.2 — откачены по факту
 irebase_core 5.2.0 и irebase_messaging 17.1.0 оставлены.
 lutter_local_notifications 23, permission_handler 13, lutter_foreground_task 11,
-ecord 7 откачены вместе с AGP 9 (9.3.1/9.5.0/2.4.20) на AGP 8.11.1 / Gradle 8.14 /
+
+ecord 7 откачены вместе с AGP 9 (9.3.1/9.5.0/2.4.20) на AGP 8.11.1 / Gradle 8.14 /
 Kotlin 2.2.20 / compileSdk от Flutter.
 
 **Причина откатa установлена не полностью:** после отката Build Android всё равно
@@ -593,7 +594,8 @@ AGP 9 и не в откаченных пакетах: единственная �
   pending footer hit target и ещё два «виджет не найден».
 
 ### Что нужно для завершения
-1. Лог uild-android (токен epo+workflow или текст ошибки) — иначе причина
+1. Лог uild-android (токен 
+epo+workflow или текст ошибки) — иначе причина
    падения Android остаётся недоказанной.
 2. Добить 6 визуальных тестов фазы 7 и смержить ветку.
 3. Запушить улучшения workflow из stash@{0} (нужен workflow scope).
@@ -621,5 +623,78 @@ flutter test test/suite_test.dart
 1) AGP 9.3.1 / Gradle 9.5.0 / Kotlin 2.4.20;
 2) AGP 8.11.1 / Gradle 8.14 / Kotlin 2.2.20;
 3) AGP 8.11.1 / Kotlin 2.4.20 без `com.google.android.play:core`.
-Лог джобы недоступен: GitHub отдаёт его только с токеном, браузер офлайн.
-Дальнейший перебор без лога — лотерея по 25 минут на прогон.
+
+---
+
+## 18. Фазы 5 и 6.2 — закрыты, Android-тулчейн доведён до AGP 9
+
+Вернулись пакеты, которым нужен новый Android-тулчейн:
+
+| Пакет | Версия |
+|---|---|
+| `firebase_core` | 5.2.0 |
+| `firebase_messaging` | 17.1.0 |
+| `flutter_local_notifications` | 23.0.4 |
+| `permission_handler` | 13.0.2 |
+| `flutter_foreground_task` | 11.0.3 |
+| `record` | 7.2.0 (`record_linux` override 1.3.1 снят) |
+
+Итоговый тулчейн:
+
+```
+Gradle              9.5.0     (Flutter требует >= 9.3.1, AGP 9.3.1 требует >= 9.5.0)
+AGP                 9.3.1
+Kotlin              2.4.20    (KGP не применяется — Kotlin компилирует сам AGP)
+built-in Kotlin     true      (KGP несовместим с новым DSL AGP 9)
+desugar_jdk_libs    2.1.5     (AGP 9 не принимает 2.1.4)
+compileSdk          37        (требуют local_notifications 23 и permission_handler 13)
+Windows             C++20 + CMake 3.14 (требует local_notifications 23)
+```
+
+### Почему Android не собирался ни в одном прогоне
+
+Каждая итерация открывала следующую проверку, невидимую локально:
+
+1. Flutter 3.50.1 **не принимает Gradle ниже 9.3.1** — откат на AGP 8.11.1 +
+   Gradle 8.14 был заведомо мёртвым.
+2. AGP 9.3.1 **требует Gradle >= 9.5.0** — минимум Flutter и минимум AGP не совпадают.
+3. AGP 9 **не принимает `desugar_jdk_libs` 2.1.4**.
+4. AGP 9.3.1 объявляет старый DSL **ошибкой компиляции Kotlin-скрипта**, а не
+   предупреждением: `android { }` (`BaseAppModuleExtension`), `kotlinOptions`,
+   `android.applicationVariants` — 4 ошибки ещё до первой Gradle-задачи.
+5. Новый DSL **несовместим с Kotlin Gradle Plugin**: `kotlin-android` падает на
+   применении (`ApplicationExtensionImpl cannot be cast to BaseExtension`).
+   Выход один — built-in Kotlin (`android.builtInKotlin=true`), без `kotlin-android`.
+
+### Что именно поправлено в Gradle-скрипте
+
+```kotlin
+// было                                    // стало
+android { ... }                            extensions.configure<ApplicationExtension> { ... }
+kotlinOptions { jvmTarget = "17" }         kotlin { compilerOptions { jvmTarget = JVM_17 } }
+android.applicationVariants { ... }        force-version-code-ignoring-abi=true
+```
+
+`force-version-code-ignoring-abi` — штатный флаг Flutter
+(`FlutterPluginUtils.shouldForceVersionCodeIgnoringAbi`): он гасит ABI-смещение
+`1000 * ABI_VERSION`, поэтому все split-per-abi APK получают ровно тот
+`versionCode`, который записан в pubspec, и `tool/verify_android_artifacts.py`
+(строка 185) не падает на несовпадении версии.
+
+### Побочный улов: `client_hello` в тестах
+
+`v3.150.0` добавил в `WebSocketClient` открытый (незашифрованный) контрольный
+кадр `client_hello` сразу после обмена ключами. Тестовый сервер в
+`test/core/network/web_socket_reliability_test.dart` требовал `encrypted == true`
+от любого не-`ping` кадра, из-за чего падали все 7 тестов файла
+(`Expected: <true> Actual: <null> — Application requests must be encrypted`).
+Теперь `client_hello` записывается в отдельный список `hellos`, а шифрование
+по-прежнему проверяется на всех прикладных запросах.
+
+### Вывод на будущее
+
+Версии Android-тулчейна надо брать из шаблона Flutter 3.50.1
+(`packages/flutter_tools/templates/app/android.tmpl/`) **и** сверять с требованиями
+AGP: шаблон и сам Flutter-плагин на AGP 9.3.1 уже несовместимы со старым DSL,
+поэтому оба флага мигратора (`android.newDsl=false`, `android.builtInKotlin=false`)
+для этого проекта неприменимы.
