@@ -45,6 +45,7 @@ import 'package:flutter/foundation.dart'
     show ValueListenable, compute, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
+import 'package:pulse_flutter/widgets/chat/spamblock_banner.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -818,11 +819,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         return;
       }
     }
-    final bool isSupportChat =
-        currentChat?.username?.toLowerCase() == 'support' ||
-        currentChat?.name.toLowerCase() == 'support';
     final myProfile = ref.read(authProvider).profile;
-    if (myProfile?.isRestrictedBySpamBlock == true && !isSupportChat) {
+    final int? myUserId = myProfile?.id;
+    final bool hasPartnerReply =
+        currentChat?.chatType == 'direct' &&
+        myUserId != null &&
+        (ref.read(chatMessagesProvider(chatId)).asData?.value ??
+                const <ApiMessage>[])
+            .any((m) => m.senderId != myUserId);
+    if (isChatRestrictedBySpamBlock(
+      isAccountSpamBlocked: myProfile?.isRestrictedBySpamBlock ?? false,
+      chat: currentChat,
+      myUserId: myUserId,
+      hasPartnerReply: hasPartnerReply,
+    )) {
       AppToast.showError(context, context.l10n.chatAccountRestricted);
       return;
     }
@@ -3079,17 +3089,39 @@ class _ChatComposerScope extends ConsumerWidget {
     );
 
     final (
-      bool isSpamBlocked,
+      bool isAccountSpamBlocked,
       DateTime? spamBlockUntil,
       String? spamBlockReason,
+      int? myUserId,
     ) = ref.watch(
       authProvider.select(
         (a) => (
           a.profile?.isRestrictedBySpamBlock ?? false,
           a.profile?.spamBlockUntil,
           a.profile?.spamBlockReason,
+          a.profile?.id,
         ),
       ),
+    );
+    final ApiChatSummary? currentChat = isAccountSpamBlocked
+        ? ref.watch(chatByIdProvider(chatId))
+        : null;
+    final bool hasPartnerReply =
+        isAccountSpamBlocked &&
+        currentChat?.chatType == 'direct' &&
+        myUserId != null &&
+        ref.watch(
+          chatMessagesProvider(chatId).select(
+            (s) => (s.asData?.value ?? const <ApiMessage>[]).any(
+              (m) => m.senderId != myUserId,
+            ),
+          ),
+        );
+    final bool isSpamBlocked = isChatRestrictedBySpamBlock(
+      isAccountSpamBlocked: isAccountSpamBlocked,
+      chat: currentChat,
+      myUserId: myUserId,
+      hasPartnerReply: hasPartnerReply,
     );
 
     if (ref.watch(

@@ -1,6 +1,43 @@
 import 'dart:async';
-import 'package:material_ui/material_ui.dart';
+
 import 'package:intl/intl.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:pulse_flutter/models/api/chat_summary_model.dart';
+
+/// Mirrors server-side spam-block scope (`chat_handler.py` / `public_antifraud.py`):
+/// - @Support and Saved Messages are never restricted.
+/// - Private groups and secret chats are never restricted.
+/// - Public groups and channels are restricted.
+/// - Direct chats are restricted only until the partner has replied.
+bool isChatRestrictedBySpamBlock({
+  required bool isAccountSpamBlocked,
+  required ApiChatSummary? chat,
+  required int? myUserId,
+  bool hasPartnerReply = false,
+}) {
+  if (!isAccountSpamBlocked || chat == null) return false;
+  if (chat.isSaved) return false;
+  final String? uname = chat.username?.trim().toLowerCase();
+  if (uname == 'support' || chat.name.trim().toLowerCase() == 'support') {
+    return false;
+  }
+  if (chat.chatType == 'channel') {
+    return true;
+  }
+  if (chat.chatType == 'group') {
+    return !chat.isPrivate && !chat.isSecret;
+  }
+  if (chat.chatType == 'direct') {
+    if (chat.isSecret) return false;
+    if (hasPartnerReply) return false;
+    final int? lastSenderId = chat.lastMessage?.senderId;
+    if (lastSenderId != null && myUserId != null && lastSenderId != myUserId) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
 
 class SpamBlockBanner extends StatefulWidget {
   const SpamBlockBanner({
@@ -37,158 +74,120 @@ class _SpamBlockBannerState extends State<SpamBlockBanner> {
     super.dispose();
   }
 
-  String _formatRemaining() {
-    if (widget.until == null) return 'Бессрочно';
-    final Duration diff = widget.until!.difference(DateTime.now());
-    if (diff.isNegative) return 'Срок истёк';
-    if (diff.inDays > 0) {
-      return '${diff.inDays} дн. ${diff.inHours % 24} ч.';
-    } else if (diff.inHours > 0) {
-      return '${diff.inHours} ч. ${diff.inMinutes % 60} мин.';
-    } else {
-      return '${diff.inMinutes} мин.';
-    }
-  }
-
-  String _formatUntilLocal() {
+  String _formatTiming() {
     if (widget.until == null) return 'Бессрочно';
     final DateTime local = widget.until!.toLocal();
-    final DateFormat formatter = DateFormat('dd.MM.yyyy HH:mm');
-    return formatter.format(local);
+    final String untilText = DateFormat('dd.MM, HH:mm').format(local);
+    final Duration diff = widget.until!.difference(DateTime.now());
+    if (diff.isNegative) return 'Срок истёк';
+    final String remaining;
+    if (diff.inDays > 0) {
+      remaining = '${diff.inDays} д ${diff.inHours % 24} ч';
+    } else if (diff.inHours > 0) {
+      remaining = '${diff.inHours} ч ${diff.inMinutes % 60} мин';
+    } else {
+      remaining = '${diff.inMinutes} мин';
+    }
+    return 'До $untilText ($remaining)';
   }
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final String reasonText = (widget.reason != null && widget.reason!.trim().isNotEmpty)
+    final String reasonText =
+        (widget.reason != null && widget.reason!.trim().isNotEmpty)
         ? widget.reason!.trim()
-        : 'Нарушение правил сообщества';
+        : 'Нарушение правил платформы';
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(14),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: scheme.errorContainer.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: scheme.error.withValues(alpha: 0.35),
-          width: 1.2,
+        color: scheme.surfaceContainerHigh,
+        border: Border(
+          top: BorderSide(color: scheme.outlineVariant),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: scheme.error,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.lock_clock_rounded,
-                  color: scheme.onError,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Аккаунт временно ограничен (Спамблок)',
-                      style: textTheme.titleSmall?.copyWith(
-                        color: scheme.onErrorContainer,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Причина: $reasonText',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onErrorContainer.withValues(alpha: 0.9),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: scheme.surface.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Row(
               children: <Widget>[
-                Text(
-                  'Истекает: ${_formatUntilLocal()}',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurface,
-                    fontWeight: FontWeight.w600,
+                Icon(
+                  Icons.lock_clock_rounded,
+                  color: scheme.error,
+                  size: 18,
+                  semanticLabel: 'Ограничение аккаунта',
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Ограничение на отправку',
+                    style: textTheme.titleSmall?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 12),
                 Text(
-                  'Осталось: ${_formatRemaining()}',
-                  style: textTheme.labelSmall?.copyWith(
+                  _formatTiming(),
+                  style: textTheme.labelMedium?.copyWith(
                     color: scheme.error,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const <FontFeature>[
+                      FontFeature.tabularFigures(),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(
-                    Icons.block_rounded,
-                    size: 14,
-                    color: scheme.error,
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    reasonText,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Отправка сообщений заблокирована',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: scheme.onErrorContainer,
-                      fontWeight: FontWeight.w600,
+                ),
+                if (widget.onContactSupport != null) ...<Widget>[
+                  const SizedBox(width: 12),
+                  TextButton(
+                    onPressed: widget.onContactSupport,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Оспорить',
+                      style: textTheme.labelLarge?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
-              ),
-              if (widget.onContactSupport != null)
-                TextButton(
-                  onPressed: widget.onContactSupport,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    'Поддержка',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

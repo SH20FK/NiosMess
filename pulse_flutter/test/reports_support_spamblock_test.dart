@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
+import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
@@ -279,15 +280,125 @@ void main() {
             body: SpamBlockBanner(
               until: futureTime,
               reason: 'Нарушение правил авторского права',
+              onContactSupport: () {},
             ),
           ),
         ),
       );
 
-      expect(find.text('Аккаунт временно ограничен (Спамблок)'), findsOneWidget);
+      expect(find.text('Ограничение на отправку'), findsOneWidget);
       expect(find.textContaining('Нарушение правил авторского права'), findsOneWidget);
-      expect(find.text('Отправка сообщений заблокирована'), findsOneWidget);
+      expect(find.text('Оспорить'), findsOneWidget);
       expect(find.byIcon(Icons.lock_clock_rounded), findsOneWidget);
+    });
+
+    test('isChatRestrictedBySpamBlock restricts only public groups, channels, and non-reciprocal DMs', () {
+      const support = ApiChatSummary(
+        id: 1,
+        chatType: 'direct',
+        name: 'Support',
+        username: 'support',
+        unreadCount: 0,
+        membersCount: 2,
+      );
+      const saved = ApiChatSummary(
+        id: 2,
+        chatType: 'direct',
+        name: 'Saved Messages',
+        unreadCount: 0,
+        membersCount: 1,
+        isSaved: true,
+      );
+      const privateGroup = ApiChatSummary(
+        id: 3,
+        chatType: 'group',
+        name: 'Friends',
+        unreadCount: 0,
+        membersCount: 5,
+        isPrivate: true,
+      );
+      const publicGroup = ApiChatSummary(
+        id: 4,
+        chatType: 'group',
+        name: 'Public Chat',
+        username: 'pubchat',
+        unreadCount: 0,
+        membersCount: 100,
+        isPrivate: false,
+      );
+      const channel = ApiChatSummary(
+        id: 5,
+        chatType: 'channel',
+        name: 'News',
+        unreadCount: 0,
+        membersCount: 50,
+      );
+      const direct = ApiChatSummary(
+        id: 6,
+        chatType: 'direct',
+        name: 'Alice',
+        unreadCount: 0,
+        membersCount: 2,
+      );
+
+      expect(
+        isChatRestrictedBySpamBlock(
+          isAccountSpamBlocked: true,
+          chat: support,
+          myUserId: 10,
+        ),
+        isFalse,
+      );
+      expect(
+        isChatRestrictedBySpamBlock(
+          isAccountSpamBlocked: true,
+          chat: saved,
+          myUserId: 10,
+        ),
+        isFalse,
+      );
+      expect(
+        isChatRestrictedBySpamBlock(
+          isAccountSpamBlocked: true,
+          chat: privateGroup,
+          myUserId: 10,
+        ),
+        isFalse,
+      );
+      expect(
+        isChatRestrictedBySpamBlock(
+          isAccountSpamBlocked: true,
+          chat: direct,
+          myUserId: 10,
+          hasPartnerReply: true,
+        ),
+        isFalse,
+      );
+      expect(
+        isChatRestrictedBySpamBlock(
+          isAccountSpamBlocked: true,
+          chat: direct,
+          myUserId: 10,
+          hasPartnerReply: false,
+        ),
+        isTrue,
+      );
+      expect(
+        isChatRestrictedBySpamBlock(
+          isAccountSpamBlocked: true,
+          chat: publicGroup,
+          myUserId: 10,
+        ),
+        isTrue,
+      );
+      expect(
+        isChatRestrictedBySpamBlock(
+          isAccountSpamBlocked: true,
+          chat: channel,
+          myUserId: 10,
+        ),
+        isTrue,
+      );
     });
   });
 }
