@@ -2,8 +2,9 @@ import com.android.build.api.dsl.ApplicationExtension
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // AGP 9 compiles Kotlin itself (built-in Kotlin); the Kotlin Gradle Plugin
+    // is incompatible with the new DSL, so it must not be applied here.
+    // The Flutter Gradle Plugin must be applied after the Android Gradle plugin.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
