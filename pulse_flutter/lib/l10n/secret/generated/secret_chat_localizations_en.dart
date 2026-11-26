@@ -2203,17 +2203,17 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsPlusSummary =>
-      '300 Niosiki for NiosAI, Prime and SPrime, files up to 100 MB and higher messenger limits.';
+      'Higher NiosAI limits, access to Prime and SPrime, files up to 100 MB and higher messenger limits.';
 
   @override
   String get settingsPlusBenefits => 'Included';
 
   @override
-  String get settingsPlusAiBudget => '300 Niosiki every 3 days';
+  String get settingsPlusAiBudget => 'Higher NiosAI limits';
 
   @override
   String get settingsPlusAiBudgetHint =>
-      'Up from 50 on Free. Shared across NiosMess, the bot and the main model group on NiosAI. Usage depends on the model and conversation length.';
+      'Expanded access to NiosAI models across NiosMess, the bot and the website. Usage depends on the model and conversation length.';
 
   @override
   String get settingsPlusModelsHint =>

@@ -4100,7 +4100,7 @@ abstract class SecretChatLocalizations {
   /// No description provided for @settingsPlusSummary.
   ///
   /// In en, this message translates to:
-  /// **'300 Niosiki for NiosAI, Prime and SPrime, files up to 100 MB and higher messenger limits.'**
+  /// **'Higher NiosAI limits, access to Prime and SPrime, files up to 100 MB and higher messenger limits.'**
   String get settingsPlusSummary;
 
   /// No description provided for @settingsPlusBenefits.
@@ -4112,13 +4112,13 @@ abstract class SecretChatLocalizations {
   /// No description provided for @settingsPlusAiBudget.
   ///
   /// In en, this message translates to:
-  /// **'300 Niosiki every 3 days'**
+  /// **'Higher NiosAI limits'**
   String get settingsPlusAiBudget;
 
   /// No description provided for @settingsPlusAiBudgetHint.
   ///
   /// In en, this message translates to:
-  /// **'Up from 50 on Free. Shared across NiosMess, the bot and the main model group on NiosAI. Usage depends on the model and conversation length.'**
+  /// **'Expanded access to NiosAI models across NiosMess, the bot and the website. Usage depends on the model and conversation length.'**
   String get settingsPlusAiBudgetHint;
 
   /// No description provided for @settingsPlusModelsHint.

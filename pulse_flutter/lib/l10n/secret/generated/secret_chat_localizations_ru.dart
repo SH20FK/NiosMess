@@ -2225,17 +2225,17 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsPlusSummary =>
-      '300 Ниосиков для NiosAI, Prime и SPrime, файлы до 100 МБ и расширенные возможности мессенджера.';
+      'Расширенные лимиты NiosAI, доступ к Prime и SPrime, файлы до 100 МБ и повышенные возможности мессенджера.';
 
   @override
   String get settingsPlusBenefits => 'В подписке';
 
   @override
-  String get settingsPlusAiBudget => '300 Ниосиков за 3 дня';
+  String get settingsPlusAiBudget => 'Повышенные лимиты NiosAI';
 
   @override
   String get settingsPlusAiBudgetHint =>
-      'Вместо 50 на Free. Общий бюджет NiosMess, бота и основной группы моделей на сайте NiosAI. Расход зависит от модели и длины диалога.';
+      'Увеличенный доступ к моделям NiosAI в NiosMess, боте и на сайте. Расход зависит от модели и длины диалога.';
 
   @override
   String get settingsPlusModelsHint =>

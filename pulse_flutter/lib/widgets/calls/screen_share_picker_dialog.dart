@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../pulse_loading_indicator.dart';
+
 /// Result of the screen-share picker. [sourceId] is null on web/mobile where
 /// the platform shows its own chooser.
 class ScreenShareChoice {
@@ -85,7 +87,7 @@ class _ScreenSharePickerDialogState extends State<_ScreenSharePickerDialog> {
         width: 640,
         height: 420,
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: AppLoadingIndicator())
             : _error != null
             ? Center(child: Text(_error!))
             : GridView.builder(
