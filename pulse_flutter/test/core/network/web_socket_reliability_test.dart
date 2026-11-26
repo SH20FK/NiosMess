@@ -12,6 +12,7 @@ class _Server {
   late HttpServer http;
   final peers = <WebSocket>[];
   final requests = <Map<String, dynamic>>[];
+  final hellos = <Map<String, dynamic>>[];
   final key = List<int>.generate(32, (i) => i);
   bool handshake = true, pong = true;
   Future<void> Function(WebSocket, Map<String, dynamic>)? handle;
@@ -27,6 +28,12 @@ class _Server {
         final outer = jsonDecode(raw as String) as Map<String, dynamic>;
         if (outer['action'] == 'ping') {
           if (pong) peer.add(jsonEncode({'action': 'pong'}));
+          return;
+        }
+        if (outer['action'] == 'client_hello') {
+          // Plain-text control frame the client sends right after connecting
+          // (app name, platform, version). It is not an encrypted request.
+          hellos.add(outer);
           return;
         }
         expect(
