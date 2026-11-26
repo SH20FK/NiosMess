@@ -25,6 +25,7 @@ import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings/about_bug_report_dialog.dart';
 import 'package:pulse_flutter/widgets/settings/about_identity_widgets.dart';
+import 'package:pulse_flutter/widgets/settings/about_memorial_sheet.dart';
 import 'package:pulse_flutter/widgets/settings/about_update_tile.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -42,6 +43,23 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   List<ChangelogRelease>? _releases;
   bool _loadingChangelog = true;
   int _tab = 0;
+  int _footerTapCount = 0;
+  DateTime? _lastFooterTapAt;
+
+  void _onFooterTap() {
+    final DateTime now = DateTime.now();
+    if (_lastFooterTapAt != null &&
+        now.difference(_lastFooterTapAt!) > const Duration(seconds: 3)) {
+      _footerTapCount = 0;
+    }
+    _lastFooterTapAt = now;
+    _footerTapCount += 1;
+    if (_footerTapCount >= 6) {
+      _footerTapCount = 0;
+      HapticService.mediumImpact();
+      AboutMemorialSheet.show(context);
+    }
+  }
 
   @override
   void initState() {
@@ -235,10 +253,17 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
-          child: Text(
-            '${l.aboutCopyrightFooter(2026)} · ${BuildInfo.buildChannel}',
-            textAlign: TextAlign.center,
-            style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _onFooterTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Text(
+                '${l.aboutCopyrightFooter(2026)} · ${BuildInfo.buildChannel}',
+                textAlign: TextAlign.center,
+                style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ),
           ),
         ),
       ],
