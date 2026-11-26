@@ -72,7 +72,6 @@ import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
-import 'package:pulse_flutter/repositories/support_repository.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
@@ -795,12 +794,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       return;
     }
 
-    final myProfile = ref.read(authProvider).profile;
-    if (myProfile?.isRestrictedBySpamBlock == true) {
-      AppToast.showError(context, context.l10n.chatAccountRestricted);
-      return;
-    }
-
     final String text = _inputController.text.trim();
     if (text.isEmpty) {
       return;
@@ -820,6 +813,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         return;
       }
     }
+    final bool isSupportChat =
+        currentChat?.username?.toLowerCase() == 'support' ||
+        currentChat?.name.toLowerCase() == 'support';
+    final myProfile = ref.read(authProvider).profile;
+    if (myProfile?.isRestrictedBySpamBlock == true && !isSupportChat) {
+      AppToast.showError(context, context.l10n.chatAccountRestricted);
+      return;
+    }
     if (currentChat != null && currentChat.chatType == 'direct') {
       final int? partnerId = currentChat.partnerUserId;
       final bool isBlockedByMe =
@@ -830,22 +831,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         AppToast.showError(context, context.l10n.chatUnblockToSend);
         return;
       }
-    }
-
-    final bool isSupportChat =
-        currentChat?.username?.toLowerCase() == 'support' ||
-        currentChat?.name.toLowerCase() == 'support';
-    if (isSupportChat && text.startsWith('/copyright')) {
-      final String body = text.substring('/copyright'.length).trim();
-      unawaited(
-        ref
-            .read(supportRepositoryProvider)
-            .createTicket(
-              ticketType: 'copyright',
-              subject: 'Авторская жалоба',
-              body: body.isNotEmpty ? body : 'Обращение по авторскому праву',
-            ),
-      );
     }
 
     final int? replyId = _replyToMessageId;
@@ -1083,7 +1068,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     final File file = File(filePath);
     final int fileSize = await file.length();
-    final String filename = filePath.split('/').last;
+    String filename = filePath.split(RegExp(r'[/\\]')).last.trim();
+    if (filename.toLowerCase().endsWith('.temp')) {
+      filename = '${filename.substring(0, filename.length - 5)}.mp4';
+    } else if (!filename.contains('.')) {
+      filename = '$filename.mp4';
+    }
 
     await _uploadAndSend(
       chatId: chatId,
@@ -3139,7 +3129,7 @@ class _ChatComposerScope extends ConsumerWidget {
               isSpamBlocked: isSpamBlocked,
               spamBlockUntil: spamBlockUntil,
               spamBlockReason: spamBlockReason,
-              onContactSupport: () => context.push('/chat/support'),
+              onContactSupport: () => context.push('/support'),
               onEditLastMessage: onEditLastMessage,
               onAttachFiles: onAttachFiles,
             );

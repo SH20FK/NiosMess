@@ -14,6 +14,23 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/quick_camera_capture_screen.dart';
 import 'package:universal_io/io.dart';
 
+String _resolvePickedAssetFilename(AssetEntity asset, File? file) {
+  String? raw = asset.title?.trim();
+  if (raw == null || raw.isEmpty) {
+    raw = file?.path.split(RegExp(r'[/\\]')).last.trim();
+  }
+  if (asset.type == AssetType.video) {
+    if (raw == null || raw.isEmpty || !raw.contains('.')) {
+      return 'video_${asset.id}.mp4';
+    }
+    if (raw.toLowerCase().endsWith('.temp')) {
+      return '${raw.substring(0, raw.length - 5)}.mp4';
+    }
+    return raw;
+  }
+  return (raw != null && raw.isNotEmpty) ? raw : 'photo_${asset.id}.jpg';
+}
+
 /// Result item from the M3 Attachment / File picker.
 class M3FilePickerResult {
   M3FilePickerResult({
@@ -540,8 +557,9 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
 
     for (int i = 0; i < _selectedAssets.length; i++) {
       final AssetEntity asset = _selectedAssets[i];
-      File? file = await asset.file;
-      file ??= await asset.originFile;
+      File? file = asset.type == AssetType.video
+          ? (await asset.originFile ?? await asset.file)
+          : (await asset.file ?? await asset.originFile);
       Uint8List? bytes;
       if (file == null) {
         try {
@@ -550,11 +568,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
       }
       if (file != null || (bytes != null && bytes.isNotEmpty)) {
         final int fileSize = file != null ? await file.length() : bytes!.length;
-        final String fileName =
-            asset.title ??
-            (file != null
-                ? file.uri.pathSegments.last
-                : 'photo_${asset.id}.jpg');
+        final String fileName = _resolvePickedAssetFilename(asset, file);
         final String mediaSubtype = _sendAsDocument
             ? 'document'
             : (asset.type == AssetType.video ? 'video' : 'photo');
@@ -1434,8 +1448,11 @@ class _RecentPreviewScreenState extends State<_RecentPreviewScreen> {
                       ),
                       onPressed: () async {
                         HapticService.confirm();
-                        File? file = await currentAsset.file;
-                        file ??= await currentAsset.originFile;
+                        File? file = currentAsset.type == AssetType.video
+                            ? (await currentAsset.originFile ??
+                                  await currentAsset.file)
+                            : (await currentAsset.file ??
+                                  await currentAsset.originFile);
                         Uint8List? bytes;
                         if (file == null) {
                           try {
@@ -1449,11 +1466,10 @@ class _RecentPreviewScreenState extends State<_RecentPreviewScreen> {
                         final int fileSize = file != null
                             ? await file.length()
                             : bytes!.length;
-                        final String fileName =
-                            currentAsset.title ??
-                            (file != null
-                                ? file.uri.pathSegments.last
-                                : 'photo_${currentAsset.id}.jpg');
+                        final String fileName = _resolvePickedAssetFilename(
+                          currentAsset,
+                          file,
+                        );
                         final M3FilePickerResult single = M3FilePickerResult(
                           filePath: file?.path,
                           fileBytes: bytes,

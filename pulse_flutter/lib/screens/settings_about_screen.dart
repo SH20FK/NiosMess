@@ -168,6 +168,11 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           title: l.settingsAboutSupport,
           children: [
             SettingsListItem.nav(
+              icon: Icons.support_agent_rounded,
+              title: l.aboutContactSupportAction,
+              onTap: () => context.push('/support'),
+            ),
+            SettingsListItem.nav(
               icon: Icons.help_outline_rounded,
               title: l.aboutFaqAction,
               onTap: () => context.push('/help/faq'),

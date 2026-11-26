@@ -377,17 +377,21 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       try {
         if (secret != null) await secret.importChats(cached);
         if (!_valid(generation)) return const [];
-        if (cached.any((ApiChatSummary c) => c.isSecret)) {
+        if (cached.any((ApiChatSummary c) => c.isSecret && !c.keyMismatch)) {
           // Ordinary rows are taken from the live state: a push may have
           // updated them since they were published above.
           final List<ApiChatSummary> rows = <ApiChatSummary>[
             ...(state.value ?? const <ApiChatSummary>[]).where(
               (ApiChatSummary c) => !c.isSecret,
             ),
-            ...cached.where((ApiChatSummary c) => c.isSecret),
+            ...cached.where(
+              (ApiChatSummary c) => c.isSecret && !c.keyMismatch,
+            ),
           ];
           state = AsyncData<List<ApiChatSummary>>(
-            secret?.mergeChats(rows) ?? (rows..sort(compareChatRecency)),
+            (secret?.mergeChats(rows) ?? (rows..sort(compareChatRecency)))
+                .where((ApiChatSummary c) => !(c.isSecret && c.keyMismatch))
+                .toList(growable: false),
           );
         }
         unawaited(_hydrateInboxPreviews(cached));
@@ -945,9 +949,10 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
     // chats are covered because a push for an unknown chat triggers `refresh`.
     return <ApiChatSummary>[
       for (final ApiChatSummary remote in fetched)
-        known[remote.id] == null
-            ? remote
-            : _mergeChatSummary(known[remote.id]!, remote, requestedAt),
+        if (!(remote.isSecret && remote.keyMismatch))
+          known[remote.id] == null
+              ? remote
+              : _mergeChatSummary(known[remote.id]!, remote, requestedAt),
     ]..sort(compareChatRecency);
   }
 
@@ -1053,7 +1058,9 @@ class ChatsNotifier extends AsyncNotifier<List<ApiChatSummary>> {
       if (!_valid(generation)) return const [];
       if (secret != null) await secret.importChats(remote);
       if (!_valid(generation)) return const [];
-      final chats = secret?.mergeChats(remote) ?? remote;
+      final List<ApiChatSummary> chats = (secret?.mergeChats(remote) ?? remote)
+          .where((ApiChatSummary c) => !(c.isSecret && c.keyMismatch))
+          .toList(growable: false);
       ref.read(bluetoothMeshProvider)?.warmChats(chats);
       final List<ApiChatSummary>? merged = _adoptSnapshot(chats, seq, requestedAt);
       if (merged == null) {
@@ -3806,6 +3813,12 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
         }
       }
 
+      if (uploadId != null &&
+          e2eeFileKey != null &&
+          !isE2ee &&
+          chat?.isSecret != true) {
+        throw StateError('E2EE file upload aborted without E2EE envelope');
+      }
       if (!deliveryActive()) return;
       // Persist the prepared envelope too: own echo reconciliation must match
       // the exact encrypted operation while retaining the original local text.

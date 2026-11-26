@@ -154,7 +154,16 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         return;
       }
       final List<int> bytes;
-      if (current.filePath != null && current.filePath!.isNotEmpty) {
+      final Uint8List? e2eeKey = _fileKey(current.e2eeFileKey);
+      if (e2eeKey != null) {
+        bytes = await WsMediaFetcher.fetchAndDecryptMedia(
+          filePath: (current.filePath != null && current.filePath!.isNotEmpty)
+              ? current.filePath!
+              : current.url,
+          wsClient: ref.read(webSocketClientProvider),
+          e2eeFileKey: e2eeKey,
+        );
+      } else if (current.filePath != null && current.filePath!.isNotEmpty) {
         bytes = await ref.read(chatRepositoryProvider).downloadMedia(current.filePath!);
       } else {
         bytes = await ref.read(chatRepositoryProvider).downloadMedia(current.url);
@@ -495,7 +504,16 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
         return;
       }
       final List<int> bytes;
-      if (current.filePath != null && current.filePath!.isNotEmpty) {
+      final Uint8List? e2eeKey = _fileKey(current.e2eeFileKey);
+      if (e2eeKey != null) {
+        bytes = await WsMediaFetcher.fetchAndDecryptMedia(
+          filePath: (current.filePath != null && current.filePath!.isNotEmpty)
+              ? current.filePath!
+              : current.url,
+          wsClient: ref.read(webSocketClientProvider),
+          e2eeFileKey: e2eeKey,
+        );
+      } else if (current.filePath != null && current.filePath!.isNotEmpty) {
         bytes = await ref
             .read(chatRepositoryProvider)
             .downloadMedia(current.filePath!);

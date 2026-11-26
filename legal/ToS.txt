@@ -68,7 +68,7 @@ Accounts may not be sold, rented, traded or transferred without the Administrati
 
 ### 2.5. Bots
 
-A bot is an automated account created through the Bot API. The person who created a bot is responsible for it and for everything it does. Bots do not have NiosGram profiles. See Section 9 for bot rules.
+An official bot is an automated account created through **@BotCreator** and the official Bot API. The person who created a bot is responsible for it and for everything it does. Bots do not have NiosGram profiles. See Section 7 for official bot rules. Running automated scripts, custom clients or "UserBots" on regular human user accounts is strictly prohibited.
 
 ## 3. ACCEPTABLE USE
 
@@ -92,7 +92,7 @@ You may use NiosMess only for lawful purposes and in accordance with these Terms
 
 **Intellectual property violations.** Distribute content that infringes copyright, trademarks or trade secrets without authorization. This includes custom emoji, stickers and images you do not have the right to use.
 
-**Automated abuse.** Use bots, scripts or scrapers to collect user data without authorization, inflate reactions, views, comments or subscriptions, create accounts in bulk, generate abusive traffic, or interfere with normal operation. Automation that NiosMess explicitly supports, such as the Bot API used according to Section 9, is permitted.
+**Automated abuse, UserBots and Surveillance Scraping.** Use UserBots, self-bots, unofficial automated clients or scripts to control human accounts automatically, collect user data or public channel/group member lists without authorization, run passive or active monitoring systems that track user presence, subscriptions or messages across public channels or groups for deanonymization, profiling or third-party surveillance, inflate reactions, views, comments or subscriptions, create accounts in bulk, generate abusive traffic, or interfere with normal operation. Automation is permitted **only** via official bots registered through **@BotCreator** and operated through the official Bot API under Section 7.
 
 Good-faith security research authorized by the Administration is not a violation only because it involves security testing (see Section 14).
 
@@ -172,10 +172,11 @@ NiosAI Lite is a NiosMess assistant. It is not a human and does not speak for th
 
 ## 7. BOTS AND THE BOT API
 
-Developers may create bots through the Bot API (commands, inline keyboards, callback and colored buttons, message sending). Bot developers must:
+Developers may create **official bots only through @BotCreator** and the official Bot API (commands, inline keyboards, callback and colored buttons, message sending). Automated control of non-bot human accounts ("UserBots") is prohibited under Section 2.5 and Section 3 and will result in automated throttling, Spamblock, or account freeze/termination. Bot developers must:
 
 - clearly identify bots as bots and not impersonate people, NiosMess staff or other services;
-- not use bots for spam, scraping, credential collection, phishing, malware distribution or any activity prohibited in Section 3;
+- create bots solely through **@BotCreator** and use the official Bot API rather than human user sessions;
+- not use bots for spam, channel/member scraping, user deanonymization or surveillance tracking, credential collection, phishing, malware distribution or any activity prohibited in Section 3;
 - respect rate limits and not overload the Service;
 - protect their bot tokens and are responsible for any use of a leaked token;
 - collect and use User data only as needed for the bot's function and in accordance with applicable law.

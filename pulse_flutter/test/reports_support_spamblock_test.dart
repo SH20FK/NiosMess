@@ -195,6 +195,78 @@ void main() {
       expect(tickets[0].ticketType, 'support');
       expect(tickets[1].ticketType, 'copyright');
     });
+
+    test('Threaded SupportRepository actions & clearSpamBlock copyWith', () async {
+      final repo = container.read(supportRepositoryProvider);
+
+      mockWs.mockResponse = {
+        'spam_block': {
+          'is_blocked': true,
+          'reason': 'Automated abuse',
+          'source': 'anti_userbot',
+          'can_appeal': true,
+        },
+        'open_tickets_count': 1,
+        'unread_support_count': 1,
+      };
+      final overview = await repo.getStatus();
+      expect(mockWs.lastAction, 'support_get_status');
+      expect(overview.spamBlock.isBlocked, isTrue);
+      expect(overview.spamBlock.canAppeal, isTrue);
+      expect(overview.openTicketsCount, 1);
+
+      mockWs.mockResponse = {
+        'ticket': {
+          'id': 77,
+          'ticket_type': 'spam_appeal',
+          'category': 'spam_appeal',
+          'subject': 'Spam-Block Appeal',
+          'body': 'Appeal details here',
+          'status': 'open',
+          'messages': [
+            {
+              'id': 1,
+              'ticket_id': 77,
+              'sender_role': 'user',
+              'body': 'Appeal details here',
+            },
+            {
+              'id': 2,
+              'ticket_id': 77,
+              'sender_role': 'support',
+              'body': 'Reviewed and cleared',
+            },
+          ],
+        },
+      };
+      final appeal = await repo.submitSpamAppeal('Appeal details here');
+      expect(mockWs.lastAction, 'submit_spam_appeal');
+      expect(appeal?.isSpamAppeal, isTrue);
+      expect(appeal?.messages.length, 2);
+      expect(appeal?.messages[1].isSupport, isTrue);
+
+      await repo.replyTicket(77, 'Thank you!');
+      expect(mockWs.lastAction, 'reply_support_ticket');
+      expect(mockWs.lastPayload?['ticket_id'], 77);
+
+      await repo.closeTicket(77);
+      expect(mockWs.lastAction, 'close_support_ticket');
+
+      final blocked = ApiProfile(
+        id: 50,
+        username: 'tester',
+        displayName: 'Tester',
+        bio: '',
+        spamBlock: true,
+        spamBlockUntil: DateTime.now().add(const Duration(hours: 2)),
+        spamBlockReason: 'Spam test',
+      );
+      expect(blocked.isRestrictedBySpamBlock, isTrue);
+      final cleared = blocked.copyWith(clearSpamBlock: true);
+      expect(cleared.isRestrictedBySpamBlock, isFalse);
+      expect(cleared.spamBlockUntil, isNull);
+      expect(cleared.spamBlockReason, isNull);
+    });
   });
 
   group('Milestone 5: SpamBlockBanner Widget', () {

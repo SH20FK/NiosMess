@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:uuid/uuid.dart';
+import 'package:pulse_flutter/core/constants/build_info.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -255,6 +256,22 @@ class WebSocketClient {
     }),
   );
 
+  void _sendClientHello() {
+    try {
+      sendRaw(
+        jsonEncode(<String, dynamic>{
+          'action': 'client_hello',
+          'payload': <String, dynamic>{
+            'app': 'niosmess',
+            'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
+            'version': BuildInfo.version,
+            'build_number': BuildInfo.buildNumber,
+          },
+        }),
+      );
+    } catch (_) {}
+  }
+
   void _stopHeartbeat() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
@@ -440,6 +457,7 @@ class WebSocketClient {
           _reconnectAttempts = 0;
           _startHeartbeat();
           debugPrint('[WebSocketClient] Key exchange complete ✓');
+          _sendClientHello();
           if (_connectionReadyCompleter != null &&
               !_connectionReadyCompleter!.isCompleted) {
             _connectionReadyCompleter!.complete();

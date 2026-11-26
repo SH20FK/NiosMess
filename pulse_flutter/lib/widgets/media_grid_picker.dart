@@ -492,6 +492,22 @@ class _MediaGridPickerState extends State<MediaGridPicker>
     Navigator.of(context).pop(resultList);
   }
 
+  static String _resolvePickedFilename(AssetEntity asset, File file) {
+    final String? title = asset.title?.trim();
+    String raw = (title != null && title.isNotEmpty)
+        ? title
+        : file.path.split('/').last.split('\\').last;
+    if (asset.type == AssetType.video) {
+      if (!raw.contains('.')) {
+        return 'video_${asset.id}.mp4';
+      }
+      if (raw.toLowerCase().endsWith('.temp')) {
+        return '${raw.substring(0, raw.length - 5)}.mp4';
+      }
+    }
+    return raw;
+  }
+
   Future<void> _openMediaPreview(int initialIndex) async {
     HapticService.tap();
     await Navigator.of(context).push<void>(
@@ -503,14 +519,13 @@ class _MediaGridPickerState extends State<MediaGridPicker>
           onToggleSelection: _toggleSelection,
           onSendDirect:
               (AssetEntity asset, String caption, bool asDocument) async {
-                File? file = await asset.file;
-                file ??= await asset.originFile;
+                File? file = asset.type == AssetType.video
+                    ? (await asset.originFile ?? await asset.file)
+                    : (await asset.file ?? await asset.originFile);
                 if (file == null || !mounted) return;
                 final MediaGridPickerResult result = MediaGridPickerResult(
                   filePath: file.path,
-                  fileName: (asset.title != null && asset.title!.isNotEmpty)
-                      ? asset.title!
-                      : file.path.split('/').last.split('\\').last,
+                  fileName: _resolvePickedFilename(asset, file),
                   fileSize: await file.length(),
                   caption: caption.isNotEmpty ? caption : null,
                   sendAsDocument: asDocument,
@@ -543,15 +558,14 @@ class _MediaGridPickerState extends State<MediaGridPicker>
     final List<MediaGridPickerResult> results = <MediaGridPickerResult>[];
 
     for (final AssetEntity asset in selected) {
-      File? file = await asset.file;
-      file ??= await asset.originFile;
+      File? file = asset.type == AssetType.video
+          ? (await asset.originFile ?? await asset.file)
+          : (await asset.file ?? await asset.originFile);
       if (file == null) continue;
       results.add(
         MediaGridPickerResult(
           filePath: file.path,
-          fileName: (asset.title != null && asset.title!.isNotEmpty)
-              ? asset.title!
-              : file.path.split('/').last.split('\\').last,
+          fileName: _resolvePickedFilename(asset, file),
           fileSize: await file.length(),
           caption: caption,
           sendAsDocument: _sendAsDocument,

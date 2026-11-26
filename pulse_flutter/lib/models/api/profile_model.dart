@@ -249,6 +249,7 @@ class ApiProfile {
     bool? spamBlock,
     DateTime? spamBlockUntil,
     String? spamBlockReason,
+    bool clearSpamBlock = false,
     List<ApiBadge>? badges,
     DateTime? createdAt,
     String? phoneNumber,
@@ -269,9 +270,11 @@ class ApiProfile {
       displayName: displayName ?? this.displayName,
       bio: bio ?? this.bio,
       avatarUrl: avatarUrl ?? this.avatarUrl,
-      spamBlock: spamBlock ?? this.spamBlock,
-      spamBlockUntil: spamBlockUntil ?? this.spamBlockUntil,
-      spamBlockReason: spamBlockReason ?? this.spamBlockReason,
+      spamBlock: clearSpamBlock ? false : (spamBlock ?? this.spamBlock),
+      spamBlockUntil:
+          clearSpamBlock ? null : (spamBlockUntil ?? this.spamBlockUntil),
+      spamBlockReason:
+          clearSpamBlock ? null : (spamBlockReason ?? this.spamBlockReason),
       badges: badges ?? this.badges,
       createdAt: createdAt ?? this.createdAt,
       phoneNumber: phoneNumber ?? this.phoneNumber,

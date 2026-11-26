@@ -261,7 +261,7 @@ class _HelpFaqScreenState extends ConsumerState<HelpFaqScreen> {
           FilledButton.tonal(
             onPressed: () {
               HapticService.tap();
-              context.push('/chat/direct/support');
+              context.push('/support');
             },
             child: Text(context.l10n.commonContinue),
           ),

@@ -10,7 +10,7 @@ import 'package:universal_io/io.dart';
 abstract final class E2eeStreamingFileCipher {
   static const nonceBytes = 12;
   static const macBytes = 16;
-  static const chunkBytes = 64 * 1024;
+  static const chunkBytes = 256 * 1024;
 
   // PointyCastle 4.0.0 GCM.doFinal stores only the low uint32 of the bit length.
   // At 2^29 bytes that wraps. Keep larger legacy files on cryptography's correct

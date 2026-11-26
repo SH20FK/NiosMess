@@ -36,6 +36,8 @@ import 'package:pulse_flutter/screens/settings_password_screen.dart';
 import 'package:pulse_flutter/features/account_deletion/presentation/account_deletion_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/screens/help_faq_screen.dart';
+import 'package:pulse_flutter/screens/support_center_screen.dart';
+import 'package:pulse_flutter/screens/support_ticket_detail_screen.dart';
 import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
 import 'package:pulse_flutter/screens/legal_viewer_screen.dart';
 import 'package:pulse_flutter/screens/native_file_viewer_screen.dart';
@@ -392,7 +394,24 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       ),
       GoRoute(
         path: '/chat/support',
-        redirect: (context, state) => '/profile/support',
+        redirect: (context, state) => '/support',
+      ),
+      GoRoute(
+        path: '/support',
+        pageBuilder: (context, state) =>
+            _page(state, const SupportCenterScreen(), pageKey: state.pageKey),
+      ),
+      GoRoute(
+        path: '/support/:ticketId',
+        pageBuilder: (context, state) {
+          final int ticketId =
+              int.tryParse(state.pathParameters['ticketId'] ?? '') ?? 0;
+          return _page(
+            state,
+            SupportTicketDetailScreen(ticketId: ticketId),
+            pageKey: state.pageKey,
+          );
+        },
       ),
       GoRoute(
         path: '/media-viewer',

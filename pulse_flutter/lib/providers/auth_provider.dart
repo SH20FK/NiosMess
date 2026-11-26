@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/utils/server_time.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/providers/call_incoming_provider.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
@@ -119,6 +120,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
   StreamSubscription<String>? _fcmTokenRefreshSubscription;
   StreamSubscription<void>? _wsConnectedSubscription;
+  StreamSubscription<Map<String, dynamic>>? _wsPushSubscription;
 
   @override
   AuthState build() {
@@ -128,11 +130,37 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     });
     final epoch = ++_authEpoch;
+    _wsPushSubscription = ref.read(webSocketClientProvider).pushStream.listen((
+      Map<String, dynamic> event,
+    ) {
+      if (!_current(epoch) || !state.isAuthenticated) return;
+      final dynamic kind = event['action'] ?? event['event'];
+      if (kind == 'spam_block_changed' &&
+          event['payload'] is Map &&
+          state.profile != null) {
+        final raw = (event['payload'] as Map).map(
+          (dynamic k, dynamic v) => MapEntry(k.toString(), v),
+        );
+        final bool blocked = raw['is_blocked'] as bool? ?? false;
+        final DateTime? until = parseServerUtc(raw['blocked_until']);
+        final String? reason = raw['reason'] as String?;
+        final ApiProfile updated = blocked
+            ? state.profile!.copyWith(
+                spamBlock: true,
+                spamBlockUntil: until,
+                spamBlockReason: reason,
+              )
+            : state.profile!.copyWith(clearSpamBlock: true);
+        state = state.copyWith(profile: updated);
+        ref.read(cacheServiceProvider).saveProfile(updated);
+      }
+    });
     _loadFuture = _load(epoch);
     ref.onDispose(() {
       _authEpoch++;
       _fcmTokenRefreshSubscription?.cancel();
       _wsConnectedSubscription?.cancel();
+      _wsPushSubscription?.cancel();
     });
     return const AuthState.initial();
   }
@@ -621,6 +649,8 @@ class AuthNotifier extends Notifier<AuthState> {
         _fcmTokenRefreshSubscription = null;
         await _wsConnectedSubscription?.cancel();
         _wsConnectedSubscription = null;
+        await _wsPushSubscription?.cancel();
+        _wsPushSubscription = null;
       });
       await attempt(() async {
         if (ref.mounted) ref.read(webSocketClientProvider).disconnect();

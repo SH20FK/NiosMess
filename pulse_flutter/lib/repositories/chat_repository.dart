@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:universal_io/io.dart';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -17,9 +18,6 @@ import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/invite_models.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
 import 'package:pulse_flutter/models/api/upload_models.dart';
-import 'package:pulse_flutter/models/blob_store_models.dart';
-import 'package:pulse_flutter/services/blob_hasher.dart';
-import 'package:pulse_flutter/services/blob_store_service.dart';
 import 'package:pulse_flutter/services/public_media_upload_service.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 
@@ -482,6 +480,8 @@ class ChatRepository {
     }
   }
 
+  static const int _parallelThresholdBytes = 4 * 1024 * 1024;
+
   Future<String> uploadStreamInChunks({
     Uint8List? bytes,
     String? filePath,
@@ -494,7 +494,10 @@ class ChatRepository {
     String? localId,
   }) async {
     cancellationToken?.throwIfCancelled();
-    if (fileSize <= 0 && (bytes == null || bytes.isEmpty)) {
+    final int actualSize = (filePath != null && filePath.isNotEmpty)
+        ? await File(filePath).length()
+        : (bytes?.length ?? fileSize);
+    if (actualSize <= 0) {
       throw Exception('File is empty');
     }
 
@@ -509,18 +512,52 @@ class ChatRepository {
         ? mediaSubtype
         : 'media';
 
-    // 1. Try modern Content-Addressed Storage (NiosBlobStore) with instant dedup
+    if (actualSize <= _parallelThresholdBytes) {
+      try {
+        return await _httpMultipartUpload(
+          bytes: bytes,
+          filePath: filePath,
+          filename: filename,
+          mediaSubtype: serverSubtype,
+          fileSize: actualSize,
+          token: token,
+          onProgress: onProgress,
+          onStageChanged: onStageChanged,
+          cancellationToken: cancellationToken,
+          localId: localId,
+        );
+      } catch (e) {
+        if (cancellationToken?.isCancelled == true ||
+            e is UploadCancelledException) {
+          throw const UploadCancelledException();
+        }
+        debugPrint(
+          '[chat_repository] Fast HTTP upload failed ($e), falling back to WS chunked upload...',
+        );
+        return await _wsChunkedUpload(
+          bytes: bytes,
+          filePath: filePath,
+          filename: filename,
+          mediaSubtype: serverSubtype,
+          fileSize: actualSize,
+          onProgress: onProgress,
+          onStageChanged: onStageChanged,
+          cancellationToken: cancellationToken,
+        );
+      }
+    }
+
     try {
-      return await _blobStoreUpload(
+      return await _parallelBinaryUpload(
         bytes: bytes,
         filePath: filePath,
         filename: filename,
         mediaSubtype: serverSubtype,
-        fileSize: fileSize,
+        fileSize: actualSize,
+        token: token,
         onProgress: onProgress,
         onStageChanged: onStageChanged,
         cancellationToken: cancellationToken,
-        localId: localId,
       );
     } catch (e) {
       if (cancellationToken?.isCancelled == true ||
@@ -528,7 +565,7 @@ class ChatRepository {
         throw const UploadCancelledException();
       }
       debugPrint(
-        '[chat_repository] BlobStore CAS upload failed ($e), falling back to HTTP multipart...',
+        '[chat_repository] Parallel upload failed ($e), falling back to single HTTP upload...',
       );
       try {
         return await _httpMultipartUpload(
@@ -536,7 +573,7 @@ class ChatRepository {
           filePath: filePath,
           filename: filename,
           mediaSubtype: serverSubtype,
-          fileSize: fileSize,
+          fileSize: actualSize,
           token: token,
           onProgress: onProgress,
           onStageChanged: onStageChanged,
@@ -549,14 +586,14 @@ class ChatRepository {
           throw const UploadCancelledException();
         }
         debugPrint(
-          '[chat_repository] HTTP upload failed ($e2), falling back to WS chunked upload...',
+          '[chat_repository] HTTP fallback failed ($e2), falling back to WS chunked upload...',
         );
         return await _wsChunkedUpload(
           bytes: bytes,
           filePath: filePath,
           filename: filename,
           mediaSubtype: serverSubtype,
-          fileSize: fileSize,
+          fileSize: actualSize,
           onProgress: onProgress,
           onStageChanged: onStageChanged,
           cancellationToken: cancellationToken,
@@ -565,140 +602,181 @@ class ChatRepository {
     }
   }
 
-  Future<String> _blobStoreUpload({
+  Future<String> _parallelBinaryUpload({
     Uint8List? bytes,
     String? filePath,
     required String filename,
     required String mediaSubtype,
     required int fileSize,
+    required String token,
     required void Function(int sent, int total) onProgress,
     void Function(UploadStage stage)? onStageChanged,
     CancellationToken? cancellationToken,
-    String? localId,
   }) async {
     cancellationToken?.throwIfCancelled();
     final releaseWork = BackgroundService.retainWork();
-    RandomAccessFile? uploadFile;
+    final client = http.Client();
+    void cancelHandler() => client.close();
+    cancellationToken?.addListener(cancelHandler);
+    RandomAccessFile? raf;
     try {
-      onStageChanged?.call(UploadStage.hashing);
-
-      // 1. Fast streaming SHA-256 in background Isolate
-      final BlobHashResult hashResult = await BlobHasher.hashFile(
-        filePath: filePath,
-        bytes: bytes,
-      );
-      cancellationToken?.throwIfCancelled();
-
-      final BlobStoreService blobService = _ref.read(blobStoreServiceProvider);
-
-      // 2. Client-side deduplication check
       onStageChanged?.call(UploadStage.checking);
-      final BlobCheckResult check = await blobService.checkDedup(
-        BlobCheckRequest(
-          contentHash: hashResult.contentHash,
-          size: hashResult.fileSize,
-          mimeType: _guessMime(filename),
-          chunkSize: hashResult.chunkSize,
-          chunkCount: hashResult.chunkCount,
-        ),
-      );
+      final initResp = await client
+          .post(
+            Uri.parse('${ApiConstants.origin}/api/files/uploads/init'),
+            headers: <String, String>{
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(<String, dynamic>{
+              'filename': filename,
+              'file_size': fileSize,
+              'media_subtype': mediaSubtype,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
       cancellationToken?.throwIfCancelled();
+      if (initResp.statusCode != 200) {
+        throw Exception(
+          'Parallel init failed: ${initResp.statusCode} ${initResp.body}',
+        );
+      }
+      final initJson = jsonDecode(initResp.body) as Map<String, dynamic>;
+      final String uploadId = initJson['upload_id'] as String;
+      final int chunkSize = initJson['chunk_size'] as int? ?? (2 * 1024 * 1024);
+      final int totalChunks =
+          initJson['total_chunks'] as int? ?? ((fileSize + chunkSize - 1) ~/ chunkSize);
+      final int concurrency =
+          (initJson['max_concurrency'] as int? ?? 4).clamp(1, 4);
 
-      // Instant deduplication hit!
-      if (check.alreadyExists && check.status == 'ready') {
-        onProgress(hashResult.fileSize, hashResult.fileSize);
-        onStageChanged?.call(UploadStage.processing);
-        return check.blobId;
+      if (filePath != null && filePath.isNotEmpty) {
+        raf = await File(filePath).open(mode: FileMode.read);
+      } else if (bytes == null || bytes.isEmpty) {
+        throw Exception('No file path or bytes provided');
       }
 
-      // 3. Resumable chunked upload
       onStageChanged?.call(UploadStage.uploading);
-      final List<int> missing = check.missingChunks;
-      int bytesUploaded =
-          (hashResult.chunkCount - missing.length) * hashResult.chunkSize;
-      if (bytesUploaded > hashResult.fileSize) {
-        bytesUploaded = hashResult.fileSize;
-      }
-      onProgress(bytesUploaded, hashResult.fileSize);
+      onProgress(0, fileSize);
 
-      uploadFile = filePath != null && filePath.isNotEmpty
-          ? await File(filePath).open(mode: FileMode.read)
-          : null;
-      for (final int chunkIdx in missing) {
-        cancellationToken?.throwIfCancelled();
-        final Uint8List chunkData = await BlobStoreService.sliceChunkBytes(
-          filePath: filePath,
-          bytes: bytes,
-          chunkIndex: chunkIdx,
-          chunkSize: hashResult.chunkSize,
-          totalSize: hashResult.fileSize,
-          fileHandle: uploadFile,
-        );
+      int nextIdx = 0;
+      int sentBytes = 0;
+      bool readLocked = false;
+      final List<Completer<void>> readWaiters = <Completer<void>>[];
 
-        final String? chunkHash = chunkIdx < hashResult.chunkHashes.length
-            ? hashResult.chunkHashes[chunkIdx]
-            : null;
-
-        await blobService.uploadChunk(
-          blobId: check.blobId,
-          chunkIndex: chunkIdx,
-          bytes: chunkData,
-          chunkHash: chunkHash,
-          cancellationToken: cancellationToken,
-        );
-
-        bytesUploaded += chunkData.length;
-        if (bytesUploaded > hashResult.fileSize) {
-          bytesUploaded = hashResult.fileSize;
+      Future<Uint8List> readSlice(int offset, int len) async {
+        if (bytes != null && raf == null) {
+          return Uint8List.sublistView(bytes, offset, offset + len);
         }
-        onProgress(bytesUploaded, hashResult.fileSize);
+        while (readLocked) {
+          final c = Completer<void>();
+          readWaiters.add(c);
+          await c.future;
+        }
+        readLocked = true;
+        try {
+          final rafHandle = raf!;
+          await rafHandle.setPosition(offset);
+          final Uint8List buf = Uint8List(len);
+          int pos = 0;
+          while (pos < len) {
+            final int n = await rafHandle.readInto(buf, pos, len);
+            if (n <= 0) {
+              throw Exception('Unexpected EOF slicing chunk');
+            }
+            pos += n;
+          }
+          return buf;
+        } finally {
+          readLocked = false;
+          if (readWaiters.isNotEmpty) {
+            readWaiters.removeAt(0).complete();
+          }
+        }
       }
-      // 4. Finalize & assemble CAS blob on server
-      onStageChanged?.call(UploadStage.processing);
-      final BlobCommitResult commit = await blobService.commitBlob(
-        blobId: check.blobId,
-        cancellationToken: cancellationToken,
+
+      Future<void> worker() async {
+        while (true) {
+          cancellationToken?.throwIfCancelled();
+          final int idx = nextIdx;
+          if (idx >= totalChunks) return;
+          nextIdx++;
+
+          final int offset = idx * chunkSize;
+          final int len = (offset + chunkSize > fileSize)
+              ? (fileSize - offset)
+              : chunkSize;
+          final Uint8List slice = await readSlice(offset, len);
+          final String shaHex = crypto.sha256.convert(slice).toString();
+
+          int attempt = 0;
+          while (true) {
+            cancellationToken?.throwIfCancelled();
+            try {
+              final resp = await client
+                  .put(
+                    Uri.parse(
+                      '${ApiConstants.origin}/api/files/uploads/$uploadId/chunks/$idx',
+                    ),
+                    headers: <String, String>{
+                      'Authorization': 'Bearer $token',
+                      'Content-Type': 'application/octet-stream',
+                      'X-Chunk-SHA256': shaHex,
+                    },
+                    body: slice,
+                  )
+                  .timeout(const Duration(seconds: 60));
+              if (resp.statusCode != 200) {
+                throw Exception(
+                  'Chunk $idx failed (${resp.statusCode}): ${resp.body}',
+                );
+              }
+              break;
+            } catch (err) {
+              if (cancellationToken?.isCancelled == true) {
+                throw const UploadCancelledException();
+              }
+              attempt++;
+              if (attempt >= 3) rethrow;
+              await Future<void>.delayed(Duration(milliseconds: 250 * attempt));
+            }
+          }
+
+          sentBytes += len;
+          if (sentBytes > fileSize) sentBytes = fileSize;
+          onProgress(sentBytes, fileSize);
+        }
+      }
+
+      await Future.wait(
+        List<Future<void>>.generate(concurrency, (_) => worker()),
       );
 
-      return commit.blobId;
-    } finally {
-      try {
-        await uploadFile?.close();
-      } finally {
-        releaseWork();
-      }
-    }
-  }
+      cancellationToken?.throwIfCancelled();
+      onStageChanged?.call(UploadStage.processing);
+      final completeResp = await client
+          .post(
+            Uri.parse(
+              '${ApiConstants.origin}/api/files/uploads/$uploadId/complete',
+            ),
+            headers: <String, String>{'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 30));
 
-  static String _guessMime(String filename) {
-    final String ext = filename.split('.').last.toLowerCase();
-    switch (ext) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'webp':
-        return 'image/webp';
-      case 'gif':
-        return 'image/gif';
-      case 'mp4':
-        return 'video/mp4';
-      case 'mov':
-        return 'video/quicktime';
-      case 'mp3':
-        return 'audio/mpeg';
-      case 'ogg':
-      case 'opus':
-        return 'audio/ogg';
-      case 'pdf':
-        return 'application/pdf';
-      case 'zip':
-        return 'application/zip';
-      case 'txt':
-        return 'text/plain';
-      default:
-        return 'application/octet-stream';
+      if (completeResp.statusCode != 200) {
+        throw Exception(
+          'Upload complete failed (${completeResp.statusCode}): ${completeResp.body}',
+        );
+      }
+      onProgress(fileSize, fileSize);
+      return uploadId;
+    } finally {
+      cancellationToken?.removeListener(cancelHandler);
+      try {
+        await raf?.close();
+      } catch (_) {}
+      client.close();
+      releaseWork();
     }
   }
 
@@ -721,13 +799,33 @@ class ChatRepository {
     final size = filePath != null && filePath.isNotEmpty
         ? await File(filePath).length()
         : bytes!.length;
+    final cleanSubtype = (mediaSubtype == 'voice' || mediaSubtype == 'circle')
+        ? mediaSubtype
+        : 'media';
+    if (size > _parallelThresholdBytes) {
+      try {
+        return await _parallelBinaryUpload(
+          bytes: bytes,
+          filePath: filePath,
+          filename: 'encrypted.bin',
+          mediaSubtype: cleanSubtype,
+          fileSize: size,
+          token: token,
+          cancellationToken: cancellationToken,
+          onProgress: (sent, total) {},
+        );
+      } catch (e) {
+        if (cancellationToken?.isCancelled == true ||
+            e is UploadCancelledException) {
+          throw const UploadCancelledException();
+        }
+      }
+    }
     return _httpMultipartUpload(
       bytes: bytes,
       filePath: filePath,
       filename: 'encrypted.bin',
-      mediaSubtype: (mediaSubtype == 'voice' || mediaSubtype == 'circle')
-          ? mediaSubtype
-          : 'media',
+      mediaSubtype: cleanSubtype,
       fileSize: size,
       token: token,
       localId: localId,
@@ -912,57 +1010,82 @@ class ChatRepository {
     CancellationToken? cancellationToken,
   }) async {
     cancellationToken?.throwIfCancelled();
-    final Uint8List fileBytes;
-    if (bytes != null && bytes.isNotEmpty) {
-      fileBytes = bytes;
-    } else if (filePath != null && filePath.isNotEmpty) {
+    RandomAccessFile? raf;
+    final int actualFileSize;
+    if (filePath != null && filePath.isNotEmpty) {
       final File file = File(filePath);
-      if (await file.exists()) {
-        fileBytes = await file.readAsBytes();
-      } else {
+      if (!await file.exists()) {
         throw Exception('File does not exist: $filePath');
       }
+      actualFileSize = await file.length();
+      raf = await file.open(mode: FileMode.read);
+    } else if (bytes != null && bytes.isNotEmpty) {
+      actualFileSize = bytes.length;
     } else {
       throw Exception('No file path or bytes provided for upload');
     }
 
-    cancellationToken?.throwIfCancelled();
-    final int actualFileSize = fileBytes.length;
-    if (actualFileSize <= 0) {
-      throw Exception('File data is empty');
-    }
-
-    const int chunkSize = 256 * 1024; // 256 KiB
-    final int totalChunks = (actualFileSize / chunkSize).ceil();
-
-    final UploadInitResult init = await initUpload(
-      filename: filename,
-      totalChunks: totalChunks,
-      fileSize: actualFileSize,
-      mediaSubtype: mediaSubtype,
-    );
-    cancellationToken?.throwIfCancelled();
-
-    for (int i = 0; i < totalChunks; i++) {
+    try {
       cancellationToken?.throwIfCancelled();
-      final int start = i * chunkSize;
-      final int end = (start + chunkSize > actualFileSize)
-          ? actualFileSize
-          : start + chunkSize;
-      final List<int> chunk = fileBytes.sublist(start, end);
-      await uploadChunk(
-        uploadId: init.uploadId,
-        chunkIndex: i,
-        chunk: chunk,
+      if (actualFileSize <= 0) {
+        throw Exception('File data is empty');
+      }
+
+      const int requestChunkSize = 256 * 1024;
+      final int initialChunks = (actualFileSize / requestChunkSize).ceil();
+
+      final UploadInitResult init = await initUpload(
         filename: filename,
+        totalChunks: initialChunks,
+        fileSize: actualFileSize,
+        mediaSubtype: mediaSubtype,
       );
       cancellationToken?.throwIfCancelled();
-      onProgress(end, actualFileSize);
-    }
 
-    onStageChanged?.call(UploadStage.processing);
-    onProgress(actualFileSize, actualFileSize);
-    return init.uploadId;
+      final int chunkSize = init.chunkSize > 0
+          ? init.chunkSize
+          : requestChunkSize;
+      final int totalChunks = (actualFileSize / chunkSize).ceil();
+
+      for (int i = 0; i < totalChunks; i++) {
+        cancellationToken?.throwIfCancelled();
+        final int start = i * chunkSize;
+        final int end = (start + chunkSize > actualFileSize)
+            ? actualFileSize
+            : start + chunkSize;
+        final int len = end - start;
+        final List<int> chunk;
+        if (raf != null) {
+          await raf.setPosition(start);
+          final Uint8List buf = Uint8List(len);
+          int pos = 0;
+          while (pos < len) {
+            final int n = await raf.readInto(buf, pos, len);
+            if (n <= 0) throw Exception('Unexpected EOF during WS upload');
+            pos += n;
+          }
+          chunk = buf;
+        } else {
+          chunk = Uint8List.sublistView(bytes!, start, end);
+        }
+        await uploadChunk(
+          uploadId: init.uploadId,
+          chunkIndex: i,
+          chunk: chunk,
+          filename: filename,
+        );
+        cancellationToken?.throwIfCancelled();
+        onProgress(end, actualFileSize);
+      }
+
+      onStageChanged?.call(UploadStage.processing);
+      onProgress(actualFileSize, actualFileSize);
+      return init.uploadId;
+    } finally {
+      try {
+        await raf?.close();
+      } catch (_) {}
+    }
   }
 
   Future<ApiMessage?> editMessage(

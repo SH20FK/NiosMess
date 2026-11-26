@@ -35,7 +35,7 @@ class PublicMediaUploadService {
               Uri.parse('${ApiConstants.origin}/api/files/upload'),
               abortTrigger: abort.future,
             )
-            ..fields['token'] = token
+            ..headers['Authorization'] = 'Bearer $token'
             ..fields['media_subtype'] = 'media'
             ..files.add(
               http.MultipartFile.fromBytes('file', bytes, filename: filename),
