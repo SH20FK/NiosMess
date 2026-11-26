@@ -636,6 +636,7 @@ class ChatRepository {
               'filename': filename,
               'file_size': fileSize,
               'media_subtype': mediaSubtype,
+              'chunk_size': 1024 * 1024,
             }),
           )
           .timeout(const Duration(seconds: 30));
@@ -716,27 +717,69 @@ class ChatRepository {
           int attempt = 0;
           while (true) {
             cancellationToken?.throwIfCancelled();
+            int chunkStreamed = 0;
             try {
-              final resp = await client
-                  .put(
-                    Uri.parse(
-                      '${ApiConstants.origin}/api/files/uploads/$uploadId/chunks/$idx',
-                    ),
-                    headers: <String, String>{
-                      'Authorization': 'Bearer $token',
-                      'Content-Type': 'application/octet-stream',
-                      'X-Chunk-SHA256': shaHex,
+              final chunkUri = Uri.parse(
+                '${ApiConstants.origin}/api/files/uploads/$uploadId/chunks/$idx',
+              );
+              final req = http.StreamedRequest('PUT', chunkUri);
+              req.headers['Authorization'] = 'Bearer $token';
+              req.headers['Content-Type'] = 'application/octet-stream';
+              req.headers['X-Chunk-SHA256'] = shaHex;
+              req.contentLength = slice.length;
+
+              const int streamSlice = 65536;
+              Object? earlyErr;
+              StackTrace? earlySt;
+              final futureResp = client
+                  .send(req)
+                  .timeout(const Duration(seconds: 60))
+                  .then<http.StreamedResponse?>(
+                    (r) => r,
+                    onError: (Object e, StackTrace st) {
+                      earlyErr = e;
+                      earlySt = st;
+                      return null;
                     },
-                    body: slice,
-                  )
-                  .timeout(const Duration(seconds: 60));
-              if (resp.statusCode != 200) {
+                  );
+              for (int pos = 0; pos < slice.length; pos += streamSlice) {
+                if (earlyErr != null) {
+                  Error.throwWithStackTrace(earlyErr!, earlySt!);
+                }
+                cancellationToken?.throwIfCancelled();
+                final int end = (pos + streamSlice > slice.length)
+                    ? slice.length
+                    : pos + streamSlice;
+                final part = Uint8List.sublistView(slice, pos, end);
+                req.sink.add(part);
+                chunkStreamed += part.length;
+                sentBytes += part.length;
+                if (sentBytes > fileSize) sentBytes = fileSize;
+                onProgress(sentBytes, fileSize);
+                if (end < slice.length) {
+                  await Future<void>.delayed(Duration.zero);
+                }
+              }
+              await req.sink.close();
+              final streamedResp = await futureResp;
+              if (earlyErr != null) {
+                Error.throwWithStackTrace(earlyErr!, earlySt!);
+              }
+              if (streamedResp == null) {
+                throw Exception('Chunk $idx failed: no response');
+              }
+              final respBody = await streamedResp.stream.bytesToString();
+              if (streamedResp.statusCode != 200) {
                 throw Exception(
-                  'Chunk $idx failed (${resp.statusCode}): ${resp.body}',
+                  'Chunk $idx failed (${streamedResp.statusCode}): $respBody',
                 );
               }
               break;
             } catch (err) {
+              if (chunkStreamed > 0) {
+                sentBytes = (sentBytes - chunkStreamed).clamp(0, fileSize);
+                onProgress(sentBytes, fileSize);
+              }
               if (cancellationToken?.isCancelled == true) {
                 throw const UploadCancelledException();
               }
@@ -745,10 +788,6 @@ class ChatRepository {
               await Future<void>.delayed(Duration(milliseconds: 250 * attempt));
             }
           }
-
-          sentBytes += len;
-          if (sentBytes > fileSize) sentBytes = fileSize;
-          onProgress(sentBytes, fileSize);
         }
       }
 

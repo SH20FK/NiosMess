@@ -6,6 +6,10 @@ class ApiCallGatewayInfo {
     required this.signalUrl,
     required this.iceServers,
     this.maxVideoHeight = 480,
+    this.maxScreenHeight = 480,
+    this.maxFps = 30,
+    this.isPlus = false,
+    this.isGroup = false,
     this.maxDurationSeconds = 1800,
   });
 
@@ -13,27 +17,41 @@ class ApiCallGatewayInfo {
   final String signalUrl;
   final List<Map<String, dynamic>> iceServers;
   final int maxVideoHeight;
+  final int maxScreenHeight;
+  final int maxFps;
+  final bool isPlus;
+  final bool isGroup;
   final int? maxDurationSeconds;
 
   factory ApiCallGatewayInfo.defaultFor({
     bool isCallsTester = false,
+    bool isNiosPlus = false,
+    bool isGroup = false,
     String token = '',
     String signalUrl = '',
   }) {
+    final int defaultHeight = isNiosPlus ? 1440 : (isCallsTester ? 720 : 480);
     return ApiCallGatewayInfo(
       callAccessToken: token,
       signalUrl: signalUrl,
       iceServers: const <Map<String, dynamic>>[
+        <String, dynamic>{'urls': 'stun:c.ni-os.ru:3478'},
         <String, dynamic>{'urls': 'stun:stun.l.google.com:19302'},
       ],
-      maxVideoHeight: isCallsTester ? 720 : 480,
-      maxDurationSeconds: isCallsTester ? null : 1800,
+      maxVideoHeight: defaultHeight,
+      maxScreenHeight: defaultHeight,
+      maxFps: isNiosPlus ? 60 : 30,
+      isPlus: isNiosPlus,
+      isGroup: isGroup,
+      maxDurationSeconds: (isCallsTester || isNiosPlus) ? null : 1800,
     );
   }
 
   factory ApiCallGatewayInfo.fromJson(
     Map<String, dynamic> json, {
     bool isCallsTester = false,
+    bool isNiosPlus = false,
+    bool isGroup = false,
   }) {
     final dynamic rawIce = json['ice_servers'];
     final List<Map<String, dynamic>> iceList;
@@ -50,16 +68,25 @@ class ApiCallGatewayInfo {
       iceList = const <Map<String, dynamic>>[];
     }
 
-    final int defaultHeight = isCallsTester ? 720 : 480;
-    final int? defaultDuration = isCallsTester ? null : 1800;
+    final bool resolvedPlus = json['is_plus'] as bool? ?? isNiosPlus;
+    final bool resolvedGroup = json['is_group'] as bool? ?? isGroup;
+    final int defaultHeight = resolvedPlus ? 1440 : (isCallsTester ? 720 : 480);
+    final int? defaultDuration = (isCallsTester || resolvedPlus) ? null : 1800;
+    final int parsedHeight =
+        (json['max_video_height'] as num?)?.toInt() ?? defaultHeight;
 
     return ApiCallGatewayInfo(
       callAccessToken: json['call_access_token'] as String? ?? '',
       signalUrl: json['signal_url'] as String? ?? '',
       iceServers: iceList,
-      maxVideoHeight: json['max_video_height'] as int? ?? defaultHeight,
+      maxVideoHeight: parsedHeight,
+      maxScreenHeight:
+          (json['max_screen_height'] as num?)?.toInt() ?? parsedHeight,
+      maxFps: (json['max_fps'] as num?)?.toInt() ?? (resolvedPlus ? 60 : 30),
+      isPlus: resolvedPlus,
+      isGroup: resolvedGroup,
       maxDurationSeconds: json.containsKey('max_duration_seconds')
-          ? json['max_duration_seconds'] as int?
+          ? (json['max_duration_seconds'] as num?)?.toInt()
           : defaultDuration,
     );
   }
@@ -69,6 +96,10 @@ class ApiCallGatewayInfo {
         'signal_url': signalUrl,
         'ice_servers': iceServers,
         'max_video_height': maxVideoHeight,
+        'max_screen_height': maxScreenHeight,
+        'max_fps': maxFps,
+        'is_plus': isPlus,
+        'is_group': isGroup,
         if (maxDurationSeconds != null)
           'max_duration_seconds': maxDurationSeconds,
       };

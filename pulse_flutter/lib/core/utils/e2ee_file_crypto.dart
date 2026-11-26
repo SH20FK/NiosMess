@@ -20,23 +20,36 @@ class E2eeFileCrypto {
 
   static const int nonceBytes = 12;
   static const int macBytes = 16;
-  static Future<void>? _fileWork;
+  static const int _maxConcurrentWorkers = 2;
+  static int _activeWorkers = 0;
+  static final List<Completer<void>> _workerWaiters = <Completer<void>>[];
   static const _workerThreshold = 256 * 1024;
   static const _nativeWorkers =
       !bool.fromEnvironment('dart.library.js_interop') &&
       !bool.fromEnvironment('dart.library.html');
 
+  static Future<void> _acquireWorkerSlot() async {
+    while (_activeWorkers >= _maxConcurrentWorkers) {
+      final c = Completer<void>();
+      _workerWaiters.add(c);
+      await c.future;
+    }
+    _activeWorkers++;
+  }
+
+  static void _releaseWorkerSlot() {
+    if (_activeWorkers > 0) _activeWorkers--;
+    if (_workerWaiters.isNotEmpty) {
+      _workerWaiters.removeAt(0).complete();
+    }
+  }
+
   static Future<T> _inWorker<T>(Future<T> Function() work) async {
-    final previous = _fileWork;
-    final done = Completer<void>();
-    final tail = done.future;
-    _fileWork = tail;
+    await _acquireWorkerSlot();
     try {
-      if (previous != null) await previous;
       return await Isolate.run(work);
     } finally {
-      if (identical(_fileWork, tail)) _fileWork = null;
-      done.complete();
+      _releaseWorkerSlot();
     }
   }
 
@@ -99,14 +112,88 @@ class E2eeFileCrypto {
     required String outputPath,
     required Uint8List key,
     Uint8List? iv,
-  }) => _inWorker(() => _encryptFileWorker(plainPath, outputPath, key, iv));
+    void Function(int processed, int total)? onProgress,
+  }) async {
+    if (onProgress == null || !_nativeWorkers) {
+      if (_nativeWorkers) {
+        await _inWorker(() => _encryptFileWorker(plainPath, outputPath, key, iv));
+      } else {
+        await _encryptFileWorker(
+          plainPath,
+          outputPath,
+          key,
+          iv,
+          onProgress: onProgress,
+        );
+      }
+      return;
+    }
+
+    await _acquireWorkerSlot();
+    final port = ReceivePort();
+    final completer = Completer<void>();
+    final keyCopy = Uint8List.fromList(key);
+    final ivCopy = iv != null ? Uint8List.fromList(iv) : null;
+    try {
+      port.listen((dynamic message) {
+        if (message is List) {
+          if (message.isNotEmpty && message[0] == 'done') {
+            if (!completer.isCompleted) completer.complete();
+          } else if (message.length >= 2 && message[0] == 'error') {
+            if (!completer.isCompleted) {
+              completer.completeError(StateError('${message[1]}'));
+            }
+          } else if (message.length >= 2 &&
+              message[0] is int &&
+              message[1] is int) {
+            onProgress(message[0] as int, message[1] as int);
+          }
+        }
+      });
+      await Isolate.spawn(
+        _encryptIsolateEntry,
+        (plainPath, outputPath, keyCopy, ivCopy, port.sendPort),
+        onError: port.sendPort,
+        errorsAreFatal: true,
+      );
+      await completer.future;
+    } finally {
+      port.close();
+      _releaseWorkerSlot();
+    }
+  }
+
+  static Future<void> _encryptIsolateEntry(
+    (String, String, Uint8List, Uint8List?, SendPort) args,
+  ) async {
+    final (plainPath, outputPath, key, iv, sendPort) = args;
+    int lastSent = -1;
+    try {
+      await _encryptFileWorker(
+        plainPath,
+        outputPath,
+        key,
+        iv,
+        onProgress: (processed, total) {
+          if (processed == total || lastSent < 0 || processed - lastSent >= 524288) {
+            lastSent = processed;
+            sendPort.send(<Object>[processed, total]);
+          }
+        },
+      );
+      sendPort.send(const <Object>['done']);
+    } catch (e) {
+      sendPort.send(<Object>['error', e.toString()]);
+    }
+  }
 
   static Future<void> _encryptFileWorker(
     String plainPath,
     String outputPath,
     Uint8List key,
-    Uint8List? iv,
-  ) async {
+    Uint8List? iv, {
+    void Function(int processed, int total)? onProgress,
+  }) async {
     if (await File(outputPath).exists()) {
       throw StateError('E2EE destination exists');
     }
@@ -131,6 +218,7 @@ class E2eeFileCrypto {
       outputPath: outputPath,
       key: key,
       nonce: nonce,
+      onProgress: onProgress,
     );
   }
 

@@ -21,6 +21,7 @@ class CallSessionData {
     required this.callId,
     this.roomId,
     required this.isVideo,
+    this.isGroup = false,
     this.direction,
     this.localClientId,
     this.peerName,
@@ -29,6 +30,14 @@ class CallSessionData {
     this.isMuted = false,
     this.isSpeakerOn = false,
     this.isSelfVideoEnabled = false,
+    this.isScreenSharing = false,
+    this.forceRelay = false,
+    this.isPlus = false,
+    this.maxVideoHeight = 480,
+    this.maxScreenHeight = 480,
+    this.maxFps = 30,
+    this.activeScreenPeerId,
+    this.activeScreenPeerName,
     this.isListener = false,
     required this.durationSeconds,
     this.remoteParticipants = const [],
@@ -42,6 +51,7 @@ class CallSessionData {
   final int callId;
   final String? roomId;
   final bool isVideo;
+  final bool isGroup;
   final CallDirection? direction;
   final int? localClientId;
   final String? peerName;
@@ -50,6 +60,14 @@ class CallSessionData {
   final bool isMuted;
   final bool isSpeakerOn;
   final bool isSelfVideoEnabled;
+  final bool isScreenSharing;
+  final bool forceRelay;
+  final bool isPlus;
+  final int maxVideoHeight;
+  final int maxScreenHeight;
+  final int maxFps;
+  final int? activeScreenPeerId;
+  final String? activeScreenPeerName;
   final bool isListener;
   final int durationSeconds;
   final List<RemoteParticipant> remoteParticipants;
@@ -65,6 +83,7 @@ class CallSessionData {
     int? callId,
     String? roomId,
     bool? isVideo,
+    bool? isGroup,
     CallDirection? direction,
     int? localClientId,
     String? peerName,
@@ -73,6 +92,15 @@ class CallSessionData {
     bool? isMuted,
     bool? isSpeakerOn,
     bool? isSelfVideoEnabled,
+    bool? isScreenSharing,
+    bool? forceRelay,
+    bool? isPlus,
+    int? maxVideoHeight,
+    int? maxScreenHeight,
+    int? maxFps,
+    int? activeScreenPeerId,
+    bool clearActiveScreenPeer = false,
+    String? activeScreenPeerName,
     bool? isListener,
     int? durationSeconds,
     List<RemoteParticipant>? remoteParticipants,
@@ -85,6 +113,7 @@ class CallSessionData {
       callId: callId ?? this.callId,
       roomId: roomId ?? this.roomId,
       isVideo: isVideo ?? this.isVideo,
+      isGroup: isGroup ?? this.isGroup,
       direction: direction ?? this.direction,
       localClientId: localClientId ?? this.localClientId,
       peerName: peerName ?? this.peerName,
@@ -93,6 +122,18 @@ class CallSessionData {
       isMuted: isMuted ?? this.isMuted,
       isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,
       isSelfVideoEnabled: isSelfVideoEnabled ?? this.isSelfVideoEnabled,
+      isScreenSharing: isScreenSharing ?? this.isScreenSharing,
+      forceRelay: forceRelay ?? this.forceRelay,
+      isPlus: isPlus ?? this.isPlus,
+      maxVideoHeight: maxVideoHeight ?? this.maxVideoHeight,
+      maxScreenHeight: maxScreenHeight ?? this.maxScreenHeight,
+      maxFps: maxFps ?? this.maxFps,
+      activeScreenPeerId: clearActiveScreenPeer
+          ? null
+          : (activeScreenPeerId ?? this.activeScreenPeerId),
+      activeScreenPeerName: clearActiveScreenPeer
+          ? null
+          : (activeScreenPeerName ?? this.activeScreenPeerName),
       isListener: isListener ?? this.isListener,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       remoteParticipants: remoteParticipants ?? this.remoteParticipants,
@@ -110,6 +151,8 @@ class RemoteParticipant {
     DateTime? lastSeen,
     this.audioEnabled = true,
     this.videoEnabled = false,
+    this.screenSharing = false,
+    this.screenStreamId,
   }) : lastSeen = lastSeen ?? DateTime.now();
 
   final int clientId;
@@ -119,15 +162,20 @@ class RemoteParticipant {
   /// that silently disappeared.
   final DateTime lastSeen;
 
-  /// Peer-reported mic/camera state from `media_state` signaling frames.
+  /// Peer-reported mic/camera/screen state from `media_state` signaling frames.
   final bool audioEnabled;
   final bool videoEnabled;
+  final bool screenSharing;
+  final String? screenStreamId;
 
   RemoteParticipant copyWith({
     String? nickname,
     DateTime? lastSeen,
     bool? audioEnabled,
     bool? videoEnabled,
+    bool? screenSharing,
+    String? screenStreamId,
+    bool clearScreenStreamId = false,
   }) {
     return RemoteParticipant(
       clientId: clientId,
@@ -135,6 +183,10 @@ class RemoteParticipant {
       lastSeen: lastSeen ?? this.lastSeen,
       audioEnabled: audioEnabled ?? this.audioEnabled,
       videoEnabled: videoEnabled ?? this.videoEnabled,
+      screenSharing: screenSharing ?? this.screenSharing,
+      screenStreamId: clearScreenStreamId
+          ? null
+          : (screenStreamId ?? this.screenStreamId),
     );
   }
 }

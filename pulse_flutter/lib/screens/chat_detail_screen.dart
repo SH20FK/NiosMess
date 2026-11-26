@@ -87,6 +87,7 @@ import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
+import 'package:pulse_flutter/widgets/calls/active_group_call_banner.dart';
 
 class ChatDetailScreen extends ConsumerStatefulWidget {
   const ChatDetailScreen({
@@ -114,6 +115,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   late DraftStorage _draftStorage;
   SecretChatCoordinator? _secretCoordinator;
   bool _savingSecretMessage = false;
+  bool _desktopPasteInFlight = false;
+  DateTime? _lastDesktopPasteAt;
+  final DesktopPasteDeduplicator _pasteDeduplicator =
+      DesktopPasteDeduplicator();
 
   Timer? _draftSaveTimer;
   bool _showDraftRestoredBanner = false;
@@ -1364,12 +1369,35 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
+  Future<void> _handleDesktopPaste() async {
+    if (!DesktopPasteboardService.isDesktop || !mounted) return;
+    final DateTime now = DateTime.now();
+    if (_desktopPasteInFlight) return;
+    if (_lastDesktopPasteAt != null &&
+        now.difference(_lastDesktopPasteAt!) <
+            const Duration(milliseconds: 400)) {
+      return;
+    }
+    _desktopPasteInFlight = true;
+    _lastDesktopPasteAt = now;
+    try {
+      final List<String> files =
+          await DesktopPasteboardService.getClipboardFilesOrImage();
+      if (files.isNotEmpty && mounted) {
+        await _uploadDesktopFiles(files);
+      }
+    } finally {
+      _desktopPasteInFlight = false;
+    }
+  }
+
   Future<void> _uploadDesktopFiles(
     List<String> filePaths, {
     bool sendAsDocument = false,
   }) async {
     final int? chatId = _chatId;
     if (chatId == null || filePaths.isEmpty) return;
+    if (!_pasteDeduplicator.shouldAccept(filePaths)) return;
     final String initialText = _inputController.text;
     if (mounted &&
         !_isSecret &&
@@ -2382,23 +2410,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 LogicalKeyboardKey.keyV,
                 control: true,
               ): () {
-                unawaited(() async {
-                  final List<String> files =
-                      await DesktopPasteboardService.getClipboardFilesOrImage();
-                  if (files.isNotEmpty && mounted) {
-                    _uploadDesktopFiles(files);
-                  }
-                }());
+                // Focused TextField handles Ctrl+V via ChatInputBar.onDesktopPaste;
+                // ignore here so both listeners never double-send the same paste.
+                if (_inputFocusNode.hasFocus) return;
+                unawaited(_handleDesktopPaste());
               },
             if (DesktopPasteboardService.isDesktop)
               const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () {
-                unawaited(() async {
-                  final List<String> files =
-                      await DesktopPasteboardService.getClipboardFilesOrImage();
-                  if (files.isNotEmpty && mounted) {
-                    _uploadDesktopFiles(files);
-                  }
-                }());
+                if (_inputFocusNode.hasFocus) return;
+                unawaited(_handleDesktopPaste());
               },
             if (isSecret) ...<ShortcutActivator, VoidCallback>{
               const SingleActivator(LogicalKeyboardKey.printScreen):
@@ -2459,6 +2479,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   topBanner: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (ref.watch(
+                        chatByIdProvider(chatId).select(
+                          (c) => c?.chatType == 'group',
+                        ),
+                      ))
+                        ActiveGroupCallBanner(chatId: chatId),
                       ChatTopBannerLayer(
                         chatId: chatId,
                         isSecret: isSecret,
@@ -2543,6 +2569,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     onSendSticker: (s) => unawaited(_sendSticker(s)),
                     onEditLastMessage: _editLastMessage,
                     onAttachFiles: _uploadDesktopFiles,
+                    onDesktopPaste: _handleDesktopPaste,
                     scheme: scheme,
                   ),
                 ),
@@ -2985,6 +3012,7 @@ class _ChatComposerScope extends ConsumerWidget {
     required this.onSendSticker,
     required this.onEditLastMessage,
     required this.onAttachFiles,
+    required this.onDesktopPaste,
     required this.scheme,
   });
 
@@ -3006,6 +3034,7 @@ class _ChatComposerScope extends ConsumerWidget {
   final void Function(ApiSticker) onSendSticker;
   final VoidCallback onEditLastMessage;
   final void Function(List<String>, {bool sendAsDocument})? onAttachFiles;
+  final Future<void> Function() onDesktopPaste;
   final ColorScheme scheme;
 
   @override
@@ -3132,6 +3161,7 @@ class _ChatComposerScope extends ConsumerWidget {
               onContactSupport: () => context.push('/support'),
               onEditLastMessage: onEditLastMessage,
               onAttachFiles: onAttachFiles,
+              onDesktopPaste: onDesktopPaste,
             );
           },
     );

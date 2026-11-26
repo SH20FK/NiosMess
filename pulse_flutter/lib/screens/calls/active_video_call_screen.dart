@@ -201,6 +201,164 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     if (mounted) _popOrGoHome();
   }
 
+  Widget _buildStage({
+    required CallSessionManager session,
+    required CallSessionData data,
+    required ColorScheme scheme,
+    required TextTheme textTheme,
+    required String participantName,
+    required bool hasRemoteVideo,
+  }) {
+    final screenRenderers = session.remoteScreenRenderers;
+    final int? screenPeer = data.activeScreenPeerId;
+    final RTCVideoRenderer? remoteScreen =
+        screenPeer != null ? screenRenderers[screenPeer] : null;
+
+    Widget? spotlight;
+    if (data.isScreenSharing) {
+      spotlight = RTCVideoView(
+        session.localScreenRenderer,
+        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+      );
+    } else if (remoteScreen != null) {
+      spotlight = RTCVideoView(
+        remoteScreen,
+        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+      );
+    }
+
+    final badges = Positioned(
+      left: 12,
+      bottom: 150,
+      child: Wrap(
+        spacing: 6,
+        children: [
+          _StageBadge(
+            icon: Icons.hd_rounded,
+            label: data.isPlus
+                ? '${data.maxVideoHeight}p · NiosPlus'
+                : '${data.maxVideoHeight}p',
+            scheme: scheme,
+          ),
+          if (data.forceRelay)
+            _StageBadge(
+              icon: Icons.vpn_lock_rounded,
+              label: 'VPN · TCP/TLS',
+              scheme: scheme,
+            ),
+          if (data.verificationEmojis.isNotEmpty)
+            _StageBadge(
+              icon: Icons.verified_user_rounded,
+              label: data.verificationEmojis.join(' '),
+              scheme: scheme,
+            ),
+        ],
+      ),
+    );
+
+    final tiles = <Widget>[];
+    for (final p in data.remoteParticipants) {
+      final r = session.remoteRenderers[p.clientId];
+      tiles.add(
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (r != null && p.videoEnabled)
+                RTCVideoView(
+                  r,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                )
+              else
+                _NoVideoPlaceholder(
+                  name: p.nickname,
+                  scheme: scheme,
+                  textTheme: textTheme,
+                ),
+              Positioned(
+                left: 8,
+                bottom: 8,
+                child: Text(
+                  p.audioEnabled ? p.nickname : '${p.nickname} 🔇',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: Colors.white,
+                    shadows: const [Shadow(blurRadius: 4)],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (spotlight != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(color: Colors.black, child: spotlight),
+          if (tiles.isNotEmpty)
+            Positioned(
+              left: 8,
+              right: 8,
+              top: MediaQuery.paddingOf(context).top + 72,
+              height: 96,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: tiles.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => SizedBox(width: 140, child: tiles[i]),
+              ),
+            ),
+          badges,
+        ],
+      );
+    }
+
+    if (tiles.length >= 2) {
+      final int cols = tiles.length <= 4 ? 2 : 3;
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              8,
+              MediaQuery.paddingOf(context).top + 72,
+              8,
+              170,
+            ),
+            child: GridView.count(
+              crossAxisCount: cols,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 3 / 4,
+              children: tiles,
+            ),
+          ),
+          badges,
+        ],
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        hasRemoteVideo
+            ? RTCVideoView(
+                session.remoteRenderer,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              )
+            : _NoVideoPlaceholder(
+                name: participantName,
+                scheme: scheme,
+                textTheme: textTheme,
+              ),
+        badges,
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -263,17 +421,14 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
             children: [
               // ── Remote Video Stream / Placeholder ────────────────────────
               Positioned.fill(
-                child: hasRemoteVideo
-                    ? RTCVideoView(
-                        session.remoteRenderer,
-                        objectFit:
-                            RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                      )
-                    : _NoVideoPlaceholder(
-                        name: participantName,
-                        scheme: scheme,
-                        textTheme: textTheme,
-                      ),
+                child: _buildStage(
+                  session: session,
+                  data: data,
+                  scheme: scheme,
+                  textTheme: textTheme,
+                  participantName: participantName,
+                  hasRemoteVideo: hasRemoteVideo,
+                ),
               ),
 
               // ── Top Gradient Scrim ───────────────────────────────────────
@@ -538,6 +693,37 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
 }
 
 // ── No Video Placeholder ──────────────────────────────────────────────────────
+
+class _StageBadge extends StatelessWidget {
+  const _StageBadge({
+    required this.icon,
+    required this.label,
+    required this.scheme,
+  });
+
+  final IconData icon;
+  final String label;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: scheme.primary),
+          const SizedBox(width: 5),
+          Text(label, style: Theme.of(context).textTheme.labelSmall),
+        ],
+      ),
+    );
+  }
+}
 
 /// Fades call controls in and out. Hidden or leaving controls ignore taps.
 class _CallControlsFade extends StatelessWidget {

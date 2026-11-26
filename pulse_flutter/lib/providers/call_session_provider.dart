@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/utils/shared_utilities.dart';
 import 'package:pulse_flutter/models/api/call_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/repositories/call_repository.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 
 /// Provider for the current active call session manager.
@@ -74,6 +75,7 @@ class CallSessionManager {
     required this.callId,
     required this.roomId,
     required this.isVideo,
+    this.isGroup = false,
     required this.direction,
     required this.displayName,
     this.peerName,
@@ -92,6 +94,7 @@ class CallSessionManager {
   final int callId;
   final String roomId;
   final bool isVideo;
+  final bool isGroup;
   final CallDirection direction;
   final String displayName;
   String? peerName;
@@ -108,6 +111,9 @@ class CallSessionManager {
       StreamController<CallSessionData>.broadcast();
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+  final RTCVideoRenderer _localScreenRenderer = RTCVideoRenderer();
+  final Map<int, RTCVideoRenderer> _remoteRenderers = {};
+  final Map<int, RTCVideoRenderer> _remoteScreenRenderers = {};
 
   Timer? _soloTimer;
   bool _ended = false;
@@ -115,7 +121,9 @@ class CallSessionManager {
   /// Set once the peer is in the room, so the ringback loop and the
   /// "connected" cue fire exactly once per call.
   bool _answerHandled = false;
-  bool _localRendererReady = false, _remoteRendererReady = false;
+  bool _localRendererReady = false,
+      _remoteRendererReady = false,
+      _localScreenRendererReady = false;
   Future<void>? _rendererInit;
   Future<void>? _resourceDisposal;
   Future<WebRtcCallSession>? _sessionInit;
@@ -133,15 +141,21 @@ class CallSessionManager {
   CallSessionData get currentData {
     final WebRtcCallSession? session = _session;
     if (session == null) {
+      final info = _gatewayInfo ?? gatewayInfo;
       return CallSessionData(
         state: CallSessionState.connecting,
         callId: callId,
         roomId: roomId,
         isVideo: isVideo,
+        isGroup: info?.isGroup ?? isGroup,
         direction: direction,
         peerName: peerName,
         peerAvatarUrl: peerAvatarUrl,
         peerUsername: peerUsername,
+        isPlus: info?.isPlus ?? false,
+        maxVideoHeight: info?.maxVideoHeight ?? 480,
+        maxScreenHeight: info?.maxScreenHeight ?? 480,
+        maxFps: info?.maxFps ?? 30,
         isListener: isListener,
         durationSeconds: 0,
       );
@@ -191,27 +205,96 @@ class CallSessionManager {
     await initRenderers();
     if (_disposed || _ended) throw StateError('Call has ended');
 
+    final profile = ref.read(authProvider).profile;
+    final ApiCallGatewayInfo resolvedGateway =
+        _gatewayInfo ??
+        gatewayInfo ??
+        ApiCallGatewayInfo.defaultFor(
+          isCallsTester: profile?.isCallsTester ?? false,
+          isNiosPlus: profile?.isNiosPlus ?? false,
+          isGroup: isGroup,
+        );
     final WebRtcCallSession session = WebRtcCallSession(
       chatId: chatId,
       callId: callId,
       roomId: roomId,
       isVideo: isVideo,
+      isGroup: resolvedGateway.isGroup || isGroup,
       direction: direction,
       displayName: displayName,
       peerName: peerName,
       peerAvatarUrl: peerAvatarUrl,
       peerUsername: peerUsername,
       isListener: isListener,
-      gatewayInfo:
-          _gatewayInfo ?? gatewayInfo ?? ApiCallGatewayInfo.defaultFor(),
+      gatewayInfo: resolvedGateway,
       devices: ref.read(callDevicesProvider),
       localRenderer: _localRenderer,
       remoteRenderer: _remoteRenderer,
+      localScreenRenderer: _localScreenRenderer,
       onStateChanged: _onSessionData,
+      onRemoteStreamsChanged: () => unawaited(_syncRemoteRenderers()),
+      onRefreshGateway: () async {
+        final refreshed = await ref
+            .read(callRepositoryProvider)
+            .refreshCallToken(chatId: chatId, roomId: roomId);
+        if (refreshed == null) return null;
+        final curProfile = ref.read(authProvider).profile;
+        final updated = ApiCallGatewayInfo.fromJson(
+          refreshed,
+          isCallsTester: curProfile?.isCallsTester ?? false,
+          isNiosPlus: curProfile?.isNiosPlus ?? false,
+          isGroup: isGroup,
+        );
+        _gatewayInfo = updated;
+        return updated;
+      },
     );
     _session = session;
     _sessionSub = session.stateStream.listen(_onSessionData);
     return session;
+  }
+
+  Future<void> _syncRemoteRenderers() async {
+    final session = _session;
+    if (session == null || _disposed || _ended) return;
+
+    Future<void> syncMap(
+      Map<int, MediaStream> streams,
+      Map<int, RTCVideoRenderer> renderers,
+    ) async {
+      final staleIds =
+          renderers.keys.where((k) => !streams.containsKey(k)).toList();
+      for (final id in staleIds) {
+        final r = renderers.remove(id);
+        if (r != null) {
+          r.srcObject = null;
+          try {
+            await r.dispose();
+          } catch (_) {}
+        }
+      }
+      for (final entry in streams.entries) {
+        var r = renderers[entry.key];
+        if (r == null) {
+          r = RTCVideoRenderer();
+          await r.initialize();
+          if (_disposed || _ended) {
+            try {
+              await r.dispose();
+            } catch (_) {}
+            return;
+          }
+          renderers[entry.key] = r;
+        }
+        r.srcObject = entry.value;
+      }
+    }
+
+    await syncMap(session.remoteStreams, _remoteRenderers);
+    await syncMap(session.remoteScreenStreams, _remoteScreenRenderers);
+    if (!_disposed && ref.mounted) {
+      ref.read(callSessionProvider.notifier).notify();
+    }
   }
 
   void _onSessionData(CallSessionData data) {
@@ -316,11 +399,14 @@ class CallSessionManager {
           ? response['payload'] as Map<String, dynamic>
           : response;
       if (payload.containsKey('call_access_token')) {
-        final bool isCallsTester =
-            ref.read(authProvider).profile?.isCallsTester ?? false;
+        final profile = ref.read(authProvider).profile;
+        final bool isCallsTester = profile?.isCallsTester ?? false;
+        final bool isNiosPlus = profile?.isNiosPlus ?? false;
         _gatewayInfo = ApiCallGatewayInfo.fromJson(
           payload,
           isCallsTester: isCallsTester,
+          isNiosPlus: isNiosPlus,
+          isGroup: isGroup,
         );
       }
       await _connect();
@@ -379,11 +465,19 @@ class CallSessionManager {
 
   RTCVideoRenderer get localRenderer => _localRenderer;
   RTCVideoRenderer get remoteRenderer => _remoteRenderer;
+  RTCVideoRenderer get localScreenRenderer => _localScreenRenderer;
+  Map<int, RTCVideoRenderer> get remoteRenderers =>
+      Map<int, RTCVideoRenderer>.unmodifiable(_remoteRenderers);
+  Map<int, RTCVideoRenderer> get remoteScreenRenderers =>
+      Map<int, RTCVideoRenderer>.unmodifiable(_remoteScreenRenderers);
   bool get isLocalVideoEnabled =>
       _session?.currentData.isSelfVideoEnabled ?? false;
+  bool get isScreenSharing => _session?.isScreenSharing ?? false;
   MediaStream? get localStream => _session?.localStream;
   Map<int, MediaStream> get remoteStreams =>
       _session?.remoteStreams ?? const <int, MediaStream>{};
+  Map<int, MediaStream> get remoteScreenStreams =>
+      _session?.remoteScreenStreams ?? const <int, MediaStream>{};
 
   Future<void> initRenderers() {
     if (_disposed || _ended) return Future<void>.value();
@@ -396,6 +490,21 @@ class CallSessionManager {
     if (_disposed || _ended) return;
     await _remoteRenderer.initialize();
     _remoteRendererReady = true;
+    if (_disposed || _ended) return;
+    await _localScreenRenderer.initialize();
+    _localScreenRendererReady = true;
+  }
+
+  Future<void> startScreenShare({String? sourceId}) async {
+    await _session?.startScreenShare(sourceId: sourceId);
+  }
+
+  Future<void> stopScreenShare() async {
+    await _session?.stopScreenShare();
+  }
+
+  Future<void> setForceRelay(bool enabled) async {
+    await _session?.setForceRelay(enabled);
   }
 
   void toggleMute({bool? muted}) => setMuted(muted ?? !isMuted);
@@ -462,6 +571,21 @@ class CallSessionManager {
     }
     if (_localRendererReady) await _localRenderer.dispose();
     if (_remoteRendererReady) await _remoteRenderer.dispose();
+    if (_localScreenRendererReady) await _localScreenRenderer.dispose();
+    for (final r in _remoteRenderers.values) {
+      r.srcObject = null;
+      try {
+        await r.dispose();
+      } catch (_) {}
+    }
+    _remoteRenderers.clear();
+    for (final r in _remoteScreenRenderers.values) {
+      r.srcObject = null;
+      try {
+        await r.dispose();
+      } catch (_) {}
+    }
+    _remoteScreenRenderers.clear();
     await _stateController.close();
   }
 

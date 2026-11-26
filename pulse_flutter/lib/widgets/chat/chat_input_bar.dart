@@ -50,6 +50,7 @@ class ChatInputBar extends ConsumerStatefulWidget {
     this.onCancelAi,
     this.onEditLastMessage,
     this.onAttachFiles,
+    this.onDesktopPaste,
     this.hapticsEnabled = true,
     this.sendOnEnter = true,
     super.key,
@@ -77,6 +78,7 @@ class ChatInputBar extends ConsumerStatefulWidget {
   final VoidCallback? onEditLastMessage;
   final void Function(List<String> filePaths, {bool sendAsDocument})?
   onAttachFiles;
+  final Future<void> Function()? onDesktopPaste;
   final bool hapticsEnabled;
   final bool sendOnEnter;
 
@@ -880,7 +882,8 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                           }
                                         }
 
-                                        // 4. Ctrl+V / Cmd+V: check for clipboard images or files on desktop
+                                        // 4. Ctrl+V / Cmd+V: delegate clipboard files/image check on desktop
+                                        // (kept ignored for KeyEventResult so text paste stays intact).
                                         if ((HardwareKeyboard
                                                     .instance
                                                     .isControlPressed ||
@@ -891,13 +894,19 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                                 LogicalKeyboardKey.keyV &&
                                             DesktopPasteboardService
                                                 .isDesktop) {
-                                          unawaited(() async {
-                                            final List<String> files =
-                                                await DesktopPasteboardService.getClipboardFilesOrImage();
-                                            if (files.isNotEmpty && mounted) {
-                                              widget.onAttachFiles?.call(files);
-                                            }
-                                          }());
+                                          if (widget.onDesktopPaste != null) {
+                                            unawaited(
+                                              widget.onDesktopPaste!.call(),
+                                            );
+                                          } else {
+                                            unawaited(() async {
+                                              final List<String> files =
+                                                  await DesktopPasteboardService.getClipboardFilesOrImage();
+                                              if (files.isNotEmpty && mounted) {
+                                                widget.onAttachFiles?.call(files);
+                                              }
+                                            }());
+                                          }
                                         }
                                       }
                                       return KeyEventResult.ignored;

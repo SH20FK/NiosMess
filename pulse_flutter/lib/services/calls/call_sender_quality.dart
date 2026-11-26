@@ -6,16 +6,25 @@ import 'call_capture_profile.dart';
 /// downscaling and recovery; no SDP munging or minimum bitrate is imposed.
 Future<bool> configureCallSender(
   RTCRtpSender sender,
-  CallCaptureProfile profile,
-) async {
+  CallCaptureProfile profile, {
+  int peerCount = 1,
+  bool isScreenShare = false,
+}) async {
   final kind = sender.track?.kind;
   if (kind != 'audio' && kind != 'video') return false;
   final parameters = sender.parameters;
   final encodings = parameters.encodings;
   // Preserve the negotiated encoding count, transaction, codecs and SSRCs.
   if (encodings == null || encodings.isEmpty) return false;
+  final double groupScale = isScreenShare || peerCount <= 2
+      ? 1.0
+      : (peerCount >= 5 ? 0.5 : 0.72);
   for (final encoding in encodings) {
-    final limit = kind == 'audio' ? 64000 : profile.videoBitrate;
+    final int baseVideoLimit =
+        isScreenShare ? profile.screenBitrate : profile.videoBitrate;
+    final int limit = kind == 'audio'
+        ? 64000
+        : (baseVideoLimit * groupScale).round().clamp(250000, baseVideoLimit);
     final existingLimit = encoding.maxBitrate;
     encoding.maxBitrate = existingLimit != null && existingLimit > 0
         ? math.min(existingLimit, limit)
@@ -24,10 +33,12 @@ Future<bool> configureCallSender(
         ? RTCPriorityType.high
         : RTCPriorityType.medium;
     if (kind == 'video') {
+      final int targetFps =
+          isScreenShare ? (profile.height >= 1080 ? profile.maxFps : 20) : profile.maxFps;
       final existingRate = encoding.maxFramerate;
       encoding.maxFramerate = existingRate != null && existingRate > 0
-          ? math.min(existingRate, 30)
-          : 30;
+          ? math.min(existingRate, targetFps)
+          : targetFps;
       try {
         final settings = sender.track!.getSettings();
         final height = settings['height'];
@@ -46,7 +57,9 @@ Future<bool> configureCallSender(
     }
   }
   if (kind == 'video') {
-    parameters.degradationPreference = RTCDegradationPreference.BALANCED;
+    parameters.degradationPreference = isScreenShare
+        ? RTCDegradationPreference.MAINTAIN_RESOLUTION
+        : RTCDegradationPreference.BALANCED;
   }
   return sender.setParameters(parameters);
 }

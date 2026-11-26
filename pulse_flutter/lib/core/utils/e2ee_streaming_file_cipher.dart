@@ -10,7 +10,7 @@ import 'package:universal_io/io.dart';
 abstract final class E2eeStreamingFileCipher {
   static const nonceBytes = 12;
   static const macBytes = 16;
-  static const chunkBytes = 256 * 1024;
+  static const chunkBytes = 1024 * 1024;
 
   // PointyCastle 4.0.0 GCM.doFinal stores only the low uint32 of the bit length.
   // At 2^29 bytes that wraps. Keep larger legacy files on cryptography's correct
@@ -28,13 +28,15 @@ abstract final class E2eeStreamingFileCipher {
     required String outputPath,
     required Uint8List key,
     required Uint8List nonce,
-  }) => _transform(plainPath, outputPath, key, nonce, true);
+    void Function(int processed, int total)? onProgress,
+  }) => _transform(plainPath, outputPath, key, nonce, true, onProgress: onProgress);
 
   static Future<void> decrypt({
     required String encryptedPath,
     required String outputPath,
     required Uint8List key,
-  }) => _transform(encryptedPath, outputPath, key, null, false);
+    void Function(int processed, int total)? onProgress,
+  }) => _transform(encryptedPath, outputPath, key, null, false, onProgress: onProgress);
 
   static Future<int> _readChunk(
     RandomAccessFile file,
@@ -55,8 +57,9 @@ abstract final class E2eeStreamingFileCipher {
     String outputPath,
     Uint8List key,
     Uint8List? nonce,
-    bool encrypting,
-  ) async {
+    bool encrypting, {
+    void Function(int processed, int total)? onProgress,
+  }) async {
     if (key.length != 32) throw ArgumentError('E2EE file key must be 32 bytes');
     if (encrypting && nonce?.length != nonceBytes) {
       throw ArgumentError('E2EE file nonce must be 12 bytes');
@@ -105,6 +108,8 @@ abstract final class E2eeStreamingFileCipher {
       output = await partial.open(mode: FileMode.write);
       if (encrypting) await output.writeFrom(fileNonce);
       var remaining = encrypting ? inputLength : inputLength - nonceBytes;
+      final totalBytes = remaining;
+      var processed = 0;
       while (remaining > 0) {
         final length = remaining < chunkBytes ? remaining : chunkBytes;
         if (await _readChunk(input, inputBuffer, length) != length) {
@@ -112,7 +117,7 @@ abstract final class E2eeStreamingFileCipher {
             'E2EE source truncated during processing',
           );
         }
-        // Non-final chunks are exactly 64 KiB and therefore block-aligned.
+        // Non-final chunks are 1 MiB and block-aligned.
         // This also avoids PointyCastle 4.0.0's partial-block processBytes bug.
         final written = cipher.processBytes(
           inputBuffer,
@@ -122,7 +127,12 @@ abstract final class E2eeStreamingFileCipher {
           0,
         );
         if (written > 0) await output.writeFrom(outputBuffer, 0, written);
+        processed += length;
+        onProgress?.call(processed, totalBytes);
         remaining -= length;
+      }
+      if (totalBytes == 0) {
+        onProgress?.call(0, 0);
       }
       if (await input.readByte() != -1) {
         throw const FormatException('E2EE source grew during processing');

@@ -85,6 +85,45 @@ class CallRepository {
         );
   }
 
+  Future<Map<String, dynamic>?> getActiveCall(int chatId) async {
+    try {
+      final dynamic response = await _ref
+          .read(webSocketClientProvider)
+          .request(
+            'get_active_call',
+            payload: <String, dynamic>{'chat_id': chatId},
+          );
+      final map = asStringMap(response);
+      final rawActive = map['active_call'];
+      if (rawActive is Map) {
+        return asStringMap(rawActive);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> refreshCallToken({
+    required int chatId,
+    required String roomId,
+  }) async {
+    try {
+      final dynamic response = await _ref
+          .read(webSocketClientProvider)
+          .request(
+            'refresh_call_token',
+            payload: <String, dynamic>{'chat_id': chatId, 'room_id': roomId},
+          );
+      final map = asStringMap(response);
+      if (map.containsKey('call_access_token')) {
+        return map;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 final Provider<CallRepository> callRepositoryProvider =

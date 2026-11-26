@@ -86,6 +86,7 @@ class ChatDetailInputArea extends ConsumerWidget {
     this.onCancelAi,
     this.onEditLastMessage,
     this.onAttachFiles,
+    this.onDesktopPaste,
   });
 
   final bool canPostInChannel;
@@ -128,6 +129,7 @@ class ChatDetailInputArea extends ConsumerWidget {
   final bool sendOnEnter;
   final VoidCallback? onEditLastMessage;
   final void Function(List<String> filePaths, {bool sendAsDocument})? onAttachFiles;
+  final Future<void> Function()? onDesktopPaste;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -336,6 +338,7 @@ class ChatDetailInputArea extends ConsumerWidget {
                       sendOnEnter: sendOnEnter,
                       onEditLastMessage: onEditLastMessage,
                       onAttachFiles: onAttachFiles,
+                      onDesktopPaste: onDesktopPaste,
                     ),
                   ),
                 ],

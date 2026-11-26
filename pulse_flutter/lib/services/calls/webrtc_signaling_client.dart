@@ -43,11 +43,18 @@ class WebRtcPeerInfo {
 class WebRtcSignalingClient {
   WebRtcSignalingClient({
     required this.signalUrl,
-    required this.token,
-  });
+    required String token,
+  }) : _token = token;
 
   final String signalUrl;
-  final String token;
+  String _token;
+  String get token => _token;
+
+  void updateToken(String nextToken) {
+    if (nextToken.isNotEmpty) {
+      _token = nextToken;
+    }
+  }
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _sub;
@@ -224,12 +231,20 @@ class WebRtcSignalingClient {
     });
   }
 
-  void sendMediaState({required int targetId, required bool audio, required bool video}) {
+  void sendMediaState({
+    required int targetId,
+    required bool audio,
+    required bool video,
+    bool screen = false,
+    String? screenStreamId,
+  }) {
     send({
       'type': WebRtcSignalType.mediaState,
       'target_id': targetId,
       'audio': audio,
       'video': video,
+      'screen': screen,
+      if (screen && screenStreamId != null) 'screen_stream_id': screenStreamId,
     });
   }
 

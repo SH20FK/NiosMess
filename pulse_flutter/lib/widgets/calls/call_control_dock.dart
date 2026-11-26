@@ -1,4 +1,5 @@
 import 'package:pulse_flutter/widgets/calls/call_devices_dialog.dart';
+import 'package:pulse_flutter/widgets/calls/screen_share_picker_dialog.dart';
 import 'package:pulse_flutter/widgets/calls/call_quality_badge.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
@@ -142,6 +143,54 @@ class CallControlDock extends StatelessWidget {
                 },
               ),
               ],
+
+            // ── Screen share ───────────────────────────────────────────
+            if (!data.isListener)
+              _CallDockButton(
+                icon: data.isScreenSharing
+                    ? Icons.stop_screen_share_rounded
+                    : Icons.screen_share_rounded,
+                tooltip: data.isScreenSharing
+                    ? 'Остановить демонстрацию'
+                    : 'Демонстрация экрана',
+                isActive: data.isScreenSharing,
+                activeBg: scheme.primary,
+                activeFg: scheme.onPrimary,
+                inactiveBg: CallTokens.darkSurfaceContainerHighest,
+                inactiveFg: scheme.onSurface,
+                onTap: () async {
+                  HapticService.tap();
+                  if (data.isScreenSharing) {
+                    await session.stopScreenShare();
+                    return;
+                  }
+                  final choice = await showScreenSharePicker(
+                    context,
+                    maxScreenHeight: data.maxScreenHeight,
+                  );
+                  if (choice == null) return;
+                  try {
+                    await session.startScreenShare(sourceId: choice.sourceId);
+                  } catch (_) {}
+                },
+              ),
+
+            // ── VPN / TCP relay ────────────────────────────────────────
+            _CallDockButton(
+              icon: Icons.vpn_lock_rounded,
+              tooltip: data.forceRelay
+                  ? 'Режим VPN (TCP/TLS) включён'
+                  : 'Включить режим VPN (TCP/TLS)',
+              isActive: data.forceRelay,
+              activeBg: scheme.tertiary,
+              activeFg: scheme.onTertiary,
+              inactiveBg: CallTokens.darkSurfaceContainerHighest,
+              inactiveFg: scheme.onSurface,
+              onTap: () {
+                HapticService.tap();
+                session.setForceRelay(!data.forceRelay);
+              },
+            ),
 
             // ── End Call Button (M3 Expressive Red Stadium Pill) ────────
             Tooltip(

@@ -136,15 +136,17 @@ Future<int> startOutgoingCall({
         );
 
     guard.requireCurrent();
-    final bool isCallsTester =
-        accountRef.read(authProvider).profile?.isCallsTester ?? false;
-    final ApiCallInitiateResult initResult = ApiCallInitiateResult.fromJson(
+    final profile = accountRef.read(authProvider).profile;
+    final bool isCallsTester = profile?.isCallsTester ?? false;
+    final bool isNiosPlus = profile?.isNiosPlus ?? false;
+    final bool isGroup = chat?.chatType == 'group';
+    final ApiCallGatewayInfo gatewayInfo = ApiCallGatewayInfo.fromJson(
       result,
       isCallsTester: isCallsTester,
+      isNiosPlus: isNiosPlus,
+      isGroup: isGroup,
     );
-    final ApiCallGatewayInfo gatewayInfo =
-        initResult.gatewayInfo ??
-        ApiCallGatewayInfo.defaultFor(isCallsTester: isCallsTester);
+    final ApiCallGatewayInfo effectiveGateway = gatewayInfo;
 
     int? parseId(dynamic val) {
       if (val is num) return val.toInt();
@@ -153,6 +155,10 @@ Future<int> startOutgoingCall({
     }
 
     final dynamic payload = result['payload'];
+    final ApiCallInitiateResult initResult = ApiCallInitiateResult.fromJson(
+      result,
+      isCallsTester: isCallsTester,
+    );
     final int callId =
         parseId(payload is Map ? payload['message_id'] : null) ??
         parseId(payload is Map ? payload['call_id'] : null) ??
@@ -163,19 +169,27 @@ Future<int> startOutgoingCall({
       throw Exception('Failed to obtain a valid call session ID from server');
     }
 
+    final dynamic rawServerRoom =
+        (payload is Map ? payload['room_id'] : null) ?? result['room_id'];
+    final String effectiveRoomId =
+        (rawServerRoom is String &&
+            RegExp(r'^[a-fA-F0-9]{32}$').hasMatch(rawServerRoom))
+        ? rawServerRoom
+        : roomId;
     final CallSessionManager manager = CallSessionManager(
       ref: accountRef,
       chatId: chatId,
       callId: callId,
-      roomId: roomId,
+      roomId: effectiveRoomId,
       isVideo: isVideo,
+      isGroup: effectiveGateway.isGroup,
       direction: CallDirection.outgoing,
       displayName: nickname,
       peerName: peerName ?? chat?.name,
       peerAvatarUrl: peerAvatarUrl ?? chat?.avatarUrl,
       peerUsername: peerUsername ?? chat?.username,
       isListener: isListener,
-      gatewayInfo: gatewayInfo,
+      gatewayInfo: effectiveGateway,
     );
     guard.requireCurrent();
     accountRef.read(callSessionProvider.notifier).setSession(manager);
@@ -223,15 +237,19 @@ Future<void> startIncomingCall({
     guard.requireCurrent();
 
     guard.requireCurrent();
-    final bool isCallsTester =
-        accountRef.read(authProvider).profile?.isCallsTester ?? false;
+    final profile = accountRef.read(authProvider).profile;
+    final bool isCallsTester = profile?.isCallsTester ?? false;
+    final bool isNiosPlus = profile?.isNiosPlus ?? false;
+    final chat = accountRef.read(chatByIdProvider(chatId));
+    final bool isGroup = chat?.chatType == 'group';
     final ApiCallGatewayInfo gatewayInfo = ApiCallGatewayInfo.defaultFor(
       isCallsTester: isCallsTester,
+      isNiosPlus: isNiosPlus,
+      isGroup: isGroup,
     );
 
     final String nickname =
         accountRef.read(authProvider).session?.displayName ?? 'User';
-    final chat = accountRef.read(chatByIdProvider(chatId));
 
     final CallSessionManager manager = CallSessionManager(
       ref: accountRef,
@@ -239,6 +257,7 @@ Future<void> startIncomingCall({
       callId: callId,
       roomId: roomId,
       isVideo: isVideo,
+      isGroup: isGroup,
       direction: CallDirection.incoming,
       displayName: nickname,
       peerName: peerName ?? chat?.name,

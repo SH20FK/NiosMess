@@ -75,6 +75,11 @@ class CallPushHandler extends Notifier<void> {
       return;
     }
 
+    if (action == 'call_participant_left') {
+      _handleParticipantLeft(msg);
+      return;
+    }
+
     if (action != 'new_call' &&
         action != 'incoming_call' &&
         action != 'incoming_call_push' &&
@@ -160,11 +165,33 @@ class CallPushHandler extends Notifier<void> {
       return;
     }
 
+    final bool isGroup =
+        payload['is_group'] == true ||
+        payload['is_group'] == 'true' ||
+        payload['is_group'] == 1 ||
+        payload['is_group'] == '1';
+    final int participantsCount =
+        int.tryParse(payload['participants_count']?.toString() ?? '') ?? 1;
+    if (isGroup && messageId > 0) {
+      ref.read(activeChatCallsProvider.notifier).upsert(
+        ActiveChatCall(
+          chatId: chatId,
+          roomId: roomId,
+          callId: messageId,
+          isVideo: isVideo,
+          isGroup: true,
+          participantsCount: participantsCount,
+          status: 'ringing',
+        ),
+      );
+    }
+
     final IncomingCallData incomingData = IncomingCallData(
       callId: messageId,
       roomId: roomId,
       chatId: chatId,
       isVideo: isVideo,
+      isGroup: isGroup,
       initiatorId: initiatorId,
       initiatorName: initiatorName,
     );
@@ -199,6 +226,25 @@ class CallPushHandler extends Notifier<void> {
         ? asStringMap(msg['payload'] as Map)
         : msg;
     final String? roomId = payload['room_id']?.toString();
+    final int? chatId = int.tryParse(payload['chat_id']?.toString() ?? '');
+    final int messageId =
+        int.tryParse(payload['message_id']?.toString() ?? '') ?? 0;
+    final bool isGroup = payload['is_group'] == true;
+    final int count =
+        int.tryParse(payload['participants_count']?.toString() ?? '') ?? 2;
+    if (isGroup && chatId != null && roomId != null && messageId > 0) {
+      ref.read(activeChatCallsProvider.notifier).upsert(
+        ActiveChatCall(
+          chatId: chatId,
+          roomId: roomId,
+          callId: messageId,
+          isVideo: payload['is_video'] == true,
+          isGroup: true,
+          participantsCount: count,
+          status: 'active',
+        ),
+      );
+    }
 
     final CallSessionManager? manager = ref.read(callSessionProvider);
     if (manager != null && roomId != null && manager.roomId == roomId) {
@@ -206,6 +252,19 @@ class CallPushHandler extends Notifier<void> {
         '[CallPushHandler] Received call_joined for room $roomId. Connecting media...',
       );
       unawaited(manager.onCallJoined(payload));
+    }
+  }
+
+  void _handleParticipantLeft(Map<String, dynamic> msg) {
+    final Map<String, dynamic> payload = msg['payload'] is Map
+        ? asStringMap(msg['payload'] as Map)
+        : msg;
+    final String? roomId = payload['room_id']?.toString();
+    final int? chatId = int.tryParse(payload['chat_id']?.toString() ?? '');
+    final int count =
+        int.tryParse(payload['participants_count']?.toString() ?? '') ?? 0;
+    if (chatId != null && roomId != null && roomId.trim().isNotEmpty) {
+      ref.read(activeChatCallsProvider.notifier).updateCount(chatId, roomId, count);
     }
   }
 
@@ -223,6 +282,10 @@ class CallPushHandler extends Notifier<void> {
     final String? roomId = payload['room_id']?.toString();
     if (roomId == null || roomId.trim().isEmpty) return;
     _rememberEnded(roomId);
+    final int? chatId = int.tryParse(payload['chat_id']?.toString() ?? '');
+    if (chatId != null) {
+      ref.read(activeChatCallsProvider.notifier).remove(chatId, roomId: roomId);
+    }
 
     final IncomingCallData? incoming = ref.read(incomingCallProvider);
     if (incoming != null && incoming.roomId == roomId) {

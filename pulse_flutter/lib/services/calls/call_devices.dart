@@ -7,9 +7,14 @@ class CallDevices {
   const CallDevices({this.microphone = '', this.camera = '', this.output = ''});
   final String microphone, camera, output;
 
-  Map<String, dynamic> constraints({required bool video, int maxHeight = 480}) {
+  Map<String, dynamic> constraints({
+    required bool video,
+    int maxHeight = 480,
+    int maxFps = 30,
+  }) {
     final result = CallCaptureProfile(
       maxHeight,
+      maxFps: maxFps,
     ).constraints(isWeb: kIsWeb, video: video);
     if (microphone.isNotEmpty) {
       if (kIsWeb) {

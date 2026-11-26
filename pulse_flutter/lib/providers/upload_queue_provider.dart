@@ -227,12 +227,21 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
       var wireSize = task.fileSize;
       final ordinary = ref.read(ordinaryE2eeProvider);
       final chat = ref.read(chatByIdProvider(task.chatId));
-      if (task.e2eeFileKey == null &&
+      final bool encryptLocally =
+          task.e2eeFileKey == null &&
           chat?.isSecret != true &&
           ordinary != null &&
-          await ordinary.prepare(task.chatId) != null) {
+          await ordinary.prepare(task.chatId) != null;
+      if (encryptLocally) {
         ordinaryFileKey = E2eeFileCrypto.generateFileKey();
         if (wireBytes != null && wireBytes.isNotEmpty) {
+          state = {
+            ...state,
+            localId: (state[localId] ?? task).copyWith(
+              progress: 0.05,
+              stage: UploadStage.uploading,
+            ),
+          };
           wireBytes = await E2eeFileCrypto.encrypt(wireBytes, ordinaryFileKey);
           wirePath = null;
           wireSize = wireBytes.length;
@@ -244,11 +253,38 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
             plainPath: wirePath!,
             outputPath: encryptedTemporaryPath,
             key: ordinaryFileKey,
+            onProgress: (processed, total) {
+              if (cancelToken.isCancelled) return;
+              final currentTask = state[localId];
+              if (currentTask == null) return;
+              final double frac = total > 0
+                  ? (processed / total).clamp(0.0, 1.0)
+                  : 1.0;
+              final double encProgress = (0.01 + frac * 0.17).clamp(0.01, 0.18);
+              final DateTime now = DateTime.now();
+              final DateTime? lastUpdate = _lastUiUpdates[localId];
+              if (lastUpdate == null ||
+                  now.difference(lastUpdate) >= _uiProgressInterval ||
+                  frac >= 1.0) {
+                _lastUiUpdates[localId] = now;
+                _lastReportedProgress[localId] = encProgress;
+                state = {
+                  ...state,
+                  localId: currentTask.copyWith(
+                    progress: encProgress,
+                    bytesSent: (task.fileSize * encProgress).round(),
+                    stage: UploadStage.uploading,
+                  ),
+                };
+              }
+            },
           );
           wirePath = encryptedTemporaryPath;
           wireSize = await File(wirePath).length();
         }
       }
+      final double uploadBase = encryptLocally ? 0.18 : 0.0;
+      final double uploadSpan = 0.99 - uploadBase;
       final uploadId = await ref
           .read(chatRepositoryProvider)
           .uploadStreamInChunks(
@@ -263,12 +299,14 @@ class UploadQueueNotifier extends Notifier<Map<String, UploadTask>> {
               final currentTask = state[localId];
               if (currentTask != null && total > 0) {
                 final metrics = speedTracker.updateProgress(sent, total);
-                // Cap network progress at 99% while data is in flight over socket
+                // Map network transfer cleanly after local encryption so the bar
+                // starts moving right away instead of sitting at 0%.
                 final double rawProgress = (sent / total).clamp(0.0, 1.0);
-                final double cappedProgress = (rawProgress * 0.99).clamp(
-                  0.0,
-                  0.99,
-                );
+                final double cappedProgress =
+                    (uploadBase + rawProgress * uploadSpan).clamp(
+                      uploadBase,
+                      0.99,
+                    );
 
                 final DateTime now = DateTime.now();
                 final DateTime? lastUpdate = _lastUiUpdates[localId];

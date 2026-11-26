@@ -21,12 +21,20 @@ void main() {
     );
   }
   test(
-    'voice calls never request a camera; invalid gateway limits fall back safely',
+    'voice calls never request a camera; invalid gateway limits fall back safely; NiosPlus unlocks 1440p/60fps',
     () {
       expect(CallCaptureProfile(0).height, 480);
       expect(CallCaptureProfile(-10).height, 480);
-      expect(CallCaptureProfile(2160).height, 1080);
+      expect(CallCaptureProfile(2160).height, 1440);
       expect(CallCaptureProfile(100).height, 100);
+      final plus = CallCaptureProfile(1440, maxFps: 60);
+      expect(plus.width, 2560);
+      expect(plus.videoBitrate, 8000000);
+      final plusScreen = plus.screenShareConstraints(isWeb: true);
+      expect((plusScreen['video'] as Map)['frameRate'], {'ideal': 60, 'max': 60});
+      final freeScreen = CallCaptureProfile(480).screenShareConstraints(isWeb: true);
+      expect((freeScreen['video'] as Map)['height'], {'ideal': 480, 'max': 480});
+      expect((freeScreen['video'] as Map)['frameRate'], {'ideal': 20, 'max': 20});
       expect(
         CallCaptureProfile(480).constraints(isWeb: true, video: false)['video'],
         false,

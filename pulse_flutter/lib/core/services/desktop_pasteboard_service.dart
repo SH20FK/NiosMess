@@ -51,3 +51,34 @@ class DesktopPasteboardService {
     return const <String>[];
   }
 }
+
+/// Cooldown deduplicator preventing double file-paste dispatch when both a focused
+/// input listener and an ancestor shortcut handler observe the same Ctrl+V.
+class DesktopPasteDeduplicator {
+  DesktopPasteDeduplicator({
+    this.cooldown = const Duration(milliseconds: 450),
+  });
+
+  final Duration cooldown;
+  DateTime? _lastAcceptedAt;
+  String? _lastSignature;
+
+  bool shouldAccept(List<String> files, {DateTime? now}) {
+    if (files.isEmpty) return false;
+    final DateTime current = now ?? DateTime.now();
+    final String sig = files.join('\n');
+    if (_lastAcceptedAt != null &&
+        _lastSignature == sig &&
+        current.difference(_lastAcceptedAt!) < cooldown) {
+      return false;
+    }
+    _lastAcceptedAt = current;
+    _lastSignature = sig;
+    return true;
+  }
+
+  void reset() {
+    _lastAcceptedAt = null;
+    _lastSignature = null;
+  }
+}
