@@ -544,17 +544,21 @@
 
 ## 14. Definition of Done
 
-- [ ] Flutter в CI = 3.50.1, локальный = CI.
-- [ ] `pubspec.yaml` без мёртвых строк; `flutter pub outdated` чист по поднятым.
-- [ ] `analyze` (включая `--fatal-infos`) без новых замечаний.
-- [ ] `dart test`, `suite_test`, chrome, `pure_dart` — зелёные.
-- [ ] `flutter build windows` и `flutter build web` проходят.
-- [ ] Android-workflow зелёный, push и локальные уведомления проверены на устройстве.
-- [ ] Вход/сессия после `secure_storage` 11 живы на Android и Windows.
-- [ ] `grep "package:flutter/material.dart" lib/` = 0; `material_ui` — везде.
-- [ ] Лента, комментарии и сообщения с markdown рендерятся; custom emoji работают.
-- [ ] Версия и `CHANGELOG.md` обновлены; `audit/deps/00-summary.md` актуализирован.
-- [ ] Временный dev-экран и маршрут удалены.
+- [x] Flutter в CI = 3.50.1, локальный = CI.
+- [x] `pubspec.yaml` без мёртвых строк; `flutter pub outdated` чист по поднятым.
+- [x] `analyze` (включая `--fatal-infos`) без новых замечаний — «No issues found!».
+- [x] `dart test`, `suite_test`, chrome, `pure_dart` — зелёные (CI `Analyze & Test`, локально 1913/1913).
+- [x] `flutter build windows` и `flutter build web` проходят (прогон 45826065004).
+- [x] Android-workflow зелёный (прогон 45826065004: `Build Android APK` — success,
+      `Android release startup gate` — success). Push и локальные уведомления на
+      физическом устройстве **не проверялись** — нужен телефон, это осталось за владельцем.
+- [ ] Вход/сессия после `secure_storage` 11 живы на Android и Windows — **не проверено
+      на устройстве**, нужен ручной вход после установки сборки.
+- [x] `grep "package:flutter/material.dart" lib/` = 0; `material_ui` — везде.
+- [x] Лента, комментарии и сообщения с markdown рендерятся; custom emoji работают
+      (покрыто `suite_test`, включая офлайн-проверку Noto emoji).
+- [x] Версия и `CHANGELOG.md` обновлены (`3.150.1+4339`); `audit/deps/00-summary.md` актуализирован.
+- [x] Временный dev-экран и маршрут удалены.
 
 ---
 
@@ -698,3 +702,62 @@ android.applicationVariants { ... }        force-version-code-ignoring-abi=true
 AGP: шаблон и сам Flutter-плагин на AGP 9.3.1 уже несовместимы со старым DSL,
 поэтому оба флага мигратора (`android.newDsl=false`, `android.builtInKotlin=false`)
 для этого проекта неприменимы.
+
+### Итог: прогон 45826065004 — зелёный
+
+```
+Analyze & Test                     success   8 мин
+Protocol SDK (windows-latest)      success   6 мин
+Protocol SDK (ubuntu-latest)       success   2 мин
+Build Android APK                  success  12 мин   ← впервые
+Build Web                          success   2 мин
+Build Windows Installer            success  11 мин
+Android release startup gate       success   3 мин
+Publish GitHub Release             success
+```
+
+Гейт запуска (`Start existing release APK on Android 29`) тоже прошёл — то есть
+собранный APK не просто собрался, а стартует на эмуляторе Android 29.
+
+### Три проблемы, найденные на первом прогоне, дошедшем до реальной сборки
+
+Для истории: до этого сборка падала за 30 секунд на компиляции Gradle-скрипта,
+поэтому следующие три вещи всплыли только после её починки.
+
+**1. Lint AGP 9.3.1 — баг инструмента.** `:camera_android_camerax:lintVitalAnalyzeRelease`
+падает с `NoSuchMethodError: 'java.lang.Object java.util.List.removeLast()'` в
+`com.android.tools.lint.checks.CommentDetector`. `List.removeLast()` — метод JDK 21,
+а Gradle идёт на JDK 17, то есть это внутренний баг lint. Флаг
+`lint.checkReleaseBuilds = false` в AGP 9 **не убирает** этот таск у библиотечных
+модулей, поэтому в `android/build.gradle.kts` отключены сами задачи:
+
+```kotlin
+subprojects {
+    tasks.matching { it.name.startsWith("lintVital") }.configureEach {
+        enabled = false
+    }
+}
+```
+
+Наш код по-прежнему закрыт `flutter analyze --fatal-infos`, линтом приложения и
+проверкой артефактов. Когда AGP перестанет падать (или CI переедет на JDK 21),
+задачу можно вернуть.
+
+**2. C++20 на Windows.** Глобальный `set(CMAKE_CXX_STANDARD 20)`, добавленный ради
+`flutter_local_notifications`, ломал `window_manager 0.5.2`:
+
+```
+window_manager.cpp(121,23): error C4596: 'SetBackgroundColor': illegal qualified
+name in member declaration
+```
+
+Глобальный стандарт убран: `flutter_local_notifications_windows 4.0.1` включает
+C++20 сам, пер-таргетно (`target_compile_features(... PRIVATE cxx_std_20)`).
+
+**3. `audioplayers_android` 5.3.0.** Применяет `de.mannodermaus.android-junit5`
+(нужен только его собственным unit-тестам), а тот приводит расширение Android к
+`BaseExtension`, которого в новом DSL AGP 9 нет. Стабильного релиза с фиксом нет
+(6.0.0-dev.0 требует `audioplayers_platform_interface ^8.0.0-dev` → каскад dev-пакетов),
+поэтому пакет вендорен в `packages/audioplayers_android` с изменённым **только**
+Gradle-скриптом: Dart- и Kotlin-исходники байт-в-байт как в 5.3.0 (подробности —
+`packages/audioplayers_android/README-vendor.md`).
