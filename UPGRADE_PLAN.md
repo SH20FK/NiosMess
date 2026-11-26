@@ -738,22 +738,26 @@ Publish GitHub Release             success
 `com.android.tools.lint.checks.CommentDetector`. `List.removeLast()` — метод JDK 21,
 а Gradle идёт на JDK 17, то есть это внутренний баг lint. Флаг
 `lint.checkReleaseBuilds = false` в AGP 9 **не убирает** этот таск у библиотечных
-модулей, поэтому в `android/build.gradle.kts` отключены сами задачи:
+модулей, поэтому в `android/build.gradle.kts` отключены сами задачи — но только
+для плагинов, `:app` исключён:
 
 ```kotlin
 subprojects {
-    tasks.matching { it.name.startsWith("lintVital") }.configureEach {
-        enabled = false
+    if (path != ":app") {
+        tasks.matching { it.name.startsWith("lintVital") }.configureEach {
+            enabled = false
+        }
     }
 }
 ```
 
-Наш код по-прежнему закрыт `flutter analyze --fatal-infos` (только Dart) и
-проверкой артефактов `tool/verify_android_artifacts.py`. Это не замена lint:
-`subprojects {}` отключает `lintVital*` и для `:app`, поэтому release-lint
-сейчас не выполняется нигде — ни у плагинов, ни у приложения, и покрытие
-Android-lint нулевое. Вернуть задачи можно после исправления AGP или перехода
-CI на JDK 21.
+Краш возникал на Java-файле плагина (`camera_android_camerax`), а lint приложения
+анализирует только наши Kotlin/Java-исходники, поэтому `:app` оставлен с рабочим
+release-lint — это подтвердил прогон 45837540171 (`Build Android APK` — success,
+`lintVital*` у `:app` выполнились). Итог: Android-lint приложения сохранён,
+у плагинов отключён. `flutter analyze --fatal-infos` покрывает только Dart и lint
+не заменяет. Вернуть задачи плагинам — после исправления AGP или перехода CI на
+JDK 21 (в `build.gradle.kts` стоит `TODO`).
 
 **2. C++20 на Windows.** Глобальный `set(CMAKE_CXX_STANDARD 20)`, добавленный ради
 `flutter_local_notifications`, ломал `window_manager 0.5.2`:
