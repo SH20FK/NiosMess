@@ -80,6 +80,76 @@ class _ComposerClearance extends ConsumerWidget {
   }
 }
 
+/// Fade and a short slide of one row while a filter swap replaces the list.
+///
+/// The timeline belongs to the screen, so a row that scrolls away and comes
+/// back reads the current value instead of replaying an entrance, and only the
+/// rows that are actually laid out rebuild while it runs. The first
+/// [staggeredRows] rows start [staggerStep] apart; every row after them gets
+/// [kAlwaysCompleteAnimation] and is built at rest, with no listener at all —
+/// the tree keeps the same shape either way, so no row is remounted when the
+/// transition ends.
+class _FilterRowTransition extends StatelessWidget {
+  const _FilterRowTransition({
+    required this.progress,
+    required this.index,
+    required this.direction,
+    required this.child,
+  });
+
+  /// Rows that take part in the stagger.
+  static const int staggeredRows = 8;
+
+  /// Share of the timeline between two neighbouring rows (~32 ms of 400).
+  static const double staggerStep = 0.08;
+
+  /// Slide distance in logical pixels at the start of a row's fade.
+  static const double slide = 10.0;
+
+  /// Shared timeline of the swap; a row past the stagger holds it at 1.
+  final Animation<double> progress;
+  final int index;
+
+  /// +1: the rows come from below (later filter), -1: from above.
+  final int direction;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool staggering = index < staggeredRows;
+    final double start = staggering ? index * staggerStep : 0.0;
+    final double span = 1.0 - start;
+    return AnimatedBuilder(
+      animation: progress,
+      child: child,
+      builder: (BuildContext context, Widget? child) {
+        final double t = staggering
+            ? ((progress.value - start) / span).clamp(0.0, 1.0)
+            : 1.0;
+        // At rest the row is opaque and in place: the two wrappers stay in the
+        // tree (so nothing remounts) but cost no layer.
+        // Opacity rides an effects curve and never overshoots; the slide rides
+        // the fast spatial spring and may settle past its target by a hair.
+        final double opacity = t >= 1.0
+            ? 1.0
+            : M3SpringCurves.effectsFast.transform(t);
+        final double shift = t >= 1.0
+            ? 0.0
+            : (1.0 - M3SpringCurves.spatialFast.transform(t)) *
+                  slide *
+                  direction;
+        return Opacity(
+          opacity: opacity,
+          child: Transform.translate(
+            offset: Offset(0.0, shift),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// The inbox snapshot the screen subscribes to. Two snapshots are equal when
 /// they differ only in presence, so `select` skips the screen for those.
 class _PresenceBlindChats {
@@ -372,12 +442,21 @@ class ChatListScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
 }
 
-class _ChatListScreenState extends ConsumerState<ChatListScreen> {
+class _ChatListScreenState extends ConsumerState<ChatListScreen>
+    with SingleTickerProviderStateMixin {
   static final RegExp _forwardedPattern = RegExp(r'^_fwd from\s+(.+?):');
 
   @override
   void initState() {
     super.initState();
+    _filterTransition = AnimationController(
+      vsync: this,
+      duration: M3Durations.medium4,
+      value: 1.0,
+    );
+    _filterFade = _filterTransition.drive(
+      CurveTween(curve: M3SpringCurves.effectsFast),
+    );
     ref.listenManual(authProvider.select((s) => s.session?.userId), (
       before,
       after,
@@ -414,17 +493,55 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         });
       },
     );
+    // Another filter or folder replaces the list in place: the rows fade and
+    // slide in together instead of snapping.
+    ref.listenManual(
+      chatFilterProvider,
+      (ChatFilter? before, ChatFilter after) {
+        _announceFilterChange(before == null ? 1 : after.index - before.index);
+      },
+    );
+    ref.listenManual<String?>(
+      selectedChatFolderProvider,
+      (String? before, String? after) {
+        if (before == after) return;
+        _announceFilterChange(after == null ? -1 : 1);
+      },
+    );
     // The provider already fetches on first build and WebSocket push keeps data fresh.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Read once here: the provider listeners above must not touch an inherited
+    // widget while another element is building.
+    _reduceMotion = context.reduceMotion;
+    if (_reduceMotion) _filterTransition.value = 1.0;
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _filterTransition.dispose();
     _cursorMenuChat.dispose();
     super.dispose();
   }
 
   final ScrollController _scrollController = ScrollController();
+
+  /// Cross-fade of the list when the filter (or the folder) swaps the rows.
+  ///
+  /// The timeline is owned here, not by a row: a row that is built later — for
+  /// example after scrolling away and back — reads the current value instead
+  /// of replaying the entrance.
+  late final AnimationController _filterTransition;
+  late final Animation<double> _filterFade;
+
+  /// +1 when the new scope sits later in the rail, -1 when it sits earlier:
+  /// the rows slide in from that side of travel.
+  int _filterDirection = 1;
+  bool _reduceMotion = false;
 
   // One menu anchor serves every row: a right click opens it at the pointer
   // with the actions of the chat under it.
@@ -451,6 +568,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         curve: M3SpringCurves.expressiveDecel,
       ),
     );
+  }
+
+  /// Restarts the row cross-fade after a filter or folder change.
+  ///
+  /// [direction] is +1 when the new scope sits later in the rail and -1 when it
+  /// sits earlier. Under reduced motion the list is replaced in place.
+  void _announceFilterChange(int direction) {
+    _filterDirection = direction >= 0 ? 1 : -1;
+    if (!mounted || _reduceMotion) {
+      _filterTransition.value = 1.0;
+      return;
+    }
+    _filterTransition.forward(from: 0.0);
   }
 
   final _previewFormatter = MessagePreviewFormatter();
@@ -891,29 +1021,33 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         ?archiveRow,
         if (showSavedShortcut) _savedShortcut(scheme, compact),
         SliverFillRemaining(
-          child: EmptyStateWidget(
-            // A filter that matched nothing is a passing state and gets the
-            // quiet variant; the full-size one is for an account without chats.
-            compact: !noChatsAtAll,
-            title: noChatsAtAll
-                ? context.l10n.inboxEmptyTitle
-                : filter == ChatFilter.unread
-                ? context.l10n.inboxNoUnread
-                : context.l10n.inboxCategoryEmpty,
-            subtitle: noChatsAtAll
-                ? context.l10n.inboxEmptyHint
-                : context.l10n.inboxFilterResetHint,
-            actionLabel: noChatsAtAll
-                ? context.l10n.inboxComposeTitle
-                : context.l10n.inboxResetFilters,
-            onAction: noChatsAtAll
-                ? () => openComposeActions(context)
-                : _resetInboxFilters,
-            icon: noChatsAtAll
-                ? Icons.forum_outlined
-                : filter == ChatFilter.unread
-                ? Icons.mark_chat_read_outlined
-                : Icons.filter_list_off_rounded,
+          // A filter that matched nothing fades in like the rows do.
+          child: FadeTransition(
+            opacity: _filterFade,
+            child: EmptyStateWidget(
+              // A filter that matched nothing is a passing state and gets the
+              // quiet variant; the full-size one is for an account without chats.
+              compact: !noChatsAtAll,
+              title: noChatsAtAll
+                  ? context.l10n.inboxEmptyTitle
+                  : filter == ChatFilter.unread
+                  ? context.l10n.inboxNoUnread
+                  : context.l10n.inboxCategoryEmpty,
+              subtitle: noChatsAtAll
+                  ? context.l10n.inboxEmptyHint
+                  : context.l10n.inboxFilterResetHint,
+              actionLabel: noChatsAtAll
+                  ? context.l10n.inboxComposeTitle
+                  : context.l10n.inboxResetFilters,
+              onAction: noChatsAtAll
+                  ? () => openComposeActions(context)
+                  : _resetInboxFilters,
+              icon: noChatsAtAll
+                  ? Icons.forum_outlined
+                  : filter == ChatFilter.unread
+                  ? Icons.mark_chat_read_outlined
+                  : Icons.filter_list_off_rounded,
+            ),
           ),
         ),
       ];
@@ -1158,18 +1292,27 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
               return RepaintBoundary(
                 key: ValueKey<int>(chat.id),
-                child: Padding(
-                  // 2 dp: unread tiles used to fuse into one block.
-                  padding: EdgeInsets.only(
-                    bottom: index == filtered.length - 1 ? 0 : 2,
-                  ),
-                  // A chat that changes place (new message, pin) slides to
-                  // its new slot; switching filter or folder does not.
-                  child: ReorderSlide(
-                    index: index,
-                    scope: (filter, selected, archiveOpen),
-                    gap: 2,
-                    child: item,
+                child: _FilterRowTransition(
+                  // Past the first rows the list is not staggered: they hold a
+                  // constant timeline, so a long list pays nothing per row.
+                  progress: index < _FilterRowTransition.staggeredRows
+                      ? _filterTransition
+                      : kAlwaysCompleteAnimation,
+                  index: index,
+                  direction: _filterDirection,
+                  child: Padding(
+                    // 2 dp: unread tiles used to fuse into one block.
+                    padding: EdgeInsets.only(
+                      bottom: index == filtered.length - 1 ? 0 : 2,
+                    ),
+                    // A chat that changes place (new message, pin) slides to
+                    // its new slot; switching filter or folder does not.
+                    child: ReorderSlide(
+                      index: index,
+                      scope: (filter, selected, archiveOpen),
+                      gap: 2,
+                      child: item,
+                    ),
                   ),
                 ),
               );

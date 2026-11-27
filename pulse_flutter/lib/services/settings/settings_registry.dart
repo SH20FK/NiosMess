@@ -85,7 +85,6 @@ class SettingsRegistry {
         'radius',
         'font',
         'contrast',
-        'oled',
       ],
     ),
 
@@ -100,16 +99,9 @@ class SettingsRegistry {
       sectionId: SettingsSectionId.chats,
       keywords: const <String>[
         'чаты',
-        'медиа',
-        'автозагрузка',
-        'вайфай',
         'камера',
         'enter',
         'chats',
-        'media',
-        'download',
-        'wifi',
-        'cellular',
         'camera',
         'reaction',
       ],
@@ -315,13 +307,16 @@ class SettingsRegistry {
   /// Deeply searchable items mapped to their parent section and route.
   static final List<SettingsNode> _searchableChildren = <SettingsNode>[
     // Appearance items
-    SettingsItemNode(
+    // The corner radii live on the shape sub-screen: the node points at it,
+    // and its anchor keeps the row id so search still highlights the slider.
+    SettingsNavNode(
       id: 'ui_corner_radius',
       parentNavId: 'appearance',
       title: (AppLocalizations l) => l.appearanceUiRounding,
       subtitle: (AppLocalizations l) => l.appearanceUiRoundingDesc,
       icon: Icons.rounded_corner_rounded,
       group: SettingsGroup.appearance,
+      route: '/settings/appearance/shape',
       keywords: const <String>[
         'скругление интерфейса',
         'радиус',
@@ -349,7 +344,9 @@ class SettingsRegistry {
       ],
     ),
 
-    SettingsItemNode(
+    // The system-colours toggle lives on the accent sub-screen now; the node
+    // keeps the row id as its anchor and the web-unavailability it had.
+    SettingsNavNode(
       id: 'appearance.color.source',
       availability: () => !kIsWeb,
       parentNavId: 'appearance',
@@ -357,6 +354,7 @@ class SettingsRegistry {
       subtitle: (AppLocalizations l) => l.appearanceSystemColorsSubtitle,
       icon: Icons.auto_awesome_rounded,
       group: SettingsGroup.appearance,
+      route: '/settings/appearance/accent',
       keywords: const <String>[
         'динамические цвета',
         'системные цвета',
@@ -381,38 +379,76 @@ class SettingsRegistry {
         'keyboard',
       ],
     ),
-    // One search row per media type: both networks sit in the same group on
-    // the screen, so four identical "on Wi-Fi" results would only be noise.
+    // The 2×2 auto-download matrix of the storage screen: one row per media
+    // type and network, so a search says which of the four switches it means.
+    // The browser has no cellular rule, so its rows and nodes stay hidden.
     SettingsItemNode(
       id: 'auto_download_wifi',
       parentNavId: 'storage',
-      title: (AppLocalizations l) => l.autoDownloadPhotos,
+      title: (AppLocalizations l) => l.settingsV2StorageImages,
+      subtitle: (AppLocalizations l) => l.settingsV2Wifi,
       icon: Icons.image_rounded,
       group: SettingsGroup.storage,
       keywords: const <String>[
         'автозагрузка фото',
         'фото',
         'вайфай',
+        'скачивание',
+        'медиа',
+        'трафик',
+        'photo download',
+        'wifi download',
+      ],
+    ),
+    SettingsItemNode(
+      id: 'auto_download_cellular',
+      availability: () => !kIsWeb,
+      parentNavId: 'storage',
+      title: (AppLocalizations l) => l.settingsV2StorageImages,
+      subtitle: (AppLocalizations l) => l.settingsV2MobileData,
+      icon: Icons.image_rounded,
+      group: SettingsGroup.storage,
+      keywords: const <String>[
+        'автозагрузка фото',
+        'фото',
         'мобильная сеть',
         'сотовая',
         'скачивание',
         'медиа',
         'трафик',
         'photo download',
-        'wifi download',
         'cellular download',
       ],
     ),
     SettingsItemNode(
       id: 'auto_download_video_wifi',
       parentNavId: 'storage',
-      title: (AppLocalizations l) => l.autoDownloadVideos,
+      title: (AppLocalizations l) => l.settingsV2StorageVideos,
+      subtitle: (AppLocalizations l) => l.settingsV2Wifi,
       icon: Icons.video_library_rounded,
       group: SettingsGroup.storage,
       keywords: const <String>[
         'автозагрузка видео',
         'видео',
-        'видео wifi',
+        'вайфай',
+        'скачивание видео',
+        'медиа',
+        'трафик',
+        'video download',
+        'video wifi download',
+      ],
+    ),
+    SettingsItemNode(
+      id: 'auto_download_video_cellular',
+      availability: () => !kIsWeb,
+      parentNavId: 'storage',
+      title: (AppLocalizations l) => l.settingsV2StorageVideos,
+      subtitle: (AppLocalizations l) => l.settingsV2MobileData,
+      icon: Icons.video_library_rounded,
+      group: SettingsGroup.storage,
+      keywords: const <String>[
+        'автозагрузка видео',
+        'видео',
         'мобильная сеть',
         'сотовая',
         'скачивание видео',
@@ -472,9 +508,12 @@ class SettingsRegistry {
         'invisible',
       ],
     ),
+    // The blocked list is a screen of its own, not a row on the Privacy page,
+    // so search opens the list instead of pointing at a row that is not there.
     SettingsNavNode(
       id: 'privacy.blockedUsers',
       parentNavId: 'privacy',
+      anchorless: true,
       title: (AppLocalizations l) => l.privacyBlacklist,
       subtitle: (AppLocalizations l) => l.blockedUsersTitle,
       icon: Icons.block_rounded,
@@ -542,24 +581,25 @@ class SettingsRegistry {
         "speaker",
       ],
     ),
+    // Moved to the chats screen together with their rows: the parent and the
+    // group follow the move, and the old row ids stay as anchors so search
+    // deep links still highlight the relocated controls.
     SettingsNavNode(
       id: 'appearance.compact',
-      parentNavId: 'appearance',
+      parentNavId: 'chats',
       title: (l) => l.appearanceCompactMode,
       icon: Icons.density_small_rounded,
-      group: SettingsGroup.appearance,
-      route: '/settings/appearance',
-      sectionId: SettingsSectionId.appearance,
+      group: SettingsGroup.chats,
+      route: '/settings/chats',
       keywords: ["плотность", "компактность", "compact", "density"],
     ),
     SettingsNavNode(
       id: 'appearance.wallpaper',
-      parentNavId: 'appearance',
+      parentNavId: 'chats',
       title: (l) => l.appearanceChatWallpaperTitle,
       icon: Icons.texture_rounded,
-      group: SettingsGroup.appearance,
-      route: '/settings/appearance',
-      sectionId: SettingsSectionId.appearance,
+      group: SettingsGroup.chats,
+      route: '/settings/chats',
       keywords: ['обои', 'фон чата', 'узор', 'wallpaper', 'background'],
     ),
     // Account items
@@ -630,13 +670,16 @@ class SettingsRegistry {
       sectionId: SettingsSectionId.notifications,
       keywords: ["превью", "текст уведомления", "preview"],
     ),
+    // The guards under security: the rows live on the security screen now,
+    // so the route leads there; the section stays Privacy, which is where a
+    // two-pane layout opens them.
     SettingsNavNode(
       id: 'security.niosId',
       parentNavId: 'privacy',
       title: (l) => l.settingsNiosIdSecurity,
       icon: Icons.shield_outlined,
       group: SettingsGroup.privacy,
-      route: '/settings/privacy',
+      route: '/settings/security',
       sectionId: SettingsSectionId.privacy,
       keywords: [
         'пароль',
@@ -678,9 +721,22 @@ class SettingsRegistry {
       title: (l) => l.biometricTitle,
       icon: Icons.fingerprint_rounded,
       group: SettingsGroup.privacy,
-      route: '/settings/privacy',
+      route: '/settings/security',
       sectionId: SettingsSectionId.privacy,
       keywords: ["блокировка", "биометрия", "lock", "fingerprint"],
+    ),
+    // The timeout unfolds under the app-lock switch it depends on.
+    SettingsNavNode(
+      id: 'security.appLock.timeout',
+      availability: () => !kIsWeb,
+      parentNavId: 'privacy',
+      title: (l) => l.settingsV2LockTimeout,
+      subtitle: (l) => l.settingsV2LockTimeoutHint,
+      icon: Icons.timer_outlined,
+      group: SettingsGroup.privacy,
+      route: '/settings/security',
+      sectionId: SettingsSectionId.privacy,
+      keywords: ["таймаут", "время блокировки", "timeout", "lock"],
     ),
     SettingsNavNode(
       id: 'privacy.messaging.readReceipts',
@@ -702,20 +758,41 @@ class SettingsRegistry {
       sectionId: SettingsSectionId.privacy,
       keywords: ["набор", "печатает", "typing"],
     ),
+    // The store is a page, not a row: plans, checkout and activation. Search
+    // opens the page itself, so it carries no anchor.
+    SettingsNavNode(
+      id: 'plus.store',
+      parentNavId: 'plus',
+      anchorless: true,
+      title: (l) => l.auditPlusPurchaseTitle,
+      subtitle: (l) => l.settingsPlusSummary,
+      icon: Icons.storefront_rounded,
+      group: SettingsGroup.plus,
+      route: '/settings/plus/store',
+      keywords: [
+        'магазин',
+        'купить подписку',
+        'активация',
+        'оплата',
+        'store',
+        'purchase',
+        'checkout',
+      ],
+    ),
   ];
 
   /// Rows of the settings hub, top to bottom. A section that is registered
-  /// but not listed here (device diagnostics) is reached from another one.
+  /// but not listed here (device diagnostics, Nios+) is reached from another
+  /// one; the hub itself is grouped by the screen that renders it.
   static const List<String> _hubOrder = <String>[
     'account',
     'devices',
+    'appearance',
+    'chats',
     'notifications',
     'privacy',
-    'chats',
-    'appearance',
     'storage',
     'language',
-    'plus',
     'about',
   ];
 
@@ -806,12 +883,14 @@ class SettingsRegistry {
             (childNode is SettingsNavNode && childNode.sectionId != null)
             ? childNode.sectionId
             : parent?.sectionId;
-        // A node with its own section opens that screen: there is no row
-        // to highlight on it.
-        final bool ownSection =
+        // A node with its own section opens that screen, and an anchorless
+        // node opens a page without rows: in both cases there is no row to
+        // highlight.
+        final bool noRowAnchor =
             childNode is SettingsNavNode &&
-            childNode.sectionId != null &&
-            childNode.sectionId != parent?.sectionId;
+            (childNode.anchorless ||
+                (childNode.sectionId != null &&
+                    childNode.sectionId != parent?.sectionId));
         final String parentTitle = parent != null
             ? parent.title(l10n)
             : childNode.group.localizedTitle(l10n);
@@ -825,7 +904,7 @@ class SettingsRegistry {
             targetRoute: route,
             targetSectionId: sectionId,
             // The id of a row is its anchor on the screen.
-            anchor: ownSection ? null : childNode.id,
+            anchor: noRowAnchor ? null : childNode.id,
             score: score,
           ),
         );

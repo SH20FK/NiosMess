@@ -10,7 +10,6 @@ import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/widgets/plus_purchase_options.dart';
 import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
 import 'package:pulse_flutter/widgets/profile/ai_usage_card.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -151,6 +150,14 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
     }
   }
 
+  /// The store is the only place that sells or activates anything, so both
+  /// entries of the page lead there. The status is reloaded after the return,
+  /// which is what the store's own refresh callback used to do.
+  Future<void> _openStore() async {
+    await openSettingsPage(context, '/settings/plus/store');
+    if (mounted) await _loadStatus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
@@ -233,58 +240,85 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
             ),
           ),
         ),
+        // A subscriber keeps the subscription from the hero down; the trial is
+        // spent or still on offer, and the page says which.
+        if (isPlus || inGrace)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: FilledButton.tonalIcon(
+              onPressed: _openStore,
+              icon: const Icon(Icons.workspace_premium_rounded),
+              label: Text(context.l10n.settingsPlusManageSubscription),
+            ),
+          ),
         if (auth.profile?.aiUsage != null) ...[
           AiUsageIndicatorCard(usage: auth.profile!.aiUsage!),
           const SizedBox(height: AppSpacing.lg),
         ],
         SettingsSection(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: PlusPurchaseOptions(
-                key: ValueKey(_account),
-                onChanged: _loadStatus,
+          children: <Widget>[
+            if (!isPlus && trialUsed)
+              SettingsListItem.value(
+                icon: Icons.auto_awesome_outlined,
+                title: context.l10n.settingsPlusTrialUsed,
               ),
+            SettingsListItem.nav(
+              key: const ValueKey<String>('settings-plus-store'),
+              icon: Icons.storefront_rounded,
+              title: context.l10n.auditPlusPurchaseTitle,
+              onTap: _openStore,
+            ),
+          ],
+        ),
+        // What the subscription gives, grouped by what it changes. One list,
+        // read once: the groups are the plan's own three areas.
+        SettingsSection(
+          // A brand name, written the same in every language.
+          title: 'NiosAI',
+          accentIcon: Icons.auto_awesome_rounded,
+          children: <Widget>[
+            SettingsListItem.value(
+              icon: Icons.auto_awesome_rounded,
+              title: context.l10n.settingsPlusAiBudget,
+              subtitle: context.l10n.settingsPlusAiBudgetHint,
+            ),
+            SettingsListItem.value(
+              icon: Icons.psychology_alt_rounded,
+              title: 'NiosAI Prime · SPrime',
+              subtitle: context.l10n.settingsPlusModelsHint,
             ),
           ],
         ),
         SettingsSection(
-          title: context.l10n.settingsPlusBenefits,
-          accentIcon: Icons.verified_rounded,
-          children: [
-            for (final row in <(IconData, String, String)>[
-              (
-                Icons.auto_awesome_rounded,
-                context.l10n.settingsPlusAiBudget,
-                context.l10n.settingsPlusAiBudgetHint,
-              ),
-              (
-                Icons.psychology_alt_rounded,
-                'NiosAI Prime · SPrime',
-                context.l10n.settingsPlusModelsHint,
-              ),
-              (
-                Icons.attach_file_rounded,
-                context.l10n.settingsPlusFiles,
-                context.l10n.settingsPlusFilesHint,
-              ),
-              (
-                Icons.forum_rounded,
-                context.l10n.settingsPlusCommunities,
-                context.l10n.settingsPlusCommunitiesHint,
-              ),
-              (
-                Icons.emoji_emotions_outlined,
-                context.l10n.settingsPlusEmoji,
-                context.l10n.settingsPlusEmojiHint,
-              ),
-              (
-                Icons.event_repeat_rounded,
-                context.l10n.settingsPlusGracePeriod,
-                context.l10n.settingsPlusGracePeriodHint,
-              ),
-            ])
-              SettingsListItem.value(icon: row.$1, title: row.$2, subtitle: row.$3),
+          title: context.l10n.settingsPlusGroupMessenger,
+          accentIcon: Icons.forum_rounded,
+          children: <Widget>[
+            SettingsListItem.value(
+              icon: Icons.attach_file_rounded,
+              title: context.l10n.settingsPlusFiles,
+              subtitle: context.l10n.settingsPlusFilesHint,
+            ),
+            SettingsListItem.value(
+              icon: Icons.forum_rounded,
+              title: context.l10n.settingsPlusCommunities,
+              subtitle: context.l10n.settingsPlusCommunitiesHint,
+            ),
+            SettingsListItem.value(
+              icon: Icons.event_repeat_rounded,
+              title: context.l10n.settingsPlusGracePeriod,
+              subtitle: context.l10n.settingsPlusGracePeriodHint,
+            ),
+          ],
+        ),
+        SettingsSection(
+          title: context.l10n.settingsV2Appearance,
+          accentIcon: Icons.emoji_emotions_outlined,
+          children: <Widget>[
+            SettingsListItem.value(
+              icon: Icons.emoji_emotions_outlined,
+              title: context.l10n.settingsPlusEmoji,
+              subtitle: context.l10n.settingsPlusEmojiHint,
+            ),
           ],
         ),
       ],

@@ -88,17 +88,11 @@ class UiSettingsState {
     this.autoDownloadPhotoCellular = false,
     this.autoDownloadVideoWifi = true,
     this.autoDownloadVideoCellular = false,
-    this.autoDownloadRoaming = false,
     this.messageBubbleRadius = 16.0,
     this.uiCornerRadius = 20.0,
     this.paletteStyle = PaletteStyle.expressive,
-    this.autoPauseVideoOnBackground = true,
-    this.energySavingThreshold = 20,
     this.animateStickers = true,
     this.animateEmoji = true,
-    this.saveToGalleryPrivate = false,
-    this.saveToGalleryGroups = false,
-    this.saveToGalleryChannels = false,
     this.linkPreviewsInSecretChats = false,
     this.secureScreenshotsInSecretChats = true,
   });
@@ -148,17 +142,11 @@ class UiSettingsState {
       autoDownloadPhotoCellular = false,
       autoDownloadVideoWifi = true,
       autoDownloadVideoCellular = false,
-      autoDownloadRoaming = false,
       messageBubbleRadius = 16.0,
       uiCornerRadius = 20.0,
       paletteStyle = PaletteStyle.expressive,
-      autoPauseVideoOnBackground = true,
-      energySavingThreshold = 20,
       animateStickers = true,
       animateEmoji = true,
-      saveToGalleryPrivate = false,
-      saveToGalleryGroups = false,
-      saveToGalleryChannels = false,
       linkPreviewsInSecretChats = false,
       secureScreenshotsInSecretChats = true;
 
@@ -183,17 +171,11 @@ class UiSettingsState {
   final bool autoDownloadPhotoCellular;
   final bool autoDownloadVideoWifi;
   final bool autoDownloadVideoCellular;
-  final bool autoDownloadRoaming;
   final double messageBubbleRadius;
   final double uiCornerRadius;
   final PaletteStyle paletteStyle;
-  final bool autoPauseVideoOnBackground;
-  final int energySavingThreshold;
   final bool animateStickers;
   final bool animateEmoji;
-  final bool saveToGalleryPrivate;
-  final bool saveToGalleryGroups;
-  final bool saveToGalleryChannels;
   final bool linkPreviewsInSecretChats;
   final bool secureScreenshotsInSecretChats;
 
@@ -221,17 +203,11 @@ class UiSettingsState {
     bool? autoDownloadPhotoCellular,
     bool? autoDownloadVideoWifi,
     bool? autoDownloadVideoCellular,
-    bool? autoDownloadRoaming,
     double? messageBubbleRadius,
     double? uiCornerRadius,
     PaletteStyle? paletteStyle,
-    bool? autoPauseVideoOnBackground,
-    int? energySavingThreshold,
     bool? animateStickers,
     bool? animateEmoji,
-    bool? saveToGalleryPrivate,
-    bool? saveToGalleryGroups,
-    bool? saveToGalleryChannels,
     bool? linkPreviewsInSecretChats,
     bool? secureScreenshotsInSecretChats,
   }) {
@@ -263,21 +239,11 @@ class UiSettingsState {
           autoDownloadVideoWifi ?? this.autoDownloadVideoWifi,
       autoDownloadVideoCellular:
           autoDownloadVideoCellular ?? this.autoDownloadVideoCellular,
-      autoDownloadRoaming:
-          autoDownloadRoaming ?? this.autoDownloadRoaming,
       messageBubbleRadius: messageBubbleRadius ?? this.messageBubbleRadius,
       uiCornerRadius: uiCornerRadius ?? this.uiCornerRadius,
       paletteStyle: paletteStyle ?? this.paletteStyle,
-      autoPauseVideoOnBackground:
-          autoPauseVideoOnBackground ?? this.autoPauseVideoOnBackground,
-      energySavingThreshold:
-          energySavingThreshold ?? this.energySavingThreshold,
       animateStickers: animateStickers ?? this.animateStickers,
       animateEmoji: animateEmoji ?? this.animateEmoji,
-      saveToGalleryPrivate: saveToGalleryPrivate ?? this.saveToGalleryPrivate,
-      saveToGalleryGroups: saveToGalleryGroups ?? this.saveToGalleryGroups,
-      saveToGalleryChannels:
-          saveToGalleryChannels ?? this.saveToGalleryChannels,
       linkPreviewsInSecretChats:
           linkPreviewsInSecretChats ?? this.linkPreviewsInSecretChats,
       secureScreenshotsInSecretChats:
@@ -322,16 +288,10 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   /// writes them any more; they are read once to seed the per-type keys.
   static const String _legacyAutoDownloadWifiKey = 'ui.autoDownloadWifi';
   static const String _legacyAutoDownloadCellularKey = 'ui.autoDownloadCellular';
-  static const String _autoDownloadRoamingKey = 'ui.autoDownloadRoaming';
   static const String _messageBubbleRadiusKey = 'ui.messageBubbleRadius';
   static const String _uiCornerRadiusKey = 'ui.cornerRadius';
-  static const String _autoPauseVideoKey = 'ui.autoPauseVideo';
-  static const String _energySavingThresholdKey = 'ui.energySavingThreshold';
   static const String _animateStickersKey = 'ui.animateStickers';
   static const String _animateEmojiKey = 'ui.animateEmoji';
-  static const String _saveToGalleryPrivateKey = 'ui.saveGalleryPrivate';
-  static const String _saveToGalleryGroupsKey = 'ui.saveGalleryGroups';
-  static const String _saveToGalleryChannelsKey = 'ui.saveGalleryChannels';
   static const String _linkPreviewsSecretKey = 'ui.linkPreviewsSecret';
   static const String _secureScreenshotsSecretKey = 'ui.secureScreenshotsSecret';
 
@@ -346,6 +306,12 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     'ui.streamMedia',
     'ui.accountSelfDestructMonths',
     'ui.autoTerminateSessionsDays',
+    'ui.autoDownloadRoaming',
+    'ui.autoPauseVideo',
+    'ui.energySavingThreshold',
+    'ui.saveGalleryPrivate',
+    'ui.saveGalleryGroups',
+    'ui.saveGalleryChannels',
   ];
 
   static SharedPreferences? cachedPrefs;
@@ -424,26 +390,14 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
           prefs.getBool(_autoDownloadVideoCellularKey) ??
           prefs.getBool(_legacyAutoDownloadCellularKey) ??
           defaults.autoDownloadVideoCellular,
-      autoDownloadRoaming:
-          prefs.getBool(_autoDownloadRoamingKey) ?? defaults.autoDownloadRoaming,
       messageBubbleRadius:
           prefs.getDouble(_messageBubbleRadiusKey) ?? defaults.messageBubbleRadius,
       uiCornerRadius:
           prefs.getDouble(_uiCornerRadiusKey) ?? defaults.uiCornerRadius,
-      autoPauseVideoOnBackground:
-          prefs.getBool(_autoPauseVideoKey) ?? defaults.autoPauseVideoOnBackground,
-      energySavingThreshold:
-          prefs.getInt(_energySavingThresholdKey) ?? defaults.energySavingThreshold,
       animateStickers:
           prefs.getBool(_animateStickersKey) ?? defaults.animateStickers,
       animateEmoji:
           prefs.getBool(_animateEmojiKey) ?? defaults.animateEmoji,
-      saveToGalleryPrivate:
-          prefs.getBool(_saveToGalleryPrivateKey) ?? defaults.saveToGalleryPrivate,
-      saveToGalleryGroups:
-          prefs.getBool(_saveToGalleryGroupsKey) ?? defaults.saveToGalleryGroups,
-      saveToGalleryChannels:
-          prefs.getBool(_saveToGalleryChannelsKey) ?? defaults.saveToGalleryChannels,
       linkPreviewsInSecretChats:
           prefs.getBool(_linkPreviewsSecretKey) ?? defaults.linkPreviewsInSecretChats,
       secureScreenshotsInSecretChats:
@@ -772,32 +726,11 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     );
   }
 
-  void setAutoDownloadRoaming(bool value) => _set<bool>(
-    _autoDownloadRoamingKey,
-    value,
-    (s) => s.autoDownloadRoaming,
-    (s, v) => s.copyWith(autoDownloadRoaming: v),
-  );
-
   void setPaletteStyle(PaletteStyle value) => _set<PaletteStyle>(
     _paletteStyleKey,
     value,
     (s) => s.paletteStyle,
     (s, v) => s.copyWith(paletteStyle: v),
-  );
-
-  void setAutoPauseVideoOnBackground(bool value) => _set<bool>(
-    _autoPauseVideoKey,
-    value,
-    (s) => s.autoPauseVideoOnBackground,
-    (s, v) => s.copyWith(autoPauseVideoOnBackground: v),
-  );
-
-  void setEnergySavingThreshold(int value) => _set<int>(
-    _energySavingThresholdKey,
-    value,
-    (s) => s.energySavingThreshold,
-    (s, v) => s.copyWith(energySavingThreshold: v),
   );
 
   void setAnimateStickers(bool value) => _set<bool>(
@@ -812,27 +745,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     value,
     (s) => s.animateEmoji,
     (s, v) => s.copyWith(animateEmoji: v),
-  );
-
-  void setSaveToGalleryPrivate(bool value) => _set<bool>(
-    _saveToGalleryPrivateKey,
-    value,
-    (s) => s.saveToGalleryPrivate,
-    (s, v) => s.copyWith(saveToGalleryPrivate: v),
-  );
-
-  void setSaveToGalleryGroups(bool value) => _set<bool>(
-    _saveToGalleryGroupsKey,
-    value,
-    (s) => s.saveToGalleryGroups,
-    (s, v) => s.copyWith(saveToGalleryGroups: v),
-  );
-
-  void setSaveToGalleryChannels(bool value) => _set<bool>(
-    _saveToGalleryChannelsKey,
-    value,
-    (s) => s.saveToGalleryChannels,
-    (s, v) => s.copyWith(saveToGalleryChannels: v),
   );
 
   void setLinkPreviewsInSecretChats(bool value) => _set<bool>(
@@ -891,16 +803,10 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       _autoDownloadVideoCellularKey,
       _legacyAutoDownloadWifiKey,
       _legacyAutoDownloadCellularKey,
-      _autoDownloadRoamingKey,
       _messageBubbleRadiusKey,
       _uiCornerRadiusKey,
-      _autoPauseVideoKey,
-      _energySavingThresholdKey,
       _animateStickersKey,
       _animateEmojiKey,
-      _saveToGalleryPrivateKey,
-      _saveToGalleryGroupsKey,
-      _saveToGalleryChannelsKey,
       _linkPreviewsSecretKey,
       _secureScreenshotsSecretKey,
       ..._retiredKeys,

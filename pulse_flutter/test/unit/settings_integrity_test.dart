@@ -15,6 +15,12 @@ const Map<String, List<String>> _screenSources = <String, List<String>>{
   '/settings/appearance': <String>[
     'lib/screens/settings_appearance_screen.dart',
   ],
+  '/settings/appearance/accent': <String>[
+    'lib/screens/settings_appearance_accent_screen.dart',
+  ],
+  '/settings/appearance/shape': <String>[
+    'lib/screens/settings_appearance_shape_screen.dart',
+  ],
   '/settings/chats': <String>['lib/screens/settings_chats_screen.dart'],
   '/settings/notifications': <String>[
     'lib/screens/settings_notifications_screen.dart',
@@ -23,6 +29,10 @@ const Map<String, List<String>> _screenSources = <String, List<String>>{
   ],
   '/settings/privacy': <String>[
     'lib/screens/settings_privacy_screen.dart',
+    'lib/widgets/settings/account_security_section.dart',
+  ],
+  '/settings/security': <String>[
+    'lib/screens/settings_security_screen.dart',
     'lib/widgets/settings/account_security_section.dart',
   ],
   '/settings/privacy/blocked-users': <String>[
@@ -36,6 +46,9 @@ const Map<String, List<String>> _screenSources = <String, List<String>>{
     'lib/screens/settings_system_device_screen.dart',
   ],
   '/settings/plus': <String>['lib/screens/settings_plus_screen.dart'],
+  '/settings/plus/store': <String>[
+    'lib/screens/settings_plus_store_screen.dart',
+  ],
   '/settings/about': <String>[
     'lib/screens/settings_about_screen.dart',
     'lib/widgets/settings/about_update_tile.dart',

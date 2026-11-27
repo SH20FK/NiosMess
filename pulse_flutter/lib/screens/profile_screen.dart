@@ -279,14 +279,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return enabled && !refused
           ? context.l10n.commonEnabled
           : context.l10n.commonDisabled;
-    } else if (node.id == 'plus') {
-      return ref.watch(
-            authProvider.select(
-              (AuthState a) => a.profile?.isNiosPlus ?? false,
-            ),
-          )
-          ? context.l10n.settingsPlusActive
-          : '';
     }
     return '';
   }
@@ -379,20 +371,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String usernameForProfile(AuthState auth) =>
       auth.profile?.username ?? auth.session?.username ?? '';
 
-  // One flat list: the registry owns which rows there are and their order.
+  // The hub rows in three labelled groups: who the user is, how the app
+  // behaves, and the rest. The registry owns which rows there are and their
+  // order; the partition only decides the headlines. Anything the registry
+  // adds without a bucket lands under «Ещё».
+  static const List<String> _personalHubIds = <String>['account', 'devices'];
+  static const List<String> _appHubIds = <String>[
+    'appearance',
+    'chats',
+    'notifications',
+    'privacy',
+    'storage',
+    'language',
+  ];
+
   List<Widget> _sectionGroups(
     ThemeMode themeMode,
     LocalStorageSnapshot? snapshot, {
     SettingsSectionId? selected,
   }) {
     final sections = SettingsRegistry.getTopLevelSections();
-    final selectedIndex = selected == null
-        ? -1
-        : sections.indexWhere((node) => node.sectionId == selected);
     // Beside an open section the list is navigation: low rows, and a problem
     // is a dot on the row of its section instead of a card above the list.
     final bool dense = selected != null;
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final AppLocalizations l10n = context.l10n;
     final Map<SettingsSectionId, SettingsHealthIssue> marks =
         <SettingsSectionId, SettingsHealthIssue>{
           if (dense)
@@ -401,66 +404,113 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 in ref.watch(settingsHealthProvider).reversed)
               issue.sectionId: issue,
         };
-    final Widget list = SettingsSection(
-      stagger: true,
-      // The open section rounds off on every side, not only recolours.
-      selectedIndex: selectedIndex < 0 ? null : selectedIndex,
-      children: [
-        for (final node in sections)
-          // Notes which row the keyboard is on, so the arrows step from it
-          // and not from the open section.
-          Focus(
-            canRequestFocus: false,
-            skipTraversal: true,
-            includeSemantics: false,
-            onFocusChange: (bool focused) {
-              if (focused) {
-                _focusedSection = node.sectionId;
-              } else if (_focusedSection == node.sectionId) {
-                _focusedSection = null;
-              }
-            },
-            child: SettingsListItem.nav(
-              key: ValueKey('settings-destination-${node.id}'),
-              icon: node.icon,
-              title: node.title(context.l10n),
-              value: _getSectionBadgeValue(node, themeMode, snapshot),
-              isSection: true,
-              isSelected: selected != null && node.sectionId == selected,
-              dense: dense,
-              attention: switch (marks[node.sectionId]) {
-                final SettingsHealthIssue issue => settingsIssueTitle(
-                  context.l10n,
-                  issue,
-                ),
-                null => null,
-              },
-              attentionColor: switch (marks[node.sectionId]?.severity) {
-                SettingsHealthSeverity.critical => scheme.error,
-                SettingsHealthSeverity.warning => scheme.tertiary,
-                SettingsHealthSeverity.advisory => scheme.primary,
-                null => null,
-              },
-              onTap: () {
-                if (selected != null && node.sectionId != null) {
-                  // A marked row leads to the control that fixes the problem.
-                  final SettingsHealthIssue? issue = marks[node.sectionId];
-                  if (issue != null) {
-                    ref
-                        .read(settingsAnchorControllerProvider.notifier)
-                        .request(route: issue.route, anchor: issue.anchor);
-                  }
-                  _selectSection(node.sectionId!);
-                } else {
-                  _openSection(node);
+
+    // One group of the hub: its slice of the registry rows under one
+    // headline. Only the first group staggers, so the screen rises once and
+    // the groups after it follow instead of restarting the entrance.
+    Widget groupOf(List<SettingsNavNode> nodes, String title, bool stagger) {
+      final int selectedIndex = selected == null
+          ? -1
+          : nodes.indexWhere(
+              (SettingsNavNode node) => node.sectionId == selected,
+            );
+      return SettingsSection(
+        title: title,
+        stagger: stagger,
+        // The open section rounds off on every side, not only recolours.
+        selectedIndex: selectedIndex < 0 ? null : selectedIndex,
+        children: <Widget>[
+          for (final node in nodes)
+            // Notes which row the keyboard is on, so the arrows step from it
+            // and not from the open section.
+            Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              includeSemantics: false,
+              onFocusChange: (bool focused) {
+                if (focused) {
+                  _focusedSection = node.sectionId;
+                } else if (_focusedSection == node.sectionId) {
+                  _focusedSection = null;
                 }
               },
+              child: SettingsListItem.nav(
+                key: ValueKey('settings-destination-${node.id}'),
+                icon: node.icon,
+                title: node.title(l10n),
+                // The hints belong to the single-column hub, where each row
+                // is a card of its own; beside an open section the list is
+                // navigation and stays low, as the comment above promises.
+                subtitle: dense ? null : node.subtitle?.call(l10n),
+                value: _getSectionBadgeValue(node, themeMode, snapshot),
+                isSection: true,
+                isSelected: selected != null && node.sectionId == selected,
+                dense: dense,
+                attention: switch (marks[node.sectionId]) {
+                  final SettingsHealthIssue issue => settingsIssueTitle(
+                    l10n,
+                    issue,
+                  ),
+                  null => null,
+                },
+                attentionColor: switch (marks[node.sectionId]?.severity) {
+                  SettingsHealthSeverity.critical => scheme.error,
+                  SettingsHealthSeverity.warning => scheme.tertiary,
+                  SettingsHealthSeverity.advisory => scheme.primary,
+                  null => null,
+                },
+                onTap: () {
+                  if (selected != null && node.sectionId != null) {
+                    // A marked row leads to the control that fixes the problem.
+                    final SettingsHealthIssue? issue = marks[node.sectionId];
+                    if (issue != null) {
+                      ref
+                          .read(settingsAnchorControllerProvider.notifier)
+                          .request(route: issue.route, anchor: issue.anchor);
+                    }
+                    _selectSection(node.sectionId!);
+                  } else {
+                    _openSection(node);
+                  }
+                },
+              ),
             ),
-          ),
-      ],
-    );
+        ],
+      );
+    }
+
+    final List<Widget> groups = <Widget>[
+      groupOf(
+        sections
+            .where((SettingsNavNode n) => _personalHubIds.contains(n.id))
+            .toList(growable: false),
+        l10n.settingsHubGroupPersonal,
+        true,
+      ),
+      groupOf(
+        sections
+            .where((SettingsNavNode n) => _appHubIds.contains(n.id))
+            .toList(growable: false),
+        l10n.settingsHubGroupApp,
+        false,
+      ),
+      groupOf(
+        sections
+            .where(
+              (SettingsNavNode n) =>
+                  !_personalHubIds.contains(n.id) &&
+                  !_appHubIds.contains(n.id),
+            )
+            .toList(growable: false),
+        l10n.settingsHubGroupMore,
+        false,
+      ),
+    ];
+    // A group with no available rows collapses to nothing on its own, so an
+    // orphan headline never shows.
+
     // On a phone the rows push screens, so the arrows keep their usual job.
-    if (selected == null) return [list];
+    if (selected == null) return groups;
     return [
       CallbackShortcuts(
         bindings: <ShortcutActivator, VoidCallback>{
@@ -469,7 +519,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
               _stepSection(-1),
         },
-        child: list,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: groups,
+        ),
       ),
     ];
   }
@@ -773,8 +826,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             // Navigation that stays on screen: the search on top, the
-            // sections under it, who is signed in at the foot. The section
-            // beside it carries the heading, so the list has none.
+            // sections under it, who is signed in at the foot. The open
+            // section carries its own heading beside the list; here the
+            // headlines only name the groups.
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

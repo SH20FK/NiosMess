@@ -457,6 +457,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Material 3 generates the whole color system from this seed.';
 
   @override
+  String get appearanceAccentEditorDesc =>
+      'System colors, palette style and your own HEX';
+
+  @override
   String get appearanceMaterialVariant => 'Material variant';
 
   @override
@@ -2344,6 +2348,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsSecretChatsButton => 'Secret Chat';
+
+  @override
+  String get settingsAccountSignInTitle => 'Sign-in & Password';
+
+  @override
+  String get settingsAccountNiosIdCopy => 'Copy';
+
+  @override
+  String get settingsAccountNiosIdOpenPortal => 'Open portal';
+
+  @override
+  String get settingsSecretLinkPreviewsTitle =>
+      'Link previews in secret chats';
+
+  @override
+  String get settingsSecretScreenshotTitle =>
+      'Screenshot protection in secret chats';
+
+  @override
+  String get settingsStorageAutoDownloadMedia => 'Media auto-download';
+
+  @override
+  String get settingsPlusManageSubscription => 'Manage subscription';
+
+  @override
+  String get settingsPlusTrialUsed => 'Trial period used';
+
+  @override
+  String get settingsPlusGroupMessenger => 'Messenger';
+
+  @override
+  String get aboutChangelogShowMore => 'Show more';
+
+  @override
+  String get aboutChangelogShowLess => 'Show less';
+
+  @override
+  String get settingsHubGroupPersonal => 'Personal';
+
+  @override
+  String get settingsHubGroupApp => 'Application';
+
+  @override
+  String get settingsHubGroupMore => 'More';
 
   @override
   String adminUserBanned(int id) {
@@ -4421,10 +4469,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get appearanceContrastColorsDesc => 'Palette and surface appearance settings';
   @override
-  String get appearanceDeepBlackOled => 'Pure Black (OLED)';
-  @override
-  String get appearanceDeepBlackOledDesc => 'Use pure black (#000000) for surfaces in dark mode';
-  @override
   String get appearanceInterfaceNav => 'Interface & navigation';
   @override
   String get appearanceInterfaceNavDesc => 'Panel style and system animations';
@@ -4847,6 +4891,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sharedMediaDownloadFile => 'Download file';
   @override
   String get appearancePaletteStyle => 'Palette Style';
+  @override
+  String get appearancePaletteStyleDesc =>
+      'Which tones Material 3 derives from the chosen seed';
   @override
   String get appearancePaletteExpressive => 'Expressive';
   @override

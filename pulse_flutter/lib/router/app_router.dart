@@ -44,6 +44,10 @@ import 'package:pulse_flutter/screens/native_file_viewer_screen.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
+import 'package:pulse_flutter/screens/settings_appearance_accent_screen.dart';
+import 'package:pulse_flutter/screens/settings_appearance_shape_screen.dart';
+import 'package:pulse_flutter/screens/settings_security_screen.dart';
+import 'package:pulse_flutter/screens/settings_plus_store_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_notifications_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
@@ -612,11 +616,13 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
               : '/main/settings';
         },
       ),
-      // Dissolved into Chats, Notifications and Data: old links land on Chats.
+      // Dissolved into Chats, Notifications and Data: old links land on
+      // Notifications, which kept the delivery rules that did the saving.
       GoRoute(
         path: '/settings/energy-saving',
-        redirect: (context, state) =>
-            kIsWeb ? webSettingsRedirect(state.uri) : '/settings/chats',
+        redirect: (context, state) => kIsWeb
+            ? webSettingsRedirect(state.uri)
+            : '/settings/notifications',
       ),
       GoRoute(
         path: '/settings/plus',
@@ -626,12 +632,42 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             _page(state, const SettingsPlusScreen(), pageKey: state.pageKey),
       ),
       GoRoute(
+        path: '/settings/plus/store',
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsPlusStoreScreen(),
+          pageKey: state.pageKey,
+        ),
+      ),
+      GoRoute(
         path: '/settings/appearance',
         redirect: (context, state) =>
             kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) => _page(
           state,
           const SettingsAppearanceScreen(),
+          pageKey: state.pageKey,
+        ),
+      ),
+      GoRoute(
+        path: '/settings/appearance/accent',
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsAppearanceAccentScreen(),
+          pageKey: state.pageKey,
+        ),
+      ),
+      GoRoute(
+        path: '/settings/appearance/shape',
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsAppearanceShapeScreen(),
           pageKey: state.pageKey,
         ),
       ),
@@ -693,6 +729,18 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) =>
             _page(state, const SettingsPrivacyScreen(), pageKey: state.pageKey),
+      ),
+      // The guards that used to sit under Privacy: the app lock, its timeout,
+      // the Nios ID page and the secret-chat hardening switches.
+      GoRoute(
+        path: '/settings/security',
+        redirect: (context, state) =>
+            kIsWeb ? webSettingsRedirect(state.uri) : null,
+        pageBuilder: (context, state) => _page(
+          state,
+          const SettingsSecurityScreen(),
+          pageKey: state.pageKey,
+        ),
       ),
       GoRoute(
         path: '/settings/privacy/rule/:key',

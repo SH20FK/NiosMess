@@ -459,6 +459,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Material 3 строит всю цветовую систему из этого цвета.';
 
   @override
+  String get appearanceAccentEditorDesc =>
+      'Системные цвета, характер палитры и свой HEX-код';
+
+  @override
   String get appearanceMaterialVariant => 'Material-вариант';
 
   @override
@@ -2370,6 +2374,50 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsSecretChatsButton => 'Секретный чат';
+
+  @override
+  String get settingsAccountSignInTitle => 'Вход и пароль';
+
+  @override
+  String get settingsAccountNiosIdCopy => 'Скопировать';
+
+  @override
+  String get settingsAccountNiosIdOpenPortal => 'Открыть портал';
+
+  @override
+  String get settingsSecretLinkPreviewsTitle =>
+      'Превью ссылок в секретных чатах';
+
+  @override
+  String get settingsSecretScreenshotTitle =>
+      'Защита от скриншотов в секретных чатах';
+
+  @override
+  String get settingsStorageAutoDownloadMedia => 'Автозагрузка медиа';
+
+  @override
+  String get settingsPlusManageSubscription => 'Управление подпиской';
+
+  @override
+  String get settingsPlusTrialUsed => 'Пробный период использован';
+
+  @override
+  String get settingsPlusGroupMessenger => 'Мессенджер';
+
+  @override
+  String get aboutChangelogShowMore => 'Показать полностью';
+
+  @override
+  String get aboutChangelogShowLess => 'Свернуть';
+
+  @override
+  String get settingsHubGroupPersonal => 'Личное';
+
+  @override
+  String get settingsHubGroupApp => 'Приложение';
+
+  @override
+  String get settingsHubGroupMore => 'Ещё';
 
   @override
   String adminUserBanned(int id) {
@@ -4450,10 +4498,6 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get appearanceContrastColorsDesc => 'Настройки палитры и отображения поверхностей';
   @override
-  String get appearanceDeepBlackOled => 'Глубокий черный (OLED)';
-  @override
-  String get appearanceDeepBlackOledDesc => 'Использовать абсолютно черный цвет (#000000) для поверхностей в темном режиме';
-  @override
   String get appearanceInterfaceNav => 'Интерфейс и навигация';
   @override
   String get appearanceInterfaceNavDesc => 'Стиль панелей и системные анимации';
@@ -4875,6 +4919,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sharedMediaDownloadFile => 'Скачать файл';
   @override
   String get appearancePaletteStyle => 'Характер палитры';
+  @override
+  String get appearancePaletteStyleDesc =>
+      'Какие тона Material 3 выведет из выбранного цвета';
   @override
   String get appearancePaletteExpressive => 'Выразительный';
   @override

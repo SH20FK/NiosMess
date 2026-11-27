@@ -16,64 +16,6 @@ class SettingsAnchor extends ConsumerStatefulWidget {
   ConsumerState<SettingsAnchor> createState() => _SettingsAnchorState();
 }
 
-/// Opens an advanced group when search points inside it, without collapsing
-/// it again when the temporary highlight expires.
-class SettingsSearchDisclosure extends ConsumerStatefulWidget {
-  const SettingsSearchDisclosure({
-    required this.anchor,
-    required this.title,
-    this.subtitle,
-    required this.children,
-    super.key,
-  });
-  final String anchor;
-  final String title;
-  final String? subtitle;
-  final List<Widget> children;
-  @override
-  ConsumerState<SettingsSearchDisclosure> createState() =>
-      _SettingsSearchDisclosureState();
-}
-
-class _SettingsSearchDisclosureState
-    extends ConsumerState<SettingsSearchDisclosure> {
-  final _controller = ExpansibleController();
-  ProviderSubscription<SettingsAnchorState>? _subscription;
-  @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(settingsAnchorControllerProvider, (
-      _,
-      next,
-    ) {
-      if (next.highlightedAnchor == widget.anchor) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && !_controller.isExpanded) _controller.expand();
-        });
-      }
-    }, fireImmediately: true);
-  }
-
-  @override
-  void dispose() {
-    _subscription?.close();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => SettingsAnchor(
-    id: widget.anchor,
-    child: ExpansionTile(
-      controller: _controller,
-      maintainState: true,
-      title: Text(widget.title),
-      subtitle: widget.subtitle == null ? null : Text(widget.subtitle!),
-      children: widget.children,
-    ),
-  );
-}
-
 class _SettingsAnchorState extends ConsumerState<SettingsAnchor> {
   ProviderSubscription<SettingsAnchorState>? _subscription;
 

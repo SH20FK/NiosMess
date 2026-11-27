@@ -28,10 +28,12 @@ class SettingsPaneScope extends InheritedWidget {
 }
 
 /// Opens a screen that sits under a settings section: in the pane when the
-/// section is shown beside the list, as a pushed page otherwise.
-void openSettingsPage(BuildContext context, String route) {
+/// section is shown beside the list, as a pushed page otherwise. The returned
+/// future completes when a pushed page is popped; in the pane the screen is
+/// swapped without a route, so it completes right away.
+Future<void> openSettingsPage(BuildContext context, String route) async {
   final SettingsPaneScope? pane = SettingsPaneScope.maybeOf(context);
-  if (pane == null || !pane.onOpen(route)) context.push(route);
+  if (pane == null || !pane.onOpen(route)) await context.push(route);
 }
 
 /// Leaves a screen opened with [openSettingsPage] the way it came.

@@ -255,14 +255,8 @@ class _AccountProfileSectionState extends ConsumerState<AccountProfileSection> {
       title: l.settingsV2More,
       accentIcon: Icons.person_rounded,
       children: <Widget>[
-        SettingsListItem(
-          key: const ValueKey<String>('settings-account-photo'),
-          type: SettingsListItemType.action,
-          icon: Icons.add_a_photo_outlined,
-          title: l.settingsProfileChangePhoto,
-          pending: _uploadingAvatar,
-          onTap: _uploadAvatar,
-        ),
+        // The photo is changed from the editor, where the rest of the profile
+        // is changed too: one entry, not a second one next to it.
         SettingsListItem.nav(
           key: const ValueKey<String>('settings-account-edit'),
           icon: Icons.edit_outlined,

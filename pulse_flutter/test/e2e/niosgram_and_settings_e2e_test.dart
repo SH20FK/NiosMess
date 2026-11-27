@@ -46,11 +46,16 @@ class _StubAdaptivePerformanceNotifier extends AdaptivePerformanceNotifier {
 }
 
 class _StubPrivacyNotifier extends PrivacyNotifier {
+  // A user with the full rule set from the server: the privacy screen renders
+  // every category and its toggles, not the loading skeleton.
   @override
   PrivacyState build() {
-    return const PrivacyState(
+    return PrivacyState(
       isLoading: false,
-      rules: <String, PrivacyRule>{},
+      rules: <String, PrivacyRule>{
+        for (final String key in PrivacyRule.allKeys)
+          key: PrivacyRule(key: key, policy: PrivacyPolicy.everyone),
+      },
       blockedUsers: <BlockedUser>[],
     );
   }
@@ -549,7 +554,8 @@ void main() {
       expect(find.byType(SettingsNotificationsScreen), findsOneWidget);
       expect(find.byType(Slider), findsOneWidget);
 
-      // 3. Switch to Privacy & toggle hideOnline
+      // 3. Switch to Privacy: rules arrive from the stub, so the toggles
+      // (read receipts, typing) render alongside the rule rows.
       final privacyFinder = find.byIcon(Icons.security_rounded);
       await tester.scrollUntilVisible(
         privacyFinder,

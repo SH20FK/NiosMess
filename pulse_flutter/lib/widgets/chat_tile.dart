@@ -952,28 +952,89 @@ class _BadgeIcon extends StatelessWidget {
   }
 }
 
-class _AnimatedBadge extends StatelessWidget {
+class _AnimatedBadge extends StatefulWidget {
   const _AnimatedBadge({required this.count, required this.isMuted});
 
   final int count;
   final bool isMuted;
 
   @override
+  State<_AnimatedBadge> createState() => _AnimatedBadgeState();
+}
+
+class _AnimatedBadgeState extends State<_AnimatedBadge>
+    with SingleTickerProviderStateMixin {
+  /// Counter pulse: the pill swells and settles back on its own springs, so a
+  /// new message answers in the row without repainting the rest of the tile.
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: M3Durations.effectsDefault,
+  );
+
+  late final Animation<double> _pulseScale = TweenSequence<double>(
+    <TweenSequenceItem<double>>[
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 1.0,
+          end: 1.16,
+        ).chain(CurveTween(curve: M3SpringCurves.spatialFast)),
+        weight: 40,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 1.16,
+          end: 1.0,
+        ).chain(CurveTween(curve: M3SpringCurves.effectsDefault)),
+        weight: 60,
+      ),
+    ],
+  ).animate(_pulse);
+
+  bool _reduceMotion = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = context.reduceMotion;
+    // Keep the ticker idle under reduced motion: the badge holds its rest
+    // scale instead of pulsing.
+    if (_reduceMotion) {
+      _pulse.stop();
+      _pulse.value = 0.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Muting only re-tones the pill: the counter itself did not move.
+    if (oldWidget.count == widget.count || _reduceMotion) return;
+    _pulse.forward(from: 0.0);
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final int count = widget.count;
 
     // Muted chats keep their counter, but it must not compete with the
     // accent-coloured counters of chats that actually notify the user. It is
     // the same neutral pill as a muted-only folder in the filter rail.
-    final Color background = isMuted
+    final Color background = widget.isMuted
         ? scheme.surfaceContainerHighest
         : scheme.primary;
-    final Color foreground = isMuted
+    final Color foreground = widget.isMuted
         ? scheme.onSurfaceVariant
         : scheme.onPrimary;
 
-    return AnimatedSwitcher(
+    final Widget badge = AnimatedSwitcher(
       duration: context.reduceMotion
           ? Duration.zero
           : M3Durations.short4,
@@ -986,7 +1047,7 @@ class _AnimatedBadge extends StatelessWidget {
         );
       },
       child: Container(
-        key: ValueKey<String>('${count}_$isMuted'),
+        key: ValueKey<String>('${count}_${widget.isMuted}'),
         // No count: the chat is marked unread by hand and shows a bare dot.
         constraints: count > 0
             ? const BoxConstraints(minWidth: 20, minHeight: 20)
@@ -1011,6 +1072,9 @@ class _AnimatedBadge extends StatelessWidget {
         ),
       ),
     );
+
+    if (_reduceMotion) return badge;
+    return ScaleTransition(scale: _pulseScale, child: badge);
   }
 }
 

@@ -838,7 +838,7 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
         final prefs = UiSettingsNotifier.cachedPrefs!;
         await prefs.setDouble('ui.messageBubbleRadius', 24);
-        await prefs.setBool('ui.saveGalleryPrivate', true);
+        await prefs.setDouble('ui.soundVolume', 0.4);
         await tester.pumpWidget(
           _app(const SettingsAppearanceScreen(isEmbedded: true), font: 2),
         );
@@ -846,35 +846,33 @@ void main() {
         final container = ProviderScope.containerOf(
           tester.element(find.byType(SettingsAppearanceScreen)),
         );
-        expect(
-          tester
-              .widget<ExpansionTile>(find.byType(ExpansionTile))
-              .controller!
-              .isExpanded,
-          isFalse,
+        // The radii became a page of their own; the row that opens it is the
+        // anchor search lands on. Before the request it sits quiet, like the
+        // collapsed disclosure it replaced.
+        final Finder radiusRow = find.byKey(
+          const ValueKey<String>('ui_corner_radius'),
         );
+        expect(radiusRow, findsOneWidget);
+        Color? rowHighlight() =>
+            (tester.widget<AnimatedContainer>(radiusRow).decoration
+                as BoxDecoration)
+                .color;
+        expect(rowHighlight(), Colors.transparent);
         container
             .read(settingsAnchorControllerProvider.notifier)
             .request(route: '/settings/appearance', anchor: 'ui_corner_radius');
         await tester.pumpAndSettle();
-        expect(
-          tester
-              .widget<ExpansionTile>(find.byType(ExpansionTile))
-              .controller!
-              .isExpanded,
-          isTrue,
-        );
-        expect(tester.getRect(find.byType(ExpansionTile)).top, lessThan(844));
+        // The row itself answered: highlighted and scrolled into view, with
+        // no page pushed over the screen the user was reading.
+        expect(rowHighlight(), isNot(Colors.transparent));
+        expect(tester.getRect(radiusRow).top, lessThan(844));
+        expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
         await tester.pump(const Duration(seconds: 2));
-        expect(
-          tester
-              .widget<ExpansionTile>(find.byType(ExpansionTile))
-              .controller!
-              .isExpanded,
-          isTrue,
-        );
+        // The highlight expires; the row it brought into view stays.
+        expect(rowHighlight(), Colors.transparent);
+        expect(radiusRow, findsOneWidget);
         expect(container.read(uiSettingsProvider).messageBubbleRadius, 24);
-        expect(container.read(uiSettingsProvider).saveToGalleryPrivate, isTrue);
+        expect(container.read(uiSettingsProvider).soundVolume, 0.4);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());
         await tester.pump();

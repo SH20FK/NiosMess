@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/features/settings/domain/setting_id.dart';
 import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
@@ -11,7 +10,6 @@ import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
 import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
-import 'package:pulse_flutter/widgets/settings/account_security_section.dart';
 import 'package:pulse_flutter/widgets/settings/privacy_rule_row.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -132,8 +130,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
     final AppLocalizations l = context.l10n;
     final bool hasRules = privacy.rules.isNotEmpty;
     final bool available = !privacy.isLoading && hasRules;
-    final bool pending =
-        privacy.pendingRules.isNotEmpty || privacy.pendingUsers.isNotEmpty;
     final String errorMessage = privacy.error == 'privacy_save_failed'
         ? l.settingsPrivacySaveFailed
         : l.settingsPrivacyLoadFailed;
@@ -151,7 +147,9 @@ class SettingsPrivacyScreen extends ConsumerWidget {
           PrivacyRuleRow(
             key: ValueKey<String>('privacy-rule-${rule.key}'),
             ruleKey: rule.key,
-            enabled: available && !pending,
+            // Only the row whose rule is being saved steps aside; the rest
+            // stay usable while the write is in flight.
+            enabled: available && !privacy.pendingRules.contains(rule.key),
             anchor: rule.settingId.value,
             icon: rule.icon,
             title: rule.title(l),
@@ -164,10 +162,52 @@ class SettingsPrivacyScreen extends ConsumerWidget {
       title: l.settingsV2Privacy,
       isEmbedded: isEmbedded,
       onRefresh: () => ref.read(privacyProvider.notifier).refresh(),
-      hero: _PrivacyHero(state: privacy),
       children: <Widget>[
-        // The rules are the page. Until they arrive the skeleton holds their
-        // place, so nothing slides under the finger when the answer lands.
+        // Blocking and the secret chats answer for themselves, so they sit
+        // under the header instead of after the wall of visibility rules.
+        SettingsSection(
+          title: l.privacyCategorySecurity,
+          accentIcon: Icons.shield_rounded,
+          children: <Widget>[
+            SettingsRow(
+              enabled: available,
+              disabledReason: privacy.error == null
+                  ? null
+                  : l.settingsPrivacyLoadFailed,
+              anchor: SettingId.privacyBlockedUsers.value,
+              leading: Icon(Icons.block_rounded, color: scheme.primary),
+              title: l.privacyBlacklist,
+              subtitle: privacy.blockedUsers.isEmpty
+                  ? l.privacyNoBlocked
+                  : l.privacyBlockedCount(privacy.blockedUsers.length),
+              control: const NavigationControl(),
+              onTap: () => _openBlockedUsers(context),
+            ),
+            SettingsRow(
+              leading: Icon(
+                Icons.enhanced_encryption_rounded,
+                color: scheme.primary,
+              ),
+              title: l.settingsSecretChatsTitle,
+              subtitle: l.settingsSecretChatsSubtitle,
+              control: const NavigationControl(),
+              onTap: () {
+                if (kIsWeb) {
+                  context.go('/main/settings?section=e2ee');
+                } else if (isEmbedded) {
+                  ref
+                      .read(desktopSelectedSettingsSectionProvider.notifier)
+                      .setSelectedSection(SettingsSectionId.e2ee);
+                } else {
+                  context.push('/settings/e2ee');
+                }
+              },
+            ),
+          ],
+        ),
+        // The rules are the rest of the page. Until they arrive the skeleton
+        // holds their place, so nothing slides under the finger when the
+        // answer lands.
         if (privacy.isLoading && !hasRules)
           const SettingsSection(children: <Widget>[SettingsSkeleton(rows: 5)]),
         if (privacy.error != null)
@@ -185,7 +225,8 @@ class SettingsPrivacyScreen extends ConsumerWidget {
             rules: _communicationRules,
             extra: <Widget>[
               SettingsRow(
-                enabled: available && !pending,
+                enabled: available &&
+                    !privacy.pendingRules.contains('read_receipts'),
                 anchor: SettingId.privacyReadReceipts.value,
                 leading: Icon(Icons.done_all_rounded, color: scheme.primary),
                 title: l.settingsV2ReadReceipts,
@@ -207,7 +248,8 @@ class SettingsPrivacyScreen extends ConsumerWidget {
                 ),
               ),
               SettingsRow(
-                enabled: available && !pending,
+                enabled: available &&
+                    !privacy.pendingRules.contains('typing_indicators'),
                 anchor: SettingId.privacyTypingIndicators.value,
                 leading: Icon(Icons.keyboard_outlined, color: scheme.primary),
                 title: l.settingsV2Typing,
@@ -241,48 +283,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
             rules: _activityRules,
           ),
         ],
-        AccountSecuritySection(isEmbedded: isEmbedded),
-        // 4. Безопасность и блокировки
-        SettingsSection(
-          title: l.privacyCategorySecurity,
-          accentIcon: Icons.shield_rounded,
-          children: <Widget>[
-            SettingsRow(
-              enabled: available && !pending,
-              disabledReason: privacy.error == null
-                  ? null
-                  : l.settingsPrivacyLoadFailed,
-              anchor: SettingId.privacyBlockedUsers.value,
-              leading: Icon(Icons.block_rounded, color: scheme.error),
-              title: l.privacyBlacklist,
-              subtitle: privacy.blockedUsers.isEmpty
-                  ? l.privacyNoBlocked
-                  : l.privacyBlockedCount(privacy.blockedUsers.length),
-              control: const NavigationControl(),
-              onTap: () => _openBlockedUsers(context),
-            ),
-            SettingsRow(
-              leading: Icon(
-                Icons.enhanced_encryption_rounded,
-                color: scheme.primary,
-              ),
-              title: l.settingsSecretChatsTitle,
-              subtitle: l.settingsSecretChatsSubtitle,
-              control: const NavigationControl(),
-              onTap: () {
-                if (kIsWeb) {
-                  context.go('/main/settings?section=e2ee');
-                } else if (isEmbedded) {
-                  ref
-                      .read(desktopSelectedSettingsSectionProvider.notifier)
-                      .setSelectedSection(SettingsSectionId.e2ee);
-                } else {
-                  context.push('/settings/e2ee');
-                }
-              },
-            ),
-          ],
-        ),
         if (spamBlock)
           SettingsSection(
             title: l.settingsSpamBlockTitle,
@@ -302,143 +302,3 @@ class SettingsPrivacyScreen extends ConsumerWidget {
   }
 }
 
-/// The first look at the page answers the question the rules below ask one by
-/// one: who sees the profile, the phone number and the last seen time. The
-/// answers come from the same provider as the rows, so the card cannot drift
-/// from them; while they load it says so instead of guessing.
-class _PrivacyHero extends StatelessWidget {
-  const _PrivacyHero({required this.state});
-
-  final PrivacyState state;
-
-  static final List<_PrivacyRuleSpec> _summary = <_PrivacyRuleSpec>[
-    _PrivacyRuleSpec(
-      key: 'profile_photos',
-      icon: Icons.account_circle_rounded,
-      title: (AppLocalizations l) => l.privacyRuleAvatar,
-      settingId: SettingId.privacyAvatar,
-    ),
-    _PrivacyRuleSpec(
-      key: 'phone',
-      icon: Icons.phone_rounded,
-      title: (AppLocalizations l) => l.privacyRulePhone,
-      settingId: SettingId.privacyPhone,
-    ),
-    _PrivacyRuleSpec(
-      key: 'last_seen',
-      icon: Icons.access_time_rounded,
-      title: (AppLocalizations l) => l.privacyRuleLastSeen,
-      settingId: SettingId.privacyLastSeen,
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final AppLocalizations l = context.l10n;
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme text = Theme.of(context).textTheme;
-    final bool ready = state.rules.isNotEmpty;
-    final int blocked = state.blockedUsers.length;
-
-    Widget pill(String label) => DecoratedBox(
-      decoration: ShapeDecoration(
-        color: scheme.surfaceContainerHigh,
-        shape: RoundedSuperellipseBorder(
-          borderRadius: AppRadii.of(context).fullRadius,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm + 2,
-          vertical: 3,
-        ),
-        child: Text(
-          label,
-          style: text.labelSmall?.copyWith(
-            color: scheme.onSurfaceVariant,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-
-    Widget summaryRow(_PrivacyRuleSpec rule) => Row(
-      children: <Widget>[
-        Icon(rule.icon, size: 18, color: scheme.onSurfaceVariant),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            rule.title(l),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: text.bodyMedium?.copyWith(color: scheme.onSurface),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        pill(state.policyFor(rule.key).localized(l)),
-      ],
-    );
-
-    return SettingsHeroCard(
-      label: l.settingsPrivacyVisibilityTitle,
-      leadingIcon: Icons.visibility_rounded,
-      trailing: blocked == 0
-          ? null
-          : Semantics(
-              label: l.privacyBlockedCount(blocked),
-              child: ExcludeSemantics(
-                child: DecoratedBox(
-                  decoration: ShapeDecoration(
-                    color: scheme.secondaryContainer,
-                    shape: RoundedSuperellipseBorder(
-                      borderRadius: AppRadii.of(context).fullRadius,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm + 2,
-                      vertical: 3,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          Icons.block_rounded,
-                          size: 14,
-                          color: scheme.onSecondaryContainer,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          '$blocked',
-                          style: text.labelSmall?.copyWith(
-                            color: scheme.onSecondaryContainer,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-      child: ready
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                for (final (int index, _PrivacyRuleSpec rule)
-                    in _summary.indexed) ...<Widget>[
-                  if (index != 0) const SizedBox(height: AppSpacing.sm),
-                  summaryRow(rule),
-                ],
-              ],
-            )
-          : Text(
-              state.isLoading
-                  ? l.commonLoading
-                  : l.settingsPrivacyLoadFailed,
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-    );
-  }
-}

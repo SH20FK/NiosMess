@@ -408,9 +408,60 @@ const Map<ShortcutActivator, Intent> _kPillShortcuts =
       ),
     };
 
-class _FilterPillState extends State<_FilterPill> {
+class _FilterPillState extends State<_FilterPill>
+    with SingleTickerProviderStateMixin {
   // The ring is shown only while the keyboard drives the focus.
   bool _focusRing = false;
+
+  /// How far the pill shrinks at the start of a selection pop.
+  static const double _kSelectionPopFrom = 0.94;
+
+  /// Selection answer: the pill swells back from [_kSelectionPopFrom] on the
+  /// fast spatial spring. The fill and the label ride the effects spring
+  /// instead — colour never overshoots, and the width stays put.
+  late final AnimationController _selectionPop;
+  late final Animation<double> _selectionScale;
+  bool _reduceMotion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectionPop = AnimationController(
+      vsync: this,
+      duration: M3Durations.spatialFast,
+      value: 1.0,
+    );
+    _selectionScale = _selectionPop.drive(
+      Tween<double>(begin: _kSelectionPopFrom, end: 1.0).chain(
+        CurveTween(curve: M3SpringCurves.spatialFast),
+      ),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = context.reduceMotion;
+    // Reduced motion: the pill is never mid-pop.
+    if (_reduceMotion) _selectionPop.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(covariant _FilterPill oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected == widget.selected) return;
+    if (_reduceMotion) {
+      _selectionPop.value = 1.0;
+    } else {
+      _selectionPop.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _selectionPop.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -457,50 +508,71 @@ class _FilterPillState extends State<_FilterPill> {
           }
         },
         child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: AnimatedContainer(
-          duration: reduceMotion
-              ? Duration.zero
-              : M3Durations.short4,
-          curve: M3SpringCurves.effectsDefault,
-          constraints: BoxConstraints.tightFor(height: minHeight),
-          // Outside the painted pill, inside the gesture: the touch target.
-          margin: const EdgeInsets.symmetric(vertical: _kPillTouchInset),
-          padding: EdgeInsets.only(
-            left: 14,
-            right: showBadge ? 10 : 14,
-            top: 3,
-            bottom: 3,
-          ),
-          decoration: ShapeDecoration(
-            color: selected ? scheme.secondaryContainer : Colors.transparent,
-            shape: const StadiumBorder(),
-          ),
-          foregroundDecoration: _focusRing
-              ? ShapeDecoration(
-                  shape: StadiumBorder(
-                    side: BorderSide(color: scheme.primary, width: 2),
-                  ),
-                )
-              : null,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              DefaultTextStyle.merge(
-                style: textStyle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                child: label,
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          onLongPress: onLongPress,
+          // A spring pop, not a layout change: the width the row sees is the
+          // same before and after the tap.
+          child: ScaleTransition(
+            scale: _selectionScale,
+            child: AnimatedContainer(
+              duration: reduceMotion
+                  ? Duration.zero
+                  : M3Durations.short4,
+              curve: M3SpringCurves.effectsDefault,
+              constraints: BoxConstraints.tightFor(height: minHeight),
+              // Outside the painted pill, inside the gesture: the touch target.
+              margin: const EdgeInsets.symmetric(vertical: _kPillTouchInset),
+              padding: EdgeInsets.only(
+                left: 14,
+                right: showBadge ? 10 : 14,
+                top: 3,
+                bottom: 3,
               ),
-              if (showBadge) ...<Widget>[
-                const SizedBox(width: 6),
-                _PillBadge(count: count, alert: badgeAlert),
-              ],
-            ],
+              decoration: ShapeDecoration(
+                color: selected
+                    ? scheme.secondaryContainer
+                    : Colors.transparent,
+                shape: const StadiumBorder(),
+              ),
+              foregroundDecoration: _focusRing
+                  ? ShapeDecoration(
+                      shape: StadiumBorder(
+                        side: BorderSide(color: scheme.primary, width: 2),
+                      ),
+                    )
+                  : null,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  // The label tone follows the fill on the effects spring, so
+                  // the two never disagree by a frame.
+                  TweenAnimationBuilder<Color?>(
+                    tween: ColorTween(end: textStyle.color),
+                    duration: reduceMotion
+                        ? Duration.zero
+                        : M3Durations.effectsDefault,
+                    curve: M3SpringCurves.effectsDefault,
+                    builder:
+                        (BuildContext context, Color? color, Widget? child) =>
+                            DefaultTextStyle.merge(
+                              style: color == null
+                                  ? textStyle
+                                  : textStyle.copyWith(color: color),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              child: child!,
+                            ),
+                    child: label,
+                  ),
+                  if (showBadge) ...<Widget>[
+                    const SizedBox(width: 6),
+                    _PillBadge(count: count, alert: badgeAlert),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
         ),
       ),
     );

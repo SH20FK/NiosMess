@@ -2,23 +2,23 @@ import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
-import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
-import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
-import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
 
+/// The fast page of the appearance settings: theme, accent and text scale —
+/// everything a user touches week to week. The deep accent controls (system
+/// colours, palette style, HEX) live on the accent sub-screen and the corner
+/// radii on the shape sub-screen; both open from here.
 class SettingsAppearanceScreen extends StatelessWidget {
   const SettingsAppearanceScreen({this.isEmbedded = false, super.key});
 
@@ -80,6 +80,9 @@ class _AppearanceScreen extends ConsumerWidget {
     final PaletteStyle paletteStyle = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.paletteStyle),
     );
+    final double messageBubbleRadius = ref.watch(
+      uiSettingsProvider.select((UiSettingsState s) => s.messageBubbleRadius),
+    );
 
     final Brightness brightness = Theme.of(context).brightness;
 
@@ -118,6 +121,7 @@ class _AppearanceScreen extends ConsumerWidget {
                 fontScale: fontScale,
                 paletteStyle: paletteStyle,
                 useSystemDynamic: useSystemDynamic,
+                messageBubbleRadius: messageBubbleRadius,
               ),
             ),
           ),
@@ -135,32 +139,11 @@ class _AppearanceScreen extends ConsumerWidget {
     required AppFontScale fontScale,
     required PaletteStyle paletteStyle,
     required bool useSystemDynamic,
+    required double messageBubbleRadius,
   }) {
-    final Widget colorField = SettingsAnchor(
-      id: 'appearance.color.source',
-      child: NiosColorField(
-        scheme: scheme,
-        seedColor: seedColor,
-        useSystemDynamic: useSystemDynamic,
-        paletteStyle: paletteStyle,
-        onColorSelected: (Color color, Offset origin) {
-          _revealChange(
-            context,
-            origin,
-            () => ref.read(uiSettingsProvider.notifier).setSeedColor(color),
-          );
-        },
-        onCustomColorTap: () {
-          _openCustomColorPicker(context, ref, seedColor);
-        },
-        onToggleDynamic: (bool val) {
-          ref.read(uiSettingsProvider.notifier).setUseSystemDynamic(val);
-        },
-        onSelectPaletteStyle: (PaletteStyle style) {
-          ref.read(uiSettingsProvider.notifier).setPaletteStyle(style);
-        },
-      ),
-    );
+    final bool customSelected =
+        !useSystemDynamic &&
+        !_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32());
 
     final Widget themeCard = _ThemeModeSelectorCard(
       currentMode: themeMode,
@@ -174,23 +157,75 @@ class _AppearanceScreen extends ConsumerWidget {
       },
     );
 
-    final Widget wallpaperSection = SettingsSection(
-      children: [
-        SettingsAnchor(
-          id: 'appearance.wallpaper',
-          child: SettingsListItem.nav(
-            key: const ValueKey('settings-wallpaper-entry'),
-            icon: Icons.texture_rounded,
-            leading: const _WallpaperThumbnail(),
-            title: context.l10n.appearanceChatWallpaperTitle,
-            subtitle: context.l10n.settingsWallpaperEntryHint,
-            onTap: () => openSettingsPage(context, '/settings/wallpaper'),
+    final Widget accentSection = SettingsAnchor(
+      id: 'appearance.color.source',
+      child: SettingsSection(
+        title: context.l10n.appearanceAccentPalette,
+        accentIcon: Icons.palette_rounded,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.md,
+              0,
+            ),
+            child: _PaletteGrid(
+              choices: [
+                for (final entry in _palettes)
+                  _PaletteChoice(
+                    key: ValueKey<String>(
+                      'appearance-palette-${entry.color.toARGB32()}',
+                    ),
+                    scheme: scheme,
+                    seedColor: entry.color,
+                    paletteStyle: paletteStyle,
+                    label: entry.getName(context.l10n),
+                    selected:
+                        !useSystemDynamic &&
+                        seedColor.toARGB32() == entry.color.toARGB32(),
+                    onTap: (Offset origin) {
+                      // The accent already in use: nothing to change or reveal.
+                      if (!useSystemDynamic &&
+                          seedColor.toARGB32() == entry.color.toARGB32()) {
+                        return;
+                      }
+                      HapticService.selection();
+                      // setSeedColor also switches system colours off in the
+                      // same state change, so no separate call is needed.
+                      _revealChange(
+                        context,
+                        origin,
+                        () => ref
+                            .read(uiSettingsProvider.notifier)
+                            .setSeedColor(entry.color),
+                      );
+                    },
+                  ),
+                _PaletteChoice(
+                  key: const ValueKey<String>('appearance-palette-custom'),
+                  scheme: scheme,
+                  seedColor: seedColor,
+                  paletteStyle: paletteStyle,
+                  label: context.l10n.appearanceCustomColor,
+                  selected: customSelected,
+                  custom: true,
+                  onTap: (_) => _openCustomColorPicker(context, ref, seedColor),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          SettingsListItem.nav(
+            icon: Icons.tune_rounded,
+            title: context.l10n.appearancePaletteStyle,
+            subtitle: context.l10n.appearanceAccentEditorDesc,
+            onTap: () => openSettingsPage(context, '/settings/appearance/accent'),
+          ),
+        ],
+      ),
     );
 
-    final Widget textAndShapeSection = SettingsSection(
+    final Widget textSection = SettingsSection(
       title: context.l10n.settingsV2TextShape,
       accentIcon: Icons.format_size_rounded,
       children: [
@@ -203,55 +238,14 @@ class _AppearanceScreen extends ConsumerWidget {
             },
           ),
         ),
-        SettingsSearchDisclosure(
-          anchor: 'ui_corner_radius',
-          title: context.l10n.settingsV2Advanced,
-          subtitle: context.l10n.settingsV2GeometryHint,
-          children: [
-            _SliderSettingTile(
-              icon: Icons.rounded_corner_rounded,
-              title: context.l10n.appearanceUiRounding,
-              subtitle: context.l10n.appearanceUiRoundingDesc,
-              value: ref.watch(
-                uiSettingsProvider.select((s) => s.uiCornerRadius),
-              ),
-              min: 8.0,
-              max: 28.0,
-              divisions: 20,
-              // The corners follow the thumb, so the page and the preview
-              // round while it is dragged instead of after it is released.
-              onChanged: (double val) {
-                ref.read(uiSettingsProvider.notifier).setUiCornerRadius(val);
-              },
-            ),
-          ],
-        ),
         SettingsAnchor(
-          id: 'appearance.compact',
-          child: SettingsListItem.toggle(
-            icon: Icons.density_small_rounded,
-            title: context.l10n.appearanceCompactMode,
-            subtitle: context.l10n.appearanceCompactModeSubtitle,
-            value: ref.watch(uiSettingsProvider.select((s) => s.compactMode)),
-            onChanged: (value) =>
-                ref.read(uiSettingsProvider.notifier).setCompactMode(value),
+          id: 'ui_corner_radius',
+          child: SettingsListItem.nav(
+            icon: Icons.rounded_corner_rounded,
+            title: context.l10n.settingsV2Advanced,
+            subtitle: context.l10n.settingsV2GeometryHint,
+            onTap: () => openSettingsPage(context, '/settings/appearance/shape'),
           ),
-        ),
-      ],
-    );
-
-    final Widget resetSection = SettingsSection(
-      title: context.l10n.settingsV2ResetSection,
-      accentIcon: Icons.restart_alt_rounded,
-      accentColor: scheme.errorContainer,
-      accentForeground: scheme.onErrorContainer,
-      children: [
-        SettingsListItem.danger(
-          key: const ValueKey('settings-appearance-reset-action'),
-          icon: Icons.restart_alt_rounded,
-          title: context.l10n.settingsV2Reset,
-          subtitle: context.l10n.settingsV2ResetHint,
-          onTap: () => _resetPreferences(context, ref),
         ),
       ],
     );
@@ -259,13 +253,11 @@ class _AppearanceScreen extends ConsumerWidget {
     return SettingsShell(
       title: context.l10n.settingsV2Appearance,
       isEmbedded: isEmbedded,
-      hero: _AppearanceHeroPreview(themeMode: themeMode),
+      hero: _AppearanceHeroPreview(messageBubbleRadius: messageBubbleRadius),
       children: [
         themeCard,
-        colorField,
-        wallpaperSection,
-        textAndShapeSection,
-        resetSection,
+        accentSection,
+        textSection,
       ],
     );
   }
@@ -302,327 +294,84 @@ class _AppearanceScreen extends ConsumerWidget {
       },
     );
   }
-
-  /// The one reset the app already offers, reached from the page that shows
-  /// what it changes: confirm, write, report. The same global reset is also
-  /// reachable from the other settings screen; both are honest about a
-  /// partial result.
-  Future<void> _resetPreferences(BuildContext context, WidgetRef ref) async {
-    final bool? confirmed = await showAppConfirmDialog(
-      context: context,
-      title: context.l10n.settingsV2ResetConfirm,
-      subtitle: context.l10n.settingsV2ResetBody,
-      confirmLabel: context.l10n.settingsV2Reset,
-      cancelLabel: context.l10n.commonCancel,
-      destructive: true,
-    );
-    if (confirmed != true || !context.mounted) return;
-    try {
-      final int leftover =
-          await ref.read(uiSettingsProvider.notifier).resetAll();
-      // Notification categories live under their own per-account key.
-      await ref.read(notificationPreferencesProvider.notifier).reset();
-      if (context.mounted) {
-        if (leftover > 0) {
-          AppToast.showInfo(context, context.l10n.settingsStorageResetPartial);
-        } else {
-          AppToast.showSuccess(context, context.l10n.settingsV2ResetDone);
-        }
-      }
-    } catch (_) {
-      if (context.mounted) {
-        AppToast.showError(context, context.l10n.settingsV2ResetFailed);
-      }
-    }
-  }
 }
 
-/// The live preview above the settings: two bubbles and a composer drawn from
-/// the colours, corners and text scale that are in force right now. It reads
-/// the animated theme, so a change lands in it before the page is released:
-/// the seed and the palette style recolor it, `uiCornerRadius` rounds it, and
-/// light/dark follows `themeMode`. Text size needs no second multiplier: the
-/// app-wide `AppTextScaler` already carries the `fontScale` setting into every
-/// `MediaQuery`, so the preview grows by exactly the same factor as the page.
+/// The live preview above the settings: one line of chat — an incoming and
+/// an outgoing bubble — drawn from the colours and corners in force right
+/// now. The bubbles borrow the message radius setting itself, full on the
+/// outer corners and half on the tail, exactly like the chat; the hero card
+/// behind them answers to the UI radius. Text size needs no second
+/// multiplier: the app-wide `AppTextScaler` already carries the `fontScale`
+/// setting into every `MediaQuery`.
 class _AppearanceHeroPreview extends StatelessWidget {
-  const _AppearanceHeroPreview({required this.themeMode});
+  const _AppearanceHeroPreview({required this.messageBubbleRadius});
 
-  final ThemeMode themeMode;
-
-  String _modeLabel(BuildContext context) => switch (themeMode) {
-    ThemeMode.system => context.l10n.commonSystem,
-    ThemeMode.light => context.l10n.appearanceLabelLight,
-    ThemeMode.dark => context.l10n.appearanceLabelDark,
-  };
+  /// The radius the real bubbles round with, so the preview answers to the
+  /// «Скругление сообщений» setting instead of a chrome token.
+  final double messageBubbleRadius;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme text = Theme.of(context).textTheme;
     final bool rtl = Directionality.of(context) == TextDirection.rtl;
-    final double radius = AppRadii.of(context).lg.clamp(12.0, 24.0);
+    final double radius = messageBubbleRadius;
     final Radius big = Radius.circular(radius);
-    final Radius tail = Radius.circular((radius * .45).clamp(4.0, 12.0));
+    final Radius tail = Radius.circular((radius * .5).clamp(4.0, 16.0));
 
-    Widget bubble({
-      required String message,
-      required bool outgoing,
-    }) {
+    Widget bubble({required String message, required bool outgoing}) {
       final Color fill = outgoing
           ? scheme.primary
           : scheme.surfaceContainerHigh;
       final Color ink = outgoing ? scheme.onPrimary : scheme.onSurface;
-      return Row(
-        mainAxisAlignment: outgoing
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        children: <Widget>[
-          Flexible(
-            child: DecoratedBox(
-              decoration: ShapeDecoration(
-                color: fill,
-                shape: RoundedSuperellipseBorder(
-                  borderRadius: BorderRadius.only(
-                    topLeft: big,
-                    topRight: big,
-                    // The tail sits at the reading start of an incoming
-                    // bubble and at the reading end of an outgoing one.
-                    bottomLeft: outgoing
-                        ? (rtl ? tail : big)
-                        : (rtl ? big : tail),
-                    bottomRight: outgoing
-                        ? (rtl ? big : tail)
-                        : (rtl ? tail : big),
-                  ),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Text(
-                  message,
-                  style: text.bodyMedium?.copyWith(color: ink),
-                ),
+      return Flexible(
+        child: DecoratedBox(
+          decoration: ShapeDecoration(
+            color: fill,
+            shape: RoundedSuperellipseBorder(
+              borderRadius: BorderRadius.only(
+                topLeft: big,
+                topRight: big,
+                // The tail sits at the reading start of an incoming
+                // bubble and at the reading end of an outgoing one.
+                bottomLeft: outgoing
+                    ? (rtl ? tail : big)
+                    : (rtl ? big : tail),
+                bottomRight: outgoing
+                    ? (rtl ? big : tail)
+                    : (rtl ? tail : big),
               ),
             ),
           ),
-        ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: Text(
+              message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodyMedium?.copyWith(color: ink),
+            ),
+          ),
+        ),
       );
     }
 
     return SettingsHeroCard(
       label: context.l10n.appearancePreviewTitle,
       leadingIcon: Icons.forum_rounded,
-      trailing: DecoratedBox(
-        decoration: ShapeDecoration(
-          color: scheme.secondaryContainer,
-          shape: RoundedSuperellipseBorder(
-            borderRadius: AppRadii.of(context).fullRadius,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm + 2,
-            vertical: 3,
-          ),
-          child: Text(
-            _modeLabel(context),
-            style: text.labelSmall?.copyWith(
-              color: scheme.onSecondaryContainer,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: <Widget>[
           bubble(
             message: context.l10n.appearanceIncomingPreview,
             outgoing: false,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          bubble(
-            message: context.l10n.appearancePreviewChat,
-            outgoing: true,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          DecoratedBox(
-            decoration: ShapeDecoration(
-              color: scheme.surfaceContainerHigh,
-              shape: RoundedSuperellipseBorder(
-                borderRadius: AppRadii.of(context).fullRadius,
-              ),
-            ),
-            child: Padding(
-              padding: EdgeInsetsDirectional.only(
-                start: AppSpacing.lg,
-                end: AppSpacing.xs,
-                top: AppSpacing.xs,
-                bottom: AppSpacing.xs,
-              ),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      context.l10n.chatMessageHint,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  DecoratedBox(
-                    decoration: ShapeDecoration(
-                      color: scheme.primary,
-                      shape: RoundedSuperellipseBorder(
-                        borderRadius: AppRadii.of(context).fullRadius,
-                      ),
-                    ),
-                    child: SizedBox.square(
-                      dimension: AppHeights.controlCompact,
-                      child: Center(
-                        child: Icon(
-                          Icons.arrow_upward_rounded,
-                          size: 20,
-                          color: scheme.onPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox(width: AppSpacing.sm),
+          bubble(message: context.l10n.appearancePreviewChat, outgoing: true),
         ],
       ),
-    );
-  }
-}
-
-/// A small tonal stand-in for the current chat wallpaper: the row says what
-/// the studio opens, the swatch says there is something to open.
-class _WallpaperThumbnail extends StatelessWidget {
-  const _WallpaperThumbnail();
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return SizedBox.square(
-      dimension: AppHeights.sm,
-      child: DecoratedBox(
-        decoration: ShapeDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: <Color>[
-              scheme.primary,
-              scheme.tertiaryContainer,
-              scheme.secondaryContainer,
-            ],
-          ),
-          shape: AppRadii.superellipse(AppRadii.of(context).md),
-        ),
-      ),
-    );
-  }
-}
-
-class NiosColorField extends StatelessWidget {
-  const NiosColorField({
-    required this.scheme,
-    required this.seedColor,
-    required this.useSystemDynamic,
-    required this.paletteStyle,
-    required this.onColorSelected,
-    required this.onCustomColorTap,
-    required this.onToggleDynamic,
-    required this.onSelectPaletteStyle,
-    super.key,
-  });
-
-  final ColorScheme scheme;
-  final Color seedColor;
-  final bool useSystemDynamic;
-  final PaletteStyle paletteStyle;
-
-  /// A ready-made accent was picked. [origin] is the centre of its swatch on
-  /// screen, the point the new colours open from.
-  final void Function(Color color, Offset origin) onColorSelected;
-  final VoidCallback onCustomColorTap;
-  final ValueChanged<bool> onToggleDynamic;
-  final ValueChanged<PaletteStyle> onSelectPaletteStyle;
-
-  @override
-  Widget build(BuildContext context) {
-    final customSelected =
-        !useSystemDynamic &&
-        !_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32());
-    return SettingsSection(
-      title: context.l10n.appearanceAccentPalette,
-      subtitle: context.l10n.appearanceAccentPaletteSubtitle,
-      accentIcon: Icons.palette_rounded,
-      children: [
-        if (!kIsWeb)
-          SettingsListItem.toggle(
-            icon: Icons.wallpaper_rounded,
-            title: context.l10n.appearanceSystemColors,
-            subtitle: context.l10n.appearanceSystemColorsSubtitle,
-            value: useSystemDynamic,
-            onChanged: onToggleDynamic,
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.md,
-            0,
-          ),
-          child: _PaletteGrid(
-            choices: [
-              for (final entry in _palettes)
-                _PaletteChoice(
-                  key: ValueKey<String>('appearance-palette-${entry.color.toARGB32()}'),
-                  scheme: scheme,
-                  seedColor: entry.color,
-                  paletteStyle: paletteStyle,
-                  label: entry.getName(context.l10n),
-                  selected:
-                      !useSystemDynamic &&
-                      seedColor.toARGB32() == entry.color.toARGB32(),
-                  onTap: (Offset origin) {
-                    // The accent already in use: nothing to change or reveal.
-                    if (!useSystemDynamic &&
-                        seedColor.toARGB32() == entry.color.toARGB32()) {
-                      return;
-                    }
-                    HapticService.selection();
-                    onColorSelected(entry.color, origin);
-                    onToggleDynamic(false);
-                  },
-                ),
-              _PaletteChoice(
-                key: const ValueKey<String>('appearance-palette-custom'),
-                scheme: scheme,
-                seedColor: seedColor,
-                paletteStyle: paletteStyle,
-                label: context.l10n.appearanceCustomColor,
-                selected: customSelected,
-                custom: true,
-                onTap: (_) => onCustomColorTap(),
-              ),
-            ],
-          ),
-        ),
-        _PaletteStyleSelectorTile(
-          currentStyle: paletteStyle,
-          onChanged: onSelectPaletteStyle,
-        ),
-      ],
     );
   }
 }
@@ -874,11 +623,6 @@ class _ThemeModeSelectorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SettingsSection(
     title: context.l10n.appearanceThemeMode,
-    subtitle: switch (currentMode) {
-      ThemeMode.system => context.l10n.appearanceThemeModeSubtitle,
-      ThemeMode.light => context.l10n.appearanceThemeLightActive,
-      ThemeMode.dark => context.l10n.appearanceThemeDarkActive,
-    },
     accentIcon: Icons.contrast_rounded,
     children: [
       Padding(
@@ -922,84 +666,6 @@ class _ThemeModeSelectorCard extends StatelessWidget {
   );
 }
 
-class _SliderSettingTile extends StatefulWidget {
-  const _SliderSettingTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.divisions,
-    required this.onChanged,
-  });
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final double value;
-  final double min;
-  final double max;
-  final int divisions;
-  final ValueChanged<double> onChanged;
-  @override
-  State<_SliderSettingTile> createState() => _SliderSettingTileState();
-}
-
-class _SliderSettingTileState extends State<_SliderSettingTile> {
-  bool _isDragging = false;
-  late double _localValue;
-  @override
-  void initState() {
-    super.initState();
-    _localValue = widget.value;
-  }
-
-  @override
-  void didUpdateWidget(covariant _SliderSettingTile oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_isDragging) _localValue = widget.value;
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      SettingsListItem.value(
-        icon: widget.icon,
-        title: widget.title,
-        subtitle: widget.subtitle,
-        value: '${_localValue.toInt()} dp',
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          0,
-          AppSpacing.lg,
-          AppSpacing.md,
-        ),
-        child: SliderTheme(
-          data: SliderTheme.of(context).copyWith(trackHeight: 16),
-          child: Slider(
-            value: _localValue.clamp(widget.min, widget.max),
-            min: widget.min,
-            max: widget.max,
-            divisions: widget.divisions,
-            label: '${_localValue.toInt()} dp',
-            onChangeStart: (_) => setState(() => _isDragging = true),
-            onChangeEnd: (_) => setState(() => _isDragging = false),
-            onChanged: (value) {
-              setState(() => _localValue = value);
-              // Applied while dragging: the corners of the page and of the
-              // preview move with the thumb.
-              widget.onChanged(value);
-            },
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
 class _FontScaleSliderTile extends StatelessWidget {
   const _FontScaleSliderTile({
     required this.currentScale,
@@ -1033,52 +699,6 @@ class _FontScaleSliderTile extends StatelessWidget {
               ),
           ],
           selected: {currentScale},
-          onSelectionChanged: (selected) => onChanged(selected.first),
-        ),
-      ),
-    ],
-  );
-}
-
-class _PaletteStyleSelectorTile extends StatelessWidget {
-  const _PaletteStyleSelectorTile({
-    required this.currentStyle,
-    required this.onChanged,
-  });
-  final PaletteStyle currentStyle;
-  final ValueChanged<PaletteStyle> onChanged;
-  String _labelFor(BuildContext context, PaletteStyle style) => switch (style) {
-    PaletteStyle.expressive => context.l10n.appearancePaletteExpressive,
-    PaletteStyle.vibrant => context.l10n.appearancePaletteVibrant,
-    PaletteStyle.content => context.l10n.appearancePaletteContent,
-    PaletteStyle.calm => context.l10n.appearancePaletteCalm,
-    PaletteStyle.mono => context.l10n.appearancePaletteMono,
-  };
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      SettingsListItem.value(
-        icon: Icons.palette_outlined,
-        title: context.l10n.appearancePaletteStyle,
-        subtitle: context.l10n.appearanceContrastColorsDesc,
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.sm,
-          AppSpacing.lg,
-          AppSpacing.lg,
-        ),
-        child: SettingsChoiceButtons<PaletteStyle>(
-          segments: [
-            for (final style in PaletteStyle.values)
-              ButtonSegment<PaletteStyle>(
-                value: style,
-                label: Text(_labelFor(context, style)),
-              ),
-          ],
-          selected: {currentStyle},
           onSelectionChanged: (selected) => onChanged(selected.first),
         ),
       ),

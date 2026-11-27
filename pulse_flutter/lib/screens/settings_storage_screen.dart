@@ -171,6 +171,9 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     return SettingsShell(
       title: context.l10n.settingsV2Storage,
       isEmbedded: widget.isEmbedded,
+      // The page has no refresh control of its own: pulling the list is the
+      // one way to re-read the numbers, on the browser as on the phone.
+      onRefresh: _refresh,
       children: <Widget>[
         _webStorageSection(context, snapshotAsync),
         ..._autoDownloadSections(context, web: true),
@@ -216,6 +219,11 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     final int appDataBytes = data.documentsBytes + data.supportBytes;
     final int cacheBytes = data.temporaryBytes;
     final int draftBytes = data.draftBytes;
+    // A category holding nothing says nothing: the hero already totals the
+    // empty part, so the breakdown lists only what actually occupies space.
+    final List<StorageCategory> categories = StorageCategory.values
+        .where((StorageCategory cat) => data.bytesFor(cat) > 0)
+        .toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -225,19 +233,12 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
           appDataBytes: appDataBytes,
           cacheBytes: cacheBytes,
           draftBytes: draftBytes,
-          busy: _busy,
-          onRefresh: _refresh,
         ),
         SettingsSection(
           title: context.l10n.settingsStorageActions,
           subtitle: context.l10n.settingsStorageSafeCleanup,
           accentIcon: Icons.cleaning_services_rounded,
           children: <Widget>[
-            SettingsRow(
-              leading: const Icon(Icons.folder_rounded),
-              title: context.l10n.settingsStorageCategoryAppData,
-              control: ValueControl(_format(appDataBytes)),
-            ),
             SettingsRow(
               anchor: 'cache_cleaning',
               leading: const Icon(Icons.cached_rounded),
@@ -265,33 +266,20 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
         ),
 
         // Categories are a breakdown, not permission to delete documents.
-        SettingsSection(
-          title: context.l10n.settingsV2StorageDetails,
-          subtitle: context.l10n.settingsV2StorageDetailsHint,
-          accentIcon: Icons.pie_chart_outline_rounded,
-          children: <Widget>[
-            ...StorageCategory.values.map((StorageCategory cat) {
-              final int bytes = data.bytesFor(cat);
-              final IconData icon = switch (cat) {
-                StorageCategory.images => Icons.image_rounded,
-                StorageCategory.videos => Icons.video_library_rounded,
-                StorageCategory.audio => Icons.audiotrack_rounded,
-                StorageCategory.files => Icons.insert_drive_file_rounded,
-                StorageCategory.stickers => Icons.emoji_emotions_rounded,
-                StorageCategory.avatars => Icons.account_circle_rounded,
-                StorageCategory.drafts => Icons.edit_note_rounded,
-                StorageCategory.secretChatCache => Icons.lock_clock_rounded,
-                StorageCategory.other => Icons.storage_rounded,
-              };
-
-              return SettingsRow(
-                leading: Icon(icon),
-                title: _categoryLabel(context, cat),
-                control: ValueControl(_format(bytes)),
-              );
-            }),
-          ],
-        ),
+        if (categories.isNotEmpty)
+          SettingsSection(
+            title: context.l10n.settingsV2StorageDetails,
+            subtitle: context.l10n.settingsV2StorageDetailsHint,
+            accentIcon: Icons.pie_chart_outline_rounded,
+            children: <Widget>[
+              for (final StorageCategory cat in categories)
+                SettingsRow(
+                  leading: Icon(_categoryIcon(cat)),
+                  title: _categoryLabel(context, cat),
+                  control: ValueControl(_format(data.bytesFor(cat))),
+                ),
+            ],
+          ),
 
         ..._autoDownloadSections(context, web: false),
         _performanceSection(context),
@@ -300,22 +288,26 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     );
   }
 
-  /// Media auto-download, the same groups the browser gets. Native keeps one
-  /// switch per network; the browser has no cellular rule, so it keeps one
-  /// automatic switch per type.
+  /// Media auto-download as one 2×2 matrix: each media type gets its Wi-Fi
+  /// and its cellular switch in the same group, instead of two groups of the
+  /// same shape. The browser has no cellular rule, so it keeps one automatic
+  /// switch per type.
   List<Widget> _autoDownloadSections(
     BuildContext context, {
     required bool web,
   }) => <Widget>[
     SettingsSection(
-      title: context.l10n.autoDownloadPhotos,
-      accentIcon: Icons.image_rounded,
+      title: context.l10n.settingsStorageAutoDownloadMedia,
+      // The cellular switches are the only ones that can cost money, so the
+      // group says it once instead of repeating it in every row.
+      subtitle: web ? null : context.l10n.settingsV2MobileDataHint,
+      accentIcon: Icons.download_rounded,
       children: <Widget>[
         _autoDownloadRow(
           anchor: 'auto_download_wifi',
           type: AutoDownloadMediaType.photo,
           network: AutoDownloadNetwork.wifi,
-          icon: Icons.wifi_rounded,
+          icon: Icons.image_rounded,
           web: web,
         ),
         if (!web)
@@ -323,19 +315,13 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
             anchor: 'auto_download_cellular',
             type: AutoDownloadMediaType.photo,
             network: AutoDownloadNetwork.cellular,
-            icon: Icons.signal_cellular_alt_rounded,
+            icon: Icons.image_rounded,
           ),
-      ],
-    ),
-    SettingsSection(
-      title: context.l10n.autoDownloadVideos,
-      accentIcon: Icons.video_library_rounded,
-      children: <Widget>[
         _autoDownloadRow(
           anchor: 'auto_download_video_wifi',
           type: AutoDownloadMediaType.video,
           network: AutoDownloadNetwork.wifi,
-          icon: Icons.wifi_rounded,
+          icon: Icons.video_library_rounded,
           web: web,
         ),
         if (!web)
@@ -343,7 +329,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
             anchor: 'auto_download_video_cellular',
             type: AutoDownloadMediaType.video,
             network: AutoDownloadNetwork.cellular,
-            icon: Icons.signal_cellular_alt_rounded,
+            icon: Icons.video_library_rounded,
           ),
       ],
     ),
@@ -392,7 +378,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     ],
   );
 
-  /// One network switch of a per-type auto-download group.
+  /// One switch of the 2×2 auto-download matrix: a media type on one network.
   Widget _autoDownloadRow({
     required String anchor,
     required AutoDownloadMediaType type,
@@ -402,15 +388,14 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
   }) => SettingsRow(
     anchor: anchor,
     leading: Icon(icon),
-    title: web
+    title: type == AutoDownloadMediaType.photo
+        ? context.l10n.settingsV2StorageImages
+        : context.l10n.settingsV2StorageVideos,
+    subtitle: web
         ? context.l10n.autoDownloadAutomatic
         : network == AutoDownloadNetwork.wifi
         ? context.l10n.settingsV2Wifi
         : context.l10n.settingsV2MobileData,
-    // Mobile traffic is the one choice people regret, so it says so.
-    subtitle: !web && network == AutoDownloadNetwork.cellular
-        ? context.l10n.settingsV2MobileDataHint
-        : null,
     control: ToggleControl(
       value: ref.watch(
         uiSettingsProvider.select((s) => s.autoDownloadFor(type, network)),
@@ -420,6 +405,18 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
           .setAutoDownload(type, network, value),
     ),
   );
+
+  static IconData _categoryIcon(StorageCategory cat) => switch (cat) {
+    StorageCategory.images => Icons.image_rounded,
+    StorageCategory.videos => Icons.video_library_rounded,
+    StorageCategory.audio => Icons.audiotrack_rounded,
+    StorageCategory.files => Icons.insert_drive_file_rounded,
+    StorageCategory.stickers => Icons.emoji_emotions_rounded,
+    StorageCategory.avatars => Icons.account_circle_rounded,
+    StorageCategory.drafts => Icons.edit_note_rounded,
+    StorageCategory.secretChatCache => Icons.lock_clock_rounded,
+    StorageCategory.other => Icons.storage_rounded,
+  };
 
   String _categoryLabel(BuildContext context, StorageCategory category) =>
       switch (category) {
@@ -439,24 +436,20 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
 
 /// The opening panel: what the app occupies, split into the three parts the
 /// cleanup actions can touch. The figure is the point of the page, so it is
-/// the one place with display type; the refresh control sits in its header
-/// rather than in a row of its own.
+/// the one place with display type. The panel carries no controls: the page
+/// is re-read by pulling it, so it never offers two ways to refresh.
 class _StorageHero extends StatelessWidget {
   const _StorageHero({
     required this.totalBytes,
     required this.appDataBytes,
     required this.cacheBytes,
     required this.draftBytes,
-    required this.busy,
-    required this.onRefresh,
   });
 
   final int totalBytes;
   final int appDataBytes;
   final int cacheBytes;
   final int draftBytes;
-  final bool busy;
-  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -468,11 +461,6 @@ class _StorageHero extends StatelessWidget {
       child: SettingsHeroCard(
         label: context.l10n.settingsStorageTitle,
         leadingIcon: Icons.storage_rounded,
-        trailing: IconButton.filledTonal(
-          onPressed: busy ? null : onRefresh,
-          tooltip: context.l10n.settingsStorageRefresh,
-          icon: const Icon(Icons.refresh_rounded, size: 20),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,

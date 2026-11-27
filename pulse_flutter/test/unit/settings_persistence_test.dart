@@ -417,12 +417,17 @@ void main() {
         uiSettingsProvider.notifier,
       );
 
-      notifier.setEnergySavingThreshold(37);
-      notifier.setEnergySavingThreshold(41);
+      // The dead energy saver took its plain int setter with it; the accent
+      // seed writes the same kind of value through the same _store path.
+      notifier.setSeedColor(const Color(0x00000025));
+      notifier.setSeedColor(const Color(0x00000029));
       await settle(notifier);
 
-      expect(container.read(uiSettingsProvider).energySavingThreshold, 41);
-      expect(prefs.stored['ui.energySavingThreshold'], 41);
+      expect(
+        container.read(uiSettingsProvider).seedColor,
+        const Color(0x00000029),
+      );
+      expect(prefs.stored['ui.seedColor'], 41);
       expect(container.read(settingsSaveFailureProvider), isNotNull);
     });
 

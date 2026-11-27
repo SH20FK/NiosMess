@@ -74,6 +74,7 @@ final class SettingsNavNode extends SettingsNode {
     required super.group,
     required this.route,
     this.sectionId,
+    this.anchorless = false,
     super.keywords,
     super.availability,
     super.parentNavId,
@@ -81,6 +82,10 @@ final class SettingsNavNode extends SettingsNode {
 
   final String route;
   final SettingsSectionId? sectionId;
+
+  /// The screen this route opens has no row whose id could be highlighted:
+  /// search must navigate to the page itself instead of pointing at a row.
+  final bool anchorless;
 }
 
 /// A row on the screen of its parent section. Search opens that screen and

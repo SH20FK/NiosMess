@@ -225,6 +225,9 @@ void main() {
     await tester.pumpAndSettle();
     final fire = find.byKey(const ValueKey('settings-quick-reaction-🔥'));
     await tester.ensureVisible(fire);
+    // ensureVisible scrolls with a short animation; let it land before tapping,
+    // otherwise the tap arrives below the fold and the chip never selects.
+    await tester.pumpAndSettle();
     await tester.tap(fire);
     await tester.pumpAndSettle();
     expect(tester.widget<ChoiceChip>(fire).selected, isTrue);

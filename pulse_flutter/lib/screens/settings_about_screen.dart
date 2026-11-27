@@ -17,12 +17,12 @@ import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
-import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/about/morphing_brand_mark.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/settings/about_bug_report_dialog.dart';
+import 'package:pulse_flutter/widgets/settings/about_changelog_expander.dart';
 import 'package:pulse_flutter/widgets/settings/about_identity_widgets.dart';
 import 'package:pulse_flutter/widgets/settings/about_memorial_sheet.dart';
 import 'package:pulse_flutter/widgets/settings/about_update_tile.dart';
@@ -46,6 +46,10 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   /// which the tab used to render as the "you are up to date" message.
   bool _changelogFailed = false;
   int _tab = 0;
+
+  /// The tab the user came from. The tab transition reads the pair to know
+  /// which way the content travels.
+  int _previousTab = 0;
   int _footerTapCount = 0;
   DateTime? _lastFooterTapAt;
 
@@ -208,7 +212,12 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
                 selected: {_tab},
                 showSelectedIcon: false,
                 onSelectionChanged: (selection) {
-                  setState(() => _tab = selection.first);
+                  final int next = selection.first;
+                  if (next == _tab) return;
+                  setState(() {
+                    _previousTab = _tab;
+                    _tab = next;
+                  });
                 },
               ),
             ),
@@ -217,6 +226,9 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         if (reduced)
           _tabContent(context)
         else
+          // The stack of the switcher is as tall as its tallest child, so the
+          // AnimatedSize outside only has to settle the difference between
+          // the old and the new tab — the height never jumps mid-swap.
           AnimatedSize(
             duration: M3Durations.medium2,
             curve: M3SpringCurves.expressiveDecel,
@@ -225,6 +237,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               duration: M3Durations.medium2,
               switchInCurve: M3SpringCurves.expressiveDecel,
               switchOutCurve: M3SpringCurves.expressiveAccel,
+              transitionBuilder: _tabTransition,
               child: KeyedSubtree(
                 key: ValueKey(_tab),
                 child: _tabContent(context),
@@ -282,27 +295,8 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             ),
           ],
         ),
-        SettingsSection(
-          title: l.settingsV2Advanced,
-          accentIcon: Icons.tune_rounded,
-          children: [
-            if (!kIsWeb)
-              SettingsListItem.nav(
-                icon: Icons.monitor_heart_outlined,
-                title: l.settingsV2Diagnostics,
-                subtitle: l.settingsV2DiagnosticsHint,
-                onTap: () {
-                  if (widget.isEmbedded) {
-                    ref
-                        .read(desktopSelectedSettingsSectionProvider.notifier)
-                        .setSelectedSection(SettingsSectionId.systemDevice);
-                  } else {
-                    context.push('/settings/system-device');
-                  }
-                },
-              ),
-          ],
-        ),
+        // The advanced group is gone with it: diagnostics was its only row,
+        // and the device page stays reachable from search and web links.
         Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
           child: GestureDetector(
@@ -319,6 +313,32 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Which way the tab content travels: a tab further right lifts the new
+  /// content in from below and lets the old one out upwards; going back left
+  /// mirrors it.
+  double get _tabDirection => _tab >= _previousTab ? 1.0 : -1.0;
+
+  /// Fade plus a 10 dp vertical lift, direction-aware. The switcher keeps an
+  /// outgoing child's transition as first built, so enter and exit are picked
+  /// from the animation status and the direction is read late — inside the
+  /// builders, where the state is already the new one.
+  Widget _tabTransition(Widget child, Animation<double> animation) {
+    return DualTransitionBuilder(
+      animation: animation,
+      forwardBuilder: (context, animation, child) => _TabTravelTransition(
+        animation: animation,
+        travel: 10.0 * _tabDirection,
+        child: child!,
+      ),
+      reverseBuilder: (context, animation, child) => _TabTravelTransition(
+        animation: animation,
+        travel: -10.0 * _tabDirection,
+        child: child!,
+      ),
+      child: child,
     );
   }
 
@@ -382,14 +402,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
               if (release == null)
                 Text(l.aboutUpToDate)
               else
-                for (final change in release.changes)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Text(
-                      change,
-                      style: text.bodyMedium?.copyWith(height: 1.45),
-                    ),
-                  ),
+                AboutChangelogExpander(changes: release.changes),
             ],
           ),
         ),
@@ -438,6 +451,39 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One half of the tab swap: the child fades and covers [travel] dp
+/// vertically as [animation] heads to 1. Enter runs 0→1 (rises or sinks into
+/// place), exit runs 1→0 (leaves the opposite way), so the same shape serves
+/// both — the sign of [travel] carries the direction.
+class _TabTravelTransition extends StatelessWidget {
+  const _TabTravelTransition({
+    required this.animation,
+    required this.travel,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+
+  /// Where the child sits while [animation] is at 0, in dp.
+  final double travel;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: animation,
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) => Transform.translate(
+          offset: Offset(0, travel * (1.0 - animation.value)),
+          child: child,
+        ),
+        child: child,
+      ),
     );
   }
 }

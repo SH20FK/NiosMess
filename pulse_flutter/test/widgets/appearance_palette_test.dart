@@ -8,9 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/screens/settings_appearance_accent_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
+import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:universal_io/io.dart';
 
 void main() {
@@ -37,17 +39,25 @@ void main() {
       final scope = ProviderScope.containerOf(
         tester.element(find.byType(SettingsAppearanceScreen)),
       );
-      expect(find.text('System colors'), findsOneWidget);
+      // The system-colours toggle moved to the accent sub-screen, which only
+      // offers it where the platform really has a palette; what the quick
+      // page always shows is the grid itself.
+      expect(
+        find.byKey(const ValueKey('appearance-palette-strip')),
+        findsOneWidget,
+      );
       final updates = <UiSettingsState>[];
       final subscription = scope.listen(
         uiSettingsProvider,
         (_, state) => updates.add(state),
       );
       addTearDown(subscription.close);
-      final before = tester
-          .widget<NiosColorField>(find.byType(NiosColorField))
-          .scheme
-          .primary;
+      // The old field carried the ambient theme in its constructor; the grid
+      // under the AnimatedTheme reads it the same way through the tree.
+      Color accentPrimary() => Theme.of(
+        tester.element(find.byKey(const ValueKey('appearance-palette-strip'))),
+      ).colorScheme.primary;
+      final before = accentPrimary();
       scope
           .read(uiSettingsProvider.notifier)
           .setSeedColor(const Color(0xff006c5b));
@@ -55,15 +65,9 @@ void main() {
       expect(updates.single.useSystemDynamic, isFalse);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
-      final middle = tester
-          .widget<NiosColorField>(find.byType(NiosColorField))
-          .scheme
-          .primary;
+      final middle = accentPrimary();
       await tester.pumpAndSettle();
-      final after = tester
-          .widget<NiosColorField>(find.byType(NiosColorField))
-          .scheme
-          .primary;
+      final after = accentPrimary();
       expect(middle, isNot(before));
       expect(middle, isNot(after));
       expect(tester.takeException(), isNull);
@@ -236,48 +240,36 @@ void main() {
     ) async {
       await tester.binding.setSurfaceSize(const Size(360, 1400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      Color? selected;
-      bool dynamic = true;
-      int customOpened = 0;
+      SharedPreferences.setMockInitialValues({'ui.useSystemDynamic': true});
+      final previousPrefs = UiSettingsNotifier.cachedPrefs;
+      UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+      addTearDown(() => UiSettingsNotifier.cachedPrefs = previousPrefs);
       double fontScale = 1.8;
       final capture = GlobalKey();
+      // The palette field became the accent screen's own section, so the
+      // screen stands in for the widget this test used to build by hand.
       Widget app() => MaterialApp(
         theme: AppTheme.themed(
-          VisualThemeSettings(
-            seedColor: selected ?? const Color(0xFF6750A4),
+          const VisualThemeSettings(
+            seedColor: Color(0xFF6750A4),
             themeMode: ThemeMode.system,
-            useSystemDynamic: dynamic,
+            useSystemDynamic: true,
           ),
           brightness,
         ),
         locale: const Locale('ru'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(fontScale)),
+          child: child!,
+        ),
         home: Scaffold(
-          body: Builder(
-            builder: (context) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: TextScaler.linear(fontScale)),
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: RepaintBoundary(
-                    key: capture,
-                    child: NiosColorField(
-                      scheme: Theme.of(context).colorScheme,
-                      seedColor: selected ?? const Color(0xFF6750A4),
-                      useSystemDynamic: dynamic,
-                      paletteStyle: PaletteStyle.expressive,
-                      onColorSelected: (color, _) => selected = color,
-                      onToggleDynamic: (value) => dynamic = value,
-                      onCustomColorTap: () => customOpened++,
-                      onSelectPaletteStyle: (_) {},
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          body: RepaintBoundary(
+            key: capture,
+            child: const SettingsAppearanceAccentScreen(isEmbedded: true),
           ),
         ),
       );
@@ -308,18 +300,26 @@ void main() {
         expect(bounds.top, greaterThanOrEqualTo(gridBounds.top));
         expect(bounds.bottom, lessThanOrEqualTo(gridBounds.bottom));
       }
+      final scope = ProviderScope.containerOf(
+        tester.element(find.byType(SettingsAppearanceAccentScreen)),
+      );
       await tester.tap(find.byTooltip('Лагуна'));
-      expect(dynamic, isFalse);
-      expect(selected, const Color(0xFF006C5B));
+      await tester.pump();
+      expect(scope.read(uiSettingsProvider).useSystemDynamic, isFalse);
+      expect(
+        scope.read(uiSettingsProvider).seedColor,
+        const Color(0xFF006C5B),
+      );
       await tester.ensureVisible(find.byTooltip('Пользовательский цвет'));
       await tester.tap(find.byTooltip('Пользовательский цвет'));
       await tester.pumpAndSettle();
-      expect(customOpened, 1);
+      // The custom tile opens the same sheet the HEX row opens; the counter
+      // the old widget took only proved the callback fired.
+      expect(find.byType(CustomColorPickerSheet), findsOneWidget);
       expect(tester.takeException(), isNull);
       final directory = Platform.environment['NIOS_PALETTE_CAPTURE_DIR'];
       if (directory != null) {
         fontScale = 1.0;
-        selected = const Color(0xFF6750A4);
         await tester.pumpWidget(ProviderScope(child: app()));
         await tester.pumpAndSettle();
         await tester.runAsync(() async {
@@ -341,53 +341,55 @@ void main() {
   testWidgets(
     'palette changes preserve controls without restoring decorative backgrounds',
     (tester) async {
-      Widget card(Color seed, bool disableMotion) => MaterialApp(
-        themeAnimationDuration: Duration.zero,
-        theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: seed)),
-        home: Builder(
-          builder: (context) {
-            final scheme = Theme.of(context).colorScheme;
-            return MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(disableAnimations: disableMotion),
-              child: SingleChildScrollView(
-                child: NiosColorField(
-                  scheme: scheme,
-                  seedColor: scheme.primary,
-                  useSystemDynamic: false,
-                  paletteStyle: PaletteStyle.expressive,
-                  onColorSelected: (_, _) {},
-                  onCustomColorTap: () {},
-                  onToggleDynamic: (_) {},
-                  onSelectPaletteStyle: (_) {},
-                ),
-              ),
-            );
-          },
+      SharedPreferences.setMockInitialValues({});
+      final previousPrefs = UiSettingsNotifier.cachedPrefs;
+      UiSettingsNotifier.cachedPrefs = await SharedPreferences.getInstance();
+      addTearDown(() => UiSettingsNotifier.cachedPrefs = previousPrefs);
+      // The accent screen owns the palette controls now, and its theme rides
+      // the provider: driving the seed through the notifier runs the same
+      // rebuild path the old widget saw when its theme was swapped by hand.
+      Widget app({bool disableMotion = false}) => ProviderScope(
+        child: MaterialApp(
+          themeAnimationDuration: Duration.zero,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF6750A4),
+            ),
+          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(disableAnimations: disableMotion),
+            child: child!,
+          ),
+          home: const SettingsAppearanceAccentScreen(isEmbedded: true),
         ),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
       );
       // The palette rows are settings rows: they reach for sound and haptics.
-      Widget scoped(Color seed, bool disableMotion) =>
-          ProviderScope(child: card(seed, disableMotion));
-      await tester.pumpWidget(scoped(const Color(0xFF6750A4), false));
+      await tester.pumpWidget(app());
       await tester.pumpAndSettle();
       expect(find.byType(RawImage), findsNothing);
-      await tester.pumpWidget(scoped(const Color(0xFF006C5B), false));
+      final UiSettingsNotifier notifier = ProviderScope.containerOf(
+        tester.element(find.byType(SettingsAppearanceAccentScreen)),
+      ).read(uiSettingsProvider.notifier);
+      notifier.setSeedColor(const Color(0xFF006C5B));
+      await tester.pump();
       expect(find.byType(RawImage), findsNothing);
       // Rapid accent changes must not recreate the disabled wallpaper renderer.
       await tester.pump(const Duration(milliseconds: 90));
-      await tester.pumpWidget(scoped(const Color(0xFF475569), false));
+      notifier.setSeedColor(const Color(0xFF475569));
       await tester.pump(const Duration(milliseconds: 60));
-      await tester.pumpWidget(scoped(const Color(0xFF6750A4), false));
+      notifier.setSeedColor(const Color(0xFF6750A4));
       await tester.pumpAndSettle();
       expect(find.byType(RawImage), findsNothing);
-      await tester.pumpWidget(scoped(const Color(0xFF984061), true));
+      await tester.pumpWidget(app(disableMotion: true));
       await tester.pump();
       expect(find.byType(RawImage), findsNothing);
-      expect(find.byType(ChoiceChip), findsWidgets);
+      // The style selector is still made of real controls, not a picture of
+      // them standing in for the rows.
+      expect(find.byType(SettingsChoiceButtons<PaletteStyle>), findsOneWidget);
       await tester.pumpAndSettle();
       expect(tester.binding.transientCallbackCount, 0);
       expect(tester.takeException(), isNull);

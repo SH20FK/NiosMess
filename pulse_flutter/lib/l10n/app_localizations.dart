@@ -970,6 +970,12 @@ abstract class AppLocalizations {
   /// **'Material 3 generates the whole color system from this seed.'**
   String get appearanceAccentPaletteSubtitle;
 
+  /// No description provided for @appearanceAccentEditorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'System colors, palette style and your own HEX'**
+  String get appearanceAccentEditorDesc;
+
   /// No description provided for @appearanceMaterialVariant.
   ///
   /// In en, this message translates to:
@@ -4300,6 +4306,90 @@ abstract class AppLocalizations {
   /// **'Secret Chat'**
   String get settingsSecretChatsButton;
 
+  /// No description provided for @settingsAccountSignInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in & Password'**
+  String get settingsAccountSignInTitle;
+
+  /// No description provided for @settingsAccountNiosIdCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get settingsAccountNiosIdCopy;
+
+  /// No description provided for @settingsAccountNiosIdOpenPortal.
+  ///
+  /// In en, this message translates to:
+  /// **'Open portal'**
+  String get settingsAccountNiosIdOpenPortal;
+
+  /// No description provided for @settingsSecretLinkPreviewsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Link previews in secret chats'**
+  String get settingsSecretLinkPreviewsTitle;
+
+  /// No description provided for @settingsSecretScreenshotTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Screenshot protection in secret chats'**
+  String get settingsSecretScreenshotTitle;
+
+  /// No description provided for @settingsStorageAutoDownloadMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Media auto-download'**
+  String get settingsStorageAutoDownloadMedia;
+
+  /// No description provided for @settingsPlusManageSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage subscription'**
+  String get settingsPlusManageSubscription;
+
+  /// No description provided for @settingsPlusTrialUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Trial period used'**
+  String get settingsPlusTrialUsed;
+
+  /// No description provided for @settingsPlusGroupMessenger.
+  ///
+  /// In en, this message translates to:
+  /// **'Messenger'**
+  String get settingsPlusGroupMessenger;
+
+  /// No description provided for @aboutChangelogShowMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more'**
+  String get aboutChangelogShowMore;
+
+  /// No description provided for @aboutChangelogShowLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get aboutChangelogShowLess;
+
+  /// No description provided for @settingsHubGroupPersonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get settingsHubGroupPersonal;
+
+  /// No description provided for @settingsHubGroupApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Application'**
+  String get settingsHubGroupApp;
+
+  /// No description provided for @settingsHubGroupMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get settingsHubGroupMore;
+
   String get reportAction;
   String get reportMessage;
   String get reportUser;
@@ -7274,8 +7364,6 @@ abstract class AppLocalizations {
   String get appearanceUiRoundingDesc;
   String get appearanceContrastColors;
   String get appearanceContrastColorsDesc;
-  String get appearanceDeepBlackOled;
-  String get appearanceDeepBlackOledDesc;
   String get appearanceInterfaceNav;
   String get appearanceInterfaceNavDesc;
   String get appearancePredictiveBack;
@@ -7470,6 +7558,7 @@ abstract class AppLocalizations {
   String get sharedMediaOpenFile;
   String get sharedMediaDownloadFile;
   String get appearancePaletteStyle;
+  String get appearancePaletteStyleDesc;
   String get appearancePaletteExpressive;
   String get appearancePaletteVibrant;
   String get appearancePaletteContent;

@@ -35,6 +35,7 @@ class SettingsChatsScreen extends ConsumerWidget {
           doubleTapReactionEmoji: s.doubleTapReactionEmoji,
           animateStickers: s.animateStickers,
           animateEmoji: s.animateEmoji,
+          compactMode: s.compactMode,
         ),
       ),
     );
@@ -57,6 +58,37 @@ class SettingsChatsScreen extends ConsumerWidget {
                 subtitle: context.l10n.settingsChatsSendOnEnterDesc,
                 value: settings.sendOnEnter,
                 onChanged: ref.read(uiSettingsProvider.notifier).setSendOnEnter,
+              ),
+            ),
+          ],
+        ),
+        // Moved from the appearance screen: what a chat looks like belongs
+        // with the chat settings, and the appearance page stays short. The
+        // anchor ids keep their old names so search deep links still land.
+        SettingsSection(
+          title: context.l10n.settingsChatsWallpaperSection,
+          subtitle: context.l10n.settingsChatsWallpaperSectionDesc,
+          accentIcon: Icons.texture_rounded,
+          children: [
+            SettingsAnchor(
+              id: 'appearance.wallpaper',
+              child: SettingsListItem.nav(
+                key: const ValueKey('settings-wallpaper-entry'),
+                icon: Icons.texture_rounded,
+                leading: const _WallpaperThumbnail(),
+                title: context.l10n.appearanceChatWallpaperTitle,
+                subtitle: context.l10n.settingsWallpaperEntryHint,
+                onTap: () => openSettingsPage(context, '/settings/wallpaper'),
+              ),
+            ),
+            SettingsAnchor(
+              id: 'appearance.compact',
+              child: SettingsListItem.toggle(
+                icon: Icons.density_small_rounded,
+                title: context.l10n.appearanceCompactMode,
+                subtitle: context.l10n.appearanceCompactModeSubtitle,
+                value: settings.compactMode,
+                onChanged: ref.read(uiSettingsProvider.notifier).setCompactMode,
               ),
             ),
           ],
@@ -130,6 +162,34 @@ class SettingsChatsScreen extends ConsumerWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// The gradient tile that stands for the chat wallpaper in the nav row:
+/// a small preview of the studio the row opens, not a live mirror of it.
+class _WallpaperThumbnail extends StatelessWidget {
+  const _WallpaperThumbnail();
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return SizedBox.square(
+      dimension: AppHeights.sm,
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[
+              scheme.primary,
+              scheme.tertiaryContainer,
+              scheme.secondaryContainer,
+            ],
+          ),
+          shape: AppRadii.superellipse(AppRadii.of(context).md),
+        ),
+      ),
     );
   }
 }

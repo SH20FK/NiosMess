@@ -25,7 +25,8 @@ enum SettingsSectionId {
   static const Map<String, SettingsSectionId> _legacyNames =
       <String, SettingsSectionId>{
         'preferences': SettingsSectionId.notifications,
-        'energySaving': SettingsSectionId.chats,
+        // The delivery rules that did the saving live on Notifications now.
+        'energySaving': SettingsSectionId.notifications,
       };
 
   static SettingsSectionId fromString(String? raw) {

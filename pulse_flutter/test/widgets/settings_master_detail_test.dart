@@ -13,6 +13,7 @@ import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
+import 'package:pulse_flutter/screens/settings_chats_screen.dart';
 import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
@@ -121,6 +122,11 @@ Widget _buildProfileScreenTestHarness({
         path: '/settings/appearance',
         builder: (BuildContext context, GoRouterState state) =>
             const SettingsAppearanceScreen(),
+      ),
+      GoRoute(
+        path: '/settings/chats',
+        builder: (BuildContext context, GoRouterState state) =>
+            const SettingsChatsScreen(),
       ),
       GoRoute(
         path: '/settings/privacy',
@@ -266,7 +272,7 @@ void main() {
       addTearDown(renamed.dispose);
       expect(
         renamed.read(desktopSelectedSettingsSectionProvider),
-        SettingsSectionId.chats,
+        SettingsSectionId.notifications,
       );
 
       await prefs.setString(
@@ -772,12 +778,14 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      final Finder appearance = find.byKey(
-        const ValueKey('settings-destination-appearance'),
+      // The wallpaper row lives on the chats screen now; the pane flow it
+      // exercises is the same one it used to reach through Appearance.
+      final Finder chats = find.byKey(
+        const ValueKey('settings-destination-chats'),
       );
-      await tester.ensureVisible(appearance);
+      await tester.ensureVisible(chats);
       await tester.pump();
-      await tester.tap(appearance);
+      await tester.tap(chats);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       final Finder entry = find.byKey(
@@ -798,7 +806,7 @@ void main() {
       final Finder master = find.byKey(const ValueKey('settings-master-pane'));
       expect(master, findsOneWidget);
       expect(find.byType(SettingsWallpaperScreen), findsOneWidget);
-      expect(find.byType(SettingsAppearanceScreen), findsNothing);
+      expect(find.byType(SettingsChatsScreen), findsNothing);
       // Not the pushed page: that one would cover the list.
       expect(find.text('wallpaper-route'), findsNothing);
       expect(
@@ -810,14 +818,14 @@ void main() {
         const ValueKey<String>('settings-subpage-back'),
       );
       expect(
-        find.descendant(of: back, matching: find.text('Оформление')),
+        find.descendant(of: back, matching: find.text('Чаты')),
         findsOneWidget,
       );
       await tester.tap(back);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(SettingsWallpaperScreen), findsNothing);
-      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
+      expect(find.byType(SettingsChatsScreen), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -834,7 +842,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(SettingsWallpaperScreen), findsNothing);
-      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
+      expect(find.byType(SettingsChatsScreen), findsOneWidget);
       expect(find.byType(ProfileScreen), findsOneWidget);
       expect(find.text('chats-tab'), findsNothing);
       expect(tester.takeException(), isNull);
@@ -849,7 +857,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(SettingsWallpaperScreen), findsNothing);
-      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
+      expect(find.byType(SettingsChatsScreen), findsOneWidget);
       expect(find.text('chats-tab'), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -896,12 +904,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      final Finder appearance = find.byKey(
-        const ValueKey('settings-destination-appearance'),
+      final Finder chats = find.byKey(
+        const ValueKey('settings-destination-chats'),
       );
-      await tester.ensureVisible(appearance);
+      await tester.ensureVisible(chats);
       await tester.pump();
-      await tester.tap(appearance);
+      await tester.tap(chats);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
       final Finder entry = find.byKey(

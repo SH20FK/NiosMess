@@ -16,17 +16,17 @@ void main() {
 
       final ids = sections.map((s) => s.id).toList();
       // The hub is one flat list in this order. Device diagnostics is reached
-      // from Help; the motion section was dissolved into its neighbours.
+      // from search; the motion section was dissolved into its neighbours;
+      // Nios+ rides the account page.
       expect(ids, <String>[
         'account',
         'devices',
+        'appearance',
+        'chats',
         'notifications',
         'privacy',
-        'chats',
-        'appearance',
         'storage',
         'language',
-        'plus',
         'about',
       ]);
     });
@@ -36,9 +36,10 @@ void main() {
         SettingsSectionId.fromString('preferences'),
         SettingsSectionId.notifications,
       );
+      // The delivery rules that did the energy saving live on Notifications.
       expect(
         SettingsSectionId.fromString('energySaving'),
-        SettingsSectionId.chats,
+        SettingsSectionId.notifications,
       );
       expect(
         SettingsSectionId.fromString('nonsense'),
@@ -50,7 +51,7 @@ void main() {
       );
       expect(
         webSettingsRedirect(Uri.parse('/settings/energy-saving')),
-        '/main/settings?section=chats',
+        '/main/settings?section=notifications',
       );
     });
 
@@ -114,7 +115,9 @@ void main() {
       final cornerResult = ruResults.firstWhere(
         (r) => r.node.id == 'ui_corner_radius',
       );
-      expect(cornerResult.targetRoute, equals('/settings/appearance'));
+      // The radii moved to their own sub-screen; the hub row on Appearance
+      // only opens it.
+      expect(cornerResult.targetRoute, equals('/settings/appearance/shape'));
       expect(
         cornerResult.targetSectionId,
         equals(SettingsSectionId.appearance),
@@ -147,12 +150,14 @@ void main() {
       },
     );
 
-    test('search leads to the wallpaper entry in Appearance', () {
+    test('search leads to the wallpaper entry in Chats', () {
       final results = SettingsRegistry.search('обои', l10nRu);
       final wallpaper = results.firstWhere(
         (r) => r.node.id == 'appearance.wallpaper',
       );
-      expect(wallpaper.targetRoute, equals('/settings/appearance'));
+      // The wallpaper row moved to the chats screen with its group; the old
+      // id stays as the anchor so deep links still highlight the row.
+      expect(wallpaper.targetRoute, equals('/settings/chats'));
       expect(wallpaper.anchor, equals('appearance.wallpaper'));
       expect(
         SettingsRegistry.search('wallpaper', l10nEn).any(

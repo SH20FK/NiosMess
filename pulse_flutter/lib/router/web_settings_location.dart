@@ -3,8 +3,11 @@ String? webSettingsRedirect(Uri uri) {
   const sections = {
     '/settings/account': 'account',
     '/settings/appearance': 'appearance',
+    '/settings/appearance/accent': 'appearance',
+    '/settings/appearance/shape': 'appearance',
     '/settings/chats': 'chats',
     '/settings/privacy': 'privacy',
+    '/settings/security': 'privacy',
     '/settings/storage': 'storage',
     '/settings/language-region': 'languageRegion',
     '/settings/notifications': 'notifications',
@@ -13,8 +16,10 @@ String? webSettingsRedirect(Uri uri) {
     '/settings/about': 'about',
     '/settings/e2ee': 'e2ee',
     '/settings/sessions': 'sessions',
-    '/settings/energy-saving': 'chats',
+    // The delivery rules that did the saving live on Notifications now.
+    '/settings/energy-saving': 'notifications',
     '/settings/plus': 'plus',
+    '/settings/plus/store': 'plus',
   };
   final section = sections[uri.path];
   if (section == null) return null;

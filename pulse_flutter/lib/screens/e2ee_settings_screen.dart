@@ -211,11 +211,6 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
       title: context.l10n.e2eeScreenTitle,
       isEmbedded: widget.isEmbedded,
       onRefresh: _refresh,
-      hero: _E2eeKeyHero(
-        loading: _loading,
-        hasKey: _hasKey,
-        fingerprint: _fingerprint,
-      ),
       children: [
         // The failure used to be a red sentence only; a live region announces
         // it when it appears, and the retry sits where the reader already is.
@@ -228,7 +223,9 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
               onRetry: _retry,
             ),
           ),
-        OrdinaryE2eeSettings(key: ObjectKey(ref.watch(ordinaryE2eeProvider))),
+        // Secret chats: the key of this device is the page's own subject, so
+        // its state lives here and nowhere else — not in a summary card
+        // above the sections.
         SettingsSection(
           title: context.l10n.e2eeDeviceKey,
           accentIcon: Icons.vpn_key_rounded,
@@ -315,111 +312,11 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
             ),
           ],
         ),
+        // Personal chats, encrypted on top of the ordinary transport: the
+        // widget brings its own sections and logic, untouched.
+        OrdinaryE2eeSettings(key: ObjectKey(ref.watch(ordinaryE2eeProvider))),
       ],
     );
   }
 }
 
-/// The state of this device's key, before the rows that change it: ready with
-/// a short read of the fingerprint, absent, or still being read. The colours
-/// come from the tonal pairs, never from a shadow.
-class _E2eeKeyHero extends StatelessWidget {
-  const _E2eeKeyHero({
-    required this.loading,
-    required this.hasKey,
-    required this.fingerprint,
-  });
-
-  final bool loading;
-  final bool hasKey;
-  final String? fingerprint;
-
-  String? get _shortFingerprint {
-    final String? value = fingerprint;
-    if (value == null) return null;
-    final String head = value.length <= 16 ? value : value.substring(0, 16);
-    final StringBuffer buffer = StringBuffer();
-    for (var i = 0; i < head.length; i += 4) {
-      if (i != 0) buffer.write(' ');
-      buffer.write(
-        head.substring(i, (i + 4) > head.length ? head.length : i + 4),
-      );
-    }
-    return buffer.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final AppLocalizations l = context.l10n;
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme text = Theme.of(context).textTheme;
-    final bool pending = loading && !hasKey;
-
-    final String title = pending
-        ? l.commonLoading
-        : hasKey
-        ? l.e2eeKeyPairReady
-        : l.e2eeNoKeyPair;
-    final String? subtitle = pending || hasKey
-        ? _shortFingerprint
-        : l.e2eeGenerateKeyPair;
-
-    return SettingsHeroCard(
-      label: l.e2eeDeviceKey,
-      child: Row(
-        children: <Widget>[
-          DecoratedBox(
-            decoration: ShapeDecoration(
-              color: hasKey
-                  ? scheme.primaryContainer
-                  : scheme.surfaceContainerHighest,
-              shape: AppRadii.superellipse(AppRadii.of(context).lg),
-            ),
-            child: SizedBox.square(
-              dimension: AppHeights.md + AppSpacing.xs,
-              child: Center(
-                child: Icon(
-                  hasKey
-                      ? Icons.verified_user_rounded
-                      : Icons.key_off_rounded,
-                  size: 24,
-                  color: hasKey
-                      ? scheme.onPrimaryContainer
-                      : scheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  title,
-                  style: text.titleMedium?.copyWith(
-                    color: scheme.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      letterSpacing: hasKey ? 0.8 : 0,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
