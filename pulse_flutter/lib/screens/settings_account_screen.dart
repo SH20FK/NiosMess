@@ -19,6 +19,7 @@ class SettingsAccountScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AuthState auth = ref.watch(authProvider);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
 
     final String displayName =
         auth.profile?.displayName ??
@@ -32,6 +33,13 @@ class SettingsAccountScreen extends ConsumerWidget {
     return SettingsShell(
       title: context.l10n.settingsAccountTitle,
       isEmbedded: isEmbedded,
+      // Who is signed in: the photo and the names, ahead of the rows that
+      // copy and edit them.
+      hero: AccountProfileHero(
+        displayName: displayName,
+        username: username,
+        avatarUrl: auth.profile?.avatarUrl,
+      ),
       children: <Widget>[
         const AccountProfileSection(),
         SettingsSection(
@@ -62,6 +70,9 @@ class SettingsAccountScreen extends ConsumerWidget {
           ],
         ),
         SettingsSection(
+          title: context.l10n.settingsAccountSecurityTitle,
+          subtitle: context.l10n.settingsAccountAccessSubtitle,
+          accentIcon: Icons.key_rounded,
           children: [
             SettingsListItem.nav(
               key: const ValueKey('settings-account-nios-id'),
@@ -86,6 +97,12 @@ class SettingsAccountScreen extends ConsumerWidget {
           ],
         ),
         SettingsSection(
+          title: context.l10n.accountDeleteTitle,
+          accentIcon: pendingDeletion
+              ? Icons.auto_delete_outlined
+              : Icons.delete_forever_rounded,
+          accentColor: scheme.errorContainer,
+          accentForeground: scheme.onErrorContainer,
           children: [
             SettingsAnchor(
               id: 'account.delete',

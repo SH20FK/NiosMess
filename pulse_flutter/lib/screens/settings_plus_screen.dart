@@ -177,6 +177,12 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
                   formatFullDateTime(graceUntil),
                 )
         : context.l10n.settingsPlusSummary;
+    final TextTheme text = Theme.of(context).textTheme;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    // The first load has no status to show yet; the cached profile answers
+    // only after it. Until then the hero holds placeholder rows instead of
+    // inventing a state.
+    final bool shaping = _loadingStatus && status == null;
     return SettingsShell(
       title: 'Nios+',
       isEmbedded: widget.isEmbedded,
@@ -188,26 +194,50 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
               icon: const Icon(Icons.arrow_back_rounded),
               onPressed: _close,
             ),
-      children: [
-        SettingsSection(
-          children: [
-            SettingsListItem(
-              type: SettingsListItemType.value,
-              icon: Icons.workspace_premium_rounded,
-              title: _loadingStatus ? context.l10n.commonLoading : 'Nios+',
-              subtitle: _statusFailed
-                  ? context.l10n.settingsPlusStatusFailed
-                  : subtitle,
-              pending: _loadingStatus,
-            ),
-            if (_statusFailed)
-              SettingsListItem(
-                type: SettingsListItemType.action,
-                icon: Icons.refresh_rounded,
-                title: context.l10n.commonRetry,
-                onTap: _loadStatus,
+      hero: SettingsHeroCard(
+        label: 'Nios+',
+        leadingIcon: Icons.workspace_premium_rounded,
+        child: shaping
+            ? const SettingsSkeleton(rows: 1, showLeading: false)
+            : Text(
+                subtitle,
+                style: text.titleMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
               ),
-          ],
+      ),
+      children: [
+        // The failed check, and one way back; the hero above keeps whatever
+        // the cached profile already knew.
+        if (_statusFailed)
+          SettingsErrorSection(
+            message: context.l10n.settingsPlusStatusFailed,
+            onRetry: _loadStatus,
+          ),
+        M3Reveal(
+          duration: M3Durations.medium2,
+          revealed:
+              !_loadingStatus &&
+              !_statusFailed &&
+              status != null &&
+              !isPlus &&
+              !trialUsed,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: FilledButton.icon(
+              onPressed: _claimingTrial ? null : _claimTrial,
+              icon: _claimingTrial
+                  ? const AppLoadingIndicator(size: 20)
+                  : const Icon(Icons.auto_awesome_rounded),
+              label: Text(
+                _claimingTrial
+                    ? context.l10n.settingsPlusTrialPending
+                    : context.l10n.settingsPlusTrial,
+              ),
+            ),
+          ),
         ),
         if (auth.profile?.aiUsage != null) ...[
           AiUsageIndicatorCard(usage: auth.profile!.aiUsage!),
@@ -226,6 +256,7 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
         ),
         SettingsSection(
           title: context.l10n.settingsPlusBenefits,
+          accentIcon: Icons.verified_rounded,
           children: [
             for (final row in <(IconData, String, String)>[
               (
@@ -261,26 +292,6 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
             ])
               SettingsListItem.value(icon: row.$1, title: row.$2, subtitle: row.$3),
           ],
-        ),
-        M3Reveal(
-          duration: M3Durations.medium2,
-          revealed:
-              !_loadingStatus &&
-              !_statusFailed &&
-              status != null &&
-              !isPlus &&
-              !trialUsed,
-          child: FilledButton.icon(
-            onPressed: _claimingTrial ? null : _claimTrial,
-            icon: _claimingTrial
-                ? const AppLoadingIndicator(size: 20)
-                : const Icon(Icons.auto_awesome_rounded),
-            label: Text(
-              _claimingTrial
-                  ? context.l10n.settingsPlusTrialPending
-                  : context.l10n.settingsPlusTrial,
-            ),
-          ),
         ),
       ],
     );

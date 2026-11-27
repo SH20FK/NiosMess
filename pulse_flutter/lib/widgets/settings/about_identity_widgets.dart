@@ -22,11 +22,13 @@ class AboutVersionChip extends StatelessWidget {
       final version = snapshot.data == null
           ? BuildInfo.fullVersion
           : 'v${snapshot.data!.version}+${snapshot.data!.buildNumber}';
-      return TextButton.icon(
+      // A tonal pill: on the hero card the version reads as a badge rather
+      // than flat ink, and it keeps the 48 dp touch target of a real button.
+      return FilledButton.tonalIcon(
         onPressed: () => onCopy(version),
         icon: const Icon(Icons.copy_outlined, size: 18),
         label: Text(version, textAlign: TextAlign.center),
-        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+        style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
       );
     },
   );

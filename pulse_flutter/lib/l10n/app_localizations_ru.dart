@@ -621,6 +621,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get languageRegionSearchTimeZones => 'Поиск часовых поясов';
 
   @override
+  String get languageRegionManualZoneHint =>
+      '«Вручную» открывает выбор пояса; отмена оставит автоматический режим';
+
+  @override
   String get settingsAccountTitle => 'Аккаунт';
 
   @override
@@ -1935,6 +1939,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsStorageCleared => 'Хранилище очищено';
+
+  @override
+  String get settingsStorageResetPartial =>
+      'Часть настроек не удалось стереть с устройства. Они вернутся после перезапуска приложения.';
 
   @override
   String get settingsStorageHealthOkTitle => 'Хранилище в порядке';
@@ -3631,6 +3639,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get aboutUpToDate => 'У вас установлена актуальная версия';
+
+  @override
+  String get aboutChangelogErrorTitle => 'Не удалось загрузить список изменений';
+
+  @override
+  String get aboutChangelogErrorMessage =>
+      'Не удалось прочитать файл изменений. Попробуйте ещё раз.';
 
   @override
   String get aboutThirdPartyLicensesTitle => 'Сторонние лицензии и библиотеки';

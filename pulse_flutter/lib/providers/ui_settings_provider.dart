@@ -852,7 +852,13 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   /// Resets all settings fields safely to [UiSettingsState.defaults()],
   /// keeping background message delivery in [BackgroundMode.reliable]
   /// and cleaning up persisted SharedPreferences keys in a single atomic batch.
-  Future<void> resetAll() async {
+  ///
+  /// Returns the number of keys the disk refused to remove: `0` is a full
+  /// reset, anything above it is a partial one that the caller has to report
+  /// instead of claiming success. `remove` answers true for a key that was
+  /// never stored, so the count comes from what the disk still holds after a
+  /// reload rather than from the return values.
+  Future<int> resetAll() async {
     _debounceTimer?.cancel();
     _pendingWrites.clear();
     _confirmed.clear();
@@ -860,45 +866,48 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     const UiSettingsState defaultState = UiSettingsState.defaults();
     state = defaultState;
     final SharedPreferences prefs = await _getPrefs();
-    await Future.wait(<Future<bool>>[
-      prefs.remove(_themeModeKey),
-      prefs.remove(_seedColorKey),
-      prefs.remove(_paletteStyleKey),
-      prefs.remove(_notificationsKey),
-      prefs.remove(_compactKey),
-      prefs.remove(_hapticsKey),
-      prefs.remove(_hideOnlineKey),
-      prefs.remove(_soundEffectsKey),
-      prefs.remove(_soundVolumeKey),
-      prefs.remove(_localeCodeKey),
-      prefs.remove(_timeZoneModeKey),
-      prefs.remove(_timeZoneIdKey),
-      prefs.remove(_optimizeWeakKey),
-      prefs.remove(_backgroundModeKey),
-      prefs.remove(_useSystemDynamicKey),
-      prefs.remove(_fontScaleKey),
-      prefs.remove(_sendOnEnterKey),
-      prefs.remove(_doubleTapReactionEmojiKey),
-      prefs.remove(_autoDownloadPhotoWifiKey),
-      prefs.remove(_autoDownloadPhotoCellularKey),
-      prefs.remove(_autoDownloadVideoWifiKey),
-      prefs.remove(_autoDownloadVideoCellularKey),
-      prefs.remove(_legacyAutoDownloadWifiKey),
-      prefs.remove(_legacyAutoDownloadCellularKey),
-      prefs.remove(_autoDownloadRoamingKey),
-      prefs.remove(_messageBubbleRadiusKey),
-      prefs.remove(_uiCornerRadiusKey),
-      prefs.remove(_autoPauseVideoKey),
-      prefs.remove(_energySavingThresholdKey),
-      prefs.remove(_animateStickersKey),
-      prefs.remove(_animateEmojiKey),
-      prefs.remove(_saveToGalleryPrivateKey),
-      prefs.remove(_saveToGalleryGroupsKey),
-      prefs.remove(_saveToGalleryChannelsKey),
-      prefs.remove(_linkPreviewsSecretKey),
-      prefs.remove(_secureScreenshotsSecretKey),
-      for (final String key in _retiredKeys) prefs.remove(key),
-    ]);
+    final List<String> keys = <String>[
+      _themeModeKey,
+      _seedColorKey,
+      _paletteStyleKey,
+      _notificationsKey,
+      _compactKey,
+      _hapticsKey,
+      _hideOnlineKey,
+      _soundEffectsKey,
+      _soundVolumeKey,
+      _localeCodeKey,
+      _timeZoneModeKey,
+      _timeZoneIdKey,
+      _optimizeWeakKey,
+      _backgroundModeKey,
+      _useSystemDynamicKey,
+      _fontScaleKey,
+      _sendOnEnterKey,
+      _doubleTapReactionEmojiKey,
+      _autoDownloadPhotoWifiKey,
+      _autoDownloadPhotoCellularKey,
+      _autoDownloadVideoWifiKey,
+      _autoDownloadVideoCellularKey,
+      _legacyAutoDownloadWifiKey,
+      _legacyAutoDownloadCellularKey,
+      _autoDownloadRoamingKey,
+      _messageBubbleRadiusKey,
+      _uiCornerRadiusKey,
+      _autoPauseVideoKey,
+      _energySavingThresholdKey,
+      _animateStickersKey,
+      _animateEmojiKey,
+      _saveToGalleryPrivateKey,
+      _saveToGalleryGroupsKey,
+      _saveToGalleryChannelsKey,
+      _linkPreviewsSecretKey,
+      _secureScreenshotsSecretKey,
+      ..._retiredKeys,
+    ];
+    await Future.wait(keys.map(prefs.remove));
+    await prefs.reload();
+    return keys.where(prefs.containsKey).length;
   }
 }
 

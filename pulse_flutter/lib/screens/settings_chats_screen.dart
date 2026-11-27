@@ -64,31 +64,21 @@ class SettingsChatsScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.settingsChatsQuickReaction,
           subtitle: context.l10n.settingsChatsQuickReactionDesc,
+          accentIcon: Icons.add_reaction_rounded,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
                 children: [
                   for (final emoji in _quickReactionEmojis)
-                    M3SelectionMotion(
+                    _QuickReactionChip(
+                      emoji: emoji,
                       selected: settings.doubleTapReactionEmoji == emoji,
-                      child: ChoiceChip(
-                        key: ValueKey('settings-quick-reaction-$emoji'),
-                        selected: settings.doubleTapReactionEmoji == emoji,
-                        label: Text(
-                          emoji,
-                          style: const TextStyle(fontSize: 24),
-                        ),
-                        materialTapTargetSize: MaterialTapTargetSize.padded,
-                        onSelected: (_) {
-                          HapticService.selection();
-                          ref
-                              .read(uiSettingsProvider.notifier)
-                              .setDoubleTapReactionEmoji(emoji);
-                        },
-                      ),
+                      onSelect: () => ref
+                          .read(uiSettingsProvider.notifier)
+                          .setDoubleTapReactionEmoji(emoji),
                     ),
                 ],
               ),
@@ -98,6 +88,7 @@ class SettingsChatsScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.settingsV2ChatAnimations,
           subtitle: context.l10n.settingsV2ChatAnimationsHint,
+          accentIcon: Icons.animation_rounded,
           children: [
             SettingsAnchor(
               id: 'motion.stickers',
@@ -139,6 +130,50 @@ class SettingsChatsScreen extends ConsumerWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// One emoji of the quick-reaction set. The glyph is the visual; the spoken
+/// label names the setting it controls, so a screen reader announces
+/// "Quick reaction ❤️, button, selected" instead of reading the raw symbol.
+class _QuickReactionChip extends StatelessWidget {
+  const _QuickReactionChip({
+    required this.emoji,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final String emoji;
+  final bool selected;
+  final VoidCallback onSelect;
+
+  void _select() {
+    HapticService.selection();
+    onSelect();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      button: true,
+      selected: selected,
+      label: context.l10n.settingsChatsQuickReactionEmoji(emoji),
+      onTap: _select,
+      excludeSemantics: true,
+      child: M3SelectionMotion(
+        selected: selected,
+        child: ChoiceChip(
+          // The key stays on the chip itself: tests and the semantics node
+          // both find the control, not the wrapper.
+          key: ValueKey('settings-quick-reaction-$emoji'),
+          selected: selected,
+          label: Text(emoji, style: const TextStyle(fontSize: 24)),
+          materialTapTargetSize: MaterialTapTargetSize.padded,
+          onSelected: (_) => _select(),
+        ),
+      ),
     );
   }
 }

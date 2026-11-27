@@ -1,17 +1,18 @@
-import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
-import 'package:pulse_flutter/widgets/settings/ordinary_e2ee_settings.dart';
 import 'dart:convert';
-import 'package:material_ui/material_ui.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
-import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
-import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/repositories/auth_repository.dart';
+import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
+import 'package:pulse_flutter/widgets/settings/ordinary_e2ee_settings.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class E2eeSettingsScreen extends ConsumerStatefulWidget {
@@ -76,6 +77,7 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
         _hasKey = hasKey;
         _fingerprint = fp;
         _loading = false;
+        _error = null;
       });
     } catch (_) {
       if (_current(generation)) {
@@ -85,6 +87,28 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
         });
       }
     }
+  }
+
+  /// Pull to refresh re-reads the same local identity the page was opened
+  /// with. The key lives on the device, so there is nothing to fetch; the
+  /// gesture must still do what it does on every neighbouring page.
+  Future<void> _refresh() async {
+    if (!mounted) return;
+    setState(() => _error = null);
+    await _checkKey();
+  }
+
+  /// The failure card's retry. Unlike the gesture, it starts the provider
+  /// again: a failed future is cached, so re-reading it alone would raise the
+  /// same error without ever opening the account.
+  Future<void> _retry() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    ref.invalidate(secretChatCoordinatorProvider);
+    await _checkKey();
   }
 
   Future<void> _generateKey() async {
@@ -180,34 +204,43 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
 
     return SettingsShell(
       title: context.l10n.e2eeScreenTitle,
       isEmbedded: widget.isEmbedded,
+      onRefresh: _refresh,
+      hero: _E2eeKeyHero(
+        loading: _loading,
+        hasKey: _hasKey,
+        fingerprint: _fingerprint,
+      ),
       children: [
+        // The failure used to be a red sentence only; a live region announces
+        // it when it appears, and the retry sits where the reader already is.
+        if (_error != null)
+          Semantics(
+            liveRegion: true,
+            child: SettingsErrorSection(
+              title: context.l10n.commonError,
+              message: _error!,
+              onRetry: _retry,
+            ),
+          ),
         OrdinaryE2eeSettings(key: ObjectKey(ref.watch(ordinaryE2eeProvider))),
         SettingsSection(
           title: context.l10n.e2eeDeviceKey,
+          accentIcon: Icons.vpn_key_rounded,
           children: [
             if (_loading)
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Center(
-                  child: AppLoadingIndicator(
-                    size: 28,
-                    semanticsLabel: context.l10n.commonLoading,
-                  ),
-                ),
-              )
+              const SettingsSkeleton(rows: 2)
             else if (!_hasKey)
               SettingsListItem.nav(
                 icon: Icons.vpn_key_outlined,
                 title: context.l10n.e2eeNoKeyPair,
                 subtitle: context.l10n.e2eeGenerateKeyPair,
                 iconColor: scheme.onSurfaceVariant,
-                enabled: !_loading,
                 onTap: _generateKey,
               )
             else ...[
@@ -217,29 +250,45 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
               ),
               if (_fingerprint != null)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                  child: SelectableText(_fingerprint!),
+                  padding: const EdgeInsetsDirectional.fromSTEB(
+                    AppSpacing.lg,
+                    0,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                  ),
+                  child: DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: scheme.surfaceContainerHigh,
+                      shape: AppRadii.superellipse(AppRadii.of(context).md),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: SelectableText(
+                        _fingerprint!,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          letterSpacing: 0.8,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
             ],
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: scheme.error, fontSize: 13),
-                ),
-              ),
           ],
         ),
         if (_hasKey)
           SettingsSection(
             title: context.l10n.settingsDangerZone,
+            accentIcon: Icons.delete_sweep_rounded,
+            accentColor: scheme.errorContainer,
+            accentForeground: scheme.onErrorContainer,
             children: [
-              SettingsListItem.nav(
+              SettingsListItem(
                 icon: Icons.delete_sweep_rounded,
                 title: context.l10n.e2eeEraseTitle,
                 subtitle: context.l10n.e2eeEraseSubtitle,
-                iconColor: scheme.error,
+                type: SettingsListItemType.danger,
                 enabled: !_loading,
                 onTap: _eraseSecretChats,
               ),
@@ -247,9 +296,15 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
           ),
         SettingsSection(
           title: context.l10n.e2eeHowItWorks,
+          accentIcon: Icons.info_outline_rounded,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.md,
+              ),
               child: Text(
                 context.l10n.secretDescription,
                 style: textTheme.bodySmall?.copyWith(
@@ -261,6 +316,110 @@ class _E2eeSettingsScreenState extends ConsumerState<E2eeSettingsScreen> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// The state of this device's key, before the rows that change it: ready with
+/// a short read of the fingerprint, absent, or still being read. The colours
+/// come from the tonal pairs, never from a shadow.
+class _E2eeKeyHero extends StatelessWidget {
+  const _E2eeKeyHero({
+    required this.loading,
+    required this.hasKey,
+    required this.fingerprint,
+  });
+
+  final bool loading;
+  final bool hasKey;
+  final String? fingerprint;
+
+  String? get _shortFingerprint {
+    final String? value = fingerprint;
+    if (value == null) return null;
+    final String head = value.length <= 16 ? value : value.substring(0, 16);
+    final StringBuffer buffer = StringBuffer();
+    for (var i = 0; i < head.length; i += 4) {
+      if (i != 0) buffer.write(' ');
+      buffer.write(
+        head.substring(i, (i + 4) > head.length ? head.length : i + 4),
+      );
+    }
+    return buffer.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l = context.l10n;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme text = Theme.of(context).textTheme;
+    final bool pending = loading && !hasKey;
+
+    final String title = pending
+        ? l.commonLoading
+        : hasKey
+        ? l.e2eeKeyPairReady
+        : l.e2eeNoKeyPair;
+    final String? subtitle = pending || hasKey
+        ? _shortFingerprint
+        : l.e2eeGenerateKeyPair;
+
+    return SettingsHeroCard(
+      label: l.e2eeDeviceKey,
+      child: Row(
+        children: <Widget>[
+          DecoratedBox(
+            decoration: ShapeDecoration(
+              color: hasKey
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerHighest,
+              shape: AppRadii.superellipse(AppRadii.of(context).lg),
+            ),
+            child: SizedBox.square(
+              dimension: AppHeights.md + AppSpacing.xs,
+              child: Center(
+                child: Icon(
+                  hasKey
+                      ? Icons.verified_user_rounded
+                      : Icons.key_off_rounded,
+                  size: 24,
+                  color: hasKey
+                      ? scheme.onPrimaryContainer
+                      : scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  title,
+                  style: text.titleMedium?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      letterSpacing: hasKey ? 0.8 : 0,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -3,14 +3,18 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_m3shapes/flutter_m3shapes.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_theme.dart';
+import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
+import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/circular_theme_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:pulse_flutter/widgets/settings/custom_color_picker_sheet.dart';
@@ -70,9 +74,6 @@ class _AppearanceScreen extends ConsumerWidget {
     final Color seedColor = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.seedColor),
     );
-    final double uiCornerRadius = ref.watch(
-      uiSettingsProvider.select((UiSettingsState s) => s.uiCornerRadius),
-    );
     final AppFontScale fontScale = ref.watch(
       uiSettingsProvider.select((UiSettingsState s) => s.fontScale),
     );
@@ -114,7 +115,6 @@ class _AppearanceScreen extends ConsumerWidget {
                 Theme.of(animatedContext).colorScheme,
                 themeMode: themeMode,
                 seedColor: seedColor,
-                uiCornerRadius: uiCornerRadius,
                 fontScale: fontScale,
                 paletteStyle: paletteStyle,
                 useSystemDynamic: useSystemDynamic,
@@ -132,7 +132,6 @@ class _AppearanceScreen extends ConsumerWidget {
     ColorScheme scheme, {
     required ThemeMode themeMode,
     required Color seedColor,
-    required double uiCornerRadius,
     required AppFontScale fontScale,
     required PaletteStyle paletteStyle,
     required bool useSystemDynamic,
@@ -175,8 +174,25 @@ class _AppearanceScreen extends ConsumerWidget {
       },
     );
 
-    final Widget geometrySection = SettingsSection(
-      title: context.l10n.settingsV2Density,
+    final Widget wallpaperSection = SettingsSection(
+      children: [
+        SettingsAnchor(
+          id: 'appearance.wallpaper',
+          child: SettingsListItem.nav(
+            key: const ValueKey('settings-wallpaper-entry'),
+            icon: Icons.texture_rounded,
+            leading: const _WallpaperThumbnail(),
+            title: context.l10n.appearanceChatWallpaperTitle,
+            subtitle: context.l10n.settingsWallpaperEntryHint,
+            onTap: () => openSettingsPage(context, '/settings/wallpaper'),
+          ),
+        ),
+      ],
+    );
+
+    final Widget textAndShapeSection = SettingsSection(
+      title: context.l10n.settingsV2TextShape,
+      accentIcon: Icons.format_size_rounded,
       children: [
         SettingsAnchor(
           id: 'appearance.font.scale',
@@ -186,6 +202,29 @@ class _AppearanceScreen extends ConsumerWidget {
               ref.read(uiSettingsProvider.notifier).setFontScale(scale);
             },
           ),
+        ),
+        SettingsSearchDisclosure(
+          anchor: 'ui_corner_radius',
+          title: context.l10n.settingsV2Advanced,
+          subtitle: context.l10n.settingsV2GeometryHint,
+          children: [
+            _SliderSettingTile(
+              icon: Icons.rounded_corner_rounded,
+              title: context.l10n.appearanceUiRounding,
+              subtitle: context.l10n.appearanceUiRoundingDesc,
+              value: ref.watch(
+                uiSettingsProvider.select((s) => s.uiCornerRadius),
+              ),
+              min: 8.0,
+              max: 28.0,
+              divisions: 20,
+              // The corners follow the thumb, so the page and the preview
+              // round while it is dragged instead of after it is released.
+              onChanged: (double val) {
+                ref.read(uiSettingsProvider.notifier).setUiCornerRadius(val);
+              },
+            ),
+          ],
         ),
         SettingsAnchor(
           id: 'appearance.compact',
@@ -198,39 +237,21 @@ class _AppearanceScreen extends ConsumerWidget {
                 ref.read(uiSettingsProvider.notifier).setCompactMode(value),
           ),
         ),
-        SettingsSearchDisclosure(
-          anchor: 'ui_corner_radius',
-          title: context.l10n.settingsV2Advanced,
-          subtitle: context.l10n.settingsV2GeometryHint,
-          children: [
-            _SliderSettingTile(
-              icon: Icons.rounded_corner_rounded,
-              title: context.l10n.appearanceUiRounding,
-              subtitle: context.l10n.appearanceUiRoundingDesc,
-              value: uiCornerRadius,
-              min: 8.0,
-              max: 28.0,
-              divisions: 20,
-              onChanged: (double val) {
-                ref.read(uiSettingsProvider.notifier).setUiCornerRadius(val);
-              },
-            ),
-          ],
-        ),
       ],
     );
 
-    final Widget wallpaperSection = SettingsSection(
+    final Widget resetSection = SettingsSection(
+      title: context.l10n.settingsV2ResetSection,
+      accentIcon: Icons.restart_alt_rounded,
+      accentColor: scheme.errorContainer,
+      accentForeground: scheme.onErrorContainer,
       children: [
-        SettingsAnchor(
-          id: 'appearance.wallpaper',
-          child: SettingsListItem.nav(
-            key: const ValueKey('settings-wallpaper-entry'),
-            icon: Icons.texture_rounded,
-            title: context.l10n.appearanceChatWallpaperTitle,
-            subtitle: context.l10n.settingsWallpaperEntryHint,
-            onTap: () => openSettingsPage(context, '/settings/wallpaper'),
-          ),
+        SettingsListItem.danger(
+          key: const ValueKey('settings-appearance-reset-action'),
+          icon: Icons.restart_alt_rounded,
+          title: context.l10n.settingsV2Reset,
+          subtitle: context.l10n.settingsV2ResetHint,
+          onTap: () => _resetPreferences(context, ref),
         ),
       ],
     );
@@ -238,11 +259,13 @@ class _AppearanceScreen extends ConsumerWidget {
     return SettingsShell(
       title: context.l10n.settingsV2Appearance,
       isEmbedded: isEmbedded,
+      hero: _AppearanceHeroPreview(themeMode: themeMode),
       children: [
         themeCard,
         colorField,
         wallpaperSection,
-        geometrySection,
+        textAndShapeSection,
+        resetSection,
       ],
     );
   }
@@ -279,6 +302,232 @@ class _AppearanceScreen extends ConsumerWidget {
       },
     );
   }
+
+  /// The one reset the app already offers, reached from the page that shows
+  /// what it changes: confirm, write, report. No second reset path.
+  Future<void> _resetPreferences(BuildContext context, WidgetRef ref) async {
+    final bool? confirmed = await showAppConfirmDialog(
+      context: context,
+      title: context.l10n.settingsV2ResetConfirm,
+      subtitle: context.l10n.settingsV2ResetBody,
+      confirmLabel: context.l10n.settingsV2Reset,
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      final int leftover =
+          await ref.read(uiSettingsProvider.notifier).resetAll();
+      // Notification categories live under their own per-account key.
+      await ref.read(notificationPreferencesProvider.notifier).reset();
+      if (context.mounted) {
+        if (leftover > 0) {
+          AppToast.showInfo(context, context.l10n.settingsStorageResetPartial);
+        } else {
+          AppToast.showSuccess(context, context.l10n.settingsV2ResetDone);
+        }
+      }
+    } catch (_) {
+      if (context.mounted) {
+        AppToast.showError(context, context.l10n.settingsV2ResetFailed);
+      }
+    }
+  }
+}
+
+/// The live preview above the settings: two bubbles and a composer drawn from
+/// the colours, corners and text scale that are in force right now. It reads
+/// the animated theme, so a change lands in it before the page is released:
+/// the seed and the palette style recolor it, `uiCornerRadius` rounds it, and
+/// light/dark follows `themeMode`. Text size needs no second multiplier: the
+/// app-wide `AppTextScaler` already carries the `fontScale` setting into every
+/// `MediaQuery`, so the preview grows by exactly the same factor as the page.
+class _AppearanceHeroPreview extends StatelessWidget {
+  const _AppearanceHeroPreview({required this.themeMode});
+
+  final ThemeMode themeMode;
+
+  String _modeLabel(BuildContext context) => switch (themeMode) {
+    ThemeMode.system => context.l10n.commonSystem,
+    ThemeMode.light => context.l10n.appearanceLabelLight,
+    ThemeMode.dark => context.l10n.appearanceLabelDark,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme text = Theme.of(context).textTheme;
+    final bool rtl = Directionality.of(context) == TextDirection.rtl;
+    final double radius = AppRadii.of(context).lg.clamp(12.0, 24.0);
+    final Radius big = Radius.circular(radius);
+    final Radius tail = Radius.circular((radius * .45).clamp(4.0, 12.0));
+
+    Widget bubble({
+      required String message,
+      required bool outgoing,
+    }) {
+      final Color fill = outgoing
+          ? scheme.primary
+          : scheme.surfaceContainerHigh;
+      final Color ink = outgoing ? scheme.onPrimary : scheme.onSurface;
+      return Row(
+        mainAxisAlignment: outgoing
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        children: <Widget>[
+          Flexible(
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                color: fill,
+                shape: RoundedSuperellipseBorder(
+                  borderRadius: BorderRadius.only(
+                    topLeft: big,
+                    topRight: big,
+                    // The tail sits at the reading start of an incoming
+                    // bubble and at the reading end of an outgoing one.
+                    bottomLeft: outgoing
+                        ? (rtl ? tail : big)
+                        : (rtl ? big : tail),
+                    bottomRight: outgoing
+                        ? (rtl ? big : tail)
+                        : (rtl ? tail : big),
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Text(
+                  message,
+                  style: text.bodyMedium?.copyWith(color: ink),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return SettingsHeroCard(
+      label: context.l10n.appearancePreviewTitle,
+      leadingIcon: Icons.forum_rounded,
+      trailing: DecoratedBox(
+        decoration: ShapeDecoration(
+          color: scheme.secondaryContainer,
+          shape: RoundedSuperellipseBorder(
+            borderRadius: AppRadii.of(context).fullRadius,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm + 2,
+            vertical: 3,
+          ),
+          child: Text(
+            _modeLabel(context),
+            style: text.labelSmall?.copyWith(
+              color: scheme.onSecondaryContainer,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          bubble(
+            message: context.l10n.appearanceIncomingPreview,
+            outgoing: false,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          bubble(
+            message: context.l10n.appearancePreviewChat,
+            outgoing: true,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DecoratedBox(
+            decoration: ShapeDecoration(
+              color: scheme.surfaceContainerHigh,
+              shape: RoundedSuperellipseBorder(
+                borderRadius: AppRadii.of(context).fullRadius,
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(
+                start: AppSpacing.lg,
+                end: AppSpacing.xs,
+                top: AppSpacing.xs,
+                bottom: AppSpacing.xs,
+              ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      context.l10n.chatMessageHint,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: scheme.primary,
+                      shape: RoundedSuperellipseBorder(
+                        borderRadius: AppRadii.of(context).fullRadius,
+                      ),
+                    ),
+                    child: SizedBox.square(
+                      dimension: AppHeights.controlCompact,
+                      child: Center(
+                        child: Icon(
+                          Icons.arrow_upward_rounded,
+                          size: 20,
+                          color: scheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small tonal stand-in for the current chat wallpaper: the row says what
+/// the studio opens, the swatch says there is something to open.
+class _WallpaperThumbnail extends StatelessWidget {
+  const _WallpaperThumbnail();
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return SizedBox.square(
+      dimension: AppHeights.sm,
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[
+              scheme.primary,
+              scheme.tertiaryContainer,
+              scheme.secondaryContainer,
+            ],
+          ),
+          shape: AppRadii.superellipse(AppRadii.of(context).md),
+        ),
+      ),
+    );
+  }
 }
 
 class NiosColorField extends StatelessWidget {
@@ -312,8 +561,9 @@ class NiosColorField extends StatelessWidget {
         !useSystemDynamic &&
         !_palettes.any((p) => p.color.toARGB32() == seedColor.toARGB32());
     return SettingsSection(
-      title: context.l10n.appearancePaletteTitle,
-      subtitle: context.l10n.appearancePaletteSubtitle,
+      title: context.l10n.appearanceAccentPalette,
+      subtitle: context.l10n.appearanceAccentPaletteSubtitle,
+      accentIcon: Icons.palette_rounded,
       children: [
         if (!kIsWeb)
           SettingsListItem.toggle(
@@ -324,12 +574,17 @@ class NiosColorField extends StatelessWidget {
             onChanged: onToggleDynamic,
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.lg, AppSpacing.md, 0),
-          child: _PalettePager(
-            scheme: scheme,
-            children: [
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.md,
+            0,
+          ),
+          child: _PaletteGrid(
+            choices: [
               for (final entry in _palettes)
                 _PaletteChoice(
+                  key: ValueKey<String>('appearance-palette-${entry.color.toARGB32()}'),
                   scheme: scheme,
                   seedColor: entry.color,
                   paletteStyle: paletteStyle,
@@ -349,6 +604,7 @@ class NiosColorField extends StatelessWidget {
                   },
                 ),
               _PaletteChoice(
+                key: const ValueKey<String>('appearance-palette-custom'),
                 scheme: scheme,
                 seedColor: seedColor,
                 paletteStyle: paletteStyle,
@@ -369,140 +625,35 @@ class NiosColorField extends StatelessWidget {
   }
 }
 
-/// Full-width pages keep all three swatches inside the card at rest.
-class _PalettePager extends StatefulWidget {
-  const _PalettePager({required this.scheme, required this.children});
-  final ColorScheme scheme;
-  final List<_PaletteChoice> children;
+/// Every accent at once. The pager showed three and hid the rest behind a
+/// swipe that the code itself admitted was hard to discover; a grid shows the
+/// whole palette in one look and still fits a 320 dp window at 200 % text,
+/// because the labels live in the tooltips.
+class _PaletteGrid extends StatelessWidget {
+  const _PaletteGrid({required this.choices});
 
-  @override
-  State<_PalettePager> createState() => _PalettePagerState();
-}
-
-class _PalettePagerState extends State<_PalettePager> {
-  late final PageController _controller;
-  late int _page;
-  int get _pageCount => (widget.children.length / 3).ceil();
-
-  @override
-  void initState() {
-    super.initState();
-    final selected = widget.children.indexWhere((choice) => choice.selected);
-    _page = selected < 0 ? 0 : selected ~/ 3;
-    _controller = PageController(initialPage: _page);
-  }
-
-  void _goTo(int page) {
-    HapticService.selection();
-    if (context.reduceMotion) {
-      _controller.jumpToPage(page);
-    } else {
-      _controller.animateToPage(
-        page,
-        duration: M3Durations.spatialDefault,
-        curve: M3SpringCurves.spatialDefault,
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final List<_PaletteChoice> choices;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final labelStyle = Theme.of(context).textTheme.labelMedium!;
-      final labelHeight =
-          MediaQuery.textScalerOf(context).scale(labelStyle.fontSize!) *
-          1.4 *
-          2;
-      final diameter = ((constraints.maxWidth - 8) / 3 - 12).clamp(48.0, 72.0);
-      return Column(
+      final double available = constraints.maxWidth;
+      final int columns = (available / 64).floor().clamp(4, 9);
+      // Each swatch carries a 3 dp ring on every side, so the cell has to
+      // give that back before the tile is sized; otherwise a full row would
+      // wrap one tile onto a second line.
+      final double cell = (available - AppSpacing.md * (columns - 1)) / columns;
+      final double size = (cell - 6).clamp(30.0, 58.0);
+      return Wrap(
+        key: const ValueKey('appearance-palette-strip'),
+        spacing: AppSpacing.md,
+        runSpacing: AppSpacing.md,
         children: [
-          SizedBox(
-            height: diameter + 8 + labelHeight + 12,
-            child: PageView.builder(
-              key: const ValueKey('appearance-palette-strip'),
-              controller: _controller,
-              itemCount: _pageCount,
-              physics: context.reduceMotion
-                  ? const PageScrollPhysics()
-                  : const _PalettePagePhysics(),
-              onPageChanged: (page) => setState(() => _page = page),
-              itemBuilder: (context, page) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (int slot = 0; slot < 3; slot++)
-                      Expanded(
-                        child: page * 3 + slot < widget.children.length
-                            ? widget.children[page * 3 + slot].withDiameter(
-                                diameter,
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (int page = 0; page < _pageCount; page++)
-                Semantics(
-                  button: true,
-                  selected: _page == page,
-                  label: MaterialLocalizations.of(
-                    context,
-                  ).tabLabel(tabIndex: page + 1, tabCount: _pageCount),
-                  child: InkWell(
-                    key: ValueKey('appearance-palette-page-$page'),
-                    borderRadius: BorderRadius.circular(24),
-                    onTap: () => _goTo(page),
-                    child: SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: Center(
-                        child: AnimatedContainer(
-                          duration: context.reduceMotion
-                              ? Duration.zero
-                              : M3Durations.medium2,
-                          curve: M3SpringCurves.spatialFast,
-                          width: _page == page ? 20 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: _page == page
-                                ? widget.scheme.primary
-                                : widget.scheme.outlineVariant,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          for (final choice in choices) choice.copyWithSize(size),
         ],
       );
     },
   );
-}
-
-class _PalettePagePhysics extends PageScrollPhysics {
-  const _PalettePagePhysics({super.parent});
-
-  @override
-  SpringDescription get spring => M3Spring.spatialDefault;
-
-  @override
-  _PalettePagePhysics applyTo(ScrollPhysics? ancestor) =>
-      _PalettePagePhysics(parent: buildParent(ancestor));
 }
 
 class _PaletteChoice extends StatefulWidget {
@@ -514,17 +665,23 @@ class _PaletteChoice extends StatefulWidget {
     required this.selected,
     required this.onTap,
     this.custom = false,
-    this.diameter = 72,
+    this.size = 56,
+    super.key,
   });
+
   final ColorScheme scheme;
   final Color seedColor;
   final PaletteStyle paletteStyle;
   final String label;
   final bool selected;
   final bool custom;
-  final double diameter;
+  final double size;
 
-  _PaletteChoice withDiameter(double diameter) => _PaletteChoice(
+  /// Called with the centre of the swatch in screen coordinates.
+  final ValueChanged<Offset> onTap;
+
+  _PaletteChoice copyWithSize(double size) => _PaletteChoice(
+    key: key,
     scheme: scheme,
     seedColor: seedColor,
     paletteStyle: paletteStyle,
@@ -532,11 +689,8 @@ class _PaletteChoice extends StatefulWidget {
     selected: selected,
     custom: custom,
     onTap: onTap,
-    diameter: diameter,
+    size: size,
   );
-
-  /// Called with the centre of the swatch in screen coordinates.
-  final ValueChanged<Offset> onTap;
 
   @override
   State<_PaletteChoice> createState() => _PaletteChoiceState();
@@ -553,7 +707,7 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
     final box = context.findRenderObject() as RenderBox?;
     widget.onTap(
       box != null && box.hasSize
-          ? box.localToGlobal(Offset(box.size.width / 2, widget.diameter / 2))
+          ? box.localToGlobal(box.size.center(Offset.zero))
           : Offset.zero,
     );
   }
@@ -583,134 +737,127 @@ class _PaletteChoiceState extends State<_PaletteChoice> {
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    selected: selected,
-    label: label,
-    onTap: onTap,
-    excludeSemantics: true,
-    child: Tooltip(
-      message: label,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          width: double.infinity,
-          child: Column(
-            children: [
-              Material(
-                color: selected
-                    ? scheme.secondaryContainer
-                    : scheme.surfaceContainerHigh,
-                shape: CircleBorder(
-                  side: BorderSide(
-                    color: selected ? scheme.primary : scheme.outlineVariant,
-                    width: selected ? 2 : 1,
-                  ),
+  Widget build(BuildContext context) {
+    final Color fill = custom ? scheme.surfaceContainerHigh : preview.primary;
+    return Semantics(
+      container: true,
+      button: true,
+      selected: selected,
+      label: label,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: label,
+        child: PressableSurface(
+          onTap: onTap,
+          // The reveal already answers the tap; a second click would double it.
+          playFeedback: false,
+          borderRadius: AppRadii.of(context).lgRadius,
+          color: Colors.transparent,
+          child: AnimatedContainer(
+            duration: context.motionDuration(M3Durations.short4),
+            curve: M3SpringCurves.spatialFast,
+            padding: const EdgeInsets.all(3),
+            decoration: ShapeDecoration(
+              shape: RoundedSuperellipseBorder(
+                borderRadius: AppRadii.of(context).lgRadius,
+                side: BorderSide(
+                  color: selected
+                      ? scheme.primary
+                      : custom
+                      ? scheme.outlineVariant
+                      : Colors.transparent,
+                  width: selected ? 2 : 1,
                 ),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: onTap,
-                  child: SizedBox(
-                    width: widget.diameter,
-                    height: widget.diameter,
-                    child: Padding(
-                      padding: const EdgeInsets.all(7),
-                      child: ClipOval(
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: Column(
-                                children: [
+              ),
+            ),
+            child: M3Container(
+              Shapes.square,
+              width: widget.size,
+              height: widget.size,
+              color: fill,
+              child: custom
+                  ? Center(
+                      child: Icon(
+                        selected ? Icons.check_rounded : Icons.add_rounded,
+                        size: widget.size * .4,
+                        color: custom && selected
+                            ? scheme.onSurface
+                            : scheme.onSurfaceVariant,
+                      ),
+                    )
+                  : Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        // Four roles of the palette: enough to tell two
+                        // variants of the same seed apart at a glance.
+                        Column(
+                          children: <Widget>[
+                            Expanded(
+                              child: Row(
+                                children: <Widget>[
                                   Expanded(
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: ColoredBox(
-                                            color: preview.primary,
-                                            child: const SizedBox.expand(),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: ColoredBox(
-                                            color: preview.tertiaryContainer,
-                                            child: const SizedBox.expand(),
-                                          ),
-                                        ),
-                                      ],
+                                    child: ColoredBox(
+                                      color: preview.primary,
+                                      child: const SizedBox.expand(),
                                     ),
                                   ),
                                   Expanded(
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: ColoredBox(
-                                            color: preview.secondaryContainer,
-                                            child: const SizedBox.expand(),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: ColoredBox(
-                                            color: preview.primaryContainer,
-                                            child: const SizedBox.expand(),
-                                          ),
-                                        ),
-                                      ],
+                                    child: ColoredBox(
+                                      color: preview.tertiaryContainer,
+                                      child: const SizedBox.expand(),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            if (selected || custom)
-                              Center(
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: preview.primary,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(5),
-                                    child: Icon(
-                                      selected
-                                          ? Icons.check_rounded
-                                          : Icons.add_rounded,
-                                      size: 20,
-                                      color: preview.onPrimary,
+                            Expanded(
+                              child: Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: ColoredBox(
+                                      color: preview.secondaryContainer,
+                                      child: const SizedBox.expand(),
                                     ),
                                   ),
-                                ),
+                                  Expanded(
+                                    child: ColoredBox(
+                                      color: preview.primaryContainer,
+                                      child: const SizedBox.expand(),
+                                    ),
+                                  ),
+                                ],
                               ),
+                            ),
                           ],
                         ),
-                      ),
+                        if (selected)
+                          Center(
+                            child: DecoratedBox(
+                              decoration: ShapeDecoration(
+                                color: scheme.surfaceContainerLowest,
+                                shape: RoundedSuperellipseBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.check_rounded,
+                                  size: widget.size * .28,
+                                  color: scheme.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                ),
-              ),
-              ...[
-                const SizedBox(height: AppSpacing.sm),
-                ExcludeSemantics(
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      height: 1.4,
-                      color: selected
-                          ? scheme.onSecondaryContainer
-                          : scheme.onSurface,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Theme choices share the connected settings group instead of a nested card.
@@ -730,9 +877,15 @@ class _ThemeModeSelectorCard extends StatelessWidget {
       ThemeMode.light => context.l10n.appearanceThemeLightActive,
       ThemeMode.dark => context.l10n.appearanceThemeDarkActive,
     },
+    accentIcon: Icons.contrast_rounded,
     children: [
       Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
         child: Builder(
           builder: (choiceContext) => SettingsChoiceButtons<ThemeMode>(
             segments: [
@@ -816,7 +969,12 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
         value: '${_localValue.toInt()} dp',
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.md,
+        ),
         child: SliderTheme(
           data: SliderTheme.of(context).copyWith(trackHeight: 16),
           child: Slider(
@@ -826,11 +984,13 @@ class _SliderSettingTileState extends State<_SliderSettingTile> {
             divisions: widget.divisions,
             label: '${_localValue.toInt()} dp',
             onChangeStart: (_) => setState(() => _isDragging = true),
-            onChangeEnd: (value) {
-              setState(() => _isDragging = false);
+            onChangeEnd: (_) => setState(() => _isDragging = false),
+            onChanged: (value) {
+              setState(() => _localValue = value);
+              // Applied while dragging: the corners of the page and of the
+              // preview move with the thumb.
               widget.onChanged(value);
             },
-            onChanged: (value) => setState(() => _localValue = value),
           ),
         ),
       ),
@@ -856,7 +1016,12 @@ class _FontScaleSliderTile extends StatelessWidget {
         value: '${(currentScale.scale * 100).round()}%',
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
         child: SettingsChoiceButtons<AppFontScale>(
           segments: [
             for (final scale in AppFontScale.values)
@@ -897,7 +1062,12 @@ class _PaletteStyleSelectorTile extends StatelessWidget {
         subtitle: context.l10n.appearanceContrastColorsDesc,
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
         child: SettingsChoiceButtons<PaletteStyle>(
           segments: [
             for (final style in PaletteStyle.values)

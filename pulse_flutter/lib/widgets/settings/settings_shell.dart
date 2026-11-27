@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
+import 'package:pulse_flutter/widgets/motion/m3_morphing_icon.dart';
+import 'package:pulse_flutter/widgets/settings/pressable_surface.dart';
 import 'package:pulse_flutter/widgets/settings/settings_pane_scrollbar.dart';
 
 /// Compact web pages already receive a title from their persistent app bar.
@@ -27,8 +29,13 @@ class SettingsHeadingScope extends InheritedWidget {
 }
 
 /// Centralized Material 3 Expressive scaffold for settings screens.
-/// Features a true collapsing [SliverAppBar.large] with tonal elevation,
-/// clean responsive centering, and elimination of fake transparent app bars.
+///
+/// The page is tonal: the content sits on [ColorScheme.surfaceContainerLowest]
+/// while every group of rows is a lighter [ColorScheme.surfaceContainerLow]
+/// card, so depth comes from the surface ladder and never from a shadow. The
+/// heading is a large expressive title over a collapsing [SliverAppBar.large],
+/// the back control is an M3E squircle that morphs its glyph, and an optional
+/// [hero] block opens the page above the first section.
 class SettingsShell extends ConsumerWidget {
   const SettingsShell({
     required this.title,
@@ -38,6 +45,7 @@ class SettingsShell extends ConsumerWidget {
     this.isEmbedded = false,
     this.maxWidth = 860,
     this.leading,
+    this.hero,
     this.sliversBefore,
     this.sliversAfter,
     super.key,
@@ -50,8 +58,17 @@ class SettingsShell extends ConsumerWidget {
   final bool isEmbedded;
   final double maxWidth;
   final Widget? leading;
+
+  /// Large opening block above the first section, such as a live preview.
+  /// It takes the same gutters as the rows and scrolls with them.
+  final Widget? hero;
+
   final List<Widget>? sliversBefore;
   final List<Widget>? sliversAfter;
+
+  /// Size of the [SliverAppBar.large] heading. One step above the baseline
+  /// `headlineMedium`, so the page announces itself before it is scrolled.
+  static const double headingSize = 32.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -71,11 +88,19 @@ class SettingsShell extends ConsumerWidget {
         // What the system still covers here: the gesture bar below, a cutout
         // at the side in landscape. The app bar handles the top itself.
         final EdgeInsets safe = MediaQuery.paddingOf(context);
+        final TextStyle headingStyle =
+            (textTheme.headlineLarge ?? const TextStyle()).copyWith(
+              fontSize: headingSize,
+              height: 1.12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.8,
+              color: scheme.onSurface,
+            );
 
         final Widget contentSliver = SliverPadding(
           padding: EdgeInsets.fromLTRB(
             horizontalPadding + safe.left,
-            isEmbedded ? AppSpacing.md : AppSpacing.xs,
+            isEmbedded ? AppSpacing.md : AppSpacing.sm,
             horizontalPadding + safe.right,
             AppSpacing.xxl + safe.bottom,
           ),
@@ -84,7 +109,13 @@ class SettingsShell extends ConsumerWidget {
           sliver: SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children,
+              children: <Widget>[
+                if (hero != null) ...<Widget>[
+                  hero!,
+                  const SizedBox(height: AppSpacing.xs),
+                ],
+                ...children,
+              ],
             ),
           ),
         );
@@ -94,29 +125,23 @@ class SettingsShell extends ConsumerWidget {
           if (!isEmbedded && title.isNotEmpty)
             SliverAppBar.large(
               expandedHeight:
-                  140 + (MediaQuery.textScalerOf(context).scale(28) - 28) * 2,
-              toolbarHeight: (MediaQuery.textScalerOf(context).scale(20) + 24)
-                  .clamp(64, 104),
-              title: Text(
-                title,
-                style: textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                ),
-              ),
+                  148 + (MediaQuery.textScalerOf(context).scale(headingSize) -
+                          headingSize) *
+                      2,
+              toolbarHeight: (MediaQuery.textScalerOf(context).scale(20) + 28)
+                  .clamp(64, 112),
+              title: Text(title, style: headingStyle),
               centerTitle: false,
               pinned: true,
-              backgroundColor: scheme.surface,
+              // The bar and the page are one surface: the tonal step is done
+              // by the sections, not by the app bar.
+              backgroundColor: scheme.surfaceContainerLowest,
               scrolledUnderElevation: 0,
               actions: actions,
               leading:
                   leading ??
                   (Navigator.canPop(context)
-                      ? IconButton(
-                          icon: const Icon(Icons.arrow_back_rounded),
-                          tooltip: MaterialLocalizations.of(
-                            context,
-                          ).backButtonTooltip,
+                      ? SettingsBackButton(
                           onPressed: () {
                             if (Navigator.canPop(context)) {
                               Navigator.of(context).pop();
@@ -136,20 +161,11 @@ class SettingsShell extends ConsumerWidget {
                   horizontalPadding + safe.left,
                   AppSpacing.lg,
                   horizontalPadding + safe.right,
-                  AppSpacing.lg,
+                  AppSpacing.md,
                 ),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                    ),
+                    Expanded(child: Text(title, style: headingStyle)),
                     ...?actions,
                   ],
                 ),
@@ -195,7 +211,9 @@ class SettingsShell extends ConsumerWidget {
 
         if (isEmbedded) return body;
         final Widget page = Scaffold(
-          backgroundColor: scheme.surface,
+          // One tonal step below the row cards, so groups read as panels on
+          // a page rather than as blocks glued to the window.
+          backgroundColor: scheme.surfaceContainerLowest,
           body: body,
         );
         if (!keyboard) return page;
@@ -210,6 +228,53 @@ class SettingsShell extends ConsumerWidget {
           child: Focus(autofocus: true, child: page),
         );
       },
+    );
+  }
+}
+
+/// The back control of a settings page: a tonal squircle holding an M3E
+/// morphing arrow. The glyph follows the reading direction, so it morphs into
+/// the forward arrow under RTL instead of pointing the wrong way. The tap
+/// target is the whole 40 dp squircle, and the arrow compresses under a
+/// finger through [PressableSurface].
+class SettingsBackButton extends StatelessWidget {
+  const SettingsBackButton({required this.onPressed, super.key});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool rtl = Directionality.of(context) == TextDirection.rtl;
+    final String tooltip = MaterialLocalizations.of(context).backButtonTooltip;
+    return Center(
+      child: SizedBox.square(
+        dimension: 40,
+        child: Tooltip(
+          message: tooltip,
+          child: Semantics(
+            button: true,
+            label: tooltip,
+            child: PressableSurface(
+              // The page change is its own feedback; a UI tick here would
+              // double up on the route transition.
+              playFeedback: false,
+              onTap: onPressed,
+              borderRadius: AppRadii.of(context).fullRadius,
+              color: scheme.surfaceContainerHigh,
+              child: Center(
+                child: M3MorphingIcon(
+                  icon: rtl
+                      ? Icons.arrow_forward_rounded
+                      : Icons.arrow_back_rounded,
+                  size: 22,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

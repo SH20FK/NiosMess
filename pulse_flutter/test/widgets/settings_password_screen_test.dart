@@ -9,7 +9,7 @@ import 'package:pulse_flutter/models/api/profile_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/screens/settings_password_screen.dart';
 import 'package:pulse_flutter/services/password_reset_service.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
+import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// What the fake Nios ID did and what it was asked to do.
@@ -346,7 +346,9 @@ void main() {
       final _Server server = _Server();
       await _open(tester, server, _NoProfileAuth(), settle: false);
 
-      expect(find.byType(AppLoadingIndicator), findsOneWidget);
+      // While the profile is still arriving the screen shows the settings
+      // skeleton, never the email-less stage.
+      expect(find.byType(SettingsSkeleton), findsOneWidget);
       expect(find.byKey(_sendCode), findsNothing);
       expect(find.textContaining('Почта не указана'), findsNothing);
     });

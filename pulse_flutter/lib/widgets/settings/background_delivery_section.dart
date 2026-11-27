@@ -27,6 +27,7 @@ class BackgroundDeliverySection extends ConsumerWidget {
     return SettingsSection(
       title: context.l10n.settingsBackgroundTitle,
       subtitle: context.l10n.settingsBackgroundSubtitle,
+      accentIcon: Icons.sync_rounded,
       children: <Widget>[
         if (!kIsWeb && Platform.isAndroid)
           const _BackgroundModePicker()

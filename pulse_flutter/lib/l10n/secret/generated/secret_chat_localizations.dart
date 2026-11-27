@@ -2249,6 +2249,18 @@ abstract class SecretChatLocalizations {
   /// **'Interface density'**
   String get settingsV2Density;
 
+  /// No description provided for @settingsV2TextShape.
+  ///
+  /// In en, this message translates to:
+  /// **'Text and shape'**
+  String get settingsV2TextShape;
+
+  /// No description provided for @settingsV2ResetSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get settingsV2ResetSection;
+
   /// No description provided for @settingsV2Graphics.
   ///
   /// In en, this message translates to:
@@ -5026,6 +5038,18 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'Turn on notifications first'**
   String get settingsNotificationsOffReason;
+
+  /// No description provided for @settingsNotificationsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load notification settings'**
+  String get settingsNotificationsLoadFailed;
+
+  /// No description provided for @settingsChatsQuickReactionEmoji.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick reaction {emoji}'**
+  String settingsChatsQuickReactionEmoji(String emoji);
 
   /// No description provided for @settingsStorageNothingToClear.
   ///

@@ -1264,6 +1264,12 @@ abstract class AppLocalizations {
   /// **'Search time zones'**
   String get languageRegionSearchTimeZones;
 
+  /// No description provided for @languageRegionManualZoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual opens the zone picker; cancelling keeps Automatic'**
+  String get languageRegionManualZoneHint;
+
   /// No description provided for @settingsAccountTitle.
   ///
   /// In en, this message translates to:
@@ -3507,6 +3513,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Storage cleaned'**
   String get settingsStorageCleared;
+
+  /// A reset where some keys refused to be removed from the disk.
+  ///
+  /// In en, this message translates to:
+  /// **'Some settings could not be erased from this device. They will come back after the app restarts.'**
+  String get settingsStorageResetPartial;
 
   /// No description provided for @settingsStorageHealthOkTitle.
   ///
@@ -6480,6 +6492,8 @@ abstract class AppLocalizations {
   String get aboutDownloadAction;
   String get aboutCancelAction;
   String get aboutUpToDate;
+  String get aboutChangelogErrorTitle;
+  String get aboutChangelogErrorMessage;
   String get aboutThirdPartyLicensesTitle;
   String get aboutThirdPartyLicensesSubtitle;
   String get aboutFounderRole;

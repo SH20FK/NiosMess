@@ -619,6 +619,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageRegionSearchTimeZones => 'Search time zones';
 
   @override
+  String get languageRegionManualZoneHint =>
+      'Manual opens the zone picker; cancelling keeps Automatic';
+
+  @override
   String get settingsAccountTitle => 'Account';
 
   @override
@@ -1912,6 +1916,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsStorageCleared => 'Storage cleaned';
+
+  @override
+  String get settingsStorageResetPartial =>
+      'Some settings could not be erased from this device. They will come back after the app restarts.';
 
   @override
   String get settingsStorageHealthOkTitle => 'Storage is healthy';
@@ -3603,6 +3611,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutUpToDate => 'You have the latest version installed';
+
+  @override
+  String get aboutChangelogErrorTitle => 'Couldn\'t load the changelog';
+
+  @override
+  String get aboutChangelogErrorMessage =>
+      'The changelog file could not be read. Try again.';
 
   @override
   String get aboutThirdPartyLicensesTitle => 'Third-Party Licenses & Libraries';

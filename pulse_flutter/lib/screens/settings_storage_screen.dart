@@ -12,7 +12,6 @@ import 'package:pulse_flutter/models/settings/auto_download.dart';
 import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings/settings_async_switcher.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -61,6 +60,12 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     });
   }
 
+  /// The one reset the app already offers, reached from the page that shows
+  /// what it changes: confirm, write, report. No second reset path.
+  ///
+  /// [UiSettingsNotifier.resetAll] answers how many keys the disk refused to
+  /// drop, so a reset that only half landed is reported as partial instead of
+  /// claiming success over preferences that will come back on the next launch.
   Future<void> _resetPreferences() async {
     final bool? confirmed = await showAppConfirmDialog(
       context: context,
@@ -72,10 +77,15 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     );
     if (confirmed != true || !mounted) return;
     try {
-      await ref.read(uiSettingsProvider.notifier).resetAll();
+      final int leftover = await ref
+          .read(uiSettingsProvider.notifier)
+          .resetAll();
       // Notification categories live under their own per-account key.
       await ref.read(notificationPreferencesProvider.notifier).reset();
-      if (mounted) {
+      if (!mounted) return;
+      if (leftover > 0) {
+        AppToast.showInfo(context, context.l10n.settingsStorageResetPartial);
+      } else {
         AppToast.showSuccess(context, context.l10n.settingsV2ResetDone);
       }
     } catch (_) {
@@ -120,214 +130,105 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
+    if (kIsWeb) return _buildWeb(context);
+
     final AsyncValue<LocalStorageSnapshot> snapshotAsync = ref.watch(
       storageSnapshotProvider,
     );
-
-    if (kIsWeb) {
-      return SettingsShell(
-        title: context.l10n.settingsV2Storage,
-        isEmbedded: widget.isEmbedded,
-        children: [
-          SettingsSection(
-            title: context.l10n.webStorageTitle,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Text(context.l10n.webStorageDescription),
-              ),
-              SettingsRow(
-                title: context.l10n.webStorageDrafts,
-                control: ValueControl(
-                  '${snapshotAsync.value?.draftCount ?? 0}',
-                ),
-                subtitle: context.l10n.webStorageDraftsDescription,
-              ),
-            ],
-          ),
-          // A browser still separates photos from videos: one switch for both
-          // would leave the type it does not touch unreachable.
-          SettingsSection(
-            title: context.l10n.autoDownloadPhotos,
-            children: <Widget>[
-              _autoDownloadRow(
-                anchor: 'auto_download_wifi',
-                type: AutoDownloadMediaType.photo,
-                network: AutoDownloadNetwork.wifi,
-                icon: Icons.image_rounded,
-                web: true,
-              ),
-            ],
-          ),
-          SettingsSection(
-            title: context.l10n.autoDownloadVideos,
-            children: <Widget>[
-              _autoDownloadRow(
-                anchor: 'auto_download_video_wifi',
-                type: AutoDownloadMediaType.video,
-                network: AutoDownloadNetwork.wifi,
-                icon: Icons.video_library_rounded,
-                web: true,
-              ),
-            ],
-          ),
-          _performanceSection(context),
-          _resetSection(context),
-        ],
-      );
-    }
 
     return SettingsShell(
       title: context.l10n.settingsV2Storage,
       isEmbedded: widget.isEmbedded,
       onRefresh: _refresh,
-      children: [
+      children: <Widget>[
         SettingsAsyncSwitcher(
           value: snapshotAsync,
-          data: (data) => _buildContent(context, scheme, textTheme, data),
-          loading: () => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 48),
-            child: Center(
-              child: AppLoadingIndicator(
-                semanticsLabel: context.l10n.commonLoading,
-              ),
-            ),
-          ),
-          error: (_, _) => SettingsSection(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      context.l10n.settingsV2StorageError,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    FilledButton.tonalIcon(
-                      onPressed: _busy ? null : _refresh,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: Text(context.l10n.commonRetry),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          data: (LocalStorageSnapshot data) => _buildSnapshot(context, data),
+          // Placeholder rows, not a spinner: the page keeps its shape while the
+          // scan runs and no value is invented before it is measured.
+          loading: () => const SettingsSkeleton(rows: 3),
+          error: (_, _) => SettingsErrorSection(
+            title: context.l10n.settingsV2Storage,
+            message: context.l10n.settingsV2StorageError,
+            onRetry: _refresh,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildContent(
+  /// A browser owns the storage: there is no disk total to put in a hero, so
+  /// the page leads with what it can measure — the drafts kept in this browser.
+  Widget _buildWeb(BuildContext context) {
+    final AsyncValue<LocalStorageSnapshot> snapshotAsync = ref.watch(
+      storageSnapshotProvider,
+    );
+
+    return SettingsShell(
+      title: context.l10n.settingsV2Storage,
+      isEmbedded: widget.isEmbedded,
+      children: <Widget>[
+        _webStorageSection(context, snapshotAsync),
+        ..._autoDownloadSections(context, web: true),
+        _performanceSection(context),
+        _resetSection(context),
+      ],
+    );
+  }
+
+  Widget _webStorageSection(
     BuildContext context,
-    ColorScheme scheme,
-    TextTheme textTheme,
-    LocalStorageSnapshot data,
+    AsyncValue<LocalStorageSnapshot> snapshotAsync,
   ) {
+    final l10n = context.l10n;
+    final Widget draftRow = snapshotAsync.when(
+      data: (LocalStorageSnapshot data) => SettingsRow(
+        title: l10n.webStorageDrafts,
+        control: ValueControl('${data.draftCount}'),
+        subtitle: l10n.webStorageDraftsDescription,
+      ),
+      error: (_, _) => SettingsRow(
+        title: l10n.webStorageDrafts,
+        control: ValueControl(l10n.settingsDeviceUnknown),
+        subtitle: l10n.webStorageDraftsDescription,
+      ),
+      // The count is unknown until it is read: a skeleton says so, an invented
+      // zero would not.
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: SettingsSkeleton(rows: 1, showLeading: false),
+      ),
+    );
+
+    return SettingsSection(
+      title: l10n.webStorageTitle,
+      subtitle: l10n.webStorageDescription,
+      accentIcon: Icons.public_rounded,
+      children: <Widget>[draftRow],
+    );
+  }
+
+  Widget _buildSnapshot(BuildContext context, LocalStorageSnapshot data) {
     final int appDataBytes = data.documentsBytes + data.supportBytes;
     final int cacheBytes = data.temporaryBytes;
     final int draftBytes = data.draftBytes;
-    final int totalBytes = data.totalBytes;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-          child: Container(
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(
-                SettingsSection.outerRadius(context),
-              ),
-            ),
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            _format(totalBytes),
-                            style: textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.6,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            context.l10n.settingsStorageUsedByApp,
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton.filledTonal(
-                      onPressed: _busy ? null : _refresh,
-                      icon: const Icon(Icons.refresh_rounded, size: 20),
-                      style: IconButton.styleFrom(
-                        backgroundColor: scheme.secondaryContainer,
-                        foregroundColor: scheme.onSecondaryContainer,
-                      ),
-                      tooltip: context.l10n.settingsStorageRefresh,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  context.l10n.settingsStorageEstimate,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Semantics(
-                  label:
-                      '${context.l10n.settingsStorageAppData}: ${_format(appDataBytes)}, '
-                      '${context.l10n.settingsStorageLegendCache}: ${_format(cacheBytes)}, '
-                      '${context.l10n.settingsStorageLegendDrafts}: ${_format(draftBytes)}',
-                  child: _SegmentedProgressBar(
-                    appDataBytes: appDataBytes,
-                    cacheBytes: cacheBytes,
-                    draftBytes: draftBytes,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    _LegendItem(
-                      color: scheme.primary,
-                      label: context.l10n.settingsStorageAppData,
-                    ),
-                    _LegendItem(
-                      color: scheme.tertiary,
-                      label: context.l10n.settingsStorageLegendCache,
-                    ),
-                    _LegendItem(
-                      color: scheme.secondary,
-                      label: context.l10n.settingsStorageLegendDrafts,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        _StorageHero(
+          totalBytes: data.totalBytes,
+          appDataBytes: appDataBytes,
+          cacheBytes: cacheBytes,
+          draftBytes: draftBytes,
+          busy: _busy,
+          onRefresh: _refresh,
         ),
         SettingsSection(
+          title: context.l10n.settingsStorageActions,
           subtitle: context.l10n.settingsStorageSafeCleanup,
-          children: [
+          accentIcon: Icons.cleaning_services_rounded,
+          children: <Widget>[
             SettingsRow(
               leading: const Icon(Icons.folder_rounded),
               title: context.l10n.settingsStorageCategoryAppData,
@@ -363,6 +264,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
         SettingsSection(
           title: context.l10n.settingsV2StorageDetails,
           subtitle: context.l10n.settingsV2StorageDetailsHint,
+          accentIcon: Icons.pie_chart_outline_rounded,
           children: <Widget>[
             ...StorageCategory.values.map((StorageCategory cat) {
               final int bytes = data.bytesFor(cat);
@@ -379,7 +281,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
               };
 
               return SettingsRow(
-                leading: Icon(icon, color: scheme.primary),
+                leading: Icon(icon),
                 title: _categoryLabel(context, cat),
                 control: ValueControl(_format(bytes)),
               );
@@ -387,67 +289,88 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
           ],
         ),
 
-        // 1. Media Auto-Download: photos and videos keep their own rules.
-        SettingsSection(
-          title: context.l10n.autoDownloadPhotos,
-          children: <Widget>[
-            _autoDownloadRow(
-              anchor: 'auto_download_wifi',
-              type: AutoDownloadMediaType.photo,
-              network: AutoDownloadNetwork.wifi,
-              icon: Icons.wifi_rounded,
-            ),
-            if (!kIsWeb)
-              _autoDownloadRow(
-                anchor: 'auto_download_cellular',
-                type: AutoDownloadMediaType.photo,
-                network: AutoDownloadNetwork.cellular,
-                icon: Icons.signal_cellular_alt_rounded,
-              ),
-          ],
-        ),
-        if (!kIsWeb)
-          SettingsSection(
-            title: context.l10n.autoDownloadVideos,
-            children: <Widget>[
-              _autoDownloadRow(
-                anchor: 'auto_download_video_wifi',
-                type: AutoDownloadMediaType.video,
-                network: AutoDownloadNetwork.wifi,
-                icon: Icons.wifi_rounded,
-              ),
-              _autoDownloadRow(
-                anchor: 'auto_download_video_cellular',
-                type: AutoDownloadMediaType.video,
-                network: AutoDownloadNetwork.cellular,
-                icon: Icons.signal_cellular_alt_rounded,
-              ),
-            ],
-          ),
+        ..._autoDownloadSections(context, web: false),
         _performanceSection(context),
         _resetSection(context),
       ],
     );
   }
 
-  Widget _resetSection(BuildContext context) => SettingsSection(
-    children: [
-      SettingsAnchor(
-        id: 'storage.reset',
-        child: SettingsListItem.danger(
-          key: const ValueKey('settings-reset-preferences'),
-          icon: Icons.restart_alt_rounded,
-          title: context.l10n.settingsV2Reset,
-          subtitle: context.l10n.settingsV2ResetHint,
-          onTap: _resetPreferences,
+  /// Media auto-download, the same groups the browser gets. Native keeps one
+  /// switch per network; the browser has no cellular rule, so it keeps one
+  /// automatic switch per type.
+  List<Widget> _autoDownloadSections(
+    BuildContext context, {
+    required bool web,
+  }) => <Widget>[
+    SettingsSection(
+      title: context.l10n.autoDownloadPhotos,
+      accentIcon: Icons.image_rounded,
+      children: <Widget>[
+        _autoDownloadRow(
+          anchor: 'auto_download_wifi',
+          type: AutoDownloadMediaType.photo,
+          network: AutoDownloadNetwork.wifi,
+          icon: Icons.wifi_rounded,
+          web: web,
         ),
-      ),
-    ],
-  );
+        if (!web)
+          _autoDownloadRow(
+            anchor: 'auto_download_cellular',
+            type: AutoDownloadMediaType.photo,
+            network: AutoDownloadNetwork.cellular,
+            icon: Icons.signal_cellular_alt_rounded,
+          ),
+      ],
+    ),
+    SettingsSection(
+      title: context.l10n.autoDownloadVideos,
+      accentIcon: Icons.video_library_rounded,
+      children: <Widget>[
+        _autoDownloadRow(
+          anchor: 'auto_download_video_wifi',
+          type: AutoDownloadMediaType.video,
+          network: AutoDownloadNetwork.wifi,
+          icon: Icons.wifi_rounded,
+          web: web,
+        ),
+        if (!web)
+          _autoDownloadRow(
+            anchor: 'auto_download_video_cellular',
+            type: AutoDownloadMediaType.video,
+            network: AutoDownloadNetwork.cellular,
+            icon: Icons.signal_cellular_alt_rounded,
+          ),
+      ],
+    ),
+  ];
+
+  Widget _resetSection(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return SettingsSection(
+      title: context.l10n.settingsV2ResetSection,
+      accentIcon: Icons.restart_alt_rounded,
+      accentColor: scheme.errorContainer,
+      accentForeground: scheme.onErrorContainer,
+      children: <Widget>[
+        SettingsAnchor(
+          id: 'storage.reset',
+          child: SettingsListItem.danger(
+            key: const ValueKey('settings-reset-preferences'),
+            icon: Icons.restart_alt_rounded,
+            title: context.l10n.settingsV2Reset,
+            subtitle: context.l10n.settingsV2ResetHint,
+            onTap: _resetPreferences,
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _performanceSection(BuildContext context) => SettingsSection(
     title: context.l10n.settingsV2Graphics,
-    children: [
+    accentIcon: Icons.speed_rounded,
+    children: <Widget>[
       SettingsAnchor(
         id: 'motion.optimization',
         child: SettingsListItem.toggle(
@@ -474,7 +397,7 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
     bool web = false,
   }) => SettingsRow(
     anchor: anchor,
-    leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+    leading: Icon(icon),
     title: web
         ? context.l10n.autoDownloadAutomatic
         : network == AutoDownloadNetwork.wifi
@@ -510,6 +433,114 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
   static String _format(int bytes) => FileTypeDetector.formatFileSize(bytes);
 }
 
+/// The opening panel: what the app occupies, split into the three parts the
+/// cleanup actions can touch. The figure is the point of the page, so it is
+/// the one place with display type; the refresh control sits in its header
+/// rather than in a row of its own.
+class _StorageHero extends StatelessWidget {
+  const _StorageHero({
+    required this.totalBytes,
+    required this.appDataBytes,
+    required this.cacheBytes,
+    required this.draftBytes,
+    required this.busy,
+    required this.onRefresh,
+  });
+
+  final int totalBytes;
+  final int appDataBytes;
+  final int cacheBytes;
+  final int draftBytes;
+  final bool busy;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: SettingsHeroCard(
+        label: context.l10n.settingsStorageTitle,
+        leadingIcon: Icons.storage_rounded,
+        trailing: IconButton.filledTonal(
+          onPressed: busy ? null : onRefresh,
+          tooltip: context.l10n.settingsStorageRefresh,
+          icon: const Icon(Icons.refresh_rounded, size: 20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // Scale the figure down instead of clipping it when a large text
+            // size meets a narrow pane.
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  FileTypeDetector.formatFileSize(totalBytes),
+                  maxLines: 1,
+                  style: text.displaySmall?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              context.l10n.settingsStorageUsedByApp,
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Semantics(
+              label:
+                  '${context.l10n.settingsStorageAppData}: '
+                  '${FileTypeDetector.formatFileSize(appDataBytes)}, '
+                  '${context.l10n.settingsStorageLegendCache}: '
+                  '${FileTypeDetector.formatFileSize(cacheBytes)}, '
+                  '${context.l10n.settingsStorageLegendDrafts}: '
+                  '${FileTypeDetector.formatFileSize(draftBytes)}',
+              child: _SegmentedProgressBar(
+                appDataBytes: appDataBytes,
+                cacheBytes: cacheBytes,
+                draftBytes: draftBytes,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.lg,
+              runSpacing: AppSpacing.sm,
+              children: <Widget>[
+                _LegendItem(
+                  color: scheme.primary,
+                  label: context.l10n.settingsStorageAppData,
+                ),
+                _LegendItem(
+                  color: scheme.tertiary,
+                  label: context.l10n.settingsStorageLegendCache,
+                ),
+                _LegendItem(
+                  color: scheme.secondary,
+                  label: context.l10n.settingsStorageLegendDrafts,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              context.l10n.settingsStorageEstimate,
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SegmentedProgressBar extends StatelessWidget {
   const _SegmentedProgressBar({
     required this.appDataBytes,
@@ -525,43 +556,57 @@ class _SegmentedProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final int total = appDataBytes + cacheBytes + draftBytes;
-
-    if (total == 0) {
-      return Container(
-        height: 10,
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
-        ),
-      );
-    }
-
-    final double appDataFlex = appDataBytes / total;
-    final double cacheFlex = cacheBytes / total;
-    final double draftFlex = draftBytes / total;
+    // One clip for the whole bar: the segments have to lose their corners
+    // against the track, and there is only ever one of these per page.
+    final BorderRadius radius = BorderRadius.circular(
+      AppRadii.of(context).xs.clamp(4.0, 8.0),
+    );
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: radius,
       child: SizedBox(
-        height: 10,
-        child: Row(
-          children: <Widget>[
-            if (appDataFlex > 0)
-              Expanded(
-                flex: (appDataFlex * 1000).round().clamp(1, 1000),
-                child: Container(color: scheme.primary),
-              ),
-            if (cacheFlex > 0)
-              Expanded(
-                flex: (cacheFlex * 1000).round().clamp(1, 1000),
-                child: Container(color: scheme.tertiary),
-              ),
-            if (draftFlex > 0)
-              Expanded(
-                flex: (draftFlex * 1000).round().clamp(1, 1000),
-                child: Container(color: scheme.secondary),
-              ),
-          ],
+        height: 12,
+        child: ColoredBox(
+          color: scheme.surfaceContainerHighest,
+          child: total == 0
+              ? const SizedBox.expand()
+              : Row(
+                  children: <Widget>[
+                    if (appDataBytes > 0)
+                      Expanded(
+                        flex: (appDataBytes / total * 1000).round().clamp(
+                          1,
+                          1000,
+                        ),
+                        child: ColoredBox(
+                          color: scheme.primary,
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    if (cacheBytes > 0)
+                      Expanded(
+                        flex: (cacheBytes / total * 1000).round().clamp(
+                          1,
+                          1000,
+                        ),
+                        child: ColoredBox(
+                          color: scheme.tertiary,
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    if (draftBytes > 0)
+                      Expanded(
+                        flex: (draftBytes / total * 1000).round().clamp(
+                          1,
+                          1000,
+                        ),
+                        child: ColoredBox(
+                          color: scheme.secondary,
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                  ],
+                ),
         ),
       ),
     );
@@ -582,17 +627,20 @@ class _LegendItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Container(
-          width: 8,
-          height: 8,
+        DecoratedBox(
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: const SizedBox.square(dimension: 8),
         ),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: textTheme.bodySmall?.copyWith(
-            color: scheme.onSurfaceVariant,
-            fontWeight: FontWeight.w500,
+        // Flexible: at 180 % text a legend entry is wider than the wrap line
+        // it sits on, so it wraps instead of overflowing the card.
+        Flexible(
+          child: Text(
+            label,
+            style: textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],

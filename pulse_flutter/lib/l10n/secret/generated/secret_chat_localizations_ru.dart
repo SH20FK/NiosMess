@@ -1223,6 +1223,12 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
   String get settingsV2Density => 'Плотность интерфейса';
 
   @override
+  String get settingsV2TextShape => 'Текст и форма';
+
+  @override
+  String get settingsV2ResetSection => 'Сброс';
+
+  @override
   String get settingsV2Graphics => 'Производительность';
 
   @override
@@ -2764,6 +2770,15 @@ class SecretChatLocalizationsRu extends SecretChatLocalizations {
 
   @override
   String get settingsNotificationsOffReason => 'Сначала включите уведомления';
+
+  @override
+  String get settingsNotificationsLoadFailed =>
+      'Не удалось загрузить настройки уведомлений';
+
+  @override
+  String settingsChatsQuickReactionEmoji(String emoji) {
+    return 'Быстрая реакция $emoji';
+  }
 
   @override
   String get settingsStorageNothingToClear => 'Очищать нечего';

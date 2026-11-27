@@ -1,3 +1,4 @@
+import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'dart:async';
 import 'package:material_ui/material_ui.dart';
@@ -8,6 +9,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/services/settings/notification_preference_action.dart';
+import 'package:pulse_flutter/widgets/settings/settings_async_switcher.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:permission_handler/permission_handler.dart';
@@ -50,150 +52,187 @@ class _NotificationSettingsSectionState
 
   @override
   Widget build(BuildContext context) {
-    final options = ref.watch(notificationPreferencesProvider);
-    final enabled = ref.watch(
+    final AsyncValue<NotificationPreferences> options = ref.watch(
+      notificationPreferencesProvider,
+    );
+    final bool enabled = ref.watch(
       uiSettingsProvider.select((s) => s.notifications),
     );
-    final l10n = context.l10n;
+    final AppLocalizations l10n = context.l10n;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool? permission = ref.watch(pushPermissionProvider).value;
     final bool denied =
         PushNotificationService.supportsPush && permission == false;
-    Widget toggle(String key, IconData icon, String title, {String? hint}) =>
-        SettingsAnchor(
-          id: 'notifications.$key',
-          child: SettingsListItem.toggle(
-            icon: icon,
-            title: title,
-            subtitle: hint,
-            value: options.value?.toJson()[key] == true,
-            enabled: enabled && !_busy.contains(key) && options.hasValue,
-            disabledReason: enabled
-                ? null
-                : l10n.settingsNotificationsOffReason,
-            onChanged: (value) => _change(
-              key,
-              () => ref
-                  .read(notificationPreferencesProvider.notifier)
-                  .setPreference(key, value),
-            ),
-          ),
-        );
-    return SettingsSection(
-      title: l10n.noticeTitle,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                permission == true
+
+    // The provider either has the value or the section shows the skeleton:
+    // a toggle never borrows "off" for "not loaded yet".
+    Widget toggle(
+      NotificationPreferences prefs,
+      String key,
+      IconData icon,
+      String title, {
+      String? hint,
+    }) => SettingsAnchor(
+      id: 'notifications.$key',
+      child: SettingsListItem(
+        icon: icon,
+        title: title,
+        subtitle: hint,
+        type: SettingsListItemType.toggle,
+        boolValue: prefs.toJson()[key] == true,
+        enabled: enabled,
+        pending: _busy.contains(key),
+        disabledReason: enabled
+            ? null
+            : l10n.settingsNotificationsOffReason,
+        onChanged: (value) => _change(
+          key,
+          () => ref
+              .read(notificationPreferencesProvider.notifier)
+              .setPreference(key, value),
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SettingsSection(
+          title: l10n.noticeTitle,
+          accentIcon: Icons.notifications_rounded,
+          children: <Widget>[
+            Semantics(
+              header: true,
+              child: SettingsListItem.value(
+                icon: permission == true
                     ? Icons.notifications_active_rounded
                     : Icons.notifications_none_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      !PushNotificationService.supportsPush
-                          ? l10n.noticeInAppOnly
-                          : permission == true
-                          ? l10n.noticePermissionGranted
-                          : l10n.noticePermissionMissing,
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      l10n.noticeDeviceHint,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (enabled &&
-            PushNotificationService.supportsPush &&
-            permission == true)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: ValueListenableBuilder<bool>(
-              valueListenable: PushNotificationService.deviceRegistered,
-              builder: (context, registered, _) => Text(
-                registered
-                    ? l10n.noticeDeviceRegistered
-                    : l10n.noticeDevicePending,
-                style: Theme.of(context).textTheme.bodySmall,
+                iconColor: scheme.primary,
+                title: !PushNotificationService.supportsPush
+                    ? l10n.noticeInAppOnly
+                    : permission == true
+                    ? l10n.noticePermissionGranted
+                    : l10n.noticePermissionMissing,
+                subtitle: l10n.noticeDeviceHint,
               ),
             ),
-          ),
-        SettingsAnchor(
-          id: 'push_notifications',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SettingsListItem.toggle(
-                icon: Icons.notifications_rounded,
-                title: l10n.settingsPushNotifications,
-                subtitle: denied
-                    ? l10n.noticePermissionHint
-                    : l10n.settingsPushNotificationsSubtitle,
-                value: enabled,
-                enabled: !_busy.contains('enabled'),
-                onChanged: (value) =>
-                    _change('enabled', () => _setEnabled(value)),
-              ),
-              // The browser has no page the app could open for this.
-              if (!kIsWeb && PushNotificationService.supportsPush)
-                M3Reveal(
-                  revealed: denied,
-                  child: IgnorePointer(
-                    ignoring: !denied,
-                    child: SettingsListItem(
-                      key: const ValueKey('settings-open-system-notifications'),
-                      type: SettingsListItemType.action,
-                      icon: Icons.open_in_new_rounded,
-                      title: l10n.noticeOpenSystemSettings,
-                      subtitle: l10n.noticeOpenSystemSettingsHint,
-                      onTap: () => unawaited(openAppSettings()),
+            if (enabled &&
+                PushNotificationService.supportsPush &&
+                permission == true)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(
+                  start: SettingsListItem.dividerIndent,
+                  end: AppSpacing.lg,
+                  bottom: AppSpacing.sm,
+                ),
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: PushNotificationService.deviceRegistered,
+                  builder: (context, registered, _) => Text(
+                    registered
+                        ? l10n.noticeDeviceRegistered
+                        : l10n.noticeDevicePending,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ),
+              ),
+            SettingsAnchor(
+              id: 'push_notifications',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SettingsListItem(
+                    icon: Icons.notifications_rounded,
+                    title: l10n.settingsPushNotifications,
+                    subtitle: denied
+                        ? l10n.noticePermissionHint
+                        : l10n.settingsPushNotificationsSubtitle,
+                    type: SettingsListItemType.toggle,
+                    boolValue: enabled,
+                    pending: _busy.contains('enabled'),
+                    onChanged: (value) =>
+                        _change('enabled', () => _setEnabled(value)),
+                  ),
+                  // The browser has no page the app could open for this.
+                  if (!kIsWeb && PushNotificationService.supportsPush)
+                    M3Reveal(
+                      revealed: denied,
+                      child: IgnorePointer(
+                        ignoring: !denied,
+                        child: SettingsListItem(
+                          key: const ValueKey(
+                            'settings-open-system-notifications',
+                          ),
+                          type: SettingsListItemType.action,
+                          icon: Icons.open_in_new_rounded,
+                          title: l10n.noticeOpenSystemSettings,
+                          subtitle: l10n.noticeOpenSystemSettingsHint,
+                          onTap: () => unawaited(openAppSettings()),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        // The per-category switches load from disk. Until they arrive the
+        // skeleton holds their rows, so nothing slides under the finger when
+        // the answer lands.
+        SettingsAsyncSwitcher<NotificationPreferences>(
+          value: options,
+          loading: () => const SettingsSection(
+            children: <Widget>[SettingsSkeleton(rows: 7)],
+          ),
+          error: (_, _) => SettingsErrorSection(
+            title: l10n.commonError,
+            message: l10n.settingsNotificationsLoadFailed,
+            onRetry: () => ref.invalidate(notificationPreferencesProvider),
+          ),
+          data: (NotificationPreferences prefs) => SettingsSection(
+            children: <Widget>[
+              toggle(
+                prefs,
+                'private',
+                Icons.chat_bubble_outline_rounded,
+                l10n.noticeMessagesPrivate,
+              ),
+              toggle(
+                prefs,
+                'groups',
+                Icons.groups_outlined,
+                l10n.noticeMessagesGroups,
+              ),
+              toggle(
+                prefs,
+                'channels',
+                Icons.campaign_outlined,
+                l10n.noticeMessagesChannels,
+              ),
+              toggle(prefs, 'calls', Icons.call_outlined, l10n.noticeCalls),
+              toggle(
+                prefs,
+                'activity',
+                Icons.alternate_email_rounded,
+                l10n.noticeActivity,
+              ),
+              toggle(
+                prefs,
+                'preview',
+                Icons.visibility_outlined,
+                l10n.noticePreview,
+                hint: l10n.noticePreviewHint,
+              ),
+              toggle(
+                prefs,
+                'sound',
+                Icons.volume_up_outlined,
+                l10n.noticeSound,
+                hint: l10n.noticeSoundHint,
+              ),
             ],
           ),
-        ),
-        toggle(
-          'private',
-          Icons.chat_bubble_outline_rounded,
-          l10n.noticeMessagesPrivate,
-        ),
-        toggle(
-          'groups',
-          Icons.groups_outlined,
-          l10n.noticeMessagesGroups,
-        ),
-        toggle(
-          'channels',
-          Icons.campaign_outlined,
-          l10n.noticeMessagesChannels,
-        ),
-        toggle('calls', Icons.call_outlined, l10n.noticeCalls),
-        toggle('activity', Icons.alternate_email_rounded, l10n.noticeActivity),
-        toggle(
-          'preview',
-          Icons.visibility_outlined,
-          l10n.noticePreview,
-          hint: l10n.noticePreviewHint,
-        ),
-        toggle(
-          'sound',
-          Icons.volume_up_outlined,
-          l10n.noticeSound,
-          hint: l10n.noticeSoundHint,
         ),
       ],
     );

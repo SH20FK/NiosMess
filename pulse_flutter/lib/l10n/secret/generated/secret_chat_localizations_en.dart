@@ -1208,6 +1208,12 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get settingsV2Density => 'Interface density';
 
   @override
+  String get settingsV2TextShape => 'Text and shape';
+
+  @override
+  String get settingsV2ResetSection => 'Reset';
+
+  @override
   String get settingsV2Graphics => 'Performance';
 
   @override
@@ -2739,6 +2745,15 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsNotificationsOffReason => 'Turn on notifications first';
+
+  @override
+  String get settingsNotificationsLoadFailed =>
+      'Could not load notification settings';
+
+  @override
+  String settingsChatsQuickReactionEmoji(String emoji) {
+    return 'Quick reaction $emoji';
+  }
 
   @override
   String get settingsStorageNothingToClear => 'Nothing to clear';

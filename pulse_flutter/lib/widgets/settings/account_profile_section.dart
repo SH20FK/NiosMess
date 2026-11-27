@@ -18,9 +18,82 @@ import 'package:pulse_flutter/widgets/profile/my_qr_code_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
-/// The profile part of the Account section: the photo and the actions that
-/// change how other people see the account. The settings hub only shows who
-/// is signed in; everything that edits the profile starts here.
+/// The opening card of the Account page: the photo and the names of whoever
+/// is signed in, above the rows that edit and copy them. Nothing here is a
+/// control — the hero only states what the account already is.
+class AccountProfileHero extends StatelessWidget {
+  const AccountProfileHero({
+    required this.displayName,
+    required this.username,
+    this.avatarUrl,
+    super.key,
+  });
+
+  final String displayName;
+
+  /// Bare handle, without the `@`; empty when the account has none.
+  final String username;
+
+  final String? avatarUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme text = Theme.of(context).textTheme;
+    return SettingsHeroCard(
+      // The photo says nothing the name next to it does not: the screen
+      // reader skips it and reads the texts.
+      child: Row(
+        children: <Widget>[
+          ExcludeSemantics(
+            child: PulseAvatar(
+              name: displayName,
+              avatarUrl: avatarUrl,
+              radius: 32,
+              fallbackColor: scheme.primaryContainer,
+              textColor: scheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  displayName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.titleMedium?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+                if (username.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 2),
+                  Text(
+                    '@$username',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The profile part of the Account section: the actions that change how
+/// other people see the account. The hero above only shows who is signed
+/// in; everything that edits the profile starts here.
 class AccountProfileSection extends ConsumerStatefulWidget {
   const AccountProfileSection({super.key});
 
@@ -171,7 +244,6 @@ class _AccountProfileSectionState extends ConsumerState<AccountProfileSection> {
   @override
   Widget build(BuildContext context) {
     final AuthState auth = ref.watch(authProvider);
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     final AppLocalizations l = context.l10n;
     final String displayName =
         auth.profile?.displayName ??
@@ -179,60 +251,38 @@ class _AccountProfileSectionState extends ConsumerState<AccountProfileSection> {
         l.profileGuestName;
     final String username =
         auth.profile?.username ?? auth.session?.username ?? '';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsSection(
+      title: l.settingsV2More,
+      accentIcon: Icons.person_rounded,
       children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(
-            top: AppSpacing.sm,
-            bottom: AppSpacing.lg,
-          ),
-          // The name is read from the row below; the picture adds nothing
-          // for a screen reader.
-          child: Center(
-            child: ExcludeSemantics(
-              child: PulseAvatar(
-                name: displayName,
-                avatarUrl: auth.profile?.avatarUrl,
-                radius: 44,
-                fallbackColor: scheme.primaryContainer,
-                textColor: scheme.onPrimaryContainer,
-              ),
-            ),
-          ),
+        SettingsListItem(
+          key: const ValueKey<String>('settings-account-photo'),
+          type: SettingsListItemType.action,
+          icon: Icons.add_a_photo_outlined,
+          title: l.settingsProfileChangePhoto,
+          pending: _uploadingAvatar,
+          onTap: _uploadAvatar,
         ),
-        SettingsSection(
-          children: <Widget>[
-            SettingsListItem(
-              key: const ValueKey<String>('settings-account-photo'),
-              type: SettingsListItemType.action,
-              icon: Icons.add_a_photo_outlined,
-              title: l.settingsProfileChangePhoto,
-              pending: _uploadingAvatar,
-              onTap: _uploadAvatar,
-            ),
-            SettingsListItem.nav(
-              key: const ValueKey<String>('settings-account-edit'),
-              icon: Icons.edit_outlined,
-              title: l.profileEdit,
-              onTap: () => _openEditProfile(auth, displayName),
-            ),
-            SettingsListItem.nav(
-              key: const ValueKey<String>('settings-account-qr'),
-              icon: Icons.qr_code_rounded,
-              title: l.settingsV2Qr,
-              onTap: () => MyQrCodeSheet.show(context),
-            ),
-            if (username.isNotEmpty)
-              SettingsListItem(
-                key: const ValueKey<String>('settings-account-share'),
-                type: SettingsListItemType.action,
-                icon: Icons.share_outlined,
-                title: l.settingsV2Share,
-                onTap: () => _shareProfile(username),
-              ),
-          ],
+        SettingsListItem.nav(
+          key: const ValueKey<String>('settings-account-edit'),
+          icon: Icons.edit_outlined,
+          title: l.profileEdit,
+          onTap: () => _openEditProfile(auth, displayName),
         ),
+        SettingsListItem.nav(
+          key: const ValueKey<String>('settings-account-qr'),
+          icon: Icons.qr_code_rounded,
+          title: l.settingsV2Qr,
+          onTap: () => MyQrCodeSheet.show(context),
+        ),
+        if (username.isNotEmpty)
+          SettingsListItem(
+            key: const ValueKey<String>('settings-account-share'),
+            type: SettingsListItemType.action,
+            icon: Icons.share_outlined,
+            title: l.settingsV2Share,
+            onTap: () => _shareProfile(username),
+          ),
       ],
     );
   }

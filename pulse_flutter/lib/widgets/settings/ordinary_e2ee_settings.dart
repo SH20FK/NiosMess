@@ -231,6 +231,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
       children: [
         SettingsSection(
           title: context.l10n.settingsE2eeOrdinaryTitle,
+          accentIcon: Icons.enhanced_encryption_rounded,
           children: [
             SettingsListItem.toggle(
               icon: Icons.enhanced_encryption_outlined,
@@ -286,6 +287,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
         if (meshPlatformSupported)
           SettingsSection(
             title: context.l10n.settingsE2eeOfflineTitle,
+            accentIcon: Icons.bluetooth_rounded,
             children: [
               SettingsListItem.toggle(
                 icon: Icons.bluetooth_rounded,
@@ -354,6 +356,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
 
   Widget _recoverySection(OrdinaryE2eeService service) => SettingsSection(
     title: context.l10n.settingsE2eeRecoveryTitle,
+    accentIcon: Icons.key_rounded,
     children: [
       _description(context.l10n.settingsE2eeRecoveryDescription),
       SettingsListItem(
@@ -434,6 +437,9 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
 
   Widget _restoreSection() => SettingsSection(
     title: context.l10n.settingsE2eeRestoreTitle,
+    accentIcon: Icons.settings_backup_restore_rounded,
+    accentColor: Theme.of(context).colorScheme.errorContainer,
+    accentForeground: Theme.of(context).colorScheme.onErrorContainer,
     children: [
       Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -480,6 +486,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
 
   Widget _pairingSection(OrdinaryE2eeService service) => SettingsSection(
     title: context.l10n.settingsE2eeLinkTitle,
+    accentIcon: Icons.qr_code_2_rounded,
     children: [
       _description(
         service.locked
@@ -577,6 +584,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
         .toList();
     return SettingsSection(
       title: context.l10n.settingsE2eeContactTitle,
+      accentIcon: Icons.person_search_rounded,
       children: [
         _description(context.l10n.settingsE2eeContactDescription),
         Padding(

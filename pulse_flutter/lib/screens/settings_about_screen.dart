@@ -22,7 +22,6 @@ import 'package:pulse_flutter/services/update/app_update_service.dart';
 import 'package:pulse_flutter/widgets/about/morphing_brand_mark.dart';
 import 'package:pulse_flutter/widgets/alpha_test_dialog.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings/about_bug_report_dialog.dart';
 import 'package:pulse_flutter/widgets/settings/about_identity_widgets.dart';
 import 'package:pulse_flutter/widgets/settings/about_memorial_sheet.dart';
@@ -42,6 +41,10 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   late final Future<PackageInfo> _packageInfo;
   List<ChangelogRelease>? _releases;
   bool _loadingChangelog = true;
+
+  /// A read error is its own state. It must not masquerade as "no releases",
+  /// which the tab used to render as the "you are up to date" message.
+  bool _changelogFailed = false;
   int _tab = 0;
   int _footerTapCount = 0;
   DateTime? _lastFooterTapAt;
@@ -76,11 +79,25 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         setState(() {
           _releases = releases;
           _loadingChangelog = false;
+          _changelogFailed = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loadingChangelog = false);
+      if (mounted) {
+        setState(() {
+          _loadingChangelog = false;
+          _changelogFailed = true;
+        });
+      }
     }
+  }
+
+  Future<void> _retryChangelog() async {
+    setState(() {
+      _loadingChangelog = true;
+      _changelogFailed = false;
+    });
+    await _loadChangelog();
   }
 
   Future<void> _openUrl(String url) => AppUrlLauncher.openUrl(context, url);
@@ -110,61 +127,93 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
     return SettingsShell(
       title: l.settingsV2About,
       isEmbedded: widget.isEmbedded,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
-          child: Column(
-            children: [
-              MorphingBrandMark(
-                size: 72,
-                onEasterEgg: () => AppToast.showSuccess(
-                  context,
-                  '${l.aboutEasterEggTitle} ${l.aboutEasterEggMessage}',
-                ),
+      hero: SettingsHeroCard(
+        // The hero card has no accentLabel of its own, so the build-channel
+        // badge is composed into the trailing slot the same way the
+        // appearance hero composes its mode pill.
+        trailing: DecoratedBox(
+          decoration: ShapeDecoration(
+            color: scheme.secondaryContainer,
+            shape: RoundedSuperellipseBorder(
+              borderRadius: AppRadii.of(context).fullRadius,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm + 2,
+              vertical: 3,
+            ),
+            child: Text(
+              BuildInfo.buildChannel,
+              style: text.labelSmall?.copyWith(
+                color: scheme.onSecondaryContainer,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                l.appName,
-                textAlign: TextAlign.center,
-                style: text.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                l.aboutTagline,
-                textAlign: TextAlign.center,
-                style: text.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AboutVersionChip(
-                packageInfoFuture: _packageInfo,
-                onCopy: _copyVersion,
-              ),
-            ],
+            ),
           ),
         ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.xl,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            MorphingBrandMark(
+              size: 72,
+              onEasterEgg: () => AppToast.showSuccess(
+                context,
+                '${l.aboutEasterEggTitle} ${l.aboutEasterEggMessage}',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              l.appName,
+              textAlign: TextAlign.center,
+              style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              l.aboutTagline,
+              textAlign: TextAlign.center,
+              style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AboutVersionChip(
+              packageInfoFuture: _packageInfo,
+              onCopy: _copyVersion,
+            ),
+          ],
+        ),
+      ),
+      children: [
         if (!kIsWeb)
           const SettingsSection(
             children: [
               SettingsAnchor(id: 'about.update', child: AboutUpdateTile()),
             ],
           ),
-        SettingsChoiceButtons<int>(
-          segments: [
-            ButtonSegment(value: 0, label: Text(l.aboutTabWhatsNew)),
-            ButtonSegment(value: 1, label: Text(l.aboutTabLegal)),
-            ButtonSegment(value: 2, label: Text(l.aboutTabTeam)),
+        SettingsSection(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: SettingsChoiceButtons<int>(
+                segments: [
+                  ButtonSegment(value: 0, label: Text(l.aboutTabWhatsNew)),
+                  ButtonSegment(value: 1, label: Text(l.aboutTabLegal)),
+                  ButtonSegment(value: 2, label: Text(l.aboutTabTeam)),
+                ],
+                selected: {_tab},
+                showSelectedIcon: false,
+                onSelectionChanged: (selection) {
+                  setState(() => _tab = selection.first);
+                },
+              ),
+            ),
           ],
-          selected: {_tab},
-          showSelectedIcon: false,
-          onSelectionChanged: (selection) {
-            setState(() => _tab = selection.first);
-          },
         ),
-        const SizedBox(height: AppSpacing.lg),
         if (reduced)
           _tabContent(context)
         else
@@ -184,6 +233,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
           ),
         SettingsSection(
           title: l.settingsAboutSupport,
+          accentIcon: Icons.volunteer_activism_rounded,
           children: [
             SettingsListItem.nav(
               icon: Icons.support_agent_rounded,
@@ -217,6 +267,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         ),
         SettingsSection(
           title: l.settingsAboutLinks,
+          accentIcon: Icons.link_rounded,
           children: [
             SettingsListItem.nav(
               icon: Icons.send_outlined,
@@ -233,6 +284,7 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         ),
         SettingsSection(
           title: l.settingsV2Advanced,
+          accentIcon: Icons.tune_rounded,
           children: [
             if (!kIsWeb)
               SettingsListItem.nav(
@@ -287,41 +339,34 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
   Widget _changelog(BuildContext context) {
     final l = context.l10n;
     if (_loadingChangelog) {
-      return Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
-        child: Center(
-          child: AppLoadingIndicator(semanticsLabel: l.commonLoading),
-        ),
+      // Blocks land where the release card lands, so the tab does not jump
+      // when the file finishes reading.
+      return const SettingsSkeleton(rows: 3);
+    }
+    if (_changelogFailed) {
+      return SettingsErrorSection(
+        title: l.aboutChangelogErrorTitle,
+        message: l.aboutChangelogErrorMessage,
+        onRetry: _retryChangelog,
       );
     }
     final release = _releases?.isNotEmpty == true ? _releases!.first : null;
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     return SettingsSection(
+      // The installed release rides the heading as a pill: the group carries
+      // no title of its own, so the version mark floats at its trailing edge.
+      accentLabel:
+          release == null ? BuildInfo.versionWithPrefix : 'v${release.version}',
       children: [
         Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                spacing: 10,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    release == null
-                        ? BuildInfo.versionWithPrefix
-                        : 'v${release.version}',
-                    style: text.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    l.aboutCurrentVersionBadge,
-                    style: text.labelMedium?.copyWith(color: scheme.primary),
-                  ),
-                ],
+              Text(
+                l.aboutCurrentVersionBadge,
+                style: text.labelMedium?.copyWith(color: scheme.primary),
               ),
               if (release?.date != null)
                 Padding(

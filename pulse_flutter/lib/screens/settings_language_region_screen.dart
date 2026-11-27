@@ -38,6 +38,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.languageRegionAppLanguage,
           subtitle: context.l10n.settingsLanguageBannerDesc,
+          accentIcon: Icons.translate_rounded,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -68,32 +69,48 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.languageRegionTimeZone,
           subtitle: context.l10n.settingsLanguageTzDesc,
+          accentIcon: Icons.public_rounded,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
-              child: SettingsChoiceButtons<AppTimeZoneMode>(
-                segments: [
-                  ButtonSegment<AppTimeZoneMode>(
-                    value: AppTimeZoneMode.auto,
-                    label: Text(context.l10n.commonAutomatic),
-                    icon: const Icon(Icons.gps_fixed_rounded),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SettingsChoiceButtons<AppTimeZoneMode>(
+                    segments: [
+                      ButtonSegment<AppTimeZoneMode>(
+                        value: AppTimeZoneMode.auto,
+                        label: Text(context.l10n.commonAutomatic),
+                        icon: const Icon(Icons.gps_fixed_rounded),
+                      ),
+                      ButtonSegment<AppTimeZoneMode>(
+                        value: AppTimeZoneMode.manual,
+                        label: Text(context.l10n.commonManual),
+                        icon: const Icon(Icons.tune_rounded),
+                      ),
+                    ],
+                    selected: {settings.timeZoneMode},
+                    onSelectionChanged: (selected) {
+                      if (selected.first == AppTimeZoneMode.manual) {
+                        _showTimeZonePicker(context, ref, manualZone);
+                      } else {
+                        ref
+                            .read(uiSettingsProvider.notifier)
+                            .setTimeZoneMode(AppTimeZoneMode.auto);
+                      }
+                    },
                   ),
-                  ButtonSegment<AppTimeZoneMode>(
-                    value: AppTimeZoneMode.manual,
-                    label: Text(context.l10n.commonManual),
-                    icon: const Icon(Icons.tune_rounded),
+                  const SizedBox(height: AppSpacing.sm),
+                  // The pill already ticked and buzzed when tapped, so a
+                  // canceled picker that changes nothing can read as a lie.
+                  // This caption states the real contract up front.
+                  Text(
+                    context.l10n.languageRegionManualZoneHint,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
-                selected: {settings.timeZoneMode},
-                onSelectionChanged: (selected) {
-                  if (selected.first == AppTimeZoneMode.manual) {
-                    _showTimeZonePicker(context, ref, manualZone);
-                  } else {
-                    ref
-                        .read(uiSettingsProvider.notifier)
-                        .setTimeZoneMode(AppTimeZoneMode.auto);
-                  }
-                },
               ),
             ),
             SettingsRow(
@@ -114,6 +131,7 @@ class SettingsLanguageRegionScreen extends ConsumerWidget {
         SettingsSection(
           title: context.l10n.languageRegionCurrentTime,
           subtitle: context.l10n.settingsLanguageTimePreview,
+          accentIcon: Icons.watch_later_rounded,
           children: [
             _LocalTimePreview(
               key: ValueKey('${settings.timeZoneMode}-${settings.timeZoneId}'),

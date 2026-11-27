@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -10,6 +13,7 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/services/password_reset_service.dart';
+import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -47,7 +51,21 @@ class _SettingsPasswordScreenState
   bool _busy = false;
   bool _done = false;
   bool _obscure = true;
+
+  /// Typing the form holds that leaving would throw away. Drives the back
+  /// guard: an empty form leaves without asking, a filled one asks once.
+  bool _dirty = false;
   PasswordResetFailureKind? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // canPop has to follow the fields the moment they stop being empty, so
+    // the route reads the guard state of the form as it is, not as it was.
+    _code.addListener(_refreshDirty);
+    _password.addListener(_refreshDirty);
+    _repeat.addListener(_refreshDirty);
+  }
 
   @override
   void dispose() {
@@ -55,6 +73,19 @@ class _SettingsPasswordScreenState
     _password.dispose();
     _repeat.dispose();
     super.dispose();
+  }
+
+  bool get _holdsInput =>
+      !_done &&
+      (_code.text.isNotEmpty ||
+          _password.text.isNotEmpty ||
+          _repeat.text.isNotEmpty);
+
+  void _refreshDirty() {
+    if (!mounted) return;
+    final bool dirty = _holdsInput;
+    if (dirty == _dirty) return;
+    setState(() => _dirty = dirty);
   }
 
   /// Runs one Nios ID request; a second tap while it runs is ignored.
@@ -106,11 +137,46 @@ class _SettingsPasswordScreenState
     if (!mounted) return;
     HapticService.confirm();
     AppToast.showSuccess(context, context.l10n.settingsPasswordDoneTitle);
+    // The flow is finished: the fields stop counting as unsaved work.
     setState(() => _done = true);
+    _refreshDirty();
   });
 
   void _toggleObscure() {
     setState(() => _obscure = !_obscure);
+  }
+
+  /// Leaves the page the way it was entered: as a pushed page, or by
+  /// releasing the pane it sits in.
+  void _close() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      context.go('/main/profile');
+    }
+  }
+
+  /// Back with a half-typed form asks once; back with an empty one leaves.
+  Future<void> _leave() async {
+    if (!_dirty) {
+      _close();
+      return;
+    }
+    final bool? discard = await showAppConfirmDialog(
+      context: context,
+      title: context.l10n.commonDiscardChanges,
+      subtitle: context.l10n.commonDiscardChangesDesc,
+      confirmLabel: context.l10n.commonDiscardChangesConfirm,
+      cancelLabel: context.l10n.commonCancel,
+      destructive: true,
+    );
+    if (discard != true || !mounted) return;
+    // Open the guard before leaving, so the pop goes through instead of
+    // asking a second time.
+    setState(() => _dirty = false);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    _close();
   }
 
   @override
@@ -131,13 +197,10 @@ class _SettingsPasswordScreenState
       stage = 'no-email';
       body = _noEmail();
     } else if (email == null) {
-      // The profile is still on its way: claiming "no email" before it lands
-      // would be wrong.
+      // The profile is still on its way: rows, not a spinner, so the page
+      // keeps its shape and "no email" is not claimed before it lands.
       stage = 'loading';
-      body = const Padding(
-        padding: EdgeInsets.symmetric(vertical: 48),
-        child: Center(child: AppLoadingIndicator()),
-      );
+      body = const SettingsSkeleton(rows: 3);
     } else if (_done) {
       stage = 'done';
       body = _doneCard();
@@ -145,30 +208,42 @@ class _SettingsPasswordScreenState
       stage = _codeSent ? 'form' : 'request';
       body = _codeSent ? _form() : _request(email);
     }
-    return SettingsShell(
-      title: context.l10n.settingsPasswordTitle,
-      isEmbedded: widget.isEmbedded,
-      children: [
-        if (context.reduceMotion)
-          body
-        else
-          AnimatedSize(
-            duration: M3Durations.medium2,
-            curve: M3SpringCurves.expressiveDecel,
-            alignment: Alignment.topCenter,
-            child: AnimatedSwitcher(
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        unawaited(_leave());
+      },
+      child: SettingsShell(
+        title: context.l10n.settingsPasswordTitle,
+        isEmbedded: widget.isEmbedded,
+        // The shell's own back button pops directly; this one goes through
+        // the guard so a filled form asks before it is lost.
+        leading: widget.isEmbedded
+            ? null
+            : SettingsBackButton(onPressed: () => unawaited(_leave())),
+        children: [
+          if (context.reduceMotion)
+            body
+          else
+            AnimatedSize(
               duration: M3Durations.medium2,
-              switchInCurve: M3SpringCurves.expressiveDecel,
-              switchOutCurve: M3SpringCurves.expressiveAccel,
-              child: KeyedSubtree(key: ValueKey<String>(stage), child: body),
+              curve: M3SpringCurves.expressiveDecel,
+              alignment: Alignment.topCenter,
+              child: AnimatedSwitcher(
+                duration: M3Durations.medium2,
+                switchInCurve: M3SpringCurves.expressiveDecel,
+                switchOutCurve: M3SpringCurves.expressiveAccel,
+                child: KeyedSubtree(key: ValueKey<String>(stage), child: body),
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _text(String text) => Padding(
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.all(AppSpacing.lg),
     child: Text(
       text,
       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -181,51 +256,28 @@ class _SettingsPasswordScreenState
   /// No email on the account: the code has nowhere to go, so there is no
   /// send button. The address is set on the Nios ID portal.
   Widget _noEmail() {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     final AppLocalizations l10n = context.l10n;
     return SettingsSection(
+      title: l10n.settingsPasswordNoEmailTitle,
+      accentIcon: Icons.mark_email_unread_outlined,
       children: [
+        _text(l10n.settingsPasswordNoEmailBody),
         Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Icon(
-                  Icons.mark_email_unread_outlined,
-                  color: scheme.onSurfaceVariant,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                l10n.settingsPasswordNoEmailTitle,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.settingsPasswordNoEmailBody,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.tonalIcon(
-                key: const ValueKey('settings-password-open-nios-id'),
-                onPressed: () =>
-                    AppUrlLauncher.openUrl(context, 'https://ni-os.ru/id/account'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                icon: const Icon(Icons.open_in_new_rounded),
-                label: Text(l10n.settingsPasswordOpenNiosId),
-              ),
-            ],
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: FilledButton.tonalIcon(
+            key: const ValueKey('settings-password-open-nios-id'),
+            onPressed: () =>
+                AppUrlLauncher.openUrl(context, 'https://ni-os.ru/id/account'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(AppHeights.md),
+            ),
+            icon: const Icon(Icons.open_in_new_rounded),
+            label: Text(l10n.settingsPasswordOpenNiosId),
           ),
         ),
       ],
@@ -262,7 +314,12 @@ class _SettingsPasswordScreenState
         // fact: the note says what is true.
         _text(l10n.settingsPasswordRequested),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -283,7 +340,7 @@ class _SettingsPasswordScreenState
                   counterText: '',
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               _passwordField(
                 key: const ValueKey('settings-password-new'),
                 controller: _password,
@@ -302,7 +359,7 @@ class _SettingsPasswordScreenState
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               _passwordField(
                 key: const ValueKey('settings-password-repeat'),
                 controller: _repeat,
@@ -310,10 +367,10 @@ class _SettingsPasswordScreenState
                 enabled: enabled,
               ),
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 _errorText(_error!),
               ],
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               ListenableBuilder(
                 listenable: Listenable.merge(
                   <Listenable>[_code, _password, _repeat],
@@ -328,7 +385,7 @@ class _SettingsPasswordScreenState
                     key: const ValueKey('settings-password-submit'),
                     onPressed: canSubmit ? _reset : null,
                     style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
+                      minimumSize: const Size.fromHeight(AppHeights.md),
                     ),
                     child: _busy
                         ? const AppLoadingIndicator(size: 24)
@@ -407,7 +464,12 @@ class _SettingsPasswordScreenState
       PasswordResetFailureKind.unknown => l10n.settingsPasswordErrorUnknown,
     };
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        0,
+      ),
       // Said out loud when it appears: a colour alone tells nobody.
       child: Semantics(
         liveRegion: true,
@@ -431,49 +493,26 @@ class _SettingsPasswordScreenState
   }
 
   Widget _doneCard() {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
     final AppLocalizations l10n = context.l10n;
     return SettingsSection(
+      title: l10n.settingsPasswordDoneTitle,
+      accentIcon: Icons.task_alt_rounded,
       children: [
+        _text(l10n.settingsPasswordDoneBody),
         Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Icon(
-                  Icons.task_alt_rounded,
-                  color: scheme.primary,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                l10n.settingsPasswordDoneTitle,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.settingsPasswordDoneBody,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                key: const ValueKey('settings-password-done'),
-                onPressed: () => closeSettingsPage(context),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                child: Text(l10n.settingsPasswordDoneAction),
-              ),
-            ],
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: FilledButton(
+            key: const ValueKey('settings-password-done'),
+            onPressed: () => closeSettingsPage(context),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(AppHeights.md),
+            ),
+            child: Text(l10n.settingsPasswordDoneAction),
           ),
         ),
       ],

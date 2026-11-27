@@ -8,6 +8,8 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
+import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
+import 'package:pulse_flutter/providers/push_permission_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/widgets/notifications/notification_settings_section.dart';
 import 'package:pulse_flutter/widgets/settings/background_delivery_section.dart';
@@ -81,10 +83,16 @@ class _SettingsNotificationsScreenState
         ),
       ),
     );
-    final scheme = Theme.of(context).colorScheme;
     return SettingsShell(
       title: context.l10n.settingsV2Notifications,
       isEmbedded: widget.isEmbedded,
+      onRefresh: () async {
+        ref.invalidate(notificationPreferencesProvider);
+        await Future.wait<void>(<Future<void>>[
+          ref.read(notificationPreferencesProvider.future),
+          ref.read(pushPermissionProvider.notifier).refresh(),
+        ]);
+      },
       children: [
         const NotificationSettingsSection(),
         if (!kIsWeb) const BackgroundDeliverySection(),
@@ -92,6 +100,7 @@ class _SettingsNotificationsScreenState
           id: 'sound_volume',
           child: SettingsSection(
             title: context.l10n.settingsPreferencesSoundHaptics,
+            accentIcon: Icons.volume_up_rounded,
             children: [
               SettingsListItem.toggle(
                 icon: Icons.volume_up_rounded,
@@ -115,33 +124,17 @@ class _SettingsNotificationsScreenState
                   ignoring: !settings.soundEffects,
                   child: Column(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              '${context.l10n.settingsVolume} · '
-                              '${(settings.soundVolume * 100).round()}%',
-                              style: Theme.of(context).textTheme.labelLarge
-                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                      _VolumeSliderTile(
+                        value: settings.soundVolume,
+                        onChanged: ref
+                            .read(uiSettingsProvider.notifier)
+                            .setSoundVolume,
+                        onChangeEnd: (value) => ref
+                            .read(appSoundProvider)
+                            .playEvent(
+                              SoundEvent.messageReceive,
+                              volume: value,
                             ),
-                            Slider(
-                              value: settings.soundVolume,
-                              divisions: 10,
-                              label: '${(settings.soundVolume * 100).round()}%',
-                              onChanged: ref
-                                  .read(uiSettingsProvider.notifier)
-                                  .setSoundVolume,
-                              onChangeEnd: (value) => ref
-                                  .read(appSoundProvider)
-                                  .playEvent(
-                                    SoundEvent.messageReceive,
-                                    volume: value,
-                                  ),
-                            ),
-                          ],
-                        ),
                       ),
                       SettingsListItem(
                         key: const ValueKey('settings-sound-preview'),
@@ -165,6 +158,84 @@ class _SettingsNotificationsScreenState
                   onChanged: ref.read(uiSettingsProvider.notifier).setHaptics,
                 ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The volume row of the sound section, after `_SliderSettingTile` from the
+/// appearance page: the live value sits at the trailing edge of the row, the
+/// slider applies while the thumb moves, and releasing it plays the preview
+/// at the level that was just set.
+class _VolumeSliderTile extends StatefulWidget {
+  const _VolumeSliderTile({
+    required this.value,
+    required this.onChanged,
+    required this.onChangeEnd,
+  });
+
+  final double value;
+  final ValueChanged<double> onChanged;
+  final ValueChanged<double> onChangeEnd;
+
+  @override
+  State<_VolumeSliderTile> createState() => _VolumeSliderTileState();
+}
+
+class _VolumeSliderTileState extends State<_VolumeSliderTile> {
+  bool _isDragging = false;
+  late double _localValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _localValue = widget.value;
+  }
+
+  @override
+  void didUpdateWidget(covariant _VolumeSliderTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isDragging) _localValue = widget.value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String percent = '${(_localValue * 100).round()}%';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsListItem.value(
+          icon: Icons.tune_rounded,
+          title: context.l10n.settingsVolume,
+          value: percent,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.md,
+          ),
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(trackHeight: 16),
+            child: Slider(
+              value: _localValue.clamp(0.0, 1.0),
+              divisions: 10,
+              label: percent,
+              onChangeStart: (_) => setState(() => _isDragging = true),
+              onChangeEnd: (value) {
+                setState(() => _isDragging = false);
+                widget.onChangeEnd(value);
+              },
+              onChanged: (value) {
+                setState(() => _localValue = value);
+                // Applied while dragging: the same write the slider always
+                // did, so the next sound plays at the level under the thumb.
+                widget.onChanged(value);
+              },
+            ),
           ),
         ),
       ],

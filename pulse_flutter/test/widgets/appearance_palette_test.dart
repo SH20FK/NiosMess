@@ -286,49 +286,41 @@ void main() {
       expect(find.byType(RawImage), findsNothing);
       expect(tester.takeException(), isNull);
       expect(find.byType(RawImage), findsNothing);
-      final pager = find.byKey(const ValueKey('appearance-palette-strip'));
-      final pageBounds = tester.getRect(pager);
-      for (final label in ['Аметист', 'Лагуна', 'Луг']) {
+      // The grid shows the whole palette at once: the pager that hid two
+      // thirds of it behind a swipe is gone, and every swatch, custom tile
+      // included, sits inside the section.
+      final grid = find.byKey(const ValueKey('appearance-palette-strip'));
+      final gridBounds = tester.getRect(grid);
+      for (final label in <String>[
+        'Аметист',
+        'Лагуна',
+        'Луг',
+        'Янтарь',
+        'Орхидея',
+        'Сланец',
+        'Небо',
+        'Роза',
+        'Пользовательский цвет',
+      ]) {
         final bounds = tester.getRect(find.byTooltip(label));
-        expect(bounds.left, greaterThanOrEqualTo(pageBounds.left));
-        expect(bounds.right, lessThanOrEqualTo(pageBounds.right));
+        expect(bounds.left, greaterThanOrEqualTo(gridBounds.left));
+        expect(bounds.right, lessThanOrEqualTo(gridBounds.right));
+        expect(bounds.top, greaterThanOrEqualTo(gridBounds.top));
+        expect(bounds.bottom, lessThanOrEqualTo(gridBounds.bottom));
       }
-      await tester.tap(find.text('Лагуна'));
+      await tester.tap(find.byTooltip('Лагуна'));
       expect(dynamic, isFalse);
       expect(selected, const Color(0xFF006C5B));
-      await tester.drag(pager, const Offset(-280, 0));
-      await tester.pumpAndSettle();
-      expect(
-        tester.widget<PageView>(pager).controller!.page,
-        closeTo(1, 0.001),
-      );
-      await tester.drag(pager, const Offset(-280, 0));
-      await tester.pumpAndSettle();
-      expect(
-        tester.widget<PageView>(pager).controller!.page,
-        closeTo(2, 0.001),
-      );
-      expect(find.text('Небо').hitTestable(), findsOneWidget);
-      expect(find.text('Лагуна').hitTestable(), findsNothing);
       await tester.ensureVisible(find.byTooltip('Пользовательский цвет'));
       await tester.tap(find.byTooltip('Пользовательский цвет'));
       await tester.pumpAndSettle();
       expect(customOpened, 1);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byKey(const ValueKey('appearance-palette-page-0')));
-      await tester.pumpAndSettle();
-      expect(
-        tester.widget<PageView>(pager).controller!.page,
-        closeTo(0, 0.001),
-      );
       final directory = Platform.environment['NIOS_PALETTE_CAPTURE_DIR'];
       if (directory != null) {
         fontScale = 1.0;
         selected = const Color(0xFF6750A4);
         await tester.pumpWidget(ProviderScope(child: app()));
-        await tester.pumpAndSettle();
-        final strip = find.byKey(const ValueKey('appearance-palette-strip'));
-        tester.widget<PageView>(strip).controller!.jumpToPage(0);
         await tester.pumpAndSettle();
         await tester.runAsync(() async {
           final boundary =

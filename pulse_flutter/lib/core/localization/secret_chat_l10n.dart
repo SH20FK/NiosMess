@@ -195,6 +195,8 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsV2Advanced => _secret.settingsV2Advanced;
   String get settingsV2GeometryHint => _secret.settingsV2GeometryHint;
   String get settingsV2Density => _secret.settingsV2Density;
+  String get settingsV2TextShape => _secret.settingsV2TextShape;
+  String get settingsV2ResetSection => _secret.settingsV2ResetSection;
   String get settingsV2Graphics => _secret.settingsV2Graphics;
   String get settingsV2OptimizeHint => _secret.settingsV2OptimizeHint;
   String get settingsV2ChatAnimations => _secret.settingsV2ChatAnimations;
@@ -871,6 +873,10 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsSaveFailed => _secret.settingsSaveFailed;
   String get settingsNotificationsOffReason =>
       _secret.settingsNotificationsOffReason;
+  String get settingsNotificationsLoadFailed =>
+      _secret.settingsNotificationsLoadFailed;
+  String settingsChatsQuickReactionEmoji(String emoji) =>
+      _secret.settingsChatsQuickReactionEmoji(emoji);
   String get settingsStorageNothingToClear =>
       _secret.settingsStorageNothingToClear;
   String get settingsDevicesTitle => _secret.settingsDevicesTitle;

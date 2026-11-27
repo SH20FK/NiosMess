@@ -85,6 +85,15 @@ List<RegExp> _declaredAnchors(String route, Map<String, String> settingIds) {
       final String? value = settingIds[m.group(1)];
       if (value != null) patterns.add(_anchorPattern(value));
     }
+    // Data-driven rows declare their anchor through the setting id they edit
+    // (privacy rules, auto-download switches), so the literal anchor string
+    // never appears in the file.
+    for (final RegExpMatch m in RegExp(
+      r'settingId:\s*SettingId\.(\w+)',
+    ).allMatches(src)) {
+      final String? value = settingIds[m.group(1)];
+      if (value != null) patterns.add(_anchorPattern(value));
+    }
   }
   return patterns;
 }

@@ -9,7 +9,6 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/device_hardware_provider.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
 import 'package:pulse_flutter/services/system/device_hardware_service.dart';
-import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings/settings_async_switcher.dart';
 import 'package:pulse_flutter/widgets/settings/system_resource_meter.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
@@ -30,31 +29,17 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
         ref.invalidate(deviceHardwareProvider);
         await ref.read(deviceHardwareProvider.future);
       },
-      children: [
+      children: <Widget>[
         SettingsAsyncSwitcher(
           value: hardware,
           data: (info) => _DeviceDetails(info: info),
-          loading: () => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 48),
-            child: Center(
-              child: AppLoadingIndicator(
-                semanticsLabel: context.l10n.commonLoading,
-              ),
-            ),
-          ),
-          error: (_, _) => SettingsSection(
-            children: [
-              SettingsListItem.nav(
-                icon: Icons.refresh_rounded,
-                title: context.l10n.settingsDeviceError,
-                subtitle: context.l10n.settingsDeviceErrorHint,
-                trailing: Tooltip(
-                  message: context.l10n.commonRetry,
-                  child: const Icon(Icons.refresh_rounded),
-                ),
-                onTap: () => ref.invalidate(deviceHardwareProvider),
-              ),
-            ],
+          // Rows in the shape of the ones that are coming: the page does not
+          // open with a spinner and then rebuild itself around the values.
+          loading: () => const SettingsSkeleton(rows: 4),
+          error: (_, _) => SettingsErrorSection(
+            title: context.l10n.settingsDeviceError,
+            message: context.l10n.settingsDeviceErrorHint,
+            onRetry: () => ref.invalidate(deviceHardwareProvider),
           ),
         ),
       ],
@@ -69,51 +54,15 @@ class _DeviceDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
     final gb = l.settingsDeviceGb;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xl),
-          child: Column(
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: scheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: _DeviceBrand(brand: info.brand),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                info.marketingName,
-                style: text.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                [
-                  info.brand,
-                  info.osName,
-                ].where((v) => v.isNotEmpty).join(' · '),
-                style: text.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+      children: <Widget>[
+        _DeviceHero(info: info),
         SettingsSection(
           title: l.settingsDeviceMemory,
-          children: [
+          accentIcon: Icons.memory_rounded,
+          children: <Widget>[
             SystemResourceMeter(
               icon: Icons.memory_rounded,
               title: l.settingsDeviceRam,
@@ -141,7 +90,8 @@ class _DeviceDetails extends StatelessWidget {
         SettingsSection(
           title: l.settingsDeviceSpecs,
           subtitle: l.settingsDeviceCopyHint,
-          children: [
+          accentIcon: Icons.tune_rounded,
+          children: <Widget>[
             _CopyableSpec(
               icon: Icons.memory_rounded,
               title: l.settingsDeviceProcessor,
@@ -206,6 +156,81 @@ class _DeviceDetails extends StatelessWidget {
   }
 }
 
+/// The opening panel: the model in display type with the operating system
+/// under it, and the brand mark on the tonal step of the same card.
+class _DeviceHero extends StatelessWidget {
+  const _DeviceHero({required this.info});
+  final DeviceHardwareInfo info;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme text = Theme.of(context).textTheme;
+    final String fingerprint = <String>[
+      info.brand,
+      info.osName,
+    ].where((String value) => value.trim().isNotEmpty).join(' · ');
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: SettingsHeroCard(
+        label: context.l10n.settingsDeviceModel,
+        leadingIcon: Icons.smartphone_rounded,
+        trailing: _DeviceBrandBadge(brand: info.brand),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              info.marketingName,
+              // Two lines: at 180 % text a marketing name wraps rather than
+              // pushing the panel past the pane.
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: text.headlineMedium?.copyWith(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
+              ),
+            ),
+            if (fingerprint.isNotEmpty) ...<Widget>[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                fingerprint,
+                style: text.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The brand mark on the tonal step of the hero: a 40 dp squircle in
+/// [ColorScheme.secondaryContainer], the pair the glyph already inks against.
+class _DeviceBrandBadge extends StatelessWidget {
+  const _DeviceBrandBadge({required this.brand});
+  final String brand;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: scheme.secondaryContainer,
+        shape: AppRadii.superellipse(AppRadii.of(context).md),
+      ),
+      child: SizedBox.square(
+        dimension: AppHeights.sm,
+        child: Center(child: _DeviceBrand(brand: brand)),
+      ),
+    );
+  }
+}
+
 class _CopyableSpec extends StatelessWidget {
   const _CopyableSpec({
     required this.icon,
@@ -266,11 +291,11 @@ class _DeviceBrand extends StatelessWidget {
     };
     final color = Theme.of(context).colorScheme.onSecondaryContainer;
     return asset == null
-        ? Icon(Icons.devices_rounded, size: 36, color: color)
+        ? Icon(Icons.devices_rounded, size: 20, color: color)
         : SvgPicture.asset(
             'assets/svg/brands/$asset.svg',
-            width: 36,
-            height: 36,
+            width: 20,
+            height: 20,
             colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
           );
   }
