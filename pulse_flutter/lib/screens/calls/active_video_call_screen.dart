@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/sound/app_sound.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/services/audio/voice_filter_preset.dart';
 import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
@@ -252,6 +253,24 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
               label: data.verificationEmojis.join(' '),
               scheme: scheme,
             ),
+          if (data.isHandRaised)
+            _StageBadge(
+              icon: Icons.front_hand_rounded,
+              label: 'Рука поднята',
+              scheme: scheme,
+            ),
+          if (data.voiceEffect != VoiceFilterPreset.none)
+            _StageBadge(
+              icon: Icons.graphic_eq_rounded,
+              label: data.voiceEffect.title,
+              scheme: scheme,
+            ),
+          if (data.localReaction != null)
+            _StageBadge(
+              icon: Icons.add_reaction_rounded,
+              label: data.localReaction!,
+              scheme: scheme,
+            ),
         ],
       ),
     );
@@ -260,34 +279,109 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
     for (final p in data.remoteParticipants) {
       final r = session.remoteRenderers[p.clientId];
       tiles.add(
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (r != null && p.videoEnabled)
-                RTCVideoView(
-                  r,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                )
-              else
-                _NoVideoPlaceholder(
-                  name: p.nickname,
-                  scheme: scheme,
-                  textTheme: textTheme,
-                ),
-              Positioned(
-                left: 8,
-                bottom: 8,
-                child: Text(
-                  p.audioEnabled ? p.nickname : '${p.nickname} 🔇',
-                  style: textTheme.labelMedium?.copyWith(
-                    color: Colors.white,
-                    shadows: const [Shadow(blurRadius: 4)],
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: p.isSpeaking
+                ? Border.all(color: scheme.primary, width: 2.5)
+                : null,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (r != null && p.videoEnabled)
+                  RTCVideoView(
+                    r,
+                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                  )
+                else
+                  _NoVideoPlaceholder(
+                    name: p.nickname,
+                    scheme: scheme,
+                    textTheme: textTheme,
+                  ),
+                if (p.handRaised)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.front_hand_rounded,
+                        size: 16,
+                        color: scheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                if (p.reaction != null)
+                  Positioned(
+                    left: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        p.reaction!,
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  left: 8,
+                  bottom: 8,
+                  right: 8,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          p.audioEnabled ? p.nickname : '${p.nickname} 🔇',
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: Colors.white,
+                            shadows: const [Shadow(blurRadius: 4)],
+                          ),
+                        ),
+                      ),
+                      if (p.voiceEffect != VoiceFilterPreset.none) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: scheme.primary.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            p.voiceEffect.title,
+                            style: textTheme.labelSmall?.copyWith(
+                              color: scheme.onPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );

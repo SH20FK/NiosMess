@@ -14,6 +14,8 @@ abstract class WebRtcSignalType {
   static const String answer = 'answer';
   static const String ice = 'ice';
   static const String mediaState = 'media_state';
+  static const String handRaise = 'hand_raise';
+  static const String callReaction = 'call_reaction';
   static const String leave = 'leave';
   static const String heartbeat = 'heartbeat';
 }
@@ -237,6 +239,7 @@ class WebRtcSignalingClient {
     required bool video,
     bool screen = false,
     String? screenStreamId,
+    String voiceEffect = 'none',
   }) {
     send({
       'type': WebRtcSignalType.mediaState,
@@ -244,7 +247,22 @@ class WebRtcSignalingClient {
       'audio': audio,
       'video': video,
       'screen': screen,
+      'voice_effect': voiceEffect,
       if (screen && screenStreamId != null) 'screen_stream_id': screenStreamId,
+    });
+  }
+
+  void sendHandRaise(bool raised) {
+    send({
+      'type': WebRtcSignalType.handRaise,
+      'raised': raised,
+    });
+  }
+
+  void sendReaction(String emoji) {
+    send({
+      'type': WebRtcSignalType.callReaction,
+      'emoji': emoji,
     });
   }
 

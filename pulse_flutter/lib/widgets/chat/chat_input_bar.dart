@@ -19,6 +19,7 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
+import 'package:pulse_flutter/services/audio/voice_filter_preset.dart';
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'package:pulse_flutter/screens/circle_video_recorder_screen.dart';
 import 'package:pulse_flutter/widgets/chat/voice_recording_panel.dart';
@@ -108,6 +109,7 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   bool _isInputEmpty = true;
   bool _isRecording = false;
   bool _isVideoMode = false;
+  VoiceFilterPreset _voiceFilterPreset = VoiceFilterPreset.none;
   final ValueNotifier<Offset> _dragOffsetNotifier = ValueNotifier<Offset>(
     Offset.zero,
   );
@@ -492,7 +494,9 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
   Future<void> _sendVoiceRecording() async {
     if (widget.hapticsEnabled) HapticService.confirm();
     ref.read(appSoundProvider).playEvent(SoundEvent.recordSend);
-    final String? path = await VoiceRecorderService.stopRecording();
+    final String? path = await VoiceRecorderService.stopRecording(
+      filterPreset: _voiceFilterPreset,
+    );
     if (mounted) {
       _waveformBuffer.clear();
       _amplitudeNotifier.value = const <double>[];
@@ -732,6 +736,14 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
                                           dragOffset: dragOffset,
                                           isLocked: _isRecordingLocked,
                                           amplitudeHistory: amplitudes,
+                                          filterPreset: _voiceFilterPreset,
+                                          onFilterChanged: (preset) {
+                                            if (mounted) {
+                                              setState(() {
+                                                _voiceFilterPreset = preset;
+                                              });
+                                            }
+                                          },
                                           onSend: _sendVoiceRecording,
                                           onCancel: _cancelVoiceRecording,
                                         );

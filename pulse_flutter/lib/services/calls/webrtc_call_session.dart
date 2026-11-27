@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:pulse_flutter/models/api/call_models.dart';
+import 'package:pulse_flutter/services/audio/voice_filter_preset.dart';
 import 'package:pulse_flutter/services/calls/call_capture_profile.dart';
 import 'package:pulse_flutter/services/calls/call_devices.dart';
 import 'package:pulse_flutter/services/calls/call_quality.dart';
@@ -99,6 +100,12 @@ class WebRtcCallSession {
   bool _isSpeakerOn = false;
   late bool _isSelfVideoEnabled = isVideo && !isListener;
   bool _isScreenSharing = false;
+  bool _isHandRaised = false;
+  bool _isSelfSpeaking = false;
+  String? _localReaction;
+  VoiceFilterPreset _voiceEffect = VoiceFilterPreset.none;
+  Timer? _localReactionTimer;
+  final Map<int, Timer> _peerReactionTimers = {};
   bool _forceRelay = false;
   String? _fatalError;
   bool _peerSeen = false;
@@ -155,6 +162,10 @@ class WebRtcCallSession {
       isSpeakerOn: _isSpeakerOn,
       isSelfVideoEnabled: _isSelfVideoEnabled,
       isScreenSharing: _isScreenSharing,
+      isHandRaised: _isHandRaised,
+      isSelfSpeaking: _isSelfSpeaking,
+      localReaction: _localReaction,
+      voiceEffect: _voiceEffect,
       forceRelay: _forceRelay,
       isPlus: _gatewayInfo.isPlus,
       maxVideoHeight: _gatewayInfo.maxVideoHeight,
@@ -675,7 +686,25 @@ class WebRtcCallSession {
             video: msg['video'] == true,
             screen: msg['screen'] == true,
             screenStreamId: msg['screen_stream_id']?.toString(),
+            voiceEffect: VoiceFilterPreset.fromId(
+              msg['voice_effect']?.toString(),
+            ),
           );
+        }
+        break;
+
+      case WebRtcSignalType.handRaise:
+        final int fromId = (msg['from_id'] as num?)?.toInt() ?? 0;
+        if (fromId > 0) {
+          _handlePeerHandRaise(fromId, msg['raised'] == true);
+        }
+        break;
+
+      case WebRtcSignalType.callReaction:
+        final int fromId = (msg['from_id'] as num?)?.toInt() ?? 0;
+        final String emoji = msg['emoji']?.toString() ?? '';
+        if (fromId > 0 && emoji.isNotEmpty) {
+          _handlePeerReaction(fromId, emoji);
         }
         break;
 
@@ -864,6 +893,7 @@ class WebRtcCallSession {
     required bool video,
     bool screen = false,
     String? screenStreamId,
+    VoiceFilterPreset voiceEffect = VoiceFilterPreset.none,
   }) {
     final int idx = _remoteParticipants.indexWhere((p) => p.clientId == peerId);
     if (idx == -1) return;
@@ -873,6 +903,7 @@ class WebRtcCallSession {
       screenSharing: screen,
       screenStreamId: screen ? screenStreamId : null,
       clearScreenStreamId: !screen,
+      voiceEffect: voiceEffect,
       lastSeen: DateTime.now(),
     );
 
@@ -886,6 +917,37 @@ class WebRtcCallSession {
       _remoteScreenStreams.remove(peerId);
       onRemoteStreamsChanged?.call();
     }
+    _triggerStateUpdate();
+  }
+
+  void _handlePeerHandRaise(int peerId, bool raised) {
+    final int idx = _remoteParticipants.indexWhere((p) => p.clientId == peerId);
+    if (idx == -1) return;
+    _remoteParticipants[idx] = _remoteParticipants[idx].copyWith(
+      handRaised: raised,
+      lastSeen: DateTime.now(),
+    );
+    _triggerStateUpdate();
+  }
+
+  void _handlePeerReaction(int peerId, String emoji) {
+    final int idx = _remoteParticipants.indexWhere((p) => p.clientId == peerId);
+    if (idx == -1) return;
+    _remoteParticipants[idx] = _remoteParticipants[idx].copyWith(
+      reaction: emoji,
+      lastSeen: DateTime.now(),
+    );
+    _peerReactionTimers[peerId]?.cancel();
+    _peerReactionTimers[peerId] = Timer(const Duration(seconds: 3), () {
+      if (_ended) return;
+      final int i = _remoteParticipants.indexWhere((p) => p.clientId == peerId);
+      if (i != -1) {
+        _remoteParticipants[i] = _remoteParticipants[i].copyWith(
+          clearReaction: true,
+        );
+        _triggerStateUpdate();
+      }
+    });
     _triggerStateUpdate();
   }
 
@@ -945,25 +1007,53 @@ class WebRtcCallSession {
     _sampling = true;
     try {
       CallQuality? worst;
+      bool selfSpeaking = false;
       for (final entry in _peerConnections.entries.toList()) {
         try {
           final reports = await entry.value.getStats().timeout(
             const Duration(seconds: 2),
           );
           if (_ended) return;
+          final rawStats = <Map<String, dynamic>>[
+            for (final r in reports) {'id': r.id, 'type': r.type, ...r.values},
+          ];
           final quality = _samplers
               .putIfAbsent(entry.key, CallQualitySampler.new)
-              .sample([
-                for (final r in reports) {'id': r.id, 'type': r.type, ...r.values},
-              ]);
+              .sample(rawStats);
           if (worst == null || quality.level.index > worst.level.index) {
             worst = quality;
+          }
+          bool peerSpeaking = false;
+          for (final stat in rawStats) {
+            final String type = stat['type']?.toString() ?? '';
+            final String kind =
+                (stat['kind'] ?? stat['mediaType'])?.toString() ?? '';
+            final num? level = stat['audioLevel'] as num?;
+            if (level == null || kind != 'audio') continue;
+            if (type == 'inbound-rtp' && level > 0.025) {
+              peerSpeaking = true;
+            } else if (type == 'media-source' && level > 0.025 && !_isMuted) {
+              selfSpeaking = true;
+            }
+          }
+          final int pIdx = _remoteParticipants.indexWhere(
+            (p) => p.clientId == entry.key,
+          );
+          if (pIdx != -1) {
+            final bool effectiveSpeaking =
+                peerSpeaking && _remoteParticipants[pIdx].audioEnabled;
+            if (_remoteParticipants[pIdx].isSpeaking != effectiveSpeaking) {
+              _remoteParticipants[pIdx] = _remoteParticipants[pIdx].copyWith(
+                isSpeaking: effectiveSpeaking,
+              );
+            }
           }
         } catch (_) {
           /* Missing stats never terminate media transport. */
         }
       }
       if (!_ended) {
+        _isSelfSpeaking = selfSpeaking;
         _quality = worst ?? const CallQuality();
         _triggerStateUpdate();
       }
@@ -1363,6 +1453,34 @@ class WebRtcCallSession {
     }
   }
 
+  void toggleHandRaise() {
+    if (_ended) return;
+    _isHandRaised = !_isHandRaised;
+    _signaling?.sendHandRaise(_isHandRaised);
+    _triggerStateUpdate();
+  }
+
+  void sendReaction(String emoji) {
+    if (_ended || emoji.trim().isEmpty) return;
+    final clean = emoji.trim();
+    _localReaction = clean;
+    _localReactionTimer?.cancel();
+    _localReactionTimer = Timer(const Duration(seconds: 3), () {
+      if (_ended) return;
+      _localReaction = null;
+      _triggerStateUpdate();
+    });
+    _signaling?.sendReaction(clean);
+    _triggerStateUpdate();
+  }
+
+  Future<void> setVoiceEffect(VoiceFilterPreset preset) async {
+    if (_ended || _voiceEffect == preset) return;
+    _voiceEffect = preset;
+    _sendMediaState();
+    _triggerStateUpdate();
+  }
+
   void _sendMediaState() {
     for (final peerId in _peerConnections.keys) {
       _signaling?.sendMediaState(
@@ -1371,6 +1489,7 @@ class WebRtcCallSession {
         video: _isSelfVideoEnabled,
         screen: _isScreenSharing,
         screenStreamId: _isScreenSharing ? _localScreenStream?.id : null,
+        voiceEffect: _voiceEffect.id,
       );
     }
   }
@@ -1428,6 +1547,11 @@ class WebRtcCallSession {
     _recoveryDeadline?.cancel();
     _durationTimer?.cancel();
     _durationTimer = null;
+    _localReactionTimer?.cancel();
+    for (final t in _peerReactionTimers.values) {
+      t.cancel();
+    }
+    _peerReactionTimers.clear();
 
     await _signalingSub?.cancel();
     _signalingSub = null;

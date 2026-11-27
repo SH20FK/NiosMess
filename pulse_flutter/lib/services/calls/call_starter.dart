@@ -89,8 +89,8 @@ Future<int> startOutgoingCall({
       peerName ?? chat?.username,
       isBotChat: chat?.isBotChat ?? false,
     );
-    if (isBot) {
-      throw const CallStartException(CallStartFailure.botForbidden);
+    if (isBot && isVideo) {
+      // Bots answer voice calls cleanly; video stays optional.
     }
 
     if (kIsWeb ||

@@ -154,7 +154,11 @@ class _CallOverlayState extends ConsumerState<CallOverlay>
     final topInset = mediaQuery.padding.top;
     final bottomInset = mediaQuery.padding.bottom;
 
-    final bool isVideo = data.isVideo && manager.remoteStreams.isNotEmpty;
+    final bool isVideo =
+        data.isVideo &&
+        (manager.remoteStreams.isNotEmpty ||
+            manager.remoteScreenRenderers.isNotEmpty ||
+            data.isScreenSharing);
     final double itemWidth = isVideo ? CallTokens.videoPipWidth : 250.0;
     final double itemHeight = isVideo ? CallTokens.videoPipHeight : 54.0;
 

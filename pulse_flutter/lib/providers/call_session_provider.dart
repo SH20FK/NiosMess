@@ -11,6 +11,7 @@ import 'package:pulse_flutter/models/api/call_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/call_repository.dart';
+import 'package:pulse_flutter/services/audio/voice_filter_preset.dart';
 import 'package:pulse_flutter/services/calls/call_session.dart';
 
 /// Provider for the current active call session manager.
@@ -505,6 +506,14 @@ class CallSessionManager {
 
   Future<void> setForceRelay(bool enabled) async {
     await _session?.setForceRelay(enabled);
+  }
+
+  void toggleHandRaise() => _session?.toggleHandRaise();
+
+  void sendReaction(String emoji) => _session?.sendReaction(emoji);
+
+  Future<void> setVoiceEffect(VoiceFilterPreset preset) async {
+    await _session?.setVoiceEffect(preset);
   }
 
   void toggleMute({bool? muted}) => setMuted(muted ?? !isMuted);

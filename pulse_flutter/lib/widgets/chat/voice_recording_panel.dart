@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/voice_recorder_service.dart';
+import 'package:pulse_flutter/services/audio/voice_filter_preset.dart';
+import 'package:pulse_flutter/widgets/calls/voice_effect_picker_sheet.dart';
 
 class VoiceRecordingPanel extends StatefulWidget {
   const VoiceRecordingPanel({
@@ -12,6 +15,8 @@ class VoiceRecordingPanel extends StatefulWidget {
     required this.amplitudeHistory,
     required this.onSend,
     required this.onCancel,
+    this.filterPreset = VoiceFilterPreset.none,
+    this.onFilterChanged,
     super.key,
   });
 
@@ -21,6 +26,8 @@ class VoiceRecordingPanel extends StatefulWidget {
   final List<double> amplitudeHistory;
   final VoidCallback onSend;
   final VoidCallback onCancel;
+  final VoiceFilterPreset filterPreset;
+  final ValueChanged<VoiceFilterPreset>? onFilterChanged;
 
   @override
   State<VoiceRecordingPanel> createState() => _VoiceRecordingPanelState();
@@ -141,6 +148,34 @@ class _VoiceRecordingPanelState extends State<VoiceRecordingPanel>
                   )
                 : _waveform(scheme),
           ),
+          if (!kIsWeb && widget.onFilterChanged != null) ...[
+            IconButton.filledTonal(
+              tooltip: widget.filterPreset == VoiceFilterPreset.none
+                  ? 'Фильтр голоса'
+                  : 'Фильтр: ${widget.filterPreset.title}',
+              onPressed: () async {
+                final picked = await showVoiceEffectPickerSheet(
+                  context,
+                  selected: widget.filterPreset,
+                  title: 'Фильтр для голосового',
+                );
+                if (picked != null) {
+                  widget.onFilterChanged?.call(picked);
+                }
+              },
+              icon: const Icon(Icons.graphic_eq_rounded),
+              style: IconButton.styleFrom(
+                foregroundColor: widget.filterPreset != VoiceFilterPreset.none
+                    ? scheme.onPrimary
+                    : scheme.onSecondaryContainer,
+                backgroundColor: widget.filterPreset != VoiceFilterPreset.none
+                    ? scheme.primary
+                    : scheme.secondaryContainer,
+                minimumSize: const Size(44, 44),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
           IconButton.filledTonal(
             tooltip: context.l10n.commonCancel,
             onPressed: widget.onCancel,

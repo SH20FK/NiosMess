@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:universal_io/io.dart';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:pulse_flutter/services/audio/voice_filter_preset.dart';
+import 'package:pulse_flutter/services/audio/voice_filter_processor.dart';
 import 'package:record/record.dart';
 
 class VoiceRecorderService {
@@ -27,15 +30,18 @@ class VoiceRecorderService {
 
     _recordedAmplitudes.clear();
     final Directory tempDir = await getTemporaryDirectory();
+    final bool recordWav = !kIsWeb;
+    final String ext = recordWav ? 'wav' : 'm4a';
     final String path =
-        '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
     _currentPath = path;
 
     await _recorder.start(
       RecordConfig(
-        encoder: AudioEncoder.aacLc,
+        encoder: recordWav ? AudioEncoder.wav : AudioEncoder.aacLc,
         bitRate: 128000,
-        sampleRate: 44100,
+        sampleRate: recordWav ? 24000 : 44100,
+        numChannels: recordWav ? 1 : 2,
       ),
       path: path,
     );
@@ -68,7 +74,9 @@ class VoiceRecorderService {
     return true;
   }
 
-  static Future<String?> stopRecording() async {
+  static Future<String?> stopRecording({
+    VoiceFilterPreset filterPreset = VoiceFilterPreset.none,
+  }) async {
     _timer?.cancel();
     _timer = null;
     _amplitudeTimer?.cancel();
@@ -76,6 +84,24 @@ class VoiceRecorderService {
     final String? path = await _recorder.stop();
     _duration = Duration.zero;
     _currentPath = null;
+    if (path != null &&
+        !kIsWeb &&
+        filterPreset != VoiceFilterPreset.none &&
+        path.toLowerCase().endsWith('.wav')) {
+      try {
+        final File file = File(path);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          final processed = VoiceFilterProcessor.applyToWavBytes(
+            bytes,
+            filterPreset,
+          );
+          await file.writeAsBytes(processed, flush: true);
+        }
+      } catch (_) {
+        // Fallback to raw recording if DSP processing fails.
+      }
+    }
     return path;
   }
 

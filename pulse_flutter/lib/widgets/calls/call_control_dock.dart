@@ -1,6 +1,8 @@
 import 'package:pulse_flutter/widgets/calls/call_devices_dialog.dart';
 import 'package:pulse_flutter/widgets/calls/screen_share_picker_dialog.dart';
 import 'package:pulse_flutter/widgets/calls/call_quality_badge.dart';
+import 'package:pulse_flutter/widgets/calls/voice_effect_picker_sheet.dart';
+import 'package:pulse_flutter/services/audio/voice_filter_preset.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
@@ -191,6 +193,83 @@ class CallControlDock extends StatelessWidget {
                 session.setForceRelay(!data.forceRelay);
               },
             ),
+
+            // ── Hand Raise ─────────────────────────────────────────────
+            _CallDockButton(
+              icon: Icons.front_hand_rounded,
+              tooltip: data.isHandRaised
+                  ? 'Опустить руку'
+                  : 'Поднять руку',
+              isActive: data.isHandRaised,
+              activeBg: scheme.secondary,
+              activeFg: scheme.onSecondary,
+              inactiveBg: CallTokens.darkSurfaceContainerHighest,
+              inactiveFg: scheme.onSurface,
+              onTap: () {
+                HapticService.tap();
+                session.toggleHandRaise();
+              },
+            ),
+
+            // ── Quick Call Reactions ───────────────────────────────────
+            PopupMenuButton<String>(
+              tooltip: 'Реакция',
+              color: CallTokens.darkSurfaceContainerHigh,
+              onSelected: (emoji) {
+                HapticService.tap();
+                session.sendReaction(emoji);
+              },
+              itemBuilder: (_) => const <PopupMenuEntry<String>>[
+                PopupMenuItem(value: '👍', child: Text('👍  Класс')),
+                PopupMenuItem(value: '❤️', child: Text('❤️  Сердце')),
+                PopupMenuItem(value: '🔥', child: Text('🔥  Огонь')),
+                PopupMenuItem(value: '👏', child: Text('👏  Аплодисменты')),
+                PopupMenuItem(value: '😂', child: Text('😂  Смех')),
+                PopupMenuItem(value: '🤯', child: Text('🤯  Шок')),
+              ],
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: data.localReaction != null
+                      ? scheme.primaryContainer
+                      : CallTokens.darkSurfaceContainerHighest,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.add_reaction_rounded,
+                  color: data.localReaction != null
+                      ? scheme.onPrimaryContainer
+                      : scheme.onSurface,
+                  size: 22,
+                ),
+              ),
+            ),
+
+            // ── Voice Effect Preset ────────────────────────────────────
+            if (!data.isListener)
+              _CallDockButton(
+                icon: Icons.graphic_eq_rounded,
+                tooltip: data.voiceEffect == VoiceFilterPreset.none
+                    ? 'Фильтр голоса'
+                    : 'Фильтр: ${data.voiceEffect.title}',
+                isActive: data.voiceEffect != VoiceFilterPreset.none,
+                activeBg: scheme.primary,
+                activeFg: scheme.onPrimary,
+                inactiveBg: CallTokens.darkSurfaceContainerHighest,
+                inactiveFg: scheme.onSurface,
+                onTap: () async {
+                  HapticService.tap();
+                  final picked = await showVoiceEffectPickerSheet(
+                    context,
+                    selected: data.voiceEffect,
+                    title: 'Фильтр голоса в звонке',
+                  );
+                  if (picked != null) {
+                    await session.setVoiceEffect(picked);
+                  }
+                },
+              ),
 
             // ── End Call Button (M3 Expressive Red Stadium Pill) ────────
             Tooltip(

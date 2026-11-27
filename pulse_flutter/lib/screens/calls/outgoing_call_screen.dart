@@ -11,7 +11,6 @@ import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/services/calls/call_starter.dart';
-import 'package:pulse_flutter/core/utils/bot_detector.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -64,16 +63,7 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
   Future<void> _startCallFlow() async {
     final String targetUsername = widget.args.username.trim().toLowerCase();
 
-    // 1. Bot check (ЗВН-7)
-    if (BotDetector.isBot(targetUsername)) {
-      if (!mounted || _cancelled) return;
-      setState(() {
-        _errorMessage = context.l10n.callsBotForbidden;
-      });
-      return;
-    }
-
-    // 2. Resolve chatId
+    // 1. Resolve chatId (server validates whether a bot supports calls).
     int? resolvedChatId = widget.args.chatId;
     if (resolvedChatId == null || resolvedChatId <= 0) {
       final List<ApiChatSummary> chats = ref.read(chatsProvider).value ?? const <ApiChatSummary>[];

@@ -252,10 +252,12 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: callScheme.primary.withValues(
-                                  alpha: 0.35,
-                                ),
-                                width: 2.5,
+                                color: participants.any((p) => p.isSpeaking)
+                                    ? callScheme.primary
+                                    : callScheme.primary.withValues(alpha: 0.35),
+                                width: participants.any((p) => p.isSpeaking)
+                                    ? 4.0
+                                    : 2.5,
                               ),
                             ),
                             child: ClipOval(
@@ -297,6 +299,45 @@ class _ActiveVoiceCallScreenState extends ConsumerState<ActiveVoiceCallScreen>
                           ),
                         ],
                         const SizedBox(height: 14),
+                        if (data.isHandRaised ||
+                            data.localReaction != null ||
+                            participants.any(
+                              (p) => p.handRaised || p.reaction != null,
+                            ))
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              alignment: WrapAlignment.center,
+                              children: [
+                                if (data.isHandRaised)
+                                  Chip(
+                                    avatar: const Icon(
+                                      Icons.front_hand_rounded,
+                                      size: 16,
+                                    ),
+                                    label: const Text('Вы подняли руку'),
+                                  ),
+                                if (data.localReaction != null)
+                                  Chip(label: Text(data.localReaction!)),
+                                for (final p in participants) ...[
+                                  if (p.handRaised)
+                                    Chip(
+                                      avatar: const Icon(
+                                        Icons.front_hand_rounded,
+                                        size: 16,
+                                      ),
+                                      label: Text(p.nickname),
+                                    ),
+                                  if (p.reaction != null)
+                                    Chip(
+                                      label: Text('${p.nickname} ${p.reaction}'),
+                                    ),
+                                ],
+                              ],
+                            ),
+                          ),
 
                         // Call Status Pill
                         ValueListenableBuilder<int>(

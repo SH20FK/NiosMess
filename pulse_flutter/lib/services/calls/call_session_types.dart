@@ -1,5 +1,7 @@
-import 'call_quality.dart';
 import 'dart:typed_data';
+
+import '../audio/voice_filter_preset.dart';
+import 'call_quality.dart';
 
 /// Direction of the call relative to the local user.
 enum CallDirection { incoming, outgoing }
@@ -31,6 +33,10 @@ class CallSessionData {
     this.isSpeakerOn = false,
     this.isSelfVideoEnabled = false,
     this.isScreenSharing = false,
+    this.isHandRaised = false,
+    this.isSelfSpeaking = false,
+    this.localReaction,
+    this.voiceEffect = VoiceFilterPreset.none,
     this.forceRelay = false,
     this.isPlus = false,
     this.maxVideoHeight = 480,
@@ -61,6 +67,10 @@ class CallSessionData {
   final bool isSpeakerOn;
   final bool isSelfVideoEnabled;
   final bool isScreenSharing;
+  final bool isHandRaised;
+  final bool isSelfSpeaking;
+  final String? localReaction;
+  final VoiceFilterPreset voiceEffect;
   final bool forceRelay;
   final bool isPlus;
   final int maxVideoHeight;
@@ -93,6 +103,11 @@ class CallSessionData {
     bool? isSpeakerOn,
     bool? isSelfVideoEnabled,
     bool? isScreenSharing,
+    bool? isHandRaised,
+    bool? isSelfSpeaking,
+    String? localReaction,
+    bool clearLocalReaction = false,
+    VoiceFilterPreset? voiceEffect,
     bool? forceRelay,
     bool? isPlus,
     int? maxVideoHeight,
@@ -123,6 +138,12 @@ class CallSessionData {
       isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,
       isSelfVideoEnabled: isSelfVideoEnabled ?? this.isSelfVideoEnabled,
       isScreenSharing: isScreenSharing ?? this.isScreenSharing,
+      isHandRaised: isHandRaised ?? this.isHandRaised,
+      isSelfSpeaking: isSelfSpeaking ?? this.isSelfSpeaking,
+      localReaction: clearLocalReaction
+          ? null
+          : (localReaction ?? this.localReaction),
+      voiceEffect: voiceEffect ?? this.voiceEffect,
       forceRelay: forceRelay ?? this.forceRelay,
       isPlus: isPlus ?? this.isPlus,
       maxVideoHeight: maxVideoHeight ?? this.maxVideoHeight,
@@ -153,6 +174,10 @@ class RemoteParticipant {
     this.videoEnabled = false,
     this.screenSharing = false,
     this.screenStreamId,
+    this.handRaised = false,
+    this.isSpeaking = false,
+    this.reaction,
+    this.voiceEffect = VoiceFilterPreset.none,
   }) : lastSeen = lastSeen ?? DateTime.now();
 
   final int clientId;
@@ -167,6 +192,10 @@ class RemoteParticipant {
   final bool videoEnabled;
   final bool screenSharing;
   final String? screenStreamId;
+  final bool handRaised;
+  final bool isSpeaking;
+  final String? reaction;
+  final VoiceFilterPreset voiceEffect;
 
   RemoteParticipant copyWith({
     String? nickname,
@@ -176,6 +205,11 @@ class RemoteParticipant {
     bool? screenSharing,
     String? screenStreamId,
     bool clearScreenStreamId = false,
+    bool? handRaised,
+    bool? isSpeaking,
+    String? reaction,
+    bool clearReaction = false,
+    VoiceFilterPreset? voiceEffect,
   }) {
     return RemoteParticipant(
       clientId: clientId,
@@ -187,6 +221,10 @@ class RemoteParticipant {
       screenStreamId: clearScreenStreamId
           ? null
           : (screenStreamId ?? this.screenStreamId),
+      handRaised: handRaised ?? this.handRaised,
+      isSpeaking: isSpeaking ?? this.isSpeaking,
+      reaction: clearReaction ? null : (reaction ?? this.reaction),
+      voiceEffect: voiceEffect ?? this.voiceEffect,
     );
   }
 }
