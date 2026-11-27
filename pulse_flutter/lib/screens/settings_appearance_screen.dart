@@ -304,7 +304,9 @@ class _AppearanceScreen extends ConsumerWidget {
   }
 
   /// The one reset the app already offers, reached from the page that shows
-  /// what it changes: confirm, write, report. No second reset path.
+  /// what it changes: confirm, write, report. The same global reset is also
+  /// reachable from the other settings screen; both are honest about a
+  /// partial result.
   Future<void> _resetPreferences(BuildContext context, WidgetRef ref) async {
     final bool? confirmed = await showAppConfirmDialog(
       context: context,

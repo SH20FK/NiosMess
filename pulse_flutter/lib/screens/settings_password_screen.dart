@@ -200,7 +200,9 @@ class _SettingsPasswordScreenState
       // The profile is still on its way: rows, not a spinner, so the page
       // keeps its shape and "no email" is not claimed before it lands.
       stage = 'loading';
-      body = const SettingsSkeleton(rows: 3);
+      body = const SettingsSection(
+        children: <Widget>[SettingsSkeleton(rows: 3)],
+      );
     } else if (_done) {
       stage = 'done';
       body = _doneCard();

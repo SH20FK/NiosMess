@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 
 /// Placeholder rows for a settings group that is still loading.
@@ -54,7 +55,7 @@ class _SettingsSkeletonState extends State<SettingsSkeleton>
   late final Animation<double> _opacity = Tween<double>(
     begin: 1.0,
     end: 0.55,
-  ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut));
+  ).animate(CurvedAnimation(parent: _pulse, curve: M3SpringCurves.effectsDefault));
 
   bool _reduceMotion = false;
 

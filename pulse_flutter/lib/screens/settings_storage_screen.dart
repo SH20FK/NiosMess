@@ -61,7 +61,9 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
   }
 
   /// The one reset the app already offers, reached from the page that shows
-  /// what it changes: confirm, write, report. No second reset path.
+  /// what it changes: confirm, write, report. The same global reset is also
+  /// reachable from the other settings screen; both are honest about a
+  /// partial result.
   ///
   /// [UiSettingsNotifier.resetAll] answers how many keys the disk refused to
   /// drop, so a reset that only half landed is reported as partial instead of
@@ -146,7 +148,9 @@ class _SettingsStorageScreenState extends ConsumerState<SettingsStorageScreen> {
           data: (LocalStorageSnapshot data) => _buildSnapshot(context, data),
           // Placeholder rows, not a spinner: the page keeps its shape while the
           // scan runs and no value is invented before it is measured.
-          loading: () => const SettingsSkeleton(rows: 3),
+          loading: () => const SettingsSection(
+            children: <Widget>[SettingsSkeleton(rows: 3)],
+          ),
           error: (_, _) => SettingsErrorSection(
             title: context.l10n.settingsV2Storage,
             message: context.l10n.settingsV2StorageError,

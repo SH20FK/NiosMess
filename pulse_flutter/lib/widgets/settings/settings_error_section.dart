@@ -55,7 +55,11 @@ class SettingsErrorSection extends StatelessWidget {
       child: DecoratedBox(
         decoration: ShapeDecoration(
           color: scheme.surfaceContainerLow,
-          shape: AppRadii.superellipse(AppRadii.of(context).lg),
+          // Same radius as SettingsSection so a failed group keeps the
+          // silhouette of the group it replaces.
+          shape: AppRadii.superellipse(
+            (AppRadii.of(context).lg + 4).clamp(12.0, 32.0),
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),

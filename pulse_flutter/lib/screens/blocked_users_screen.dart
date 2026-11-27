@@ -27,11 +27,6 @@ class BlockedUsersScreen extends ConsumerStatefulWidget {
 }
 
 class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
-  /// Wide-window gutter of [SettingsShell]. The shell pads its own slivers
-  /// with it; a list appended after them has to use the same one, otherwise
-  /// the rows sit 12 dp left of the search field above on a desktop window.
-  static const double _wideGutter = 28.0;
-
   final _searchController = TextEditingController();
   String _query = '';
   bool _picking = false;
@@ -135,9 +130,7 @@ class _BlockedUsersScreenState extends ConsumerState<BlockedUsersScreen> {
         // The same breakpoint and gutter the shell picks for its own content.
         // Reading them here keeps the appended list in that column instead of
         // inventing a second one.
-        final double gutter = constraints.maxWidth >= Breakpoints.medium
-            ? _wideGutter
-            : AppSpacing.lg;
+        final double gutter = SettingsShell.gutterFor(constraints);
         final EdgeInsets safe = MediaQuery.paddingOf(context);
         return SettingsShell(
           title: context.l10n.blockedUsersTitle,

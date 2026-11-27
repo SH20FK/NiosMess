@@ -34,7 +34,7 @@ class SettingsHeadingScope extends InheritedWidget {
 /// while every group of rows is a lighter [ColorScheme.surfaceContainerLow]
 /// card, so depth comes from the surface ladder and never from a shadow. The
 /// heading is a large expressive title over a collapsing [SliverAppBar.large],
-/// the back control is an M3E squircle that morphs its glyph, and an optional
+/// the back control is an M3E tonal circle that morphs its glyph, and an optional
 /// [hero] block opens the page above the first section.
 class SettingsShell extends ConsumerWidget {
   const SettingsShell({
@@ -59,6 +59,11 @@ class SettingsShell extends ConsumerWidget {
   final double maxWidth;
   final Widget? leading;
 
+  /// Horizontal gutter shared by the hub and every sub-screen, so a screen
+  /// that places its own slivers (blocked users) cannot drift from the shell.
+  static double gutterFor(BoxConstraints constraints) =>
+      constraints.maxWidth >= 840 ? 28.0 : AppSpacing.lg;
+
   /// Large opening block above the first section, such as a live preview.
   /// It takes the same gutters as the rows and scrolls with them.
   final Widget? hero;
@@ -82,9 +87,8 @@ class SettingsShell extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isWide = constraints.maxWidth >= 840;
         // One gutter for the hub and every section under it.
-        final double horizontalPadding = isWide ? 28.0 : AppSpacing.lg;
+        final double horizontalPadding = SettingsShell.gutterFor(constraints);
         // What the system still covers here: the gesture bar below, a cutout
         // at the side in landscape. The app bar handles the top itself.
         final EdgeInsets safe = MediaQuery.paddingOf(context);
@@ -232,10 +236,10 @@ class SettingsShell extends ConsumerWidget {
   }
 }
 
-/// The back control of a settings page: a tonal squircle holding an M3E
+/// The back control of a settings page: a tonal circle holding an M3E
 /// morphing arrow. The glyph follows the reading direction, so it morphs into
 /// the forward arrow under RTL instead of pointing the wrong way. The tap
-/// target is the whole 40 dp squircle, and the arrow compresses under a
+/// target is the whole 48 dp button, and the arrow compresses under a
 /// finger through [PressableSurface].
 class SettingsBackButton extends StatelessWidget {
   const SettingsBackButton({required this.onPressed, super.key});
@@ -249,26 +253,37 @@ class SettingsBackButton extends StatelessWidget {
     final String tooltip = MaterialLocalizations.of(context).backButtonTooltip;
     return Center(
       child: SizedBox.square(
-        dimension: 40,
-        child: Tooltip(
-          message: tooltip,
-          child: Semantics(
-            button: true,
-            label: tooltip,
-            child: PressableSurface(
-              // The page change is its own feedback; a UI tick here would
-              // double up on the route transition.
-              playFeedback: false,
-              onTap: onPressed,
-              borderRadius: AppRadii.of(context).fullRadius,
-              color: scheme.surfaceContainerHigh,
-              child: Center(
-                child: M3MorphingIcon(
-                  icon: rtl
-                      ? Icons.arrow_forward_rounded
-                      : Icons.arrow_back_rounded,
-                  size: 22,
-                  color: scheme.onSurfaceVariant,
+        // 40 dp visual circle inside a 48 dp hit target so the touch area
+        // still meets the M3 minimum.
+        dimension: 48,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPressed,
+          child: Center(
+            child: SizedBox.square(
+              dimension: 40,
+              child: Tooltip(
+                message: tooltip,
+                child: Semantics(
+                  button: true,
+                  label: tooltip,
+                  child: PressableSurface(
+                    // The page change is its own feedback; a UI tick here would
+                    // double up on the route transition.
+                    playFeedback: false,
+                    onTap: onPressed,
+                    borderRadius: AppRadii.of(context).fullRadius,
+                    color: scheme.surfaceContainerHigh,
+                    child: Center(
+                      child: M3MorphingIcon(
+                        icon: rtl
+                            ? Icons.arrow_forward_rounded
+                            : Icons.arrow_back_rounded,
+                        size: 22,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

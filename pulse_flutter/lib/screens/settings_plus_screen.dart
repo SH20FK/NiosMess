@@ -187,13 +187,7 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
       title: 'Nios+',
       isEmbedded: widget.isEmbedded,
       onRefresh: _loadStatus,
-      leading: widget.isEmbedded
-          ? null
-          : IconButton(
-              tooltip: context.l10n.groupBack,
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: _close,
-            ),
+      leading: widget.isEmbedded ? null : SettingsBackButton(onPressed: _close),
       hero: SettingsHeroCard(
         label: 'Nios+',
         leadingIcon: Icons.workspace_premium_rounded,

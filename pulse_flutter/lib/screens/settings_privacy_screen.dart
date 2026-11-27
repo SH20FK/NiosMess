@@ -283,12 +283,11 @@ class SettingsPrivacyScreen extends ConsumerWidget {
             ),
           ],
         ),
-        // 7. Спамблок
         if (spamBlock)
           SettingsSection(
             title: l.settingsSpamBlockTitle,
             subtitle: l.settingsSpamBlockSubtitle,
-            accentIcon: Icons.speed_rounded,
+            accentIcon: Icons.gpp_bad_rounded,
             children: <Widget>[
               SettingsRow(
                 leading: Icon(Icons.block_rounded, color: scheme.error),

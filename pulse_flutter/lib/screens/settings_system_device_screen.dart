@@ -35,7 +35,9 @@ class SettingsSystemDeviceScreen extends ConsumerWidget {
           data: (info) => _DeviceDetails(info: info),
           // Rows in the shape of the ones that are coming: the page does not
           // open with a spinner and then rebuild itself around the values.
-          loading: () => const SettingsSkeleton(rows: 4),
+          loading: () => const SettingsSection(
+            children: <Widget>[SettingsSkeleton(rows: 4)],
+          ),
           error: (_, _) => SettingsErrorSection(
             title: context.l10n.settingsDeviceError,
             message: context.l10n.settingsDeviceErrorHint,

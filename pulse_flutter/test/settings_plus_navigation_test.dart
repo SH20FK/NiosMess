@@ -10,6 +10,7 @@ import 'package:pulse_flutter/core/network/web_socket_client.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/screens/settings_plus_screen.dart';
+import 'package:pulse_flutter/widgets/settings/settings_shell.dart';
 
 class _Auth extends AuthNotifier {
   @override
@@ -90,7 +91,7 @@ void main() {
           await tester.tap(find.text('Open Plus'));
           await tester.pumpAndSettle();
         }
-        expect(find.byTooltip('Назад'), findsOneWidget);
+        expect(find.byType(SettingsBackButton), findsOneWidget);
         if (direct) {
           await tester.runAsync(() async {
             final image =
@@ -108,7 +109,7 @@ void main() {
         }
         await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Назад'));
+        await tester.tap(find.byType(SettingsBackButton));
         await tester.pumpAndSettle();
         expect(
           router.routeInformationProvider.value.uri.path,
