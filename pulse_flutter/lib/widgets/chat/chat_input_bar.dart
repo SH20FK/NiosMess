@@ -427,7 +427,13 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
     }
   }
 
-  Future<void> _startVoiceRecording() async {
+  /// Starts microphone recording.
+  ///
+  /// Returns `true` only when the recorder actually started and the widget is
+  /// still mounted afterwards (i.e. [_isRecording] is now `true`). Callers that
+  /// change recording state after the `await` must check this flag instead of
+  /// assuming success: the microphone may be denied.
+  Future<bool> _startVoiceRecording() async {
     if (widget.hapticsEnabled) HapticService.tap();
     _waveformBuffer.clear();
     _amplitudeNotifier.value = const <double>[];
@@ -458,12 +464,12 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
       if (_cancelOnStart) {
         _cancelOnStart = false;
         await _cancelVoiceRecording();
-        return;
+        return false;
       }
       if (_sendOnStart) {
         _sendOnStart = false;
         await _sendVoiceRecording();
-        return;
+        return false;
       }
       _elapsedNotifier.value = Duration.zero;
       _dragOffsetNotifier.value = Offset.zero;
@@ -472,12 +478,15 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
         _isRecording = true;
         _isRecordingLocked = false;
       });
-    } else if (mounted) {
+      return true;
+    }
+    if (mounted) {
       AppToast.showError(
         context,
         'Не удалось начать запись. Проверьте разрешение на микрофон.',
       );
     }
+    return false;
   }
 
   Future<void> _sendVoiceRecording() async {
@@ -1154,7 +1163,10 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
               if (_isRecording) {
                 await _sendVoiceRecording();
               } else {
-                await _startVoiceRecording();
+                final bool started = await _startVoiceRecording();
+                // Mic may be denied, or the widget may be gone mid-await: only
+                // lock once the recording really runs.
+                if (!mounted || !started) return;
                 ref.read(appSoundProvider).playEvent(SoundEvent.recordLock);
                 setState(() => _isRecordingLocked = true);
               }

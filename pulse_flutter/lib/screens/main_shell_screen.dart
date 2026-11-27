@@ -717,17 +717,14 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   if (notification is ScrollStartNotification) {
                     _mainScrolling = true;
                   }
+                  // No parked-at-the-end hide here: the chat list's trailing
+                  // clearance sliver already keeps the composer strip free
+                  // and gives the list real scroll extent, so the button
+                  // never covers the last row — and the extra mechanism
+                  // misfired on lists shorter than the viewport and after
+                  // pull-to-refresh (both end with extentAfter == 0).
                   if (notification is ScrollEndNotification) {
                     _mainScrolling = false;
-                    if (currentIndex == 0 &&
-                        notification.depth == 0 &&
-                        notification.metrics.axis == Axis.vertical &&
-                        notification.metrics.extentAfter <= 0) {
-                      // The list is parked at its end, where the composer would
-                      // sit right on top of the last row and its badge: keep it
-                      // hidden until the user scrolls back up.
-                      ref.read(chatListFabVisibleProvider.notifier).hide();
-                    }
                   }
                   _syncInteraction();
                   return false;
@@ -938,6 +935,13 @@ class _InboxPane extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The scrim must cover the same strip the composer sits in: the reserved
+    // clearance plus, on hosts without a bottom bar (side rail), the system
+    // gesture inset the overlay button itself is raised by. On phones the
+    // Scaffold's bottom bar consumes the inset for the body, so the sum is
+    // exactly the clearance there.
+    final double scrimHeight =
+        kInboxComposerClearance + MediaQuery.viewPaddingOf(context).bottom;
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
@@ -948,12 +952,12 @@ class _InboxPane extends ConsumerWidget {
             child: const ChatListScreen(),
           ),
         ),
-        const Positioned(
+        Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          height: kInboxComposerClearance,
-          child: _InboxComposerScrim(),
+          height: scrimHeight,
+          child: const _InboxComposerScrim(),
         ),
         if (overlayComposer)
           Positioned(
@@ -978,27 +982,40 @@ class _InboxComposerScrim extends ConsumerWidget {
     final bool visible = ref.watch(inboxComposerVisibleProvider);
     final Color backdrop = AppSurfaces.of(context);
 
+    // The alphas are painted straight into the gradient instead of riding
+    // an AnimatedOpacity: an opacity layer over the scrolling list costs a
+    // save layer on every frame (the header scrim does the same).
     return IgnorePointer(
-      child: AnimatedOpacity(
-        opacity: visible ? 1 : 0,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: visible ? 1 : 0),
+        // The composer's own rhythm: it slides in over 350 ms and leaves
+        // over 200 ms, and the fade rides along.
         duration: context.reduceMotion
             ? Duration.zero
+            : visible
+            ? M3Durations.spatialFast
             : M3Durations.short4,
         curve: M3SpringCurves.expressiveDecel,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: <Color>[
-                backdrop.withValues(alpha: 0),
-                backdrop.withValues(alpha: 0.72),
-                backdrop.withValues(alpha: 0.97),
-              ],
-              stops: const <double>[0, 0.55, 1],
+        builder: (BuildContext context, double t, Widget? child) {
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                // An intermediate stop keeps the 0 → 0.97 climb as gradual
+                // as the chat viewport's edge fade instead of leaping to a
+                // dense 0.72 halfway down the strip.
+                colors: <Color>[
+                  backdrop.withValues(alpha: 0),
+                  backdrop.withValues(alpha: 0.35 * t),
+                  backdrop.withValues(alpha: 0.8 * t),
+                  backdrop.withValues(alpha: 0.97 * t),
+                ],
+                stops: const <double>[0, 0.35, 0.8, 1],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

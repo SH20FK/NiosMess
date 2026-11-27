@@ -25,6 +25,12 @@ class PulseAvatar extends ConsumerWidget {
   static Color _colorFromName(String seed, ColorScheme scheme) =>
       NiosMark.resolveColor(seed, scheme);
 
+  static final RegExp _videoUrlPattern = RegExp(
+    r'\.(mp4|webm|mov)$',
+    caseSensitive: false,
+  );
+  static final RegExp _whitespacePattern = RegExp(r'\s+');
+
   final String name;
   final String? id;
   final String? avatarUrl;
@@ -58,10 +64,7 @@ class PulseAvatar extends ConsumerWidget {
     final Widget child;
     if (url.isEmpty) {
       child = fallback;
-    } else if (RegExp(
-      r'\.(mp4|webm|mov)$',
-      caseSensitive: false,
-    ).hasMatch(Uri.tryParse(url)?.path ?? '')) {
+    } else if (_videoUrlPattern.hasMatch(Uri.tryParse(url)?.path ?? '')) {
       child = ClipOval(
         child: StickerVideoPlayer(
           url: url,
@@ -153,7 +156,7 @@ class PulseAvatar extends ConsumerWidget {
   String _initials(String raw) {
     final List<String> parts = raw
         .trim()
-        .split(RegExp(r'\s+'))
+        .split(_whitespacePattern)
         .where((s) => s.isNotEmpty)
         .toList();
     if (parts.isEmpty) {

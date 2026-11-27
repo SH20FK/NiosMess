@@ -75,10 +75,12 @@ class AppModal {
           );
         }
         final media = MediaQuery.of(ctx);
+        // The sheet route is always shown with useSafeArea: true, so its own
+        // SafeArea already avoids the top inset; subtracting it here as well
+        // would double-count it and shrink every sheet.
         final available =
             (media.size.height -
                     media.viewInsets.bottom -
-                    media.padding.top -
                     24)
                 .clamp(0.0, double.infinity);
         return Padding(

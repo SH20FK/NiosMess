@@ -4,7 +4,7 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 
 /// Scrim shared by every modal surface: dialogs, bottom sheets, side sheets.
 Color modalScrimColor(BuildContext context) =>
-    ColorScheme.of(context).scrim.withValues(alpha: 0.45);
+    ColorScheme.of(context).scrim.withValues(alpha: 0.32);
 
 /// Modal route with separate enter and exit timing.
 ///
@@ -18,7 +18,7 @@ class M3ModalRoute<T> extends RawDialogRoute<T> {
     super.barrierDismissible,
     super.settings,
     String? barrierLabel,
-    Duration enterDuration = M3Durations.spatialDefault,
+    Duration enterDuration = M3Durations.spatialFast,
     Duration exitDuration = M3Durations.effectsDefault,
   }) : _exitDuration = context.reduceMotion ? Duration.zero : exitDuration,
        super(

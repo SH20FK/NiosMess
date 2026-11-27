@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/scheduler.dart';
+
 /// High-performance, ultra-smooth streaming text animator.
 /// Decouples network packet bursts from visual rendering by pacing characters
 /// through an adaptive, spring-smoothed typewriter queue at 60/120 FPS.
@@ -11,6 +13,7 @@ class SmoothTextStreamer {
     this.onError,
     this.initialText = '',
     this.minCharIntervalMs = 22,
+    this.vsync,
   }) {
     _currentRendered = initialText;
   }
@@ -21,15 +24,30 @@ class SmoothTextStreamer {
   final String initialText;
   final int minCharIntervalMs;
 
+  /// Host [TickerProvider] that drives the queue from the vsync frame callback.
+  ///
+  /// Pass the owning `State` (with a `TickerProvider` mixin) so the composer is
+  /// only written inside a frame, never from an arbitrary timer callback.
+  /// When omitted — pure-Dart use and unit tests — the streamer keeps the
+  /// legacy fixed 16 ms timer as a fallback.
+  final TickerProvider? vsync;
+
+  /// Pacing budget carried over from the old 16 ms timer, so typing speed stays
+  /// identical on 60 Hz, 90 Hz and 120 Hz displays.
+  static const Duration _frameBudget = Duration(milliseconds: 16);
+
   final StringBuffer _targetBuffer = StringBuffer();
   String _target = '';
   String _currentRendered = '';
-  Timer? _ticker;
+  Ticker? _ticker;
+  Timer? _fallbackTimer;
+  Duration _lastTickElapsed = Duration.zero;
+  Duration _accumulatedTick = Duration.zero;
   bool _isStreamCompleted = false;
   bool _isDisposed = false;
 
   String get currentText => _currentRendered;
-  bool get isActive => _ticker != null;
+  bool get isActive => _ticker != null || _fallbackTimer != null;
 
   /// Appends a new delta chunk from SSE stream.
   void appendChunk(String chunk) {
@@ -51,41 +69,84 @@ class SmoothTextStreamer {
     _ensureTickerStarted();
   }
 
-  /// Cancels streaming immediately and stops the animation timer.
+  /// Cancels streaming immediately and stops the animation driver.
   void cancel() {
-    _ticker?.cancel();
-    _ticker = null;
+    _stopDriver();
     _isStreamCompleted = true;
   }
 
   void dispose() {
     _isDisposed = true;
-    _ticker?.cancel();
-    _ticker = null;
+    _stopDriver();
   }
 
   void _ensureTickerStarted() {
-    if (_ticker != null || _isDisposed) return;
-    _ticker = Timer.periodic(const Duration(milliseconds: 16), _onTick);
+    if (isActive || _isDisposed) return;
+    final TickerProvider? provider = vsync;
+    if (provider != null) {
+      _lastTickElapsed = Duration.zero;
+      // Start with a full budget so the very first frame already advances.
+      _accumulatedTick = _frameBudget;
+      final Ticker ticker = provider.createTicker(_onTickerTick);
+      _ticker = ticker;
+      ticker.start();
+    } else {
+      _fallbackTimer = Timer.periodic(
+        const Duration(milliseconds: 16),
+        _onTimerTick,
+      );
+    }
   }
 
-  void _onTick(Timer timer) {
+  void _stopDriver() {
+    final Ticker? ticker = _ticker;
+    _ticker = null;
+    if (ticker != null) {
+      ticker
+        ..stop()
+        ..dispose();
+    }
+    _fallbackTimer?.cancel();
+    _fallbackTimer = null;
+    _lastTickElapsed = Duration.zero;
+    _accumulatedTick = Duration.zero;
+  }
+
+  /// Vsync driver: advances at most one [_frameBudget] step per frame so high
+  /// refresh-rate panels do not type faster than 60 Hz ones.
+  void _onTickerTick(Duration elapsed) {
     if (_isDisposed) {
-      timer.cancel();
+      _stopDriver();
       return;
     }
+    _accumulatedTick += elapsed - _lastTickElapsed;
+    _lastTickElapsed = elapsed;
+    if (_accumulatedTick < _frameBudget) return;
+    _accumulatedTick = Duration.zero;
+    if (_advance()) _stopDriver();
+  }
 
+  void _onTimerTick(Timer timer) {
+    if (_isDisposed) {
+      _stopDriver();
+      return;
+    }
+    if (_advance()) _stopDriver();
+  }
+
+  /// Advances the typewriter queue by one paced frame.
+  ///
+  /// Returns `true` when the queue is drained and the driver must stop.
+  bool _advance() {
     final String target = _target;
     final int remaining = target.length - _currentRendered.length;
 
     if (remaining <= 0) {
-      timer.cancel();
-      _ticker = null;
       if (_isStreamCompleted) {
         onUpdate(_currentRendered, true);
         onDone?.call(_currentRendered);
       }
-      return;
+      return true;
     }
 
     // Adaptive step sizing based on backlog depth:
@@ -104,16 +165,20 @@ class SmoothTextStreamer {
       charsToTake = 1;
     }
 
-    final int nextLength = min(target.length, _currentRendered.length + charsToTake);
+    final int nextLength = min(
+      target.length,
+      _currentRendered.length + charsToTake,
+    );
     _currentRendered = target.substring(0, nextLength);
 
-    final bool isDone = _isStreamCompleted && _currentRendered.length == target.length;
+    final bool isDone =
+        _isStreamCompleted && _currentRendered.length == target.length;
     onUpdate(_currentRendered, isDone);
 
     if (isDone) {
-      timer.cancel();
-      _ticker = null;
       onDone?.call(_currentRendered);
+      return true;
     }
+    return false;
   }
 }

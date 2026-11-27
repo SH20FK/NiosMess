@@ -12,6 +12,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/tri_sync.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/network/web_socket_client.dart';
@@ -574,8 +576,13 @@ class MessageBubble extends ConsumerWidget {
           begin: scheme.secondaryContainer.withValues(alpha: 0.4),
           end: Colors.transparent,
         ),
-        duration: const Duration(milliseconds: 1500),
-        curve: Curves.easeOut,
+        duration: context.reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 1500),
+        // Critically damped (no overshoot) effects spring: safe for colour.
+        // `effectsSlow` keeps the visible part of the fade inside ~20 % of the
+        // 1500 ms window instead of snapping it into the first 200 ms.
+        curve: M3SpringCurves.effectsSlow,
         builder: (BuildContext context, Color? color, Widget? child) {
           return Container(
             decoration: BoxDecoration(borderRadius: bubbleRadius, color: color),

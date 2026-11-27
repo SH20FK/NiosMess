@@ -176,19 +176,19 @@ class _ChatViewportState extends State<ChatViewport> {
               ),
         ),
 
-        // 5. Unified floating composer surface
+        // 5. Unified floating composer surface. The composer subtree (chat
+        // input area) carries its own RepaintBoundary, so none is layered
+        // here.
         Positioned(
           left: 0,
           right: 0,
           bottom: 0,
           child: _MeasureSize(
             onSizeChange: _onComposerSizeChanged,
-            child: RepaintBoundary(
-              child: SafeArea(
-                top: false,
-                bottom: true,
-                child: widget.composer,
-              ),
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: widget.composer,
             ),
           ),
         ),

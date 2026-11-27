@@ -16,15 +16,18 @@ enum M3SwitcherType {
   /// Pure normalized expressive fade.
   fade,
 
-  /// Pure spring scale.
+  /// Spring scale combined with a normalized fade so the outgoing child
+  /// never pops.
   scale,
 }
 
 /// Material 3 Expressive AnimatedSwitcher.
 ///
 /// Ensures strict mathematical normalization:
-/// - Opacity transitions NEVER use bouncy/overshoot curves; strictly [M3SpringCurves.expressiveDecel].
-/// - Spatial/scale transitions utilize normalized [M3SpringCurves.spatialDefault].
+/// - Opacity enters on [M3SpringCurves.expressiveDecel] and leaves on
+///   [M3SpringCurves.expressiveAccel]; never bouncy/overshoot curves.
+/// - Spatial/scale transitions enter on [switchInCurve] and leave on
+///   [switchOutCurve], both normalized springs.
 /// - Zero per-frame clipping or save-layers.
 class M3SpringSwitcher extends StatelessWidget {
   const M3SpringSwitcher({
@@ -60,74 +63,160 @@ class M3SpringSwitcher extends StatelessWidget {
   final AnimatedSwitcherLayoutBuilder layoutBuilder;
 
   Widget _buildTransition(Widget child, Animation<double> animation) {
-    // Opacity animation strictly clamped with expressiveDecel
-    final Animation<double> fadeAnim = CurvedAnimation(
-      parent: animation,
-      curve: M3SpringCurves.expressiveDecel,
-      reverseCurve: M3SpringCurves.expressiveAccel,
+    // The switcher hands every entry a linear animation (Curves.linear in
+    // [build]); [DualTransitionBuilder] picks the enter or exit transition
+    // from the animation status instead of recreating a [CurvedAnimation]
+    // on every rebuild.
+    return DualTransitionBuilder(
+      animation: animation,
+      forwardBuilder:
+          (
+            BuildContext context,
+            Animation<double> animation,
+            Widget? child,
+          ) => _enterTransition(animation, child),
+      reverseBuilder:
+          (
+            BuildContext context,
+            Animation<double> animation,
+            Widget? child,
+          ) => _exitTransition(animation, child),
+      child: child,
+    );
+  }
+
+  /// Enter half: the incoming child fades in on the effects spring and
+  /// scales or slides in on [switchInCurve].
+  Widget _enterTransition(Animation<double> animation, Widget? child) {
+    final Animation<double> fadeAnim = animation.drive(
+      CurveTween(curve: M3SpringCurves.expressiveDecel),
     );
 
     switch (type) {
       case M3SwitcherType.fadeScale:
-        final Animation<double> scaleAnim = CurvedAnimation(
-          parent: animation,
-          curve: switchInCurve,
-          reverseCurve: switchOutCurve,
-        );
         return FadeTransition(
           opacity: fadeAnim,
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.88, end: 1.0).animate(scaleAnim),
+            scale: animation.drive(
+              Tween<double>(begin: 0.88, end: 1.0).chain(
+                CurveTween(curve: switchInCurve),
+              ),
+            ),
             child: child,
           ),
         );
 
       case M3SwitcherType.fadeSlideY:
-        final Animation<Offset> slideAnim = Tween<Offset>(
-          begin: const Offset(0.0, 0.12),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(
-          parent: animation,
-          curve: switchInCurve,
-          reverseCurve: switchOutCurve,
-        ));
         return FadeTransition(
           opacity: fadeAnim,
           child: SlideTransition(
-            position: slideAnim,
+            position: animation.drive(
+              Tween<Offset>(
+                begin: const Offset(0.0, 0.12),
+                end: Offset.zero,
+              ).chain(CurveTween(curve: switchInCurve)),
+            ),
             child: child,
           ),
         );
 
       case M3SwitcherType.fadeSlideX:
-        final Animation<Offset> slideAnim = Tween<Offset>(
-          begin: const Offset(0.12, 0.0),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(
-          parent: animation,
-          curve: switchInCurve,
-          reverseCurve: switchOutCurve,
-        ));
         return FadeTransition(
           opacity: fadeAnim,
           child: SlideTransition(
-            position: slideAnim,
+            position: animation.drive(
+              Tween<Offset>(
+                begin: const Offset(0.12, 0.0),
+                end: Offset.zero,
+              ).chain(CurveTween(curve: switchInCurve)),
+            ),
             child: child,
           ),
         );
 
       case M3SwitcherType.scale:
-        final Animation<double> scaleAnim = CurvedAnimation(
-          parent: animation,
-          curve: switchInCurve,
-          reverseCurve: switchOutCurve,
-        );
-        // Scales from 0.6, never from a point, and fades so the outgoing
-        // child does not pop.
+        // Scales from 0.6, never from a point, and fades so the swap never
+        // pops.
         return FadeTransition(
           opacity: fadeAnim,
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.6, end: 1.0).animate(scaleAnim),
+            scale: animation.drive(
+              Tween<double>(begin: 0.6, end: 1.0).chain(
+                CurveTween(curve: switchInCurve),
+              ),
+            ),
+            child: child,
+          ),
+        );
+
+      case M3SwitcherType.fade:
+        return FadeTransition(
+          opacity: fadeAnim,
+          child: child,
+        );
+    }
+  }
+
+  /// Exit half: the outgoing child fades out on the effects accel spring
+  /// and scales or slides away on [switchOutCurve].
+  Widget _exitTransition(Animation<double> animation, Widget? child) {
+    final Animation<double> fadeAnim = animation.drive(
+      Tween<double>(begin: 1.0, end: 0.0).chain(
+        CurveTween(curve: M3SpringCurves.expressiveAccel),
+      ),
+    );
+
+    switch (type) {
+      case M3SwitcherType.fadeScale:
+        return FadeTransition(
+          opacity: fadeAnim,
+          child: ScaleTransition(
+            scale: animation.drive(
+              Tween<double>(begin: 1.0, end: 0.88).chain(
+                CurveTween(curve: switchOutCurve),
+              ),
+            ),
+            child: child,
+          ),
+        );
+
+      case M3SwitcherType.fadeSlideY:
+        return FadeTransition(
+          opacity: fadeAnim,
+          child: SlideTransition(
+            position: animation.drive(
+              Tween<Offset>(
+                begin: Offset.zero,
+                end: const Offset(0.0, 0.12),
+              ).chain(CurveTween(curve: switchOutCurve)),
+            ),
+            child: child,
+          ),
+        );
+
+      case M3SwitcherType.fadeSlideX:
+        return FadeTransition(
+          opacity: fadeAnim,
+          child: SlideTransition(
+            position: animation.drive(
+              Tween<Offset>(
+                begin: Offset.zero,
+                end: const Offset(0.12, 0.0),
+              ).chain(CurveTween(curve: switchOutCurve)),
+            ),
+            child: child,
+          ),
+        );
+
+      case M3SwitcherType.scale:
+        return FadeTransition(
+          opacity: fadeAnim,
+          child: ScaleTransition(
+            scale: animation.drive(
+              Tween<double>(begin: 1.0, end: 0.6).chain(
+                CurveTween(curve: switchOutCurve),
+              ),
+            ),
             child: child,
           ),
         );

@@ -123,6 +123,9 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
   Map<int, int> _rowIds = {};
   Map<(int, String), int> _clientRowIds = {};
   Map<int, int> _rowIndexes = {};
+  // Row ids of the current window, kept as a real set so retaining them is a
+  // hash lookup per element instead of a fresh scan of the message list.
+  Set<int> _rowIdSet = <int>{};
   // Keep fallback keys exact on both native Dart and JavaScript targets.
   int _collisionId = -1;
 
@@ -130,6 +133,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
     final next = <int, int>{};
     final clients = <(int, String), int>{};
     final indexes = <int, int>{};
+    final idSet = <int>{};
     for (var i = 0; i < messages.length; i++) {
       final message = messages[i];
       final client = message.clientMessageId;
@@ -148,11 +152,13 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
       }
       next[message.id] = rowId;
       indexes[rowId] = i;
+      idSet.add(rowId);
       if (operation != null) clients.putIfAbsent(operation, () => rowId);
     }
     _rowIds = next;
     _clientRowIds = clients;
     _rowIndexes = indexes;
+    _rowIdSet = idSet;
   }
 
   int _rowId(ApiMessage message) => _rowIds[message.id] ?? message.id;
@@ -340,11 +346,14 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
       _anchorFraction = null;
     } else if (viewport is RenderBox && viewport.hasSize) {
       final bounds = viewport.localToGlobal(Offset.zero) & viewport.size;
-      final ids = next.map((m) => m.id).toSet();
+      // `_syncRowIds` already ran for `next`, so its message-id map answers
+      // window membership in O(1) without building a set of every id here.
       _HistoryAnchorBox? chosen;
       double? best;
       for (final row in _anchors.values) {
-        if (!ids.contains(row.messageId) || !row.attached || !row.hasSize) {
+        if (!_rowIds.containsKey(row.messageId) ||
+            !row.attached ||
+            !row.hasSize) {
           continue;
         }
         final rect = row.localToGlobal(Offset.zero) & row.size;
@@ -385,6 +394,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
   static const int _maxEntranceBatch = 4;
   Timer? _highlightTimer;
   Timer? _scrollIdleTimer;
+  static const Duration _scrollIdleDelay = Duration(milliseconds: 160);
   final Stopwatch _scrollClock = Stopwatch()..start();
   Duration? _previousScrollTime;
   bool _fastScrolling = false;
@@ -409,8 +419,6 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         if (elapsed > 0) {
           final speed = delta.abs() * Duration.microsecondsPerSecond / elapsed;
           if (speed > 1800) {
-            _scrollIdleTimer?.cancel();
-            _scrollIdleTimer = null;
             _setFastScrolling(true);
             _scheduleScrollIdle();
           } else if (speed < 900) {
@@ -435,11 +443,17 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
     return false;
   }
 
+  void _onScrollIdleTimer() {
+    _scrollIdleTimer = null;
+    _setFastScrolling(false);
+  }
+
   void _scheduleScrollIdle() {
-    _scrollIdleTimer ??= Timer(const Duration(milliseconds: 160), () {
-      _scrollIdleTimer = null;
-      _setFastScrolling(false);
-    });
+    // Debounce with a fresh timer: the delay must be measured from the last
+    // scroll event. A re-armed "deadline" timer mixes the real Stopwatch with
+    // fake-async test time and never expires in widget tests.
+    _scrollIdleTimer?.cancel();
+    _scrollIdleTimer = Timer(_scrollIdleDelay, _onScrollIdleTimer);
   }
 
   final ValueNotifier<int?> _highlightedIdNotifier = ValueNotifier<int?>(null);
@@ -498,7 +512,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
         _captureScrollAnchor();
       }
     });
-    _animatedMessageIds.addAll(widget.messages.map(_rowId));
+    _animatedMessageIds.addAll(_rowIdSet);
     if (widget.highlightMessageId case final id?) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_scrollToMessage(id));
@@ -524,7 +538,7 @@ class _ChatMessageListState extends ConsumerState<ChatMessageList>
       _syncRowIds(widget.messages);
       _rebaseAnchor(widget.messages);
       _store.sync(widget.messages);
-      _animatedMessageIds.retainAll(widget.messages.map(_rowId));
+      _animatedMessageIds.retainAll(_rowIdSet);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _captureScrollAnchor();
       });

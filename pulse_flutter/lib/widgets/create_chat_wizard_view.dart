@@ -1032,8 +1032,9 @@ class _CreateChatWizardViewState extends ConsumerState<CreateChatWizardView> {
               color: scheme.outlineVariant.withValues(alpha: 0.12),
             ),
           ),
+          // The enclosing ConstrainedBox caps this at 190 dp; without
+          // shrinkWrap the list lays out only the rows it actually paints.
           child: ListView.separated(
-            shrinkWrap: true,
             itemCount: result.users.length,
             separatorBuilder: (BuildContext context, int index) => Divider(
               height: 1,

@@ -714,15 +714,26 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     if (notification is ScrollStartNotification && _cursorMenu.isOpen) {
       _cursorMenu.close();
     }
-    ref
-        .read(chatListScrolledProvider.notifier)
-        .setScrolled(notification.metrics.pixels > ChatListHeader.scrimOffset);
+    // Only the inbox list itself drives the header scrim; nested or
+    // horizontal scrollables (the filter rail) must not raise it.
+    if (notification.depth == 0 &&
+        notification.metrics.axis == Axis.vertical) {
+      ref
+          .read(chatListScrolledProvider.notifier)
+          .setScrolled(
+            notification.metrics.pixels > ChatListHeader.scrimOffset,
+          );
+    }
     if (notification.metrics.pixels <= 0) {
       ref.read(chatListFabVisibleProvider.notifier).show();
       _scrollDistance = 0.0;
       return false;
     }
     if (notification is ScrollUpdateNotification) {
+      // Only a real drag moves the composer in and out. Ballistic updates —
+      // flings and the overscroll bounce — flip their deltas back and forth
+      // and used to flicker the scrim on the bounce.
+      if (notification.dragDetails == null) return false;
       final double delta = notification.scrollDelta ?? 0.0;
       if (delta > 0) {
         // Scrolling downwards: hide FAB after exceeding threshold

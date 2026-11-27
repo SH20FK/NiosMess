@@ -53,8 +53,16 @@ class M3AnimatedBadge extends StatefulWidget {
 
 class _M3AnimatedBadgeState extends State<M3AnimatedBadge>
     with SingleTickerProviderStateMixin {
+  /// Controller value a repeat "pop" restarts from.
+  ///
+  /// The old `0.2` made the badge collapse to a fifth of its size for a single
+  /// frame on every count increment, which read as a blink. Starting near the
+  /// top keeps it a spring pulse: it never disappears, it just breathes.
+  static const double _pulseRestartValue = 0.78;
+
   late final AnimationController _controller;
   late Animation<double> _scaleAnimation;
+  bool _reduceMotion = false;
 
   String get _displayString {
     if (widget.label != null && widget.label!.isNotEmpty) {
@@ -91,14 +99,42 @@ class _M3AnimatedBadgeState extends State<M3AnimatedBadge>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = context.reduceMotion;
+    if (_reduceMotion) {
+      // Keep the ticker idle under reduce-motion: park the controller on the
+      // final state and let build() skip ScaleTransition entirely.
+      _controller.stop();
+      final double target = _shouldShow ? 1.0 : 0.0;
+      if (_controller.value != target) {
+        _controller.value = target;
+      }
+    }
+  }
+
+  @override
   void didUpdateWidget(covariant M3AnimatedBadge oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.count != widget.count || oldWidget.label != widget.label) {
-      if (_shouldShow) {
-        // Trigger a spring bounce pop
-        _controller.forward(from: 0.2);
+      if (!_shouldShow) {
+        if (_reduceMotion) {
+          _controller.value = 0.0;
+        } else {
+          _controller.reverse();
+        }
+        return;
+      }
+      if (_reduceMotion) {
+        _controller.value = 1.0;
+        return;
+      }
+      if (_controller.isDismissed) {
+        // Coming back from hidden: grow in from 0 as before.
+        _controller.forward();
       } else {
-        _controller.reverse();
+        // Already visible: spring pulse from near full scale.
+        _controller.forward(from: _pulseRestartValue);
       }
     }
   }

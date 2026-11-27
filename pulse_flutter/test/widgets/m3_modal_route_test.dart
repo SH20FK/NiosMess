@@ -46,9 +46,9 @@ void main() {
       tester.element(find.text('open')),
     ).colorScheme;
 
-    expect(route.barrierColor, scheme.scrim.withValues(alpha: 0.45));
+    expect(route.barrierColor, scheme.scrim.withValues(alpha: 0.32));
     expect(route.barrierCurve, M3SpringCurves.effectsSlow);
-    expect(route.transitionDuration, M3Durations.spatialDefault);
+    expect(route.transitionDuration, M3Durations.spatialFast);
     expect(route.reverseTransitionDuration, M3Durations.effectsDefault);
 
     await tester.pumpAndSettle();

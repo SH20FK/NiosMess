@@ -9,13 +9,17 @@ import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 
 /// Vertical space the inbox keeps free for the composer button:
-/// 16 gap + 56 button + 16 gap. The list reserves exactly this much trailing
-/// room while the button is shown, and the scrim under the button covers the
-/// same strip.
-const double kInboxComposerClearance = 88.0;
+/// [kInboxComposerMargin] gap + the 56 dp button + [kInboxComposerMargin]
+/// gap. The list reserves exactly this much trailing room while the button
+/// is shown, and the scrim under the button covers the same strip. The 56 is
+/// the regular M3 FAB edge: material_ui keeps that number inside the
+/// generated FAB defaults (`sizeConstraints`) and exports no constant for
+/// it, so it is spelled out here.
+const double kInboxComposerClearance = kInboxComposerMargin * 2 + 56.0;
 
 /// Gap between the composer button and the pane edge / navigation bar.
-const double kInboxComposerMargin = 16.0;
+/// The same margin the FAB location system docks the button with.
+const double kInboxComposerMargin = kFloatingActionButtonMargin;
 
 /// Floating "new conversation" button of the inbox.
 ///

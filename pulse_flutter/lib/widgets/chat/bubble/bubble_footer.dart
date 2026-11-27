@@ -162,7 +162,7 @@ class MessageBubbleFooter extends StatelessWidget {
   }
 }
 
-class SelfDestructCountdownPill extends StatefulWidget {
+class SelfDestructCountdownPill extends StatelessWidget {
   const SelfDestructCountdownPill({
     required this.expiresAt,
     required this.color,
@@ -172,57 +172,7 @@ class SelfDestructCountdownPill extends StatefulWidget {
   final DateTime expiresAt;
   final Color color;
 
-  @override
-  State<SelfDestructCountdownPill> createState() =>
-      SelfDestructCountdownPillState();
-}
-
-/// One periodic timer shared by every countdown pill on screen. It runs only
-/// while at least one pill listens.
-class _SecondTicker extends ChangeNotifier {
-  _SecondTicker._();
-
-  static final _SecondTicker instance = _SecondTicker._();
-
-  Timer? _timer;
-
-  @override
-  void addListener(VoidCallback listener) {
-    super.addListener(listener);
-    _timer ??= Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => notifyListeners(),
-    );
-  }
-
-  @override
-  void removeListener(VoidCallback listener) {
-    super.removeListener(listener);
-    if (!hasListeners) {
-      _timer?.cancel();
-      _timer = null;
-    }
-  }
-}
-
-class SelfDestructCountdownPillState extends State<SelfDestructCountdownPill> {
-  void _onTick() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _SecondTicker.instance.addListener(_onTick);
-  }
-
-  @override
-  void dispose() {
-    _SecondTicker.instance.removeListener(_onTick);
-    super.dispose();
-  }
-
-  String _formatRemaining(Duration diff) {
+  static String _formatRemaining(Duration diff) {
     if (diff.isNegative) return '0с';
     final int secs = diff.inSeconds;
     if (secs < 60) return '$secsс';
@@ -232,25 +182,61 @@ class SelfDestructCountdownPillState extends State<SelfDestructCountdownPill> {
 
   @override
   Widget build(BuildContext context) {
-    final Duration diff = widget.expiresAt.difference(DateTime.now().toUtc());
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Icon(
           Icons.local_fire_department_rounded,
           size: 11,
-          color: widget.color,
+          color: color,
         ),
         const SizedBox(width: 2),
-        Text(
-          _formatRemaining(diff),
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: widget.color,
+        // Only this text follows the shared ticker, inside its own repaint
+        // boundary: the message row around the pill is not repainted.
+        RepaintBoundary(
+          child: ValueListenableBuilder<int>(
+            valueListenable: _SecondTicker.instance,
+            builder: (BuildContext context, int tick, Widget? child) {
+              final Duration diff = expiresAt.difference(
+                DateTime.now().toUtc(),
+              );
+              return Text(
+                _formatRemaining(diff),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              );
+            },
           ),
         ),
       ],
     );
+  }
+}
+
+/// One periodic timer shared by every countdown pill on screen. It runs only
+/// while at least one pill listens.
+class _SecondTicker extends ValueNotifier<int> {
+  _SecondTicker._() : super(0);
+
+  static final _SecondTicker instance = _SecondTicker._();
+
+  Timer? _timer;
+
+  @override
+  void addListener(VoidCallback listener) {
+    super.addListener(listener);
+    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) => value++);
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    super.removeListener(listener);
+    if (!hasListeners) {
+      _timer?.cancel();
+      _timer = null;
+    }
   }
 }

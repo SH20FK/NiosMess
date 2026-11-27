@@ -28,6 +28,7 @@ class ChatScrollCoordinator {
   final ValueChanged<bool>? onFollowLatestChanged;
   final ValueChanged<Object>? onJumpError;
   bool _hasNewerHistory = false;
+  bool? _lastFollowLatest;
   bool _jumping = false;
   bool get isJumping => _jumping;
   bool _disposed = false;
@@ -53,7 +54,13 @@ class ChatScrollCoordinator {
       showScrollToBottomNotifier.value = shouldShow;
     }
 
-    onFollowLatestChanged?.call(offset <= 60 && !_hasNewerHistory);
+    // Edge-triggered: the listener mirrors this into provider state, so it
+    // only needs the transitions, not every scroll event.
+    final bool followLatest = offset <= 60 && !_hasNewerHistory;
+    if (followLatest != _lastFollowLatest) {
+      _lastFollowLatest = followLatest;
+      onFollowLatestChanged?.call(followLatest);
+    }
     if (!_jumping && _hasNewerHistory && offset < 400) onNearBottom?.call();
     if (!_jumping &&
         offset <= 60 &&

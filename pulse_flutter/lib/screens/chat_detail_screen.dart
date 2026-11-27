@@ -107,7 +107,7 @@ class ChatDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final TextEditingController _inputController = CustomEmojiTextController();
   late final ChatScrollCoordinator _scrollCoordinator;
   late final FocusNode _inputFocusNode;
@@ -491,6 +491,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         ref.read(appSoundProvider).playEvent(SoundEvent.aiError);
         AppToast.showError(context, error);
       },
+      vsync: this,
     );
 
     try {

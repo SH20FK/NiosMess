@@ -53,6 +53,11 @@ class _M3StaggeredItemState extends State<M3StaggeredItem>
   late Animation<double> _fadeAnimation;
   Timer? _delayTimer;
 
+  /// Whether the entrance has already been scheduled (or skipped for
+  /// reduce-motion). Prevents [didChangeDependencies] from restarting it on
+  /// every MediaQuery change.
+  bool _entranceScheduled = false;
+
   bool get _shouldAnimate => widget.index < widget.maxStaggerIndex;
 
   @override
@@ -79,17 +84,39 @@ class _M3StaggeredItemState extends State<M3StaggeredItem>
         parent: _controller!,
         curve: M3SpringCurves.expressiveDecel,
       ));
+    }
+  }
 
-      final int delayMs = widget.index * widget.itemDelay.inMilliseconds;
-      if (delayMs > 0) {
-        _delayTimer = Timer(Duration(milliseconds: delayMs), () {
-          if (mounted) {
-            _controller?.forward();
-          }
-        });
-      } else {
-        _controller!.forward();
-      }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final AnimationController? controller = _controller;
+    if (controller == null) return;
+
+    if (context.reduceMotion) {
+      // Reduce-motion (also when switched on mid-entrance): show the item
+      // straight away and leave no ticker or delay timer running.
+      _entranceScheduled = true;
+      _delayTimer?.cancel();
+      _delayTimer = null;
+      if (controller.isAnimating) controller.stop();
+      if (controller.value != 1.0) controller.value = 1.0;
+      return;
+    }
+
+    if (_entranceScheduled) return;
+    _entranceScheduled = true;
+
+    final int delayMs = widget.index * widget.itemDelay.inMilliseconds;
+    if (delayMs > 0) {
+      _delayTimer = Timer(Duration(milliseconds: delayMs), () {
+        _delayTimer = null;
+        if (mounted) {
+          controller.forward();
+        }
+      });
+    } else {
+      controller.forward();
     }
   }
 

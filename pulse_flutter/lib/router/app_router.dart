@@ -74,37 +74,73 @@ Page<void> _page(GoRouterState state, Widget child, {LocalKey? pageKey}) {
 }
 
 Page<void> _m3eEntryPage(
+  BuildContext context,
   GoRouterState state,
   Widget child, {
   LocalKey? pageKey,
 }) {
+  // With reduced motion both directions are instant.
+  final bool reduceMotion = context.reduceMotion;
   return CustomTransitionPage<void>(
     key: pageKey ?? state.pageKey,
     child: child,
-    transitionDuration: M3Durations.spatialDefault,
-    reverseTransitionDuration: M3Durations.effectsSlow,
+    transitionDuration: reduceMotion
+        ? Duration.zero
+        : M3Durations.spatialDefault,
+    reverseTransitionDuration: reduceMotion
+        ? Duration.zero
+        : M3Durations.effectsSlow,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      if (context.reduceMotion) return child;
-      // Fade through: the entry screens have no spatial relationship.
-      return FadeTransition(
-        opacity: animation.drive(
-          CurveTween(
-            curve: const Interval(
-              0.0,
-              0.4,
-              curve: M3SpringCurves.effectsDefault,
+      // Fade through: the entry screens have no spatial relationship. The
+      // pop fades out early instead of replaying the fade-in interval
+      // backwards, which would keep the page opaque for most of the pop.
+      return DualTransitionBuilder(
+        animation: animation,
+        forwardBuilder:
+            (
+              BuildContext context,
+              Animation<double> animation,
+              Widget? child,
+            ) => FadeTransition(
+              opacity: animation.drive(
+                CurveTween(
+                  curve: const Interval(
+                    0.0,
+                    0.4,
+                    curve: M3SpringCurves.effectsDefault,
+                  ),
+                ),
+              ),
+              child: ScaleTransition(
+                scale: animation.drive(
+                  Tween<double>(
+                    begin: 0.92,
+                    end: 1.0,
+                  ).chain(CurveTween(curve: M3SpringCurves.spatialDefault)),
+                ),
+                child: child,
+              ),
             ),
-          ),
-        ),
-        child: ScaleTransition(
-          scale: animation.drive(
-            Tween<double>(
-              begin: 0.92,
-              end: 1.0,
-            ).chain(CurveTween(curve: M3SpringCurves.spatialDefault)),
-          ),
-          child: child,
-        ),
+        reverseBuilder:
+            (
+              BuildContext context,
+              Animation<double> animation,
+              Widget? child,
+            ) => FadeTransition(
+              opacity: animation.drive(
+                Tween<double>(begin: 1.0, end: 0.0).chain(
+                  CurveTween(
+                    curve: const Interval(
+                      0.0,
+                      0.3,
+                      curve: M3SpringCurves.effectsFast,
+                    ),
+                  ),
+                ),
+              ),
+              child: child,
+            ),
+        child: child,
       );
     },
   );
@@ -218,11 +254,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/',
         pageBuilder: (context, state) =>
-            _m3eEntryPage(state, const SplashScreen()),
+            _m3eEntryPage(context, state, const SplashScreen()),
       ),
       GoRoute(
         path: '/web',
         pageBuilder: (context, state) => _m3eEntryPage(
+          context,
           state,
           LoginScreen(
             initialCode: state.uri.queryParameters['code'],
@@ -236,11 +273,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/onboarding',
         pageBuilder: (context, state) =>
-            _m3eEntryPage(state, const OnboardingScreen()),
+            _m3eEntryPage(context, state, const OnboardingScreen()),
       ),
       GoRoute(
         path: '/login',
         pageBuilder: (context, state) => _m3eEntryPage(
+          context,
           state,
           LoginScreen(
             initialCode: state.uri.queryParameters['code'],
@@ -440,16 +478,22 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             initialIndex = (extra['initialIndex'] as int?) ?? 0;
           }
 
+          // Reduced motion: no hero flight and no fade — the page swaps
+          // instantly in both directions.
+          final bool reduceMotion = context.reduceMotion;
           return CustomTransitionPage<void>(
             key: state.pageKey,
             opaque: false,
             barrierColor: Colors.transparent,
-            transitionDuration: M3Durations.effectsSlow,
-            reverseTransitionDuration: M3Durations.effectsSlow,
+            transitionDuration: reduceMotion
+                ? Duration.zero
+                : M3Durations.effectsSlow,
+            reverseTransitionDuration: reduceMotion
+                ? Duration.zero
+                : M3Durations.effectsSlow,
             // The Hero carries the spatial motion; the page itself only fades.
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-                  if (context.reduceMotion) return child;
                   return FadeTransition(
                     opacity: animation.drive(
                       CurveTween(curve: M3SpringCurves.effectsSlow),

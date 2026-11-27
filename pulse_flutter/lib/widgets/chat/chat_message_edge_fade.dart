@@ -93,7 +93,7 @@ class ChatMessageBottomFade extends StatelessWidget {
                 surfaceColor.withValues(alpha: 0.15),
                 surfaceColor.withValues(alpha: 0.65),
                 surfaceColor.withValues(alpha: 0.82),
-                surfaceColor.withValues(alpha: 0.94),
+                surfaceColor.withValues(alpha: 1.0),
               ],
             ),
           ),
