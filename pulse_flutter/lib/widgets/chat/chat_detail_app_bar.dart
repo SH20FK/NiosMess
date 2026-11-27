@@ -74,6 +74,7 @@ class ChatDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
       !isSaved &&
       !isSecret &&
       !isChannel &&
+      !isBot &&
       (onVoiceCall != null || onVideoCall != null);
   bool get _showOverflowMenu => true;
 
