@@ -739,6 +739,16 @@ class WebRtcCallSession {
     return _signalChain;
   }
 
+  Future<bool> _isSignalingStable(RTCPeerConnection pc) async {
+    var state = pc.signalingState;
+    if (state == null) {
+      try {
+        state = await pc.getSignalingState();
+      } catch (_) {}
+    }
+    return state == null || state == RTCSignalingState.RTCSignalingStateStable;
+  }
+
   Future<void> _negotiatePeer(
     int remoteId, {
     required bool makeOffer,
@@ -750,7 +760,7 @@ class WebRtcCallSession {
     );
 
     if (makeOffer) {
-      if (pc.signalingState == RTCSignalingState.RTCSignalingStateStable) {
+      if (await _isSignalingStable(pc)) {
         final RTCSessionDescription offer = await pc.createOffer({
           'offerToReceiveAudio': 1,
           'offerToReceiveVideo': 1,
@@ -782,8 +792,7 @@ class WebRtcCallSession {
             if (_ended) return;
             final peerId = entry.key;
             final pc = entry.value;
-            if (pc.signalingState ==
-                RTCSignalingState.RTCSignalingStateStable) {
+            if (await _isSignalingStable(pc)) {
               final offer = await pc.createOffer({
                 'offerToReceiveAudio': 1,
                 'offerToReceiveVideo': 1,
@@ -1062,6 +1071,55 @@ class WebRtcCallSession {
     }
   }
 
+  Future<Map<String, int>> collectLiveMediaStats() async {
+    int audioBytesSent = 0;
+    int audioBytesReceived = 0;
+    int audioPacketsSent = 0;
+    int audioPacketsReceived = 0;
+    int videoBytesSent = 0;
+    int videoBytesReceived = 0;
+    int videoFramesSent = 0;
+    int videoFramesDecoded = 0;
+
+    int asInt(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+
+    for (final pc in _peerConnections.values.toList()) {
+      final reports = await pc.getStats().timeout(const Duration(seconds: 2));
+      for (final r in reports) {
+        final type = r.type;
+        final kind = (r.values['kind'] ?? r.values['mediaType'])?.toString() ?? '';
+        if (type == 'outbound-rtp') {
+          if (kind == 'audio') {
+            audioBytesSent += asInt(r.values['bytesSent']);
+            audioPacketsSent += asInt(r.values['packetsSent']);
+          } else if (kind == 'video') {
+            videoBytesSent += asInt(r.values['bytesSent']);
+            videoFramesSent += asInt(r.values['framesSent']);
+          }
+        } else if (type == 'inbound-rtp') {
+          if (kind == 'audio') {
+            audioBytesReceived += asInt(r.values['bytesReceived']);
+            audioPacketsReceived += asInt(r.values['packetsReceived']);
+          } else if (kind == 'video') {
+            videoBytesReceived += asInt(r.values['bytesReceived']);
+            videoFramesDecoded += asInt(r.values['framesDecoded']);
+          }
+        }
+      }
+    }
+
+    return {
+      'audioBytesSent': audioBytesSent,
+      'audioBytesReceived': audioBytesReceived,
+      'audioPacketsSent': audioPacketsSent,
+      'audioPacketsReceived': audioPacketsReceived,
+      'videoBytesSent': videoBytesSent,
+      'videoBytesReceived': videoBytesReceived,
+      'videoFramesSent': videoFramesSent,
+      'videoFramesDecoded': videoFramesDecoded,
+    };
+  }
+
   Future<void> setForceRelay(bool enabled) async {
     if (_ended || _forceRelay == enabled) return;
     _forceRelay = enabled;
@@ -1164,8 +1222,7 @@ class WebRtcCallSession {
     // Serialize restarts with incoming SDP and ICE, including app resume events.
     _signalChain = _signalChain
         .then((_) async {
-          if (_ended ||
-              pc.signalingState != RTCSignalingState.RTCSignalingStateStable) {
+          if (_ended || !await _isSignalingStable(pc)) {
             return;
           }
           await pc.restartIce();

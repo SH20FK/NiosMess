@@ -120,9 +120,10 @@ class WebRtcSignalingClient {
 
       debugPrint('[WebRtcSignaling] Connected successfully');
       return true;
-    } catch (_) {
+    } catch (e, st) {
       // WebSocket exceptions may include the URL with its access token.
-      debugPrint('[WebRtcSignaling] Connection failed');
+      debugPrint('[WebRtcSignaling] Connection failed: ${e.runtimeType}: ${e.toString().replaceAll(token, '***')}');
+      debugPrint('$st');
       _connected = false;
       await _sub?.cancel();
       _sub = null;
