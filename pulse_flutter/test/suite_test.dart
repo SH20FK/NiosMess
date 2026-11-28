@@ -190,6 +190,8 @@ import 'integration/e2e_cold_start_and_logout_test.dart'
     as integration_e2e_cold_start;
 import 'screens/login_screen_test.dart' as screens_login_screen;
 import 'screens/chat_message_presenter_test.dart' as chat_message_presenter;
+import 'screens/chat_ai_rewrite_controller_test.dart'
+    as chat_ai_rewrite_controller;
 import 'screens/register_screen_test.dart' as screens_register_screen;
 import 'unit/adaptive_performance_engine_test.dart'
     as unit_adaptive_performance_engine;
@@ -536,6 +538,7 @@ void main() {
     group('chat_detail_characterization', chat_detail_characterization.main);
     group('chat_message_sheets', chat_message_sheets.main);
     group('chat_message_presenter', chat_message_presenter.main);
+    group('chat_ai_rewrite_controller', chat_ai_rewrite_controller.main);
     niosgram_video.main();
     widgets_vector_illustrations.main();
     widgets_m3_motion_kit.main();

@@ -52,9 +52,9 @@ import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
-import 'package:pulse_flutter/core/motion/smooth_text_streamer.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_ai_rewrite_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_presenter.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -135,8 +135,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
 
-  SmoothTextStreamer? _aiTextStreamer;
-  StreamSubscription<String>? _aiStreamSubscription;
+  late final ChatAiRewriteController _aiRewrite;
 
   // Screenshot protection overlay
   OverlayEntry? _screenshotOverlay;
@@ -250,6 +249,23 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
     _inputController.addListener(_onInputChanged);
     _inputFocusNode = FocusNode();
+    _aiRewrite = ChatAiRewriteController(
+      vsync: this,
+      textController: _inputController,
+      reduceMotion: () => context.reduceMotion,
+      streamRequest: (AiRewriteRequest request) async =>
+          ref.read(aiRepositoryProvider).streamRewriteText(request: request),
+      onBusyChanged: (bool busy) {
+        _composerNotifier.value = _composerNotifier.value.copyWith(
+          isAiProcessing: busy,
+        );
+      },
+      onError: (Object error) {
+        if (mounted) AppToast.showError(context, error);
+      },
+      onSound: (SoundEvent event) =>
+          ref.read(appSoundProvider).playEvent(event),
+    );
     final int? cid = _chatId;
     if (cid != null) PushNotificationService.setCurrentChat(cid);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -334,8 +350,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
     PushNotificationService.setCurrentChat(null);
     WidgetsBinding.instance.removeObserver(this);
-    _aiStreamSubscription?.cancel();
-    _aiTextStreamer?.dispose();
+    _aiRewrite.dispose();
     _removeScreenshotOverlay();
     _scrollCoordinator.dispose();
     _loadingOlderNotifier.dispose();
@@ -435,109 +450,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       AppToast.showInfo(context, context.l10n.secretLocalOnly);
       return;
     }
-    final String currentText = _inputController.text.trim();
-    if (currentText.isEmpty) return;
-
-    _cancelAiProcessing();
-
-    final String backupText = _inputController.text;
-    bool hasReceivedFirstChunk = false;
-
-    _composerNotifier.value = _composerNotifier.value.copyWith(
-      isAiProcessing: true,
-    );
-    ref.read(appSoundProvider).playEvent(SoundEvent.aiStart);
-
-    _aiTextStreamer = SmoothTextStreamer(
-      onUpdate: (String rendered, bool isFinished) {
-        if (!mounted) return;
-        _inputController.text = rendered;
-        _inputController.selection = TextSelection.fromPosition(
-          TextPosition(offset: rendered.length),
-        );
-        if (isFinished) {
-          _composerNotifier.value = _composerNotifier.value.copyWith(
-            isAiProcessing: false,
-          );
-        }
-      },
-      onDone: (String fullText) {
-        if (!mounted) return;
-        _composerNotifier.value = _composerNotifier.value.copyWith(
-          isAiProcessing: false,
-        );
-      },
-      onError: (dynamic error) {
-        if (!mounted) return;
-        if (!hasReceivedFirstChunk) {
-          _inputController.text = backupText;
-        }
-        _composerNotifier.value = _composerNotifier.value.copyWith(
-          isAiProcessing: false,
-        );
-        ref.read(appSoundProvider).playEvent(SoundEvent.aiError);
-        AppToast.showError(context, error);
-      },
-      vsync: this,
-      reduceMotion: context.reduceMotion,
-    );
-
-    try {
-      final AiRewriteRequest request = AiRewriteRequest(
-        text: currentText,
-        action: action,
-        targetLanguage: targetLanguage,
-      );
-
-      final Stream<String> stream = ref
-          .read(aiRepositoryProvider)
-          .streamRewriteText(request: request);
-
-      _aiStreamSubscription = stream.listen(
-        (String chunk) {
-          hasReceivedFirstChunk = true;
-          _aiTextStreamer?.appendChunk(chunk);
-        },
-        onError: (dynamic error) {
-          if (mounted) {
-            _cancelAiProcessing();
-            if (!hasReceivedFirstChunk) {
-              _inputController.text = backupText;
-            }
-            ref.read(appSoundProvider).playEvent(SoundEvent.aiError);
-            AppToast.showError(context, error);
-          }
-        },
-        onDone: () {
-          ref.read(appSoundProvider).playEvent(SoundEvent.aiComplete);
-          _aiTextStreamer?.completeStream();
-        },
-        cancelOnError: true,
-      );
-    } catch (e) {
-      if (mounted) {
-        _cancelAiProcessing();
-        if (!hasReceivedFirstChunk) {
-          _inputController.text = backupText;
-        }
-        ref.read(appSoundProvider).playEvent(SoundEvent.aiError);
-        AppToast.showError(context, e);
-      }
-    }
+    await _aiRewrite.start(action, targetLanguage: targetLanguage);
   }
 
-  void _cancelAiProcessing() {
-    _aiStreamSubscription?.cancel();
-    _aiStreamSubscription = null;
-    _aiTextStreamer?.cancel();
-    _aiTextStreamer?.dispose();
-    _aiTextStreamer = null;
-    if (_isAiProcessing) {
-      _composerNotifier.value = _composerNotifier.value.copyWith(
-        isAiProcessing: false,
-      );
-    }
-  }
+  void _cancelAiProcessing() => _aiRewrite.cancel();
 
   Future<void> _showAiBottomSheet(BuildContext context) async {
     if (_inputController.text.trim().isEmpty) return;
