@@ -217,7 +217,7 @@ class ChatMessagesScope extends ConsumerWidget {
   }
 }
 
-// ── Animated message entrance widget ────────────────────────────────────────
+// ── Animated message entrance widget ──────────────────────────────────────────
 class _AnimatedMessage extends StatefulWidget {
   const _AnimatedMessage({
     super.key,
