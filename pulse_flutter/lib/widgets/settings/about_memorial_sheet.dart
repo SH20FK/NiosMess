@@ -305,7 +305,7 @@ class _GravestonePainter extends CustomPainter {
       Offset(cx, archCenterY + 56),
       TextStyle(
         color: scheme.primary,
-        fontSize: 12.5,
+        fontSize: 13,
         fontWeight: FontWeight.w800,
         letterSpacing: 1.4,
       ),

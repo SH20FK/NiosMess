@@ -14,6 +14,27 @@ import 'package:pulse_flutter/services/e2ee_service.dart';
 /// Interactive phase of a navigation action button.
 enum ActionPhase { idle, pending, error }
 
+/// Picks the direct chat with [username], preferring a regular (non-secret)
+/// chat. Falls back to a secret chat when it is the only one, so callers never
+/// silently create a duplicate regular chat. Returns null when the user has no
+/// direct chat in [chats].
+ApiChatSummary? findDirectChatWithUser(
+  Iterable<ApiChatSummary> chats,
+  String username,
+) {
+  final String target = username.trim().toLowerCase();
+  if (target.isEmpty) return null;
+
+  ApiChatSummary? secretFallback;
+  for (final ApiChatSummary chat in chats) {
+    if (chat.chatType != 'direct') continue;
+    if ((chat.username ?? '').trim().toLowerCase() != target) continue;
+    if (!chat.isSecret) return chat;
+    secretFallback ??= chat;
+  }
+  return secretFallback;
+}
+
 /// Opens a direct chat instantly if known or cached, or resolves it asynchronously
 /// without full-screen interstitial loading screens or blocking [list_chats] requests.
 Future<int?> navigateToDirectChat(
@@ -68,36 +89,41 @@ Future<int?> navigateToDirectChat(
     } catch (_) {}
   }
 
-  // 1. Fast path: chat ID already known or found in local chats list
-  final int? fastId = isSecret
-      ? ref
-            .read(chatsProvider)
-            .value
-            ?.where((ApiChatSummary c) {
-              final String? partnerKey = c.partnerPublicKey;
-              final bool usableKey =
-                  partnerKey != null &&
-                  partnerKey.isNotEmpty &&
-                  partnerKey != myPublicKey;
-              return c.chatType == 'direct' &&
-                  c.isSecret &&
-                  usableKey &&
-                  c.username?.trim().toLowerCase() == cleanUsername;
-            })
-            .firstOrNull
-            ?.id
-      : ((knownChatId != null && knownChatId > 0)
-            ? knownChatId
-            : ref
-                  .read(chatsProvider)
-                  .value
-                  ?.where((ApiChatSummary c) {
-                    return c.chatType == 'direct' &&
-                        !c.isSecret &&
-                        c.username?.trim().toLowerCase() == cleanUsername;
-                  })
-                  .firstOrNull
-                  ?.id);
+  // 1. Fast path: reuse an existing direct chat. A regular chat wins over a
+  // secret one; when only the secret chat exists it is opened deliberately
+  // instead of silently creating a duplicate regular chat.
+  final List<ApiChatSummary> cachedChats =
+      ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
+  final int? fastId;
+  if (isSecret) {
+    fastId = cachedChats
+        .where((ApiChatSummary c) {
+          final String? partnerKey = c.partnerPublicKey;
+          final bool usableKey =
+              partnerKey != null &&
+              partnerKey.isNotEmpty &&
+              partnerKey != myPublicKey;
+          return c.chatType == 'direct' &&
+              c.isSecret &&
+              usableKey &&
+              c.username?.trim().toLowerCase() == cleanUsername;
+        })
+        .firstOrNull
+        ?.id;
+  } else {
+    final ApiChatSummary? existing = findDirectChatWithUser(
+      cachedChats,
+      cleanUsername,
+    );
+    if (existing != null) {
+      fastId = existing.id;
+    } else if (knownChatId != null && knownChatId > 0) {
+      // The profile resolved this chat before the list was loaded.
+      fastId = knownChatId;
+    } else {
+      fastId = null;
+    }
+  }
 
   if (fastId != null && fastId > 0) {
     if (context.mounted) {

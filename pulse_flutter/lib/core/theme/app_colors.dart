@@ -7,6 +7,12 @@ class AppColors {
   /// Unified semantic online presence green across all screens.
   static const Color statusOnline = Color(0xFF22C55E);
 
+  /// NiosMess brand forest — the primary accent of the logo and brand book
+  /// (`brand/tokens.json` → `palette.forest`). The Material scheme itself is
+  /// user-seeded and neutralized, so system notifications need this fixed
+  /// brand constant instead of the baseline M3 purple.
+  static const Color brandForest = Color(0xFF28634C);
+
   /// Deterministic, scheme-harmonized avatar color for any user or chat ID.
   static Color avatarColorFor(String id, ColorScheme scheme) =>
       NiosMark.resolveColor(id, scheme);

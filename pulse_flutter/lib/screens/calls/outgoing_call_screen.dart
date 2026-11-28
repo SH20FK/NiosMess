@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/navigation/direct_chat_navigator.dart';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/chat_actions_models.dart';
@@ -66,15 +67,10 @@ class _OutgoingCallScreenState extends ConsumerState<OutgoingCallScreen> {
     // 1. Resolve chatId (server validates whether a bot supports calls).
     int? resolvedChatId = widget.args.chatId;
     if (resolvedChatId == null || resolvedChatId <= 0) {
-      final List<ApiChatSummary> chats = ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
-      for (final ApiChatSummary c in chats) {
-        if (c.chatType == 'direct' &&
-            c.username != null &&
-            c.username!.trim().toLowerCase() == targetUsername) {
-          resolvedChatId = c.id;
-          break;
-        }
-      }
+      final List<ApiChatSummary> chats =
+          ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
+      // Prefer the regular direct chat over a secret one for calls.
+      resolvedChatId = findDirectChatWithUser(chats, targetUsername)?.id;
     }
 
     if (resolvedChatId == null || resolvedChatId <= 0) {

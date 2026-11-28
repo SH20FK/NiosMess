@@ -2305,7 +2305,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatCreatePersonalSubtitle =>
-      'Start a direct conversation by username';
+      'Regular chat is E2EE too: account keys, recovery key available';
 
   @override
   String get chatCreatePersonalPrompt => 'Start direct chat';
@@ -2669,7 +2669,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatCreationSecretSubtitle =>
-      'End-to-end E2EE encryption, no traces on the server';
+      'Keys stay on this device; the server holds only ciphertext';
 
   @override
   String get chatCreationChannelSubtitle =>
@@ -5201,6 +5201,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get shellPushNotificationsSuccess =>
       'Notifications enabled successfully!';
+  @override
+  String get noticeNewSecretMessage => 'New secret message';
+  @override
+  String get noticeSentMediaFile => 'Media file';
   @override
   String get shellPressAgainToExit => 'Press back again to exit';
   @override

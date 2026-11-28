@@ -1,3 +1,5 @@
+import 'notifications/push_body_localization_test.dart' as push_body_localization;
+import 'unit/direct_chat_selection_test.dart' as unit_direct_chat_selection;
 import 'widgets/settings_redesign_system_profile_dialogs_test.dart'
     as settings_redesign_system_profile_dialogs_test;
 import 'widgets/profile_polish_test.dart' as profile_polish;
@@ -575,6 +577,8 @@ void main() {
     group('main_shell_inbox_pane', widgets_main_shell_inbox_pane.main);
     group('create_group', features_create_group.main);
 
+    group('push_body_localization', push_body_localization.main);
+    group('direct_chat_selection', unit_direct_chat_selection.main);
     // End-to-End & Integration Suites
     e2e_niosgram_and_settings.main();
     integration_e2e_auth_flow.main();

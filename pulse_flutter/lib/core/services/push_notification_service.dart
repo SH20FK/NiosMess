@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pulse_flutter/core/notifications/notification_event.dart';
 import 'package:pulse_flutter/core/notifications/notification_web_bridge.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/theme/app_colors.dart';
 import 'package:pulse_flutter/providers/notification_preferences_provider.dart';
 
 @pragma('vm:entry-point')
@@ -205,6 +206,30 @@ class PushNotificationService {
     return false;
   }
 
+  /// Server pushes carry English generic bodies for both secret and ordinary
+  /// E2EE chats (`chat_handler.py:1212-1220`, `ws_manager.py:2827-2834`), and
+  /// only `is_secret` tells them apart. Translate those literals; a body that
+  /// is already real content passes through untouched.
+  static String _localizedPushBody(
+    String body, {
+    required bool isSecret,
+    required bool preview,
+    required AppLocalizations strings,
+  }) {
+    if (isSecret) return strings.noticeNewSecretMessage;
+    if (!preview) return strings.noticeNewMessage;
+    final String raw = body.trim();
+    final String normalized = raw.toLowerCase();
+    if (normalized == 'new secret message' ||
+        normalized == 'encrypted message' ||
+        raw == 'Зашифрованное сообщение') {
+      return strings.noticeNewMessage;
+    }
+    if (normalized == 'new message') return strings.noticeNewMessage;
+    if (normalized == 'sent a media file') return strings.noticeSentMediaFile;
+    return body;
+  }
+
   static NotificationDetails _buildNotificationDetails({
     required String title,
     required String body,
@@ -232,8 +257,10 @@ class PushNotificationService {
             : strings.noticeMessagesChannel,
         importance: isCall ? Importance.max : Importance.high,
         priority: isCall ? Priority.max : Priority.high,
-        icon: '@mipmap/ic_launcher',
-        color: const Color(0xFF6750A4),
+        icon: 'ic_notification',
+        // NiosMess brand forest (`brand/tokens.json`), exposed as
+        // AppColors.brandForest; the theme seed is user-configurable.
+        color: AppColors.brandForest,
         category: isCall
             ? AndroidNotificationCategory.call
             : AndroidNotificationCategory.message,
@@ -252,7 +279,7 @@ class PushNotificationService {
         groupKey: isCall ? 'niosmess_calls' : 'niosmess_chats',
         subText: isCall ? strings.noticeIncomingCall : null,
         enableLights: true,
-        ledColor: const Color(0xFF6750A4),
+        ledColor: AppColors.brandForest,
         ledOnMs: 1000,
         ledOffMs: 500,
         enableVibration: true,
@@ -345,16 +372,15 @@ class PushNotificationService {
     }
     final strings = await _strings();
     final title = event.title;
+    final bool isSecret = data['is_secret']?.toString() == 'true';
     final body = event.isCall
         ? strings.noticeIncomingCall
-        : !options.preview
-        ? strings.noticeNewMessage
-        : data['is_secret']?.toString() == 'true'
-        ? strings.noticeEncrypted
-        : (event.body.toLowerCase() == 'encrypted message' ||
-              event.body == 'Зашифрованное сообщение')
-        ? strings.noticeNewMessage
-        : event.body;
+        : _localizedPushBody(
+            event.body,
+            isSecret: isSecret,
+            preview: options.preview,
+            strings: strings,
+          );
     if (_shouldIgnorePush(title, body, isCall: event.isCall)) return;
     if (kIsWeb) return; // The FCM worker owns background web notifications.
     if (event.isCall && data['room_id'] != null) {
@@ -366,7 +392,7 @@ class PushNotificationService {
     try {
       await _local.initialize(
         settings: const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          android: AndroidInitializationSettings('ic_notification'),
           iOS: DarwinInitializationSettings(
             requestAlertPermission: false,
             requestBadgePermission: false,
@@ -429,7 +455,7 @@ class PushNotificationService {
     // Notification permission is requested by the authenticated shell/settings
     // UX, rather than blocking bootstrap or showing a prompt over the splash.
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_notification');
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings(
           requestAlertPermission: false,

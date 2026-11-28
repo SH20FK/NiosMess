@@ -93,24 +93,25 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       _profile = cached;
     }
 
-    // 3. Find existing direct chat in local state (zero network requests)
+    // 3. Find existing direct chat in local state (zero network requests).
+    // A regular chat wins over a secret one; a secret-only chat is still
+    // reused so "Написать" does not create a duplicate.
     final List<ApiChatSummary> chats =
         ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
-    for (final ApiChatSummary c in chats) {
-      if (c.chatType == 'direct' &&
-          c.username != null &&
-          c.username!.trim().toLowerCase() == targetUser) {
-        _resolvedChatId = c.id;
-        _profile ??= ApiProfile(
-          id: c.id,
-          username: c.username!,
-          displayName: c.name,
-          bio: '',
-          avatarUrl: c.avatarUrl,
-          isOnline: c.isOnline,
-        );
-        break;
-      }
+    final ApiChatSummary? existingChat = findDirectChatWithUser(
+      chats,
+      targetUser,
+    );
+    if (existingChat != null) {
+      _resolvedChatId = existingChat.id;
+      _profile ??= ApiProfile(
+        id: existingChat.id,
+        username: existingChat.username!,
+        displayName: existingChat.name,
+        bio: '',
+        avatarUrl: existingChat.avatarUrl,
+        isOnline: existingChat.isOnline,
+      );
     }
 
     _loadProfile();
@@ -140,19 +141,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           return;
         }
 
-        // Check matching chat in local provider
-        int? matchedChatId = _resolvedChatId;
+        // Check matching chat in local provider (regular chat preferred).
         final List<ApiChatSummary> chats =
             ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
-        for (final ApiChatSummary c in chats) {
-          if (c.chatType == 'direct' &&
-              c.username != null &&
-              c.username!.trim().toLowerCase() ==
-                  profile.username.trim().toLowerCase()) {
-            matchedChatId = c.id;
-            break;
-          }
-        }
+        final int? matchedChatId =
+            findDirectChatWithUser(chats, profile.username)?.id ??
+            _resolvedChatId;
 
         setState(() {
           _profile = profile;
@@ -337,16 +331,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
 
     final List<ApiChatSummary> chats =
         ref.watch(chatsProvider).value ?? const <ApiChatSummary>[];
-    ApiChatSummary? matchingChat;
-    for (final ApiChatSummary c in chats) {
-      if (c.chatType == 'direct' &&
-          c.username != null &&
-          c.username!.trim().toLowerCase() ==
-              profile.username.trim().toLowerCase()) {
-        matchingChat = c;
-        break;
-      }
-    }
+    final ApiChatSummary? matchingChat = findDirectChatWithUser(
+      chats,
+      profile.username,
+    );
 
     final bool isOnline = profile.isOnline || (matchingChat?.isOnline ?? false);
     final String statusText = _computeStatusText(profile, isOnline);
@@ -912,11 +900,11 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final bool isFavorite =
         ref.read(favoriteContactsProvider).contains(profile.id);
 
-    final int? effectiveChatId = _resolvedChatId ??
-        ref.read(chatsProvider).value?.where((c) =>
-            c.chatType == 'direct' &&
-            c.username?.trim().toLowerCase() ==
-                profile.username.trim().toLowerCase()).firstOrNull?.id;
+    final List<ApiChatSummary> chats =
+        ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
+    final int? effectiveChatId =
+        _resolvedChatId ??
+        findDirectChatWithUser(chats, profile.username)?.id;
     final bool isMuted = effectiveChatId != null
         ? (ref.read(chatMutedProvider(effectiveChatId)).value ?? false)
         : _isMutedLocally;
@@ -958,13 +946,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   if (targetChatId == null || targetChatId <= 0) {
                     final List<ApiChatSummary> chats =
                         ref.read(chatsProvider).value ?? const <ApiChatSummary>[];
-                    targetChatId = chats
-                        .where((c) =>
-                            c.chatType == 'direct' &&
-                            c.username?.trim().toLowerCase() ==
-                                profile.username.trim().toLowerCase())
-                        .firstOrNull
-                        ?.id;
+                    targetChatId = findDirectChatWithUser(
+                      chats,
+                      profile.username,
+                    )?.id;
                   }
                   if (targetChatId != null && targetChatId > 0) {
                     await ref

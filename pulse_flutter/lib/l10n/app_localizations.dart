@@ -4218,7 +4218,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatCreatePersonalSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Start a direct conversation by username'**
+  /// **'Regular chat is E2EE too: account keys, recovery key available'**
   String get chatCreatePersonalSubtitle;
 
   /// No description provided for @chatCreatePersonalPrompt.
@@ -4883,7 +4883,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatCreationSecretSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'End-to-end E2EE encryption, no traces on the server'**
+  /// **'Keys stay on this device; the server holds only ciphertext'**
   String get chatCreationSecretSubtitle;
 
   /// No description provided for @chatCreationChannelSubtitle.
@@ -8089,6 +8089,8 @@ abstract class AppLocalizations {
   String get shellPushNotificationsDesc;
   String get shellPushNotificationsEnable;
   String get shellPushNotificationsSuccess;
+  String get noticeNewSecretMessage;
+  String get noticeSentMediaFile;
   String get shellPressAgainToExit;
   String get shellSelectChatToStart;
   String get shellE2eeNotice;

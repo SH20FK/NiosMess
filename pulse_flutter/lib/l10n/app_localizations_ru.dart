@@ -2330,7 +2330,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chatCreatePersonalSubtitle =>
-      'Начать прямой диалог по имени пользователя';
+      'Обычный чат тоже с E2EE: ключи аккаунта, есть ключ восстановления';
 
   @override
   String get chatCreatePersonalPrompt => 'Начать личный чат';
@@ -2691,7 +2691,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chatCreationSecretSubtitle =>
-      'Сквозное E2EE-шифрование, без следов на сервере';
+      'Ключи только на устройстве, на сервере — только шифртекст';
 
   @override
   String get chatCreationChannelSubtitle =>
@@ -5228,6 +5228,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shellPushNotificationsEnable => 'Включить';
   @override
   String get shellPushNotificationsSuccess => 'Уведомления успешно включены.';
+  @override
+  String get noticeNewSecretMessage => 'Новое секретное сообщение';
+  @override
+  String get noticeSentMediaFile => 'Медиафайл';
   @override
   String get shellPressAgainToExit => 'Нажмите ещё раз для выхода';
   @override
