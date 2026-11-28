@@ -2,7 +2,6 @@ import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
 import 'package:pulse_flutter/widgets/chat/chat_file_drop_target.dart';
-import 'package:pulse_flutter/core/media/media_album.dart';
 import 'package:pulse_flutter/core/clipboard/pasted_image.dart';
 import 'package:pulse_flutter/widgets/chat/browser_image_paste_target.dart';
 import 'package:pulse_flutter/widgets/chat/pasted_images_dialog.dart';
@@ -25,8 +24,6 @@ import 'package:pulse_flutter/widgets/chat/report_message_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/ai_actions_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/auto_delete_bottom_sheet.dart';
 import 'dart:async';
-import 'dart:math';
-import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/services/desktop_pasteboard_service.dart';
 import 'package:pulse_flutter/widgets/chat/desktop_drag_drop_area.dart';
 import 'package:pulse_flutter/core/theme/app_colors.dart';
@@ -35,12 +32,11 @@ import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/router/app_navigation.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/bot_detector.dart';
-import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/theme/nios_chroma.dart';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart'
-    show ValueListenable, compute, kIsWeb;
+    show ValueListenable, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
 import 'package:pulse_flutter/widgets/chat/spamblock_banner.dart';
@@ -53,6 +49,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_ai_rewrite_controller.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_attachment_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_composer_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_draft_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_action_controller.dart';
@@ -111,16 +108,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   // Cache providers that may be needed in dispose()
   SecretDraftSink? _secretDraftSink;
-  bool _desktopPasteInFlight = false;
-  DateTime? _lastDesktopPasteAt;
-  final DesktopPasteDeduplicator _pasteDeduplicator =
-      DesktopPasteDeduplicator();
 
   late final ChatDraftController _draft;
   late final ChatMediaController _media;
   late final ChatMessageActionController _actions;
   late final ChatComposerController _composer;
   late final ChatSendController _send;
+  late final ChatAttachmentController _attachments;
 
   int? get _replyToMessageId => _composer.replyToMessageId;
   String? get _replyPreviewText => _composer.replyPreviewText;
@@ -321,6 +315,137 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         if (mounted) AppToast.showError(context, error);
       },
     );
+    _attachments = ChatAttachmentController(
+      chatId: () => _chatId,
+      textController: _inputController,
+      l10n: () => context.l10n,
+      chat: (int id) => ref.read(chatByIdProvider(id)),
+      ensureChats: () => ref.read(chatsProvider.future),
+      isSecret: () => _isSecret,
+      isEditingMessage: () => _editingMessageId != null,
+      identity: () {
+        final auth = ref.read(authProvider);
+        return (
+          userId: auth.session?.userId ?? -1,
+          username: auth.session?.username ?? '',
+          displayName: auth.profile?.displayName.trim() ?? '',
+        );
+      },
+      replyToMessageId: () => _replyToMessageId,
+      enqueueSecretFile:
+          (
+            int chatId,
+            String filePath, {
+            required String filename,
+            required String type,
+            required String text,
+            int? replyToId,
+          }) async {
+            final secret = await ref.read(secretChatCoordinatorProvider.future);
+            if (secret == null) throw StateError('Secret storage unavailable');
+            await secret.enqueueAttachmentFile(
+              chatId,
+              filePath,
+              filename: filename,
+              type: type,
+              text: text,
+              replyToId: replyToId,
+            );
+          },
+      enqueueSecretBytes:
+          (
+            int chatId,
+            Uint8List bytes, {
+            required String filename,
+            required String type,
+            required String text,
+            int? replyToId,
+          }) async {
+            final secret = await ref.read(secretChatCoordinatorProvider.future);
+            if (secret == null) throw StateError('Secret storage unavailable');
+            await secret.enqueueAttachment(
+              chatId,
+              bytes,
+              filename: filename,
+              type: type,
+              text: text,
+              replyToId: replyToId,
+            );
+          },
+      addOptimistic: (int chatId, ApiMessage message) => ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .addOptimisticLocalMessage(message),
+      enqueueUpload:
+          ({
+            required String localId,
+            required int chatId,
+            required String filePath,
+            required Uint8List? bytes,
+            required String filename,
+            required String mediaSubtype,
+            required int fileSize,
+            required String text,
+            required int? replyToId,
+          }) => ref
+              .read(uploadQueueProvider.notifier)
+              .enqueue(
+                localId: localId,
+                chatId: chatId,
+                filePath: filePath,
+                bytes: bytes,
+                filename: filename,
+                mediaSubtype: mediaSubtype,
+                fileSize: fileSize,
+                text: text,
+                replyToId: replyToId,
+              ),
+      clearReply: _composer.clearReply,
+      scrollToBottom: _scrollToBottom,
+      showError: (Object error) {
+        if (mounted) AppToast.showError(context, error);
+      },
+      pickFiles:
+          (Future<void> Function(String kind) onOpenInteractive) =>
+              showM3FilePicker(
+                context,
+                onOpenInteractive: (String kind) {
+                  unawaited(onOpenInteractive(kind));
+                },
+              ),
+      showInteractive: (String kind) => showInteractiveComposer(context, kind),
+      sendInteractive: (int targetChatId, String content) => ref
+          .read(chatMessagesProvider(targetChatId).notifier)
+          .send(content, requestAi: false),
+      showImagesDialog:
+          ({
+            required List<PastedImage> images,
+            required String caption,
+            required Future<void> Function(
+              List<PastedImage> images,
+              String caption,
+            )
+            onSendAlbum,
+            required Future<void> Function(
+              PastedImage image,
+              String caption,
+            )
+            onSend,
+          }) => showPastedImagesDialog(
+            context,
+            images: images,
+            caption: caption,
+            onSendAlbum: onSendAlbum,
+            onSend: onSend,
+          ),
+      requestInputFocus: () => _inputFocusNode.requestFocus(),
+      isDesktop: () => DesktopPasteboardService.isDesktop,
+      readClipboardFiles: () =>
+          DesktopPasteboardService.getClipboardFilesOrImage(),
+      sendSticker: (int chatId, int stickerId, {int? replyToId}) => ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .sendSticker(stickerId, replyToId: replyToId),
+    );
+
     _aiRewrite = ChatAiRewriteController(
       vsync: this,
       textController: _inputController,
@@ -434,7 +559,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             reminder: reminder,
             text: text,
           ),
-      uploadAndSend: _uploadAndSend,
+      uploadAndSend: _attachments.uploadAndSend,
       fetchMedia:
           ({required String filePath, Uint8List? e2eeFileKey}) =>
               WsMediaFetcher.fetchAndDecryptMedia(
@@ -563,6 +688,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _loadingOlderNotifier.dispose();
     _composer.dispose();
     _send.dispose();
+    _attachments.dispose();
     // Cancel the pending debounce, then write the last text: the only chance
     // to persist the final <500 ms of typing.
     _draft.dispose();
@@ -699,195 +825,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  Future<void> _uploadAndSend({
-    required int chatId,
-    String? filePath,
-    Uint8List? bytes,
-    required String filename,
-    required String mediaSubtype,
-    required int fileSize,
-    String text = '',
-    bool showSentSnackBar = false,
-    bool attachCurrentReply = true,
-  }) async {
-    final int? replyToId = attachCurrentReply ? _replyToMessageId : null;
-    if (ref.read(chatByIdProvider(chatId)) == null && !_isSecret) {
-      try {
-        await ref
-            .read(chatsProvider.future)
-            .timeout(const Duration(seconds: 8));
-      } catch (_) {}
-      if (!mounted) return;
-      if (ref.read(chatByIdProvider(chatId)) == null) {
-        AppToast.showError(context, context.l10n.errorFileUploadFailed);
-        throw StateError('Conversation metadata unavailable');
-      }
-    }
-    if (ref.read(chatByIdProvider(chatId))?.isSecret == true || _isSecret) {
-      try {
-        final secret = await ref.read(secretChatCoordinatorProvider.future);
-        if (secret == null) throw StateError('Secret storage unavailable');
-        final type = mediaSubtype == 'voice'
-            ? 'voice'
-            : mediaSubtype == 'circle'
-            ? 'circle'
-            : 'media';
-        if (!kIsWeb && filePath != null && filePath.isNotEmpty) {
-          await secret.enqueueAttachmentFile(
-            chatId,
-            filePath,
-            filename: filename,
-            type: type,
-            text: text,
-            replyToId: replyToId,
-          );
-        } else {
-          if (bytes == null || bytes.isEmpty) {
-            throw StateError('Empty attachment');
-          }
-          await secret.enqueueAttachment(
-            chatId,
-            bytes,
-            filename: filename,
-            type: type,
-            text: text,
-            replyToId: replyToId,
-          );
-        }
-        if (mounted && attachCurrentReply) {
-          if (_inputController.text == text) _inputController.clear();
-          _composer.clearReply();
-          _scrollToBottom();
-        }
-        return;
-      } catch (_) {
-        if (mounted) {
-          AppToast.showError(context, context.l10n.secretAttachmentSaveFailed);
-        }
-        rethrow;
-      }
-    }
-    final String defaultSenderYou = context.l10n.chatSenderYou;
-    final String localId =
-        (-(DateTime.now().millisecondsSinceEpoch + Random().nextInt(1000)))
-            .toString();
-    final int tempIntId = int.parse(localId);
-
-    final Uint8List? effectiveBytes = (bytes != null && bytes.isNotEmpty)
-        ? bytes
-        : null;
-    final String effectiveFilePath = filePath ?? '';
-
-    final authState = ref.read(authProvider);
-    final int myUserId = authState.session?.userId ?? -1;
-    final String myUsername = authState.session?.username ?? '';
-    final String myDisplayName = authState.profile?.displayName.trim() ?? '';
-    final String effectiveDisplayName = myDisplayName.isNotEmpty
-        ? myDisplayName
-        : (myUsername.isNotEmpty ? myUsername : defaultSenderYou);
-    final optimisticMessage = ApiMessage(
-      id: tempIntId,
-      chatId: chatId,
-      senderId: myUserId,
-      senderUsername: myUsername,
-      senderDisplayName: effectiveDisplayName,
-      senderBadges: const [],
-      content: text,
-      msgType: mediaSubtype == 'voice'
-          ? 'voice'
-          : (mediaSubtype == 'circle' ? 'circle' : 'media'),
-      replyToId: replyToId,
-      mediaUrl: filePath ?? 'local://$localId',
-      mediaType: 'file',
-      mediaName: filename,
-      mediaSize: fileSize,
-      mediaDuration: null,
-      commentsCount: 0,
-      reactions: const {},
-      sentAt: DateTime.now(),
-      editedAt: null,
-      isDeleted: false,
-      isSending: true,
-      isFailed: false,
-    );
-
-    ref
-        .read(chatMessagesProvider(chatId).notifier)
-        .addOptimisticLocalMessage(optimisticMessage);
-    if (attachCurrentReply) {
-      _composer.clearReply();
-      _scrollToBottom();
-    }
-
-    ref
-        .read(uploadQueueProvider.notifier)
-        .enqueue(
-          localId: localId,
-          chatId: chatId,
-          filePath: effectiveFilePath,
-          bytes: effectiveBytes,
-          filename: filename,
-          mediaSubtype: mediaSubtype,
-          fileSize: fileSize,
-          text: text,
-          replyToId: replyToId,
-        );
-  }
-
-  Future<void> _sendVoiceMessage(String filePath) async {
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-
-    final File file = File(filePath);
-    final int fileSize = await file.length();
-    final String filename = filePath.split('/').last;
-
-    await _uploadAndSend(
-      chatId: chatId,
-      filePath: filePath,
-      filename: filename,
-      mediaSubtype: 'voice',
-      fileSize: fileSize,
-    );
-  }
-
-  Future<void> _sendCircleVideo(String filePath) async {
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-
-    final File file = File(filePath);
-    final int fileSize = await file.length();
-    String filename = filePath.split(RegExp(r'[/\\]')).last.trim();
-    if (filename.toLowerCase().endsWith('.temp')) {
-      filename = '${filename.substring(0, filename.length - 5)}.mp4';
-    } else if (!filename.contains('.')) {
-      filename = '$filename.mp4';
-    }
-
-    await _uploadAndSend(
-      chatId: chatId,
-      filePath: filePath,
-      filename: filename,
-      mediaSubtype: 'circle',
-      fileSize: fileSize,
-    );
-  }
-
-  Future<void> _sendSticker(ApiSticker sticker) async {
-    final int? cid = _chatId;
-    if (cid == null) return;
-    try {
-      await ref
-          .read(chatMessagesProvider(cid).notifier)
-          .sendSticker(sticker.id, replyToId: _replyToMessageId);
-      _composer.clearReply();
-    } catch (e) {
-      if (mounted) {
-        AppToast.showError(context, context.l10n.chatStickerSendFailed(e));
-      }
-    }
-  }
-
   Future<bool> _loadOlderMessages() async {
     final int? chatId = _chatId;
     if (chatId == null) {
@@ -902,219 +839,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       if (!mounted) return false;
       AppToast.showError(context, error);
       return false;
-    }
-  }
-
-  Future<void> _previewPastedImages(
-    List<PastedImage> images, {
-    String? initialCaption,
-  }) async {
-    if (!mounted || _chatId == null || _editingMessageId != null) return;
-    final chatId = _chatId!;
-    final originalText = _inputController.text;
-    await showPastedImagesDialog(
-      context,
-      images: images,
-      caption: initialCaption ?? originalText,
-      onSendAlbum: (images, caption) async {
-        if (!mounted || _chatId != chatId) {
-          throw StateError('Conversation closed');
-        }
-        final bytes = await compute(_encodeAlbum, images);
-        if (!mounted || _chatId != chatId) {
-          throw StateError('Conversation closed');
-        }
-        await _uploadAndSend(
-          chatId: chatId,
-          bytes: bytes,
-          filename: 'NiosMess-Album.niosalbum.zip',
-          mediaSubtype: 'document',
-          fileSize: bytes.length,
-          text: caption,
-        );
-        if (mounted && _inputController.text == originalText) {
-          _inputController.clear();
-        }
-      },
-      onSend: (image, caption) async {
-        if (!mounted || _chatId != chatId) {
-          throw StateError('Conversation closed');
-        }
-        await _uploadAndSend(
-          chatId: chatId,
-          bytes: image.bytes,
-          filename: image.name,
-          mediaSubtype: MediaAlbum.imageExtension(image.bytes) != null
-              ? 'image'
-              : 'document',
-          fileSize: image.bytes.length,
-          text: caption,
-        );
-        if (mounted && _inputController.text == originalText) {
-          _inputController.clear();
-        }
-      },
-    );
-    if (mounted) _inputFocusNode.requestFocus();
-  }
-
-  Future<void> _pickAndUploadMedia() async {
-    final int? chatId = _chatId;
-    if (chatId == null) {
-      return;
-    }
-
-    final List<M3FilePickerResult>? results = await showM3FilePicker(
-      context,
-      onOpenInteractive: (kind) async {
-        final accountId = ref.read(authProvider).session?.userId;
-        final content = await showInteractiveComposer(context, kind);
-        if (!mounted ||
-            content == null ||
-            ref.read(authProvider).session?.userId != accountId) {
-          return;
-        }
-        try {
-          await ref
-              .read(chatMessagesProvider(chatId).notifier)
-              .send(content, requestAi: false);
-        } catch (error) {
-          if (!mounted) return;
-          AppToast.showError(
-            context,
-            context.l10n.interactiveSendFailed,
-          );
-        }
-      },
-    );
-    if (results == null || results.isEmpty || !mounted) {
-      return;
-    }
-
-    if (results.length > 1 &&
-        results.length <= 10 &&
-        results.every((r) => !r.sendAsDocument && r.mediaSubtype == 'image')) {
-      final images = <PastedImage>[];
-      for (final result in results) {
-        final bytes =
-            result.fileBytes ??
-            (result.filePath != null
-                ? await File(result.filePath!).readAsBytes()
-                : null);
-        if (bytes == null) return;
-        images.add(
-          PastedImage(
-            bytes: bytes,
-            name: result.fileName,
-            mimeType: 'image/unknown',
-          ),
-        );
-      }
-      if (mounted) {
-        await _previewPastedImages(
-          images,
-          initialCaption: results.first.caption,
-        );
-      }
-      return;
-    }
-
-    final String initialText = _inputController.text;
-    if (mounted &&
-        !_isSecret &&
-        ref.read(chatByIdProvider(chatId))?.isSecret != true) {
-      _inputController.clear();
-    }
-
-    for (int i = 0; i < results.length; i++) {
-      final M3FilePickerResult result = results[i];
-      final String filename = result.fileName;
-      final String mediaSubtype = result.sendAsDocument
-          ? 'document'
-          : result.mediaSubtype;
-
-      final String? uploadFilePath = result.filePath;
-      final Uint8List? uploadBytes = result.fileBytes;
-      final int uploadFileSize = result.fileSize;
-      final String caption =
-          (result.caption != null && result.caption!.isNotEmpty)
-          ? result.caption!
-          : (i == 0 ? initialText : '');
-
-      await _uploadAndSend(
-        chatId: chatId,
-        filePath: uploadFilePath,
-        bytes: uploadBytes,
-        filename: filename,
-        mediaSubtype: mediaSubtype,
-        fileSize: uploadFileSize,
-        text: caption,
-        showSentSnackBar: false,
-      );
-    }
-  }
-
-  Future<void> _handleDesktopPaste() async {
-    if (!DesktopPasteboardService.isDesktop || !mounted) return;
-    final DateTime now = DateTime.now();
-    if (_desktopPasteInFlight) return;
-    if (_lastDesktopPasteAt != null &&
-        now.difference(_lastDesktopPasteAt!) <
-            const Duration(milliseconds: 400)) {
-      return;
-    }
-    _desktopPasteInFlight = true;
-    _lastDesktopPasteAt = now;
-    try {
-      final List<String> files =
-          await DesktopPasteboardService.getClipboardFilesOrImage();
-      if (files.isNotEmpty && mounted) {
-        await _uploadDesktopFiles(files);
-      }
-    } finally {
-      _desktopPasteInFlight = false;
-    }
-  }
-
-  Future<void> _uploadDesktopFiles(
-    List<String> filePaths, {
-    bool sendAsDocument = false,
-  }) async {
-    final int? chatId = _chatId;
-    if (chatId == null || filePaths.isEmpty) return;
-    if (!_pasteDeduplicator.shouldAccept(filePaths)) return;
-    final String initialText = _inputController.text;
-    if (mounted &&
-        !_isSecret &&
-        ref.read(chatByIdProvider(chatId))?.isSecret != true) {
-      _inputController.clear();
-    }
-
-    for (int i = 0; i < filePaths.length; i++) {
-      final String filePath = filePaths[i];
-      final File file = File(filePath);
-      if (!await file.exists()) continue;
-      final int size = await file.length();
-      final String filename = filePath.split(RegExp(r'[/\\]')).last;
-      final FileTypeInfo typeInfo = FileTypeDetector.detect(fileName: filename);
-      final String mediaSubtype = sendAsDocument
-          ? 'document'
-          : (typeInfo.isImage
-                ? 'image'
-                : (typeInfo.isVideo
-                      ? 'video'
-                      : (typeInfo.isAudio ? 'audio' : 'document')));
-
-      await _uploadAndSend(
-        chatId: chatId,
-        filePath: filePath,
-        bytes: null,
-        filename: filename,
-        mediaSubtype: mediaSubtype,
-        fileSize: size,
-        text: i == 0 ? initialText : '',
-        showSentSnackBar: false,
-      );
     }
   }
 
@@ -1302,11 +1026,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     final Widget content = ChatFileDropTarget(
       conversationId: chatId,
       enabled: _editingMessageId == null && !_isAiProcessing,
-      onFiles: (files) => unawaited(_previewPastedImages(files)),
+      onFiles: (files) => unawaited(_attachments.previewPastedImages(files)),
       child: BrowserImagePasteTarget(
         focusNode: _inputFocusNode,
         enabled: _editingMessageId == null && !_isAiProcessing,
-        onImages: (images) => unawaited(_previewPastedImages(images)),
+        onImages: (images) => unawaited(_attachments.previewPastedImages(images)),
         child: CallbackShortcuts(
           bindings: <ShortcutActivator, VoidCallback>{
             const SingleActivator(LogicalKeyboardKey.escape): () {
@@ -1327,12 +1051,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 // Focused TextField handles Ctrl+V via ChatInputBar.onDesktopPaste;
                 // ignore here so both listeners never double-send the same paste.
                 if (_inputFocusNode.hasFocus) return;
-                unawaited(_handleDesktopPaste());
+                unawaited(_attachments.handleDesktopPaste());
               },
             if (DesktopPasteboardService.isDesktop)
               const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () {
                 if (_inputFocusNode.hasFocus) return;
-                unawaited(_handleDesktopPaste());
+                unawaited(_attachments.handleDesktopPaste());
               },
             if (isSecret) ...<ShortcutActivator, VoidCallback>{
               const SingleActivator(LogicalKeyboardKey.printScreen):
@@ -1385,7 +1109,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 onSecurityTap: _showE2eeVerification,
               ),
               body: DesktopDragDropArea(
-                onFilesDropped: _uploadDesktopFiles,
+                onFilesDropped: _attachments.uploadDesktopFiles,
                 child: ChatViewport(
                   topBanner: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -1457,15 +1181,15 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     onCommitEdit: _composer.commitEdit,
                     onCancelEdit: _composer.cancelEdit,
                     onClearReply: _composer.clearReply,
-                    onAttachMedia: _pickAndUploadMedia,
+                    onAttachMedia: _attachments.pickAndUploadMedia,
                     onAiPressed: (ctx, _) => _showAiBottomSheet(ctx),
-                    onVoiceSend: (p) => unawaited(_sendVoiceMessage(p)),
-                    onCircleSend: (p) => unawaited(_sendCircleVideo(p)),
+                    onVoiceSend: (p) => unawaited(_attachments.sendVoiceMessage(p)),
+                    onCircleSend: (p) => unawaited(_attachments.sendCircleVideo(p)),
                     onCancelAi: _cancelAiProcessing,
-                    onSendSticker: (s) => unawaited(_sendSticker(s)),
+                    onSendSticker: (s) => unawaited(_attachments.sendSticker(s)),
                     onEditLastMessage: _composer.editLastMessage,
-                    onAttachFiles: _uploadDesktopFiles,
-                    onDesktopPaste: _handleDesktopPaste,
+                    onAttachFiles: _attachments.uploadDesktopFiles,
+                    onDesktopPaste: _attachments.handleDesktopPaste,
                     scheme: scheme,
                   ),
                 ),
@@ -2314,10 +2038,6 @@ class _TypingSubtitle extends ConsumerWidget {
     );
   }
 }
-
-Uint8List _encodeAlbum(List<PastedImage> images) => MediaAlbum.encode([
-  for (final image in images) AlbumImage(image.name, image.bytes),
-]);
 
 /// Adapts the account engine to [SecretDraftSink]. `engine` is a `late` field
 /// on the coordinator, so it is touched only when a draft is read or written —
