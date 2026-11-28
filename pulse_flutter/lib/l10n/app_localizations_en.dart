@@ -3975,10 +3975,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutThirdPartyLicensesSubtitle => 'Information about open-source client components';
 
   @override
-  String get aboutBasedOnTitle => 'Based on exteraGram';
+  String get aboutPortedTitle => 'Code and ideas from exteraGram';
 
   @override
-  String get aboutBasedOnSubtitle => 'Community ideas and code under GPLv3';
+  String get aboutPortedSubtitle => 'Not a fork — a few techniques and files';
 
   @override
   String get aboutFounderRole => 'Founder & Chief Architect';

@@ -17,27 +17,27 @@ example `packages/nios_mls/THIRD_PARTY_NOTICES.txt` and everything under
 `server_core/` is a separate backend, is not distributed with this repository
 and is not covered by this notice.
 
-## Based on exteraGram
+## Code from exteraGram
 
-Parts of this project are derived from **exteraGram for Android** — design
-decisions, algorithms, constants and, in some files, code:
+Some features and algorithms here are modelled on **exteraGram for Android**, and
+individual files may be ported from it. NiosMess is **not** a fork and not a
+modified version of exteraGram: the client is a separate Flutter application, and
+the table below lists every file that contains code taken from there. The table
+is empty at the time of writing — so far we have reused ideas, not code.
 
-- Copyright @exteraGram, 2022–2026
+- exteraGram: Copyright @exteraGram, 2022–2026
 - <https://github.com/exteraSquad/exteraGram>
 - Licensed under the GNU GPL v3 or later, with the additional terms in that
   repository's `ADDITIONAL_TERMS.md`
 
-NiosMess is not exteraGram and is not endorsed by exteraGram's authors. The
-name, logos and app icons of exteraGram are not used as the name, logo or icon
-of this project; the name appears only to state truthfully where the work comes
-from, as their additional terms require.
+Ported files and the changes made to them keep their original notices. NiosMess
+is not affiliated with or endorsed by exteraGram's authors; their name, logos and
+app icons are not used as the name, logo or icon of this project, and the name
+appears only to say truthfully where the code came from.
 
-Files and features taken from exteraGram are listed here as they are ported, so
-the attribution stays checkable:
-
-| NiosMess | Derived from |
-|---|---|
-| _(nothing ported yet — this table is filled as features land)_ | |
+| NiosMess file | exteraGram source | Notes |
+|---|---|---|
+| _(none yet — ideas only)_ | | |
 
 ## Telegram for Android
 
