@@ -226,22 +226,21 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
         if (reduced)
           _tabContent(context)
         else
-          // The stack of the switcher is as tall as its tallest child, so the
-          // AnimatedSize outside only has to settle the difference between
-          // the old and the new tab — the height never jumps mid-swap.
-          AnimatedSize(
+          // Only the current child is laid out. The default AnimatedSwitcher
+          // stack sizes to its tallest child, and wrapping that in AnimatedSize
+          // made the whole tab block collapse to a clipped zero-height box on
+          // some devices (content present, nothing painted). The fade+lift on
+          // the switch is enough motion; the height follows the content.
+          AnimatedSwitcher(
             duration: M3Durations.medium2,
-            curve: M3SpringCurves.expressiveDecel,
-            alignment: Alignment.topCenter,
-            child: AnimatedSwitcher(
-              duration: M3Durations.medium2,
-              switchInCurve: M3SpringCurves.expressiveDecel,
-              switchOutCurve: M3SpringCurves.expressiveAccel,
-              transitionBuilder: _tabTransition,
-              child: KeyedSubtree(
-                key: ValueKey(_tab),
-                child: _tabContent(context),
-              ),
+            switchInCurve: M3SpringCurves.expressiveDecel,
+            switchOutCurve: M3SpringCurves.expressiveAccel,
+            transitionBuilder: _tabTransition,
+            layoutBuilder: (Widget? currentChild, List<Widget> previous) =>
+                currentChild ?? const SizedBox.shrink(),
+            child: KeyedSubtree(
+              key: ValueKey(_tab),
+              child: _tabContent(context),
             ),
           ),
         SettingsSection(

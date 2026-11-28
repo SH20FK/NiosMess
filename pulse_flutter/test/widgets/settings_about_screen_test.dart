@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pulse_flutter/l10n/app_localizations.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
+import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 Widget _wrapWithApp(Widget child) {
   return ProviderScope(
@@ -104,6 +105,44 @@ void main() {
       // Check developers sanlsan and SH20FK
       expect(find.text('sanlsan'), findsOneWidget);
       expect(find.text('SH20FK'), findsOneWidget);
+    });
+
+    testWidgets('tab content is laid out at phone width, not collapsed',
+        (WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(_wrapWithApp(const SettingsAboutScreen(isEmbedded: true)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // Documents tab: the legal group must occupy real space, not a clipped
+      // zero-height box (the About screen once rendered sections that existed
+      // in the tree but painted nothing).
+      await tester.tap(find.text('Документы').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final legal = find.ancestor(
+        of: find.text('Политика конфиденциальности'),
+        matching: find.byType(SettingsSection),
+      );
+      expect(legal, findsWidgets);
+      expect(tester.getSize(legal.first).height, greaterThan(100));
+
+      // What's new tab: no section may collapse to a clipped zero-height box,
+      // whichever child the switcher is showing at this point.
+      await tester.tap(find.text('Что нового').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final sections = find.byType(SettingsSection);
+      final heights = <double>[
+        for (int i = 0; i < sections.evaluate().length; i++)
+          tester.getSize(sections.at(i)).height,
+      ];
+      expect(heights.where((double h) => h > 100), isNotEmpty,
+          reason: 'every group collapsed: $heights');
+      expect(tester.takeException(), isNull);
     });
   });
 }
