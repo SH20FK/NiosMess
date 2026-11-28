@@ -11,7 +11,6 @@ import 'package:pulse_flutter/widgets/chat/encrypted_draft_conflict_notice.dart'
 import 'package:pulse_flutter/widgets/chat/live_location_card.dart';
 import 'package:pulse_flutter/widgets/chat/file_request_action.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
-import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
 import 'package:pulse_flutter/services/secret_chat/secret_chat_engine.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
@@ -54,6 +53,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_ai_rewrite_controller.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_composer_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_draft_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_presenter.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_media_controller.dart';
@@ -120,16 +120,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   late final ChatDraftController _draft;
   late final ChatMediaController _media;
+  late final ChatComposerController _composer;
 
-  final ValueNotifier<ChatComposerState> _composerNotifier =
-      ValueNotifier<ChatComposerState>(const ChatComposerState());
-
-  int? get _replyToMessageId => _composerNotifier.value.replyToMessageId;
-  String? get _replyPreviewText => _composerNotifier.value.replyPreviewText;
-  int? get _editingMessageId => _composerNotifier.value.editingMessageId;
-  String? get _editingOriginalText =>
-      _composerNotifier.value.editingOriginalText;
-  bool get _isAiProcessing => _composerNotifier.value.isAiProcessing;
+  int? get _replyToMessageId => _composer.replyToMessageId;
+  String? get _replyPreviewText => _composer.replyPreviewText;
+  int? get _editingMessageId => _composer.editingMessageId;
+  bool get _isAiProcessing => _composer.isAiProcessing;
 
   final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
 
@@ -246,6 +242,38 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
     _inputController.addListener(_onInputChanged);
     _inputFocusNode = FocusNode();
+    final int? composerChatId = _chatId;
+    _composer = ChatComposerController(
+      chatId: composerChatId,
+      textController: _inputController,
+      editMessage: (int id, String text) => ref
+          .read(chatMessagesProvider(composerChatId!).notifier)
+          .editMessage(id, text),
+      identity: () {
+        final session = ref.read(authProvider).session;
+        return (userId: session?.userId, accessToken: session?.accessToken);
+      },
+      haptics: () => ref.read(uiSettingsProvider).haptics,
+      onError: (Object error) {
+        if (mounted) AppToast.showError(context, error);
+      },
+      info: (String message) {
+        if (mounted) AppToast.showInfo(context, message);
+      },
+      myUserId: () => ref.read(authProvider).session?.userId ?? -1,
+      messages: () {
+        final int? id = _chatId;
+        if (id == null) return const <ApiMessage>[];
+        return ref.read(chatMessagesProvider(id)).value ?? const <ApiMessage>[];
+      },
+      replyAuthor: (ApiMessage message) => _presenter.resolveReplyAuthor(
+        message,
+        myUserId: ref.read(authProvider).session?.userId ?? -1,
+        chatName: (ref.read(chatByIdProvider(_chatId ?? 0))?.name ?? '').trim(),
+      ),
+      replySnippet: (ApiMessage message) =>
+          _presenter.resolveReplySnippet(message),
+    );
     _aiRewrite = ChatAiRewriteController(
       vsync: this,
       textController: _inputController,
@@ -253,7 +281,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       streamRequest: (AiRewriteRequest request) async =>
           ref.read(aiRepositoryProvider).streamRewriteText(request: request),
       onBusyChanged: (bool busy) {
-        _composerNotifier.value = _composerNotifier.value.copyWith(
+        _composer.notifier.value = _composer.notifier.value.copyWith(
           isAiProcessing: busy,
         );
       },
@@ -391,7 +419,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _removeScreenshotOverlay();
     _scrollCoordinator.dispose();
     _loadingOlderNotifier.dispose();
-    _composerNotifier.dispose();
+    _composer.dispose();
     // Cancel the pending debounce, then write the last text: the only chance
     // to persist the final <500 ms of typing.
     _draft.dispose();
@@ -596,7 +624,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             .send(text, replyToId: replyId);
         if (!mounted) return;
         if (_inputController.text == originalText) _inputController.clear();
-        if (_replyToMessageId == replyId) _clearReply();
+        if (_replyToMessageId == replyId) _composer.clearReply();
         _scrollToBottom();
       } catch (_) {
         if (mounted) AppToast.showError(context, context.l10n.secretSaveFailed);
@@ -614,7 +642,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       _savingSecretMessage = false;
       if (!mounted) return;
       if (_inputController.text == originalText) _inputController.clear();
-      if (_replyToMessageId == replyId) _clearReply();
+      if (_replyToMessageId == replyId) _composer.clearReply();
       _scrollToBottom();
     }
 
@@ -634,7 +662,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               TextPosition(offset: originalText.length),
             );
             if (replyId != null && originalReplyPreview != null) {
-              _composerNotifier.value = _composerNotifier.value.copyWith(
+              _composer.notifier.value = _composer.notifier.value.copyWith(
                 replyToMessageId: () => replyId,
                 replyPreviewText: () => originalReplyPreview,
               );
@@ -717,7 +745,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         }
         if (mounted && attachCurrentReply) {
           if (_inputController.text == text) _inputController.clear();
-          _clearReply();
+          _composer.clearReply();
           _scrollToBottom();
         }
         return;
@@ -776,7 +804,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         .read(chatMessagesProvider(chatId).notifier)
         .addOptimisticLocalMessage(optimisticMessage);
     if (attachCurrentReply) {
-      _clearReply();
+      _composer.clearReply();
       _scrollToBottom();
     }
 
@@ -841,7 +869,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       await ref
           .read(chatMessagesProvider(cid).notifier)
           .sendSticker(sticker.id, replyToId: _replyToMessageId);
-      _clearReply();
+      _composer.clearReply();
     } catch (e) {
       if (mounted) {
         AppToast.showError(context, context.l10n.chatStickerSendFailed(e));
@@ -1015,105 +1043,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  Future<void> _editMessage(ApiMessage message) async {
-    if (InteractiveMessage.parse(message.content) != null) {
-      AppToast.showInfo(
-        context,
-        'После отправки опрос или список можно завершить либо создать новый.',
-      );
-      return;
-    }
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-    // Enter inline edit mode instead of showing AlertDialog
-    _composerNotifier.value = _composerNotifier.value.copyWith(
-      editingMessageId: () => message.id,
-      editingOriginalText: () => message.content,
-      replyToMessageId: () => null,
-      replyPreviewText: () => null,
-    );
-    _inputController.text = message.content;
-    // Put cursor at end
-    _inputController.selection = TextSelection.fromPosition(
-      TextPosition(offset: _inputController.text.length),
-    );
-  }
-
-  Future<void> _commitEdit() async {
-    if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
-    final int? chatId = _chatId;
-    final int? editId = _editingMessageId;
-    if (chatId == null || editId == null) return;
-    final session = ref.read(authProvider).session;
-    final identity = (session?.userId, session?.accessToken);
-    final String edited = _inputController.text.trim();
-    final String originalDraft = _inputController.text;
-    final String? originalText = _editingOriginalText;
-    if (edited.isEmpty || edited == (originalText ?? '').trim()) {
-      _cancelEdit();
-      return;
-    }
-    try {
-      await ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .editMessage(editId, edited);
-      if (!mounted) return;
-      final current = ref.read(authProvider).session;
-      if (identity != (current?.userId, current?.accessToken)) return;
-      if (_editingMessageId == editId &&
-          _inputController.text == originalDraft) {
-        _cancelEdit();
-      }
-    } catch (error) {
-      if (!mounted) return;
-      final current = ref.read(authProvider).session;
-      if (identity != (current?.userId, current?.accessToken)) return;
-      if (_editingMessageId != editId ||
-          _inputController.text != originalDraft) {
-        AppToast.showError(context, error);
-        return;
-      }
-      _composerNotifier.value = _composerNotifier.value.copyWith(
-        editingMessageId: () => editId,
-        editingOriginalText: () => originalText,
-      );
-      _inputController.text = originalDraft;
-      _inputController.selection = TextSelection.fromPosition(
-        TextPosition(offset: originalDraft.length),
-      );
-      AppToast.showError(context, error);
-    }
-  }
-
-  void _cancelEdit() {
-    if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-    _composerNotifier.value = _composerNotifier.value.copyWith(
-      editingMessageId: () => null,
-      editingOriginalText: () => null,
-    );
-    _inputController.clear();
-  }
-
-  void _editLastMessage() {
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-    final authState = ref.read(authProvider);
-    final int myUserId = authState.session?.userId ?? -1;
-    final List<ApiMessage> messages =
-        ref.read(chatMessagesProvider(chatId)).value ?? const <ApiMessage>[];
-
-    for (final ApiMessage message in messages.reversed) {
-      if (message.senderId == myUserId &&
-          !message.isDeleted &&
-          !message.isFailed &&
-          message.msgType == 'text' &&
-          message.content.trim().isNotEmpty) {
-        _editMessage(message);
-        break;
-      }
-    }
-  }
-
   Future<void> _handleDesktopPaste() async {
     if (!DesktopPasteboardService.isDesktop || !mounted) return;
     final DateTime now = DateTime.now();
@@ -1227,31 +1156,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       }
       AppToast.showError(context, error);
     }
-  }
-
-  void _setReply(ApiMessage message) {
-    final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final String chatName =
-        (ref.read(chatByIdProvider(_chatId ?? 0))?.name ?? '').trim();
-    final String author = _presenter.resolveReplyAuthor(
-      message,
-      myUserId: myUserId,
-      chatName: chatName,
-    );
-    final String snippet = _presenter.resolveReplySnippet(message);
-    _composerNotifier.value = _composerNotifier.value.copyWith(
-      replyToMessageId: () => message.id,
-      replyPreviewText: () =>
-          '$author: ${snippet.length > 80 ? "${snippet.substring(0, 80)}..." : snippet}',
-    );
-  }
-
-  void _clearReply() {
-    if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-    _composerNotifier.value = _composerNotifier.value.copyWith(
-      replyToMessageId: () => null,
-      replyPreviewText: () => null,
-    );
   }
 
   Future<void> _forwardMessage(ApiMessage message) async {
@@ -1373,7 +1277,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       case MessageActionType.showAllReactions:
         _showAllReactionsPicker(message);
       case MessageActionType.reply:
-        _setReply(message);
+        _composer.setReply(message);
       case MessageActionType.requestFile:
         try {
           await requestChatFile(ref, message);
@@ -1415,7 +1319,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           context.push('/channel/$chatId/post/${message.id}/comments');
         }
       case MessageActionType.edit:
-        _editMessage(message);
+        _composer.editMessage(message);
       case MessageActionType.delete:
         _deleteMessage(message);
       case MessageActionType.report:
@@ -1654,11 +1558,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         child: CallbackShortcuts(
           bindings: <ShortcutActivator, VoidCallback>{
             const SingleActivator(LogicalKeyboardKey.escape): () {
-              final composer = _composerNotifier.value;
+              final composer = _composer.notifier.value;
               if (composer.editingMessageId != null) {
-                _cancelEdit();
+                _composer.cancelEdit();
               } else if (composer.replyToMessageId != null) {
-                _clearReply();
+                _composer.clearReply();
               } else if (!widget.isDesktopSplit && canRoutePop) {
                 _goBack();
               }
@@ -1777,7 +1681,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                           onOpenMedia: _handleOpenMediaFor,
                           onLongPressMedia: _handleLongPressMediaFor,
                           onLongPress: _handleLongPressFor,
-                          onSwipeToReply: _setReply,
+                          onSwipeToReply: _composer.setReply,
                           onRetrySend: _retrySend,
                           displayTextBuilder: _presenter.displayText,
                           mediaUrlBuilder: _presenter.mediaUrlFor,
@@ -1792,22 +1696,22 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                   ),
                   composer: _ChatComposerScope(
                     chatId: chatId,
-                    composerNotifier: _composerNotifier,
+                    composerNotifier: _composer.notifier,
                     inputController: _inputController,
                     inputFocusNode: _inputFocusNode,
                     showDraftRestoredBanner: _draft.showRestoredBanner,
                     onClearDraft: _draft.clear,
                     onSend: _sendMessage,
-                    onCommitEdit: _commitEdit,
-                    onCancelEdit: _cancelEdit,
-                    onClearReply: _clearReply,
+                    onCommitEdit: _composer.commitEdit,
+                    onCancelEdit: _composer.cancelEdit,
+                    onClearReply: _composer.clearReply,
                     onAttachMedia: _pickAndUploadMedia,
                     onAiPressed: (ctx, _) => _showAiBottomSheet(ctx),
                     onVoiceSend: (p) => unawaited(_sendVoiceMessage(p)),
                     onCircleSend: (p) => unawaited(_sendCircleVideo(p)),
                     onCancelAi: _cancelAiProcessing,
                     onSendSticker: (s) => unawaited(_sendSticker(s)),
-                    onEditLastMessage: _editLastMessage,
+                    onEditLastMessage: _composer.editLastMessage,
                     onAttachFiles: _uploadDesktopFiles,
                     onDesktopPaste: _handleDesktopPaste,
                     scheme: scheme,
