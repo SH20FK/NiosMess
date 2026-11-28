@@ -16,15 +16,10 @@ import 'package:pulse_flutter/widgets/settings_ui.dart';
 class SettingsPlusStoreScreen extends ConsumerWidget {
   const SettingsPlusStoreScreen({
     this.isEmbedded = false,
-    this.onChanged,
     super.key,
   });
 
   final bool isEmbedded;
-
-  /// Called after a purchase attempt or an activation, so whoever owns the
-  /// subscription status can re-read it.
-  final VoidCallback? onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,7 +42,7 @@ class SettingsPlusStoreScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: PlusPurchaseOptions(
                 key: ValueKey<(int?, String?)>(account),
-                onChanged: () => onChanged?.call(),
+                onChanged: () {},
               ),
             ),
           ],

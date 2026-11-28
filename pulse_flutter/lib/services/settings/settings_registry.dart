@@ -163,6 +163,26 @@ class SettingsRegistry {
       ],
     ),
 
+    // 5b. Security
+    SettingsNavNode(
+      id: 'security',
+      title: (AppLocalizations l) => l.settingsSecurityTitle,
+      subtitle: (AppLocalizations l) => l.settingsV2PrivacyHint,
+      icon: Icons.shield_rounded,
+      group: SettingsGroup.privacy,
+      route: '/settings/security',
+      sectionId: SettingsSectionId.security,
+      keywords: const <String>[
+        'безопасность',
+        'блокировка приложения',
+        'биометрия',
+        'nios id',
+        'секретные чаты',
+        'security',
+        'app lock',
+        'biometrics',
+      ],
+    ),
     // 6. Storage & Data
     SettingsNavNode(
       id: 'storage',
@@ -680,7 +700,7 @@ class SettingsRegistry {
       icon: Icons.shield_outlined,
       group: SettingsGroup.privacy,
       route: '/settings/security',
-      sectionId: SettingsSectionId.privacy,
+      sectionId: SettingsSectionId.security,
       keywords: [
         'пароль',
         'безопасность аккаунта',
@@ -722,7 +742,7 @@ class SettingsRegistry {
       icon: Icons.fingerprint_rounded,
       group: SettingsGroup.privacy,
       route: '/settings/security',
-      sectionId: SettingsSectionId.privacy,
+      sectionId: SettingsSectionId.security,
       keywords: ["блокировка", "биометрия", "lock", "fingerprint"],
     ),
     // The timeout unfolds under the app-lock switch it depends on.
@@ -735,7 +755,7 @@ class SettingsRegistry {
       icon: Icons.timer_outlined,
       group: SettingsGroup.privacy,
       route: '/settings/security',
-      sectionId: SettingsSectionId.privacy,
+      sectionId: SettingsSectionId.security,
       keywords: ["таймаут", "время блокировки", "timeout", "lock"],
     ),
     SettingsNavNode(
@@ -791,6 +811,7 @@ class SettingsRegistry {
     'chats',
     'notifications',
     'privacy',
+    'security',
     'storage',
     'language',
     'about',

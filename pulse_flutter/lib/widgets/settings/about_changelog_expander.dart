@@ -75,6 +75,9 @@ class _AboutChangelogExpanderState extends State<AboutChangelogExpander> {
           )..layout(maxWidth: constraints.maxWidth);
           lineHeight = painter.preferredLineHeight;
           fullHeight += painter.height + AppSpacing.sm;
+          // TextPainter holds native paragraph handles; free them before the
+          // next one is built instead of leaking them per rebuild.
+          painter.dispose();
         }
         if (fullHeight <= _collapseThreshold) return notes();
 
@@ -156,6 +159,7 @@ class _AboutChangelogExpanderState extends State<AboutChangelogExpander> {
               button: true,
               expanded: _expanded,
               label: label,
+              onTap: _toggle,
               child: ExcludeSemantics(
                 child: PressableSurface(
                   onTap: _toggle,

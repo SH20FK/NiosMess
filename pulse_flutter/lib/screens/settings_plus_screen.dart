@@ -1,5 +1,6 @@
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -242,7 +243,9 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
         ),
         // A subscriber keeps the subscription from the hero down; the trial is
         // spent or still on offer, and the page says which.
-        if (isPlus || inGrace)
+        // The store is a native page; on the web the row below explains that
+        // instead of quietly bouncing back to this screen.
+        if (!kIsWeb && (isPlus || inGrace))
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: FilledButton.tonalIcon(
@@ -262,12 +265,18 @@ class _SettingsPlusScreenState extends ConsumerState<SettingsPlusScreen> {
                 icon: Icons.auto_awesome_outlined,
                 title: context.l10n.settingsPlusTrialUsed,
               ),
-            SettingsListItem.nav(
-              key: const ValueKey<String>('settings-plus-store'),
-              icon: Icons.storefront_rounded,
-              title: context.l10n.auditPlusPurchaseTitle,
-              onTap: _openStore,
-            ),
+            if (kIsWeb)
+              SettingsListItem.value(
+                icon: Icons.info_outline_rounded,
+                title: context.l10n.auditPlusNativeOnly,
+              )
+            else
+              SettingsListItem.nav(
+                key: const ValueKey<String>('settings-plus-store'),
+                icon: Icons.storefront_rounded,
+                title: context.l10n.auditPlusPurchaseTitle,
+                onTap: _openStore,
+              ),
           ],
         ),
         // What the subscription gives, grouped by what it changes. One list,

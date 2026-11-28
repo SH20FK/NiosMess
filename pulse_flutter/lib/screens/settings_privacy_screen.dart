@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -9,7 +7,6 @@ import 'package:pulse_flutter/features/settings/domain/settings_control.dart';
 import 'package:pulse_flutter/features/settings/presentation/settings_row.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/privacy_provider.dart';
-import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/widgets/settings/privacy_rule_row.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
@@ -183,26 +180,6 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               control: const NavigationControl(),
               onTap: () => _openBlockedUsers(context),
             ),
-            SettingsRow(
-              leading: Icon(
-                Icons.enhanced_encryption_rounded,
-                color: scheme.primary,
-              ),
-              title: l.settingsSecretChatsTitle,
-              subtitle: l.settingsSecretChatsSubtitle,
-              control: const NavigationControl(),
-              onTap: () {
-                if (kIsWeb) {
-                  context.go('/main/settings?section=e2ee');
-                } else if (isEmbedded) {
-                  ref
-                      .read(desktopSelectedSettingsSectionProvider.notifier)
-                      .setSelectedSection(SettingsSectionId.e2ee);
-                } else {
-                  context.push('/settings/e2ee');
-                }
-              },
-            ),
           ],
         ),
         // The rules are the rest of the page. Until they arrive the skeleton
@@ -301,4 +278,3 @@ class SettingsPrivacyScreen extends ConsumerWidget {
     );
   }
 }
-

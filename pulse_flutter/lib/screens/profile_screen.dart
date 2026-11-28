@@ -32,6 +32,10 @@ import 'package:pulse_flutter/screens/settings_chats_screen.dart';
 import 'package:pulse_flutter/screens/settings_language_region_screen.dart';
 import 'package:pulse_flutter/screens/settings_notifications_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
+import 'package:pulse_flutter/screens/settings_security_screen.dart';
+import 'package:pulse_flutter/screens/settings_appearance_accent_screen.dart';
+import 'package:pulse_flutter/screens/settings_appearance_shape_screen.dart';
+import 'package:pulse_flutter/screens/settings_plus_store_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/screens/settings_plus_screen.dart';
 import 'package:pulse_flutter/screens/settings_system_device_screen.dart';
@@ -381,6 +385,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     'chats',
     'notifications',
     'privacy',
+    'security',
     'storage',
     'language',
   ];
@@ -718,6 +723,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
     return switch (uri.path) {
+      '/settings/security' => (
+        page: const SettingsSecurityScreen(isEmbedded: true),
+        fullWidth: false,
+      ),
+      '/settings/appearance/accent' => (
+        page: const SettingsAppearanceAccentScreen(isEmbedded: true),
+        fullWidth: false,
+      ),
+      '/settings/appearance/shape' => (
+        page: const SettingsAppearanceShapeScreen(isEmbedded: true),
+        fullWidth: false,
+      ),
+      '/settings/plus/store' => (
+        page: const SettingsPlusStoreScreen(isEmbedded: true),
+        fullWidth: false,
+      ),
       '/settings/privacy/blocked-users' => (
         page: const BlockedUsersScreen(isEmbedded: true),
         fullWidth: false,
@@ -896,6 +917,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return const SettingsChatsScreen(isEmbedded: true);
       case SettingsSectionId.privacy:
         return const SettingsPrivacyScreen(isEmbedded: true);
+      case SettingsSectionId.security:
+        return const SettingsSecurityScreen(isEmbedded: true);
       case SettingsSectionId.storage:
         return const SettingsStorageScreen(isEmbedded: true);
       case SettingsSectionId.languageRegion:

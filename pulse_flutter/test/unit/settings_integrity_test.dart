@@ -29,7 +29,6 @@ const Map<String, List<String>> _screenSources = <String, List<String>>{
   ],
   '/settings/privacy': <String>[
     'lib/screens/settings_privacy_screen.dart',
-    'lib/widgets/settings/account_security_section.dart',
   ],
   '/settings/security': <String>[
     'lib/screens/settings_security_screen.dart',

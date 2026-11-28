@@ -25,6 +25,7 @@ void main() {
         'chats',
         'notifications',
         'privacy',
+        'security',
         'storage',
         'language',
         'about',

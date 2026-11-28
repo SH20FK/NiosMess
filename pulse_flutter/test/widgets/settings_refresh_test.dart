@@ -182,7 +182,7 @@ void main() {
                 appLockProvider.overrideWith(_ForbiddenAppLock.new),
               ],
               child: const SingleChildScrollView(
-                child: AccountSecuritySection(isEmbedded: true),
+                child: AccountSecuritySection(),
               ),
             ),
           ),

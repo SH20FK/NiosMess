@@ -15,8 +15,7 @@ import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
 
 class AccountSecuritySection extends ConsumerStatefulWidget {
-  const AccountSecuritySection({this.isEmbedded = false, super.key});
-  final bool isEmbedded;
+  const AccountSecuritySection({super.key});
 
   @override
   ConsumerState<AccountSecuritySection> createState() =>

@@ -7,7 +7,7 @@ String? webSettingsRedirect(Uri uri) {
     '/settings/appearance/shape': 'appearance',
     '/settings/chats': 'chats',
     '/settings/privacy': 'privacy',
-    '/settings/security': 'privacy',
+    '/settings/security': 'security',
     '/settings/storage': 'storage',
     '/settings/language-region': 'languageRegion',
     '/settings/notifications': 'notifications',

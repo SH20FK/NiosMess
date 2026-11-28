@@ -11,6 +11,7 @@ enum SettingsSectionId {
   sessions,
   notifications,
   privacy,
+  security,
   chats,
   appearance,
   storage,
