@@ -158,6 +158,8 @@ import 'widgets/media_controls_redesign_test.dart' as media_controls_redesign;
 import 'widgets/circle_recorder_design_test.dart' as circle_recorder_design;
 import 'widgets/inbox_saved_search_test.dart' as inbox_saved_search;
 import 'widgets/chat_input_bar_test.dart' as chat_input_motion;
+import 'widgets/chat_detail_characterization_test.dart'
+    as chat_detail_characterization;
 import 'widgets/niosgram_video_test.dart' as niosgram_video;
 import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
 import 'widgets/appearance_palette_test.dart' as appearance_palette;
@@ -529,6 +531,7 @@ void main() {
     circle_recorder_design.main();
     inbox_saved_search.main();
     chat_input_motion.main();
+    group('chat_detail_characterization', chat_detail_characterization.main);
     niosgram_video.main();
     widgets_vector_illustrations.main();
     widgets_m3_motion_kit.main();
