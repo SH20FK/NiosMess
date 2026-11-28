@@ -160,6 +160,7 @@ import 'widgets/inbox_saved_search_test.dart' as inbox_saved_search;
 import 'widgets/chat_input_bar_test.dart' as chat_input_motion;
 import 'widgets/chat_detail_characterization_test.dart'
     as chat_detail_characterization;
+import 'widgets/chat_message_sheets_test.dart' as chat_message_sheets;
 import 'widgets/niosgram_video_test.dart' as niosgram_video;
 import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
 import 'widgets/appearance_palette_test.dart' as appearance_palette;
@@ -188,6 +189,7 @@ import 'integration/e2e_auth_flow_test.dart' as integration_e2e_auth_flow;
 import 'integration/e2e_cold_start_and_logout_test.dart'
     as integration_e2e_cold_start;
 import 'screens/login_screen_test.dart' as screens_login_screen;
+import 'screens/chat_message_presenter_test.dart' as chat_message_presenter;
 import 'screens/register_screen_test.dart' as screens_register_screen;
 import 'unit/adaptive_performance_engine_test.dart'
     as unit_adaptive_performance_engine;
@@ -532,6 +534,8 @@ void main() {
     inbox_saved_search.main();
     chat_input_motion.main();
     group('chat_detail_characterization', chat_detail_characterization.main);
+    group('chat_message_sheets', chat_message_sheets.main);
+    group('chat_message_presenter', chat_message_presenter.main);
     niosgram_video.main();
     widgets_vector_illustrations.main();
     widgets_m3_motion_kit.main();

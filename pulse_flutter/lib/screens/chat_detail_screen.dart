@@ -11,7 +11,6 @@ import 'package:pulse_flutter/providers/encrypted_draft_sync_provider.dart';
 import 'package:pulse_flutter/widgets/chat/encrypted_draft_conflict_notice.dart';
 import 'package:pulse_flutter/widgets/chat/live_location_card.dart';
 import 'package:pulse_flutter/widgets/chat/file_request_action.dart';
-import 'package:pulse_flutter/models/live_location.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
@@ -22,6 +21,9 @@ import 'package:pulse_flutter/widgets/chat/chat_empty_state.dart';
 import 'package:pulse_flutter/widgets/chat/chat_scroll_coordinator.dart';
 import 'package:pulse_flutter/widgets/chat/chat_overlay_layer.dart';
 import 'package:pulse_flutter/widgets/chat/e2ee_verification_sheet.dart';
+import 'package:pulse_flutter/widgets/chat/reaction_picker_sheet.dart';
+import 'package:pulse_flutter/widgets/chat/report_message_sheet.dart';
+import 'package:pulse_flutter/widgets/chat/ai_actions_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/auto_delete_bottom_sheet.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -51,9 +53,9 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/motion/smooth_text_streamer.dart';
-import 'package:pulse_flutter/core/utils/datetime_helpers.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_message_presenter.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
@@ -141,6 +143,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   int? get _chatId => int.tryParse(widget.chatId);
 
+  ChatMessagePresenter get _presenter =>
+      ChatMessagePresenter(context.l10n);
+
   void _goBack() {
     if (kIsWeb) {
       context.go("/main/chats");
@@ -167,21 +172,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  String _dateSeparatorLabel(DateTime resolvedDate, DateTime now) {
-    final bool sameDay =
-        resolvedDate.year == now.year &&
-        resolvedDate.month == now.month &&
-        resolvedDate.day == now.day;
-    if (sameDay) return context.l10n.chatToday;
-    final DateTime yesterday = now.subtract(const Duration(days: 1));
-    if (resolvedDate.year == yesterday.year &&
-        resolvedDate.month == yesterday.month &&
-        resolvedDate.day == yesterday.day) {
-      return context.l10n.chatYesterday;
-    }
-    return formatFullDateTime(resolvedDate);
-  }
-
   Widget _dateSeparator(DateTime resolvedDate, DateTime now) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
@@ -200,7 +190,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
             ),
           ),
           child: Text(
-            _dateSeparatorLabel(resolvedDate, now),
+            _presenter.dateSeparatorLabel(resolvedDate, now),
             style: textTheme.labelSmall?.copyWith(
               color: scheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -549,179 +539,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  void _showAiBottomSheet(BuildContext context, ColorScheme scheme) {
+  Future<void> _showAiBottomSheet(BuildContext context) async {
     if (_inputController.text.trim().isEmpty) return;
-    AppModal.showSheet<void>(
-      context: context,
-      builder: (BuildContext ctx) {
-        final TextTheme tt = Theme.of(ctx).textTheme;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // Header
-                Row(
-                  children: <Widget>[
-                    Icon(
-                      Icons.auto_awesome_rounded,
-                      color: scheme.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      context.l10n.chatAiAssistant,
-                      style: tt.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    Consumer(
-                      builder: (BuildContext context, WidgetRef ref, _) {
-                        final usage = ref.watch(
-                          authProvider.select((a) => a.profile?.aiUsage),
-                        );
-                        if (usage == null || !usage.isAvailable) {
-                          return const SizedBox.shrink();
-                        }
-                        final double remainingPercent = usage.remainingPercent;
-                        final String pctStr = remainingPercent.toStringAsFixed(
-                          remainingPercent.truncateToDouble() ==
-                                  remainingPercent
-                              ? 0
-                              : 1,
-                        );
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: scheme.outlineVariant.withValues(
-                                alpha: 0.2,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.bolt_rounded,
-                                size: 14,
-                                color: scheme.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '$pctStr% символов',
-                                style: tt.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: scheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // 2-column action cards
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _AiActionCard(
-                        icon: Icons.spellcheck_rounded,
-                        label: context.l10n.chatAiFixErrors,
-                        scheme: scheme,
-                        onTap: () {
-                          Navigator.of(ctx).pop();
-                          _processTextWithAi(AiAction.correct);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _AiActionCard(
-                        icon: Icons.business_center_rounded,
-                        label: context.l10n.chatAiFormal,
-                        scheme: scheme,
-                        onTap: () {
-                          Navigator.of(ctx).pop();
-                          _processTextWithAi(AiAction.rewriteFormal);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  context.l10n.chatAiTranslate,
-                  style: tt.labelMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    ActionChip(
-                      label: const Text('🇬🇧 English'),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        _processTextWithAi(
-                          AiAction.translate,
-                          targetLanguage: 'en',
-                        );
-                      },
-                    ),
-                    ActionChip(
-                      label: const Text('🇪🇸 Español'),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        _processTextWithAi(
-                          AiAction.translate,
-                          targetLanguage: 'es',
-                        );
-                      },
-                    ),
-                    ActionChip(
-                      label: const Text('🇨🇳 中文'),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        _processTextWithAi(
-                          AiAction.translate,
-                          targetLanguage: 'zh',
-                        );
-                      },
-                    ),
-                    ActionChip(
-                      label: const Text('🇷🇺 Русский'),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        _processTextWithAi(
-                          AiAction.translate,
-                          targetLanguage: 'ru',
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    final (AiAction, String? targetLanguage)? selection =
+        await showAiActionsSheet(context);
+    if (selection == null) return;
+    final (AiAction action, String? targetLanguage) = selection;
+    unawaited(_processTextWithAi(action, targetLanguage: targetLanguage));
   }
-
   Future<void> _refreshNow() async {
     final int? chatId = _chatId;
     if (chatId == null) return;
@@ -1495,8 +1320,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   void _setReply(ApiMessage message) {
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final String author = _resolveReplyAuthor(message, myUserId);
-    final String snippet = _resolveReplySnippet(message);
+    final String chatName =
+        (ref.read(chatByIdProvider(_chatId ?? 0))?.name ?? '').trim();
+    final String author = _presenter.resolveReplyAuthor(
+      message,
+      myUserId: myUserId,
+      chatName: chatName,
+    );
+    final String snippet = _presenter.resolveReplySnippet(message);
     _composerNotifier.value = _composerNotifier.value.copyWith(
       replyToMessageId: () => message.id,
       replyPreviewText: () =>
@@ -1640,11 +1471,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           if (mounted) AppToast.showError(context, e);
         }
       case MessageActionType.copy:
-        Clipboard.setData(ClipboardData(text: _displayText(message)));
+        Clipboard.setData(ClipboardData(text: _presenter.displayText(message)));
         AppToast.showInfo(context, context.l10n.chatMessageTextCopied);
       case MessageActionType.saveToSaved:
         try {
-          var text = _displayText(message);
+          var text = _presenter.displayText(message);
           if (message.hasMedia) {
             text =
                 '$text\n${ApiConstants.origin}/web/#/chat/${message.chatId}?highlight=${message.id}';
@@ -1663,7 +1494,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           chatId: message.chatId,
           reminder: message,
           text:
-              '${_displayText(message)}\n${ApiConstants.origin}/web/#/chat/${message.chatId}?highlight=${message.id}',
+              '${_presenter.displayText(message)}\n${ApiConstants.origin}/web/#/chat/${message.chatId}?highlight=${message.id}',
         );
       case MessageActionType.forward:
         _forwardMessage(message);
@@ -1681,94 +1512,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  void _showReportMessageDialog(ApiMessage message) {
-    AppModal.showSheet<void>(
-      context: context,
-
-      builder: (BuildContext ctx) {
-        final ColorScheme scheme = Theme.of(ctx).colorScheme;
-        final TextTheme textTheme = Theme.of(ctx).textTheme;
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Text(
-                  context.l10n.reportSelectReason,
-                  style: textTheme.titleMedium,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Выбранное сообщение и его текст будут переданы модераторам вместе с жалобой.',
-                ),
-              ),
-              ListTile(
-                leading: Icon(
-                  Icons.report_gmailerrorred_rounded,
-                  color: scheme.error,
-                ),
-                title: Text(context.l10n.reportReasonSpam),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _submitReport(message, 'spam');
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  Icons.report_problem_rounded,
-                  color: scheme.error,
-                ),
-                title: Text(context.l10n.reportReasonScam),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _submitReport(message, 'scam');
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.gavel_rounded, color: scheme.error),
-                title: Text(context.l10n.reportReasonIllegal),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _submitReport(message, 'illegal');
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.copyright_rounded, color: scheme.error),
-                title: const Text('Нарушение авторских прав (copyright)'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _submitReport(message, 'copyright');
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.privacy_tip_rounded, color: scheme.error),
-                title: const Text('Доксинг (личные данные)'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _submitReport(message, 'doxing');
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.warning_amber_rounded, color: scheme.error),
-                title: const Text('Сваттинг / угрозы безопасности'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  _submitReport(message, 'swatting');
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
-    );
+  Future<void> _showReportMessageDialog(ApiMessage message) async {
+    final String? reason = await showReportMessageSheet(context);
+    if (reason == null) return;
+    await _submitReport(message, reason);
   }
 
   Future<void> _submitReport(ApiMessage message, String reason) async {
@@ -1790,87 +1537,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  static const List<String> _allReactionEmojis = <String>[
-    '👍',
-    '👎',
-    '❤️',
-    '🔥',
-    '😂',
-    '🎉',
-    '😮',
-    '😢',
-    '😍',
-    '🤔',
-    '😎',
-    '🫡',
-    '🙏',
-    '👏',
-    '💪',
-    '🤝',
-    '💯',
-    '✨',
-    '⭐',
-    '⚡',
-    '☕',
-    '🍕',
-    '🎮',
-    '❌',
-    '✅',
-  ];
-
   Future<void> _showAllReactionsPicker(ApiMessage message) async {
     final int? chatId = _chatId;
     if (chatId == null) return;
 
-    final String? emoji = await AppModal.showSheet<String>(
-      context: context,
-      builder: (BuildContext ctx) {
-        final ColorScheme scheme = Theme.of(ctx).colorScheme;
-        final TextTheme tt = Theme.of(ctx).textTheme;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 12),
-                  child: Text(
-                    ctx.l10n.chatReactionsPickerTitle,
-                    style: tt.titleMedium,
-                  ),
-                ),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: _allReactionEmojis.map((String emoji) {
-                    return InkWell(
-                      onTap: () => Navigator.of(ctx).pop(emoji),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: (message.reactions[emoji] ?? 0) > 0
-                              ? scheme.primaryContainer.withValues(alpha: 0.6)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          emoji,
-                          style: const TextStyle(fontSize: 22),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    final String? emoji = await showReactionPickerSheet(
+      context,
+      message: message,
     );
 
     if (emoji == null) return;
@@ -1886,10 +1559,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
     final String fileName = (message.mediaName ?? '').trim().isNotEmpty
         ? message.mediaName!.trim()
-        : _mediaLabel(message, mediaUrl);
+        : _presenter.mediaLabel(message, mediaUrl);
 
-    final bool isImg = _isImageMedia(message, mediaUrl);
-    final bool isVid = _isVideoMedia(message, mediaUrl);
+    final bool isImg = _presenter.isImageMedia(message, mediaUrl);
+    final bool isVid = _presenter.isVideoMedia(message, mediaUrl);
 
     if (isImg || isVid) {
       final int? chatId = _chatId;
@@ -1904,8 +1577,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       for (final ApiMessage msg in allMessages) {
         final String? u = msg.mediaUrl;
         if (u == null || u.trim().isEmpty) continue;
-        final bool mIsImg = _isImageMedia(msg, u);
-        final bool mIsVid = _isVideoMedia(msg, u);
+        final bool mIsImg = _presenter.isImageMedia(msg, u);
+        final bool mIsVid = _presenter.isVideoMedia(msg, u);
         if (mIsImg || mIsVid) {
           if (msg.id == message.id) {
             initialIndex = playlist.length;
@@ -1917,7 +1590,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               mediaType: mIsImg ? MediaType.image : MediaType.video,
               title: (msg.mediaName ?? '').trim().isNotEmpty
                   ? msg.mediaName!.trim()
-                  : _mediaLabel(msg, u),
+                  : _presenter.mediaLabel(msg, u),
               e2eeFileKey: msg.e2eeFileKey,
               filePath: msg.mediaUrl,
               mediaName: msg.mediaName,
@@ -1952,29 +1625,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
   }
 
-  bool _isVideoMedia(ApiMessage message, String mediaUrl) {
-    final String mediaType = (message.mediaType ?? '').toLowerCase();
-    if (mediaType.startsWith('video/')) {
-      return true;
-    }
-
-    final String lower = mediaUrl.toLowerCase();
-    final String fileName = (message.mediaName ?? '').toLowerCase();
-    bool isVideoExt(String s) =>
-        s.endsWith('.mp4') ||
-        s.endsWith('.mov') ||
-        s.endsWith('.mkv') ||
-        s.endsWith('.webm') ||
-        s.endsWith('.3gp') ||
-        s.endsWith('.avi');
-    return isVideoExt(lower) || (fileName.isNotEmpty && isVideoExt(fileName));
-  }
-
-  String _displayText(ApiMessage message) =>
-      LiveLocation.parse(message.content)?.preview ??
-      InteractiveMessage.parse(message.content)?.preview ??
-      message.content;
-
   Future<void> _showMediaActions(
     ApiMessage message,
     bool isMine, {
@@ -1986,7 +1636,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
     final String fileName = (message.mediaName ?? '').trim().isNotEmpty
         ? message.mediaName!.trim()
-        : _mediaLabel(message, mediaUrl);
+        : _presenter.mediaLabel(message, mediaUrl);
 
     await AppModal.showSheet<void>(
       context: context,
@@ -2063,162 +1713,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
   }
 
-  String _mediaLabel(ApiMessage message, String mediaUrl) {
-    final String explicit = (message.mediaName ?? '').trim();
-    if (explicit.isNotEmpty) {
-      return explicit;
-    }
-
-    final Uri? uri = Uri.tryParse(mediaUrl);
-    if (uri != null && uri.pathSegments.isNotEmpty) {
-      final String last = uri.pathSegments.last.trim();
-      if (last.isNotEmpty) {
-        return last;
-      }
-    }
-    return context.l10n.chatAttachment;
-  }
-
-  String? _extractUrlFromText(String text) {
-    final RegExp rx = RegExp(r'https?://[^\s]+');
-    final Match? match = rx.firstMatch(text);
-    if (match == null) {
-      return null;
-    }
-    return match.group(0);
-  }
-
-  String? _mediaUrlFor(ApiMessage message) {
-    final String direct = (message.mediaUrl ?? '').trim();
-    if (direct.isNotEmpty) {
-      return direct;
-    }
-    if (message.msgType == 'media') {
-      return _extractUrlFromText(message.content.trim());
-    }
-    return null;
-  }
-
-  bool _isImageMedia(ApiMessage message, String mediaUrl) {
-    final String mediaType = (message.mediaType ?? '').toLowerCase();
-    if (mediaType.startsWith('image/')) {
-      return true;
-    }
-
-    final String lower = mediaUrl.toLowerCase();
-    final String fileName = (message.mediaName ?? '').toLowerCase();
-    bool isImageExt(String s) =>
-        s.endsWith('.jpg') ||
-        s.endsWith('.jpeg') ||
-        s.endsWith('.png') ||
-        s.endsWith('.webp') ||
-        s.endsWith('.gif') ||
-        s.endsWith('.bmp') ||
-        s.endsWith('.svg');
-    return isImageExt(lower) || (fileName.isNotEmpty && isImageExt(fileName));
-  }
-
-  String _resolveReplySnippet(ApiMessage message) {
-    if (message.isSticker) {
-      final String emoji = message.sticker?.emoji.trim() ?? '';
-      return emoji.isNotEmpty
-          ? context.l10n.chatPreviewStickerWithEmoji(emoji)
-          : context.l10n.chatPreviewSticker;
-    }
-
-    if (message.msgType == 'voice' ||
-        (message.mediaType ?? '').toLowerCase().startsWith('audio/')) {
-      final int? duration = message.mediaDuration;
-      if (duration != null && duration > 0) {
-        final int minutes = duration ~/ 60;
-        final int seconds = duration % 60;
-        final String formatted =
-            '$minutes:${seconds.toString().padLeft(2, '0')}';
-        return context.l10n.chatPreviewVoiceWithDuration(formatted);
-      }
-      return context.l10n.chatPreviewVoice;
-    }
-
-    if (message.msgType == 'circle' ||
-        message.msgType == 'circle_video' ||
-        message.msgType == 'video_note' ||
-        message.msgType == 'round_video') {
-      return context.l10n.chatPreviewVideoNote;
-    }
-
-    final String? mediaUrl = _mediaUrlFor(message);
-    if (mediaUrl != null && mediaUrl.trim().isNotEmpty) {
-      final String caption = message.content.trim();
-      if (_isImageMedia(message, mediaUrl)) {
-        return caption.isNotEmpty
-            ? '📷 $caption'
-            : context.l10n.chatPreviewPhoto;
-      }
-      if (_isVideoMedia(message, mediaUrl)) {
-        return caption.isNotEmpty
-            ? '🎥 $caption'
-            : context.l10n.chatPreviewVideo;
-      }
-      final String name = (message.mediaName ?? '').trim();
-      final String label = name.isNotEmpty
-          ? name
-          : _mediaLabel(message, mediaUrl);
-      return caption.isNotEmpty ? '📎 $label • $caption' : '📎 $label';
-    }
-
-    if (message.isCallEvent) {
-      return context.l10n.chatPreviewCall;
-    }
-
-    final String text = _displayText(message).trim();
-    if (text.isNotEmpty) {
-      return text;
-    }
-
-    if (message.hasMedia) {
-      return context.l10n.chatPreviewAttachment;
-    }
-
-    return context.l10n.chatPreviewMessage;
-  }
-
-  String _resolveReplyAuthor(ApiMessage message, int myUserId) {
-    if (message.senderId == myUserId) {
-      return context.l10n.chatSenderYou;
-    }
-    final String name = message.senderDisplayName.trim();
-    if (name.isNotEmpty && name.toLowerCase() != 'unknown') {
-      return name;
-    }
-    final String username = message.senderUsername.trim();
-    if (username.isNotEmpty && username.toLowerCase() != 'unknown') {
-      return username.startsWith('@') ? username : '@$username';
-    }
-    final int? cid = _chatId;
-    if (cid != null) {
-      final ApiChatSummary? chat = ref.read(chatByIdProvider(cid));
-      final String chatName = (chat?.name ?? '').trim();
-      if (chatName.isNotEmpty) {
-        return chatName;
-      }
-    }
-    return context.l10n.chatSenderPartner;
-  }
-
   String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
-    final int? replyToId = message.replyToId;
-    if (replyToId == null) {
-      return null;
-    }
-    final ApiMessage? target = byId[replyToId];
-    if (target == null) {
-      return context.l10n.chatReplyToId(replyToId);
-    }
+    if (message.replyToId == null) return null;
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
-    final String author = _resolveReplyAuthor(target, myUserId);
-    final String snippet = _resolveReplySnippet(target);
-    final String text = '$author: $snippet';
-    return text.length > 64 ? '${text.substring(0, 64)}...' : text;
+    final String chatName =
+        (ref.read(chatByIdProvider(_chatId ?? 0))?.name ?? '').trim();
+    return _presenter.replyPreviewFor(
+      message,
+      byId,
+      myUserId: myUserId,
+      chatName: chatName,
+    );
   }
 
   Future<void> _retrySend(ApiMessage message) async {
@@ -2522,10 +2027,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                           onLongPress: _handleLongPressFor,
                           onSwipeToReply: _setReply,
                           onRetrySend: _retrySend,
-                          displayTextBuilder: _displayText,
-                          mediaUrlBuilder: _mediaUrlFor,
-                          isImageMediaBuilder: _isImageMedia,
-                          mediaLabelBuilder: _mediaLabel,
+                          displayTextBuilder: _presenter.displayText,
+                          mediaUrlBuilder: _presenter.mediaUrlFor,
+                          isImageMediaBuilder: _presenter.isImageMedia,
+                          mediaLabelBuilder: _presenter.mediaLabel,
                           replyPreviewBuilder: _replyPreviewFor,
                           dateSeparatorBuilder: _dateSeparator,
                         );
@@ -2560,7 +2065,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     onCancelEdit: _cancelEdit,
                     onClearReply: _clearReply,
                     onAttachMedia: _pickAndUploadMedia,
-                    onAiPressed: (ctx, sc) => _showAiBottomSheet(ctx, sc),
+                    onAiPressed: (ctx, _) => _showAiBottomSheet(ctx),
                     onVoiceSend: (p) => unawaited(_sendVoiceMessage(p)),
                     onCircleSend: (p) => unawaited(_sendCircleVideo(p)),
                     onCancelAi: _cancelAiProcessing,
@@ -3412,48 +2917,6 @@ class _TypingSubtitle extends ConsumerWidget {
       style: theme.textTheme.bodySmall?.copyWith(
         color: scheme.onSurfaceVariant,
         height: 1.05,
-      ),
-    );
-  }
-}
-
-// Helper widget for AI bottom sheet action cards
-class _AiActionCard extends StatelessWidget {
-  const _AiActionCard({
-    required this.icon,
-    required this.label,
-    required this.scheme,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final ColorScheme scheme;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: scheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-          child: Row(
-            children: <Widget>[
-              Icon(icon, color: scheme.primary, size: 22),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
