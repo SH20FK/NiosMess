@@ -55,6 +55,7 @@ import 'package:pulse_flutter/screens/chat_detail/chat_draft_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_action_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_presenter.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_media_controller.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_screen_lifecycle.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_send_controller.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
@@ -75,9 +76,7 @@ import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
-import 'package:pulse_flutter/core/services/desktop_window_service.dart';
 import 'package:pulse_flutter/core/utils/screen_security_service.dart';
-import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -101,7 +100,7 @@ class ChatDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
-    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   final TextEditingController _inputController = CustomEmojiTextController();
   late final ChatScrollCoordinator _scrollCoordinator;
   late final FocusNode _inputFocusNode;
@@ -121,12 +120,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   int? get _editingMessageId => _composer.editingMessageId;
   bool get _isAiProcessing => _composer.isAiProcessing;
 
-  final ValueNotifier<bool> _loadingOlderNotifier = ValueNotifier<bool>(false);
-
   late final ChatAiRewriteController _aiRewrite;
 
-  // Screenshot protection overlay
-  OverlayEntry? _screenshotOverlay;
+  late final ChatScreenLifecycle _lifecycle;
 
   int? get _chatId => int.tryParse(widget.chatId);
 
@@ -189,17 +185,120 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
   }
 
+  /// Everything the lifecycle needs from `ref`/`context`, wired as live
+  /// getters and closures: the class itself holds neither.
+  ChatScreenLifecycle _createLifecycle() => ChatScreenLifecycle(
+    ports: ChatLifecyclePorts(
+      chatId: _chatId,
+      isMounted: () => mounted,
+      isSecret: () => _isSecret,
+      chatIsSecret: () {
+        final int? id = _chatId;
+        if (id == null) return null;
+        return ref.read(chatByIdProvider(id))?.isSecret;
+      },
+      onSecretDetected: () {
+        _isSecret = true;
+        _bindSecret(ref.read(secretChatCoordinatorProvider).value);
+      },
+      setCanPersistOrdinaryDraft: (bool value) =>
+          _canPersistOrdinaryDraft = value,
+      haptics: () => ref.read(uiSettingsProvider).haptics,
+      markMessagesRead: () {
+        final int? id = _chatId;
+        if (id == null) return Future<void>.value();
+        return ref.read(chatMessagesProvider(id).notifier).markRead();
+      },
+      markChatAsRead: () {
+        final int? id = _chatId;
+        if (id == null) return;
+        ref.read(chatsProvider.notifier).markChatAsRead(id);
+      },
+      refreshMessages: () {
+        final int? id = _chatId;
+        if (id == null) return Future<void>.value();
+        return ref.read(chatMessagesProvider(id).notifier).refresh();
+      },
+      followingLatest: () {
+        final int? id = _chatId;
+        if (id == null) return false;
+        return ref
+            .read(chatMessagesProvider(id).notifier)
+            .window
+            .followingLatest;
+      },
+      fetchChat: (int id) => ref.read(chatRepositoryProvider).getChat(id),
+      upsertChat: (ApiChatSummary chat) =>
+          ref.read(chatsProvider.notifier).upsertChat(chat),
+      loadOlderPage: () {
+        final int? id = _chatId;
+        if (id == null) return Future<int>.value(0);
+        return ref
+            .read(chatMessagesProvider(id).notifier)
+            .loadOlder(pageSize: 50);
+      },
+      onLoadOlderError: (Object error) {
+        if (mounted) AppToast.showError(context, error);
+      },
+      clearInlineQuery: () => ref.read(inlineQueryProvider.notifier).clear(),
+      scrimColor: () => Theme.of(context).colorScheme.scrim,
+      insertOverlay: (OverlayEntry entry) =>
+          Overlay.of(context, rootOverlay: true).insert(entry),
+      removeOverlay: (OverlayEntry entry) => entry.remove(),
+      onInfo: (String message) {
+        if (mounted) AppToast.showInfo(context, message);
+      },
+      sendScreenshotNotice: () {
+        final int? id = _chatId;
+        if (id == null) return;
+        ref
+            .read(chatMessagesProvider(id).notifier)
+            .send('📷 Снимок экрана был зафиксирован');
+      },
+      onScrollToBottom: () => _scrollCoordinator.scrollToBottom(),
+      beforeSecureFlag: () {
+        final int? id = _chatId;
+        if (id == null) return;
+        _scrollCoordinator.setHasNewerHistory(
+          ref.read(chatHistoryWindowProvider(id)).hasNewer,
+        );
+        // Secure flag first: restoring a draft needs `_isSecret` to be current
+        // so a secret chat reads the engine, never DraftStorage.
+        if (ref.read(chatByIdProvider(id)) != null) {
+          unawaited(_draft.restore());
+        }
+      },
+      disposeControllers: _disposeControllers,
+    ),
+  );
+
+  /// The controllers' teardown, run from inside
+  /// `ChatScreenLifecycle.dispose()` so the secure flag can stay the last act.
+  void _disposeControllers() {
+    _aiRewrite.dispose();
+    _scrollCoordinator.dispose();
+    _composer.dispose();
+    _send.dispose();
+    _attachments.dispose();
+    // Cancel the pending debounce, then write the last text: the only chance
+    // to persist the final <500 ms of typing.
+    _draft.dispose();
+    _inputController.removeListener(_onInputChanged);
+    _inputController.dispose();
+    _inputFocusNode.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    _lifecycle = _createLifecycle()..attach();
     _scrollCoordinator = ChatScrollCoordinator(
       onJumpError: (error) {
         if (mounted) {
-          AppToast.showError(context, error, onRetry: _scrollToBottom);
+          AppToast.showError(context, error, onRetry: _lifecycle.scrollToBottom);
         }
       },
-      onNearTop: _autoLoadOlderMessages,
+      onNearTop: _lifecycle.autoLoadOlderMessages,
       onNearBottom: () {
         final id = _chatId;
         if (id != null) {
@@ -226,13 +325,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               .setFollowingLatest(atBottom);
         }
       },
-      onReachedBottom: () {
-        final int? cid = _chatId;
-        if (cid != null && PushNotificationService.isForeground) {
-          unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
-          ref.read(chatsProvider.notifier).markChatAsRead(cid);
-        }
-      },
+      onReachedBottom: _lifecycle.onReachedBottom,
     );
     _inputController.addListener(_onInputChanged);
     _inputFocusNode = FocusNode();
@@ -308,7 +401,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
           replyPreviewText: () => preview,
         );
       },
-      scrollToBottom: _scrollToBottom,
+      scrollToBottom: _lifecycle.scrollToBottom,
       markBlockedByUser: (int chatId) =>
           ref.read(chatsProvider.notifier).setChatBlockedByUser(chatId, true),
       onError: (Object error) {
@@ -400,7 +493,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                 replyToId: replyToId,
               ),
       clearReply: _composer.clearReply,
-      scrollToBottom: _scrollToBottom,
+      scrollToBottom: _lifecycle.scrollToBottom,
       showError: (Object error) {
         if (mounted) AppToast.showError(context, error);
       },
@@ -495,7 +588,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         push: (String location, {Object? extra}) {
           context.push(location, extra: extra);
         },
-        scrollToBottom: _scrollToBottom,
+        scrollToBottom: _lifecycle.scrollToBottom,
         haptics: () => ref.read(uiSettingsProvider).haptics,
       ),
       confirmDelete: () async =>
@@ -587,142 +680,17 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       delete: (ApiMessage message) => _actions.deleteMessage(message),
       wsClient: () => ref.read(webSocketClientProvider),
     );
-    final int? cid = _chatId;
-    if (cid != null) PushNotificationService.setCurrentChat(cid);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final id = _chatId;
-      if (id != null) {
-        _scrollCoordinator.setHasNewerHistory(
-          ref.read(chatHistoryWindowProvider(id)).hasNewer,
-        );
-        // Secure flag first: restoring a draft needs `_isSecret` to be current
-        // so a secret chat reads the engine, never DraftStorage.
-        _applySecureFlag();
-        if (ref.read(chatByIdProvider(id)) != null) {
-          unawaited(_draft.restore());
-        }
-      }
-      _refreshNow();
-    });
+    _lifecycle.runAfterFirstFrame();
   }
 
   bool _isSecret = false;
   bool _canPersistOrdinaryDraft = false;
-
-  void _applySecureFlag() {
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-    final ApiChatSummary? chat = ref.read(chatByIdProvider(chatId));
-    _canPersistOrdinaryDraft = chat?.isSecret == false;
-    if (chat?.isSecret == true) {
-      _isSecret = true;
-      _bindSecret(ref.read(secretChatCoordinatorProvider).value);
-      ScreenSecurityService.setSecureFlag(enabled: true);
-    }
-  }
 
   /// Keeps the engine handle the draft controller saves through in sync with
   /// the coordinator. Never awaited from `dispose()`.
   void _bindSecret(SecretChatCoordinator? coordinator) {
     if (coordinator == null) return;
     _secretDraftSink = _SecretDraftSink(coordinator);
-  }
-
-  DateTime? _lastScreenshotAlertTime;
-
-  void _handleScreenshotAction() {
-    if (!mounted) return;
-    final DateTime now = DateTime.now();
-    if (_lastScreenshotAlertTime != null &&
-        now.difference(_lastScreenshotAlertTime!).inSeconds < 5) {
-      return;
-    }
-    _lastScreenshotAlertTime = now;
-    HapticService.confirm();
-    AppToast.showInfo(context, 'В секретном чате зафиксирован снимок экрана');
-    final int? chatId = _chatId;
-    if (chatId != null) {
-      ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .send('📷 Снимок экрана был зафиксирован');
-    }
-  }
-
-  Future<void> _autoLoadOlderMessages() async {
-    if (_loadingOlderNotifier.value) return;
-    _loadingOlderNotifier.value = true;
-    try {
-      await _loadOlderMessages();
-    } finally {
-      _loadingOlderNotifier.value = false;
-    }
-  }
-
-  void _scrollToBottom() {
-    if (ref.read(uiSettingsProvider).haptics) {
-      HapticService.tap();
-    }
-    final int? cid = _chatId;
-    if (cid != null && PushNotificationService.isForeground) {
-      unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
-      ref.read(chatsProvider.notifier).markChatAsRead(cid);
-    }
-    _scrollCoordinator.scrollToBottom();
-  }
-
-  @override
-  void dispose() {
-    final int? cid = _chatId;
-    if (cid != null && PushNotificationService.isForeground) {
-      try {
-        unawaited(ref.read(chatMessagesProvider(cid).notifier).markRead());
-        ref.read(chatsProvider.notifier).markChatAsRead(cid);
-      } catch (_) {}
-    }
-    PushNotificationService.setCurrentChat(null);
-    WidgetsBinding.instance.removeObserver(this);
-    _aiRewrite.dispose();
-    _removeScreenshotOverlay();
-    _scrollCoordinator.dispose();
-    _loadingOlderNotifier.dispose();
-    _composer.dispose();
-    _send.dispose();
-    _attachments.dispose();
-    // Cancel the pending debounce, then write the last text: the only chance
-    // to persist the final <500 ms of typing.
-    _draft.dispose();
-    _inputController.removeListener(_onInputChanged);
-    _inputController.dispose();
-    _inputFocusNode.dispose();
-    try {
-      ref.read(inlineQueryProvider.notifier).clear();
-    } catch (_) {
-      // The provider may already be gone when the screen outlives its scope.
-    }
-    if (_isSecret) {
-      ScreenSecurityService.setSecureFlag(enabled: false);
-    }
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_isSecret) {
-      if (state == AppLifecycleState.resumed) unawaited(_refreshNow());
-      return;
-    }
-    if (DesktopWindowService.isDesktop) {
-      _removeScreenshotOverlay();
-      return;
-    }
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.hidden) {
-      _showScreenshotOverlay();
-    } else {
-      _removeScreenshotOverlay();
-    }
   }
 
   void _showE2eeVerification() {
@@ -735,21 +703,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     );
   }
 
-  void _showScreenshotOverlay() {
-    if (_screenshotOverlay != null) return;
-    _screenshotOverlay = OverlayEntry(
-      builder: (_) => Container(
-        color: Theme.of(context).colorScheme.scrim,
-        width: double.infinity,
-        height: double.infinity,
-      ),
-    );
-    Overlay.of(context, rootOverlay: true).insert(_screenshotOverlay!);
-  }
-
-  void _removeScreenshotOverlay() {
-    _screenshotOverlay?.remove();
-    _screenshotOverlay = null;
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   void _onInputChanged() {
@@ -792,54 +749,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     if (selection == null) return;
     final (AiAction action, String? targetLanguage) = selection;
     unawaited(_processTextWithAi(action, targetLanguage: targetLanguage));
-  }
-  Future<void> _refreshNow() async {
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-    try {
-      await ref.read(chatMessagesProvider(chatId).notifier).refresh();
-      final followingLatest = ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .window
-          .followingLatest;
-      if ((_isSecret || followingLatest) &&
-          PushNotificationService.isForeground) {
-        await ref.read(chatMessagesProvider(chatId).notifier).markRead();
-        ref.read(chatsProvider.notifier).markChatAsRead(chatId);
-      }
-      if (_isSecret || chatId < 0) return;
-      final ApiChatSummary? freshChat = await ref
-          .read(chatRepositoryProvider)
-          .getChat(chatId);
-      if (freshChat != null && mounted) {
-        ref
-            .read(chatsProvider.notifier)
-            .upsertChat(
-              freshChat.copyWith(
-                unreadCount: followingLatest ? 0 : freshChat.unreadCount,
-              ),
-            );
-      }
-    } catch (e) {
-      debugPrint('Failed to refresh: $e');
-    }
-  }
-
-  Future<bool> _loadOlderMessages() async {
-    final int? chatId = _chatId;
-    if (chatId == null) {
-      return false;
-    }
-    try {
-      final int added = await ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .loadOlder(pageSize: 50);
-      return added > 0;
-    } catch (error) {
-      if (!mounted) return false;
-      AppToast.showError(context, error);
-      return false;
-    }
   }
 
   String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
@@ -1060,27 +969,27 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               },
             if (isSecret) ...<ShortcutActivator, VoidCallback>{
               const SingleActivator(LogicalKeyboardKey.printScreen):
-                  _handleScreenshotAction,
+                  _lifecycle.handleScreenshotAction,
               const SingleActivator(
                 LogicalKeyboardKey.keyS,
                 shift: true,
                 meta: true,
-              ): _handleScreenshotAction,
+              ): _lifecycle.handleScreenshotAction,
               const SingleActivator(
                 LogicalKeyboardKey.keyS,
                 shift: true,
                 control: true,
-              ): _handleScreenshotAction,
+              ): _lifecycle.handleScreenshotAction,
               const SingleActivator(
                 LogicalKeyboardKey.digit3,
                 shift: true,
                 meta: true,
-              ): _handleScreenshotAction,
+              ): _lifecycle.handleScreenshotAction,
               const SingleActivator(
                 LogicalKeyboardKey.digit4,
                 shift: true,
                 meta: true,
-              ): _handleScreenshotAction,
+              ): _lifecycle.handleScreenshotAction,
             },
           },
           child: PopScope(
@@ -1123,7 +1032,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                       ChatTopBannerLayer(
                         chatId: chatId,
                         isSecret: isSecret,
-                        loadingOlderNotifier: _loadingOlderNotifier,
+                        loadingOlderNotifier: _lifecycle.loadingOlderNotifier,
                         onE2eeTap: _showE2eeVerification,
                       ),
                       if (!isSecret)
