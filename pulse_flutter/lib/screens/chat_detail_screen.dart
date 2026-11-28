@@ -1,4 +1,3 @@
-import 'package:pulse_flutter/widgets/media/media_hero.dart';
 import 'package:pulse_flutter/providers/chat_productivity_provider.dart';
 import 'package:pulse_flutter/widgets/chat_productivity.dart';
 import 'package:pulse_flutter/widgets/chat/custom_emoji_text.dart';
@@ -54,11 +53,10 @@ import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
-import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_ai_rewrite_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_draft_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_presenter.dart';
-import 'package:pulse_flutter/screens/media_viewer_screen.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_media_controller.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -76,7 +74,6 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
-import 'package:pulse_flutter/widgets/m3_file_preview_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
@@ -122,6 +119,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       DesktopPasteDeduplicator();
 
   late final ChatDraftController _draft;
+  late final ChatMediaController _media;
 
   final ValueNotifier<ChatComposerState> _composerNotifier =
       ValueNotifier<ChatComposerState>(const ChatComposerState());
@@ -279,6 +277,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         if (mounted) setState(() {});
       },
       onError: (Object error) => debugPrint('Draft save failed: $error'),
+    );
+    _media = ChatMediaController(
+      l10n: () => context.l10n,
+      messages: () {
+        final int? id = _chatId;
+        if (id == null) return const <ApiMessage>[];
+        return ref.read(chatMessagesProvider(id)).value ?? const <ApiMessage>[];
+      },
+      push: (String location, {Object? extra}) {
+        context.push(location, extra: extra);
+      },
+      forward: _forwardMessage,
+      delete: _deleteMessage,
+      wsClient: () => ref.read(webSocketClientProvider),
     );
     final int? cid = _chatId;
     if (cid != null) PushNotificationService.setCurrentChat(cid);
@@ -1452,166 +1464,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         .toggleReaction(message.id, emoji);
   }
 
-  void _openMedia(ApiMessage message) {
-    final String? mediaUrl = message.mediaUrl;
-    if (mediaUrl == null || mediaUrl.trim().isEmpty) return;
-
-    final String fileName = (message.mediaName ?? '').trim().isNotEmpty
-        ? message.mediaName!.trim()
-        : _presenter.mediaLabel(message, mediaUrl);
-
-    final bool isImg = _presenter.isImageMedia(message, mediaUrl);
-    final bool isVid = _presenter.isVideoMedia(message, mediaUrl);
-
-    if (isImg || isVid) {
-      final int? chatId = _chatId;
-      final List<ApiMessage> allMessages = chatId != null
-          ? (ref.read(chatMessagesProvider(chatId)).value ??
-                const <ApiMessage>[])
-          : const <ApiMessage>[];
-
-      final List<MediaViewerItem> playlist = <MediaViewerItem>[];
-      int initialIndex = 0;
-
-      for (final ApiMessage msg in allMessages) {
-        final String? u = msg.mediaUrl;
-        if (u == null || u.trim().isEmpty) continue;
-        final bool mIsImg = _presenter.isImageMedia(msg, u);
-        final bool mIsVid = _presenter.isVideoMedia(msg, u);
-        if (mIsImg || mIsVid) {
-          if (msg.id == message.id) {
-            initialIndex = playlist.length;
-          }
-          playlist.add(
-            MediaViewerItem(
-              url: u,
-              heroTag: chatMediaHeroTag(msg.chatId, msg.id),
-              mediaType: mIsImg ? MediaType.image : MediaType.video,
-              title: (msg.mediaName ?? '').trim().isNotEmpty
-                  ? msg.mediaName!.trim()
-                  : _presenter.mediaLabel(msg, u),
-              e2eeFileKey: msg.e2eeFileKey,
-              filePath: msg.mediaUrl,
-              mediaName: msg.mediaName,
-            ),
-          );
-        }
-      }
-
-      context.push(
-        '/media-viewer?url=${Uri.encodeComponent(mediaUrl)}'
-        '&type=${isImg ? 'image' : 'video'}&title=${Uri.encodeComponent(fileName)}',
-        extra: <String, dynamic>{
-          'heroTag': chatMediaHeroTag(message.chatId, message.id),
-          'e2eeKey': message.e2eeFileKey,
-          'playlist': playlist.isNotEmpty ? playlist : null,
-          'initialIndex': initialIndex,
-        },
-      );
-      return;
-    }
-
-    showM3FilePreview(
-      context: context,
-      fileName: fileName,
-      fileSize: message.mediaSize ?? 0,
-      mediaUrl: mediaUrl,
-      e2eeFileKey: message.e2eeFileKey,
-      onForward: () async {
-        if (!context.mounted) return;
-        await _forwardMessage(message);
-      },
-    );
-  }
-
-  Future<void> _showMediaActions(
-    ApiMessage message,
-    bool isMine, {
-    required bool amAdminOrOwner,
-  }) async {
-    final String? mediaUrl = message.mediaUrl;
-    if (mediaUrl == null || mediaUrl.trim().isEmpty) {
-      return;
-    }
-    final String fileName = (message.mediaName ?? '').trim().isNotEmpty
-        ? message.mediaName!.trim()
-        : _presenter.mediaLabel(message, mediaUrl);
-
-    await AppModal.showSheet<void>(
-      context: context,
-
-      builder: (BuildContext ctx) {
-        final ColorScheme scheme = Theme.of(ctx).colorScheme;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                ListTile(
-                  leading: const Icon(Icons.save_alt_rounded),
-                  title: Text(context.l10n.mediaActionSave),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    saveM3File(
-                      context: context,
-                      fileName: fileName,
-                      fileSize: message.mediaSize ?? 0,
-                      mediaUrl: mediaUrl,
-                      e2eeFileKey: message.e2eeFileKey,
-                      wsClient: ref.read(webSocketClientProvider),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.forward_rounded),
-                  title: Text(context.l10n.chatResendTo),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    _forwardMessage(message);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.copy_rounded),
-                  title: Text(context.l10n.mediaActionCopy),
-                  onTap: () async {
-                    final String copyLabel = context.l10n.mediaActionCopy;
-                    Navigator.of(ctx).pop();
-                    await Clipboard.setData(ClipboardData(text: mediaUrl));
-                    if (ctx.mounted) AppToast.showInfo(ctx, copyLabel);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.open_in_new_rounded),
-                  title: Text(context.l10n.mediaActionOpenIn),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    FileOpener.openUrl(context, mediaUrl);
-                  },
-                ),
-                if (isMine || amAdminOrOwner)
-                  ListTile(
-                    leading: Icon(
-                      Icons.delete_outline_rounded,
-                      color: scheme.error,
-                    ),
-                    title: Text(
-                      context.l10n.chatDelete,
-                      style: TextStyle(color: scheme.error),
-                    ),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      _deleteMessage(message);
-                    },
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
     if (message.replyToId == null) return null;
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
@@ -1697,7 +1549,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   void _handleOpenMediaFor(ApiMessage message) {
     if (message.hasMedia) {
-      _openMedia(message);
+      _media.openMedia(context, message);
     }
   }
 
@@ -1707,7 +1559,12 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     bool amAdminOrOwner,
   ) {
     if (message.hasMedia) {
-      _showMediaActions(message, isMine, amAdminOrOwner: amAdminOrOwner);
+      _media.showMediaActions(
+        context,
+        message,
+        isMine: isMine,
+        amAdminOrOwner: amAdminOrOwner,
+      );
     }
   }
 

@@ -21,6 +21,7 @@ import 'package:pulse_flutter/providers/typing_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/screens/chat_detail_screen.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_media_controller.dart';
 import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart';
 import 'package:pulse_flutter/widgets/chat/ai_actions_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/reaction_picker_sheet.dart';
@@ -49,6 +50,37 @@ ApiMessage _message({Map<String, int> reactions = const {}}) => ApiMessage(
   editedAt: null,
   isDeleted: false,
 );
+
+ApiMessage _mediaMessage() => _message().copyWith(
+  msgType: 'media',
+  mediaUrl: 'https://cdn.test/photo.jpg',
+  mediaType: 'image/jpeg',
+  mediaName: 'photo.jpg',
+);
+
+ChatMediaController _mediaController() => ChatMediaController(
+  l10n: () => _l10n,
+  messages: () => const <ApiMessage>[],
+  push: (String location, {Object? extra}) {},
+  forward: (ApiMessage message) async {},
+  delete: (ApiMessage message) {},
+  wsClient: () => throw UnimplementedError(),
+);
+
+/// The media long-press menu, built directly — the controller's sheet takes the
+/// screen context plus a dismiss callback, so no modal route is needed.
+Widget _mediaMenu({required bool isMine, required bool amAdminOrOwner}) =>
+    Builder(
+      builder: (BuildContext context) =>
+          _mediaController().buildMediaActionsSheet(
+            context: context,
+            scheme: Theme.of(context).colorScheme,
+            dismiss: () {},
+            message: _mediaMessage(),
+            isMine: isMine,
+            amAdminOrOwner: amAdminOrOwner,
+          ),
+    );
 
 Widget _app(Widget child) => MaterialApp(
   locale: const Locale('ru'),
@@ -367,6 +399,35 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.byType(AiActionsSheet), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('media actions sheet', () {
+    testWidgets('five rows, and "Удалить" only with rights', (tester) async {
+      tester.view.physicalSize = const Size(600, 932);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _app(Scaffold(body: _mediaMenu(isMine: false, amAdminOrOwner: false))),
+      );
+
+      expect(find.byType(ListTile), findsNWidgets(4));
+      expect(find.text(_l10n.mediaActionSave), findsOneWidget);
+      expect(find.text(_l10n.chatResendTo), findsOneWidget);
+      expect(find.text(_l10n.mediaActionCopy), findsOneWidget);
+      expect(find.text(_l10n.mediaActionOpenIn), findsOneWidget);
+      expect(find.text(_l10n.chatDelete), findsNothing);
+
+      // The owner sees the same four rows plus the destructive one.
+      await tester.pumpWidget(
+        _app(Scaffold(body: _mediaMenu(isMine: true, amAdminOrOwner: false))),
+      );
+
+      expect(find.byType(ListTile), findsNWidgets(5));
+      expect(find.text(_l10n.chatDelete), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });
