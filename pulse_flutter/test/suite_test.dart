@@ -199,6 +199,7 @@ import 'screens/chat_ai_rewrite_controller_test.dart'
 import 'screens/chat_draft_controller_test.dart' as chat_draft_controller;
 import 'screens/chat_composer_controller_test.dart' as chat_composer_controller;
 import 'screens/chat_media_controller_test.dart' as chat_media_controller;
+import 'screens/chat_send_controller_test.dart' as chat_send_controller;
 import 'screens/register_screen_test.dart' as screens_register_screen;
 import 'unit/adaptive_performance_engine_test.dart'
     as unit_adaptive_performance_engine;
@@ -553,6 +554,7 @@ void main() {
       chat_message_action_controller.main,
     );
     group('chat_media_controller', chat_media_controller.main);
+    group('chat_send_controller', chat_send_controller.main);
     niosgram_video.main();
     widgets_vector_illustrations.main();
     widgets_m3_motion_kit.main();

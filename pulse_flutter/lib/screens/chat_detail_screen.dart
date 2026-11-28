@@ -58,6 +58,7 @@ import 'package:pulse_flutter/screens/chat_detail/chat_draft_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_action_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_presenter.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_media_controller.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_send_controller.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/models/api/message_model.dart';
@@ -110,7 +111,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   // Cache providers that may be needed in dispose()
   SecretDraftSink? _secretDraftSink;
-  bool _savingSecretMessage = false;
   bool _desktopPasteInFlight = false;
   DateTime? _lastDesktopPasteAt;
   final DesktopPasteDeduplicator _pasteDeduplicator =
@@ -120,6 +120,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   late final ChatMediaController _media;
   late final ChatMessageActionController _actions;
   late final ChatComposerController _composer;
+  late final ChatSendController _send;
 
   int? get _replyToMessageId => _composer.replyToMessageId;
   String? get _replyPreviewText => _composer.replyPreviewText;
@@ -272,6 +273,53 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       ),
       replySnippet: (ApiMessage message) =>
           _presenter.resolveReplySnippet(message),
+    );
+    _send = ChatSendController(
+      chatId: () => _chatId,
+      textController: _inputController,
+      l10n: () => context.l10n,
+      chat: (int id) => ref.read(chatByIdProvider(id)),
+      ensureChats: () => ref.read(chatsProvider.future),
+      messages: () {
+        final int? id = _chatId;
+        if (id == null) return const <ApiMessage>[];
+        return ref.read(chatMessagesProvider(id)).asData?.value ??
+            const <ApiMessage>[];
+      },
+      myUserId: () => ref.read(authProvider).profile?.id,
+      isAccountSpamBlocked: () =>
+          ref.read(authProvider).profile?.isRestrictedBySpamBlock ?? false,
+      isSecret: () => _isSecret,
+      isUserBlocked: (int userId) =>
+          ref.read(privacyProvider).isUserBlocked(userId),
+      haptics: () => ref.read(uiSettingsProvider).haptics,
+      replyToMessageId: () => _replyToMessageId,
+      replyPreviewText: () => _replyPreviewText,
+      sendSecret: (int chatId, String text, {int? replyToId}) => ref
+          .read(chatMessagesProvider(chatId).notifier)
+          .send(text, replyToId: replyToId),
+      send:
+          (
+            int chatId,
+            String text, {
+            int? replyToId,
+            void Function()? onLocalSaved,
+          }) => ref
+              .read(chatMessagesProvider(chatId).notifier)
+              .send(text, replyToId: replyToId, onLocalSaved: onLocalSaved),
+      clearReply: _composer.clearReply,
+      restoreReply: (int replyId, String preview) {
+        _composer.notifier.value = _composer.notifier.value.copyWith(
+          replyToMessageId: () => replyId,
+          replyPreviewText: () => preview,
+        );
+      },
+      scrollToBottom: _scrollToBottom,
+      markBlockedByUser: (int chatId) =>
+          ref.read(chatsProvider.notifier).setChatBlockedByUser(chatId, true),
+      onError: (Object error) {
+        if (mounted) AppToast.showError(context, error);
+      },
     );
     _aiRewrite = ChatAiRewriteController(
       vsync: this,
@@ -514,6 +562,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _scrollCoordinator.dispose();
     _loadingOlderNotifier.dispose();
     _composer.dispose();
+    _send.dispose();
     // Cancel the pending debounce, then write the last text: the only chance
     // to persist the final <500 ms of typing.
     _draft.dispose();
@@ -648,138 +697,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     } catch (e) {
       debugPrint('Failed to refresh: $e');
     }
-  }
-
-  Future<void> _sendMessage() async {
-    if (ref.read(uiSettingsProvider).haptics) HapticService.confirm();
-    final int? chatId = _chatId;
-    if (chatId == null) {
-      return;
-    }
-
-    final String text = _inputController.text.trim();
-    if (text.isEmpty) {
-      return;
-    }
-
-    ApiChatSummary? currentChat = ref.read(chatByIdProvider(chatId));
-    if (currentChat == null && !_isSecret) {
-      try {
-        await ref
-            .read(chatsProvider.future)
-            .timeout(const Duration(seconds: 8));
-      } catch (_) {}
-      if (!mounted) return;
-      currentChat = ref.read(chatByIdProvider(chatId));
-      if (currentChat == null) {
-        AppToast.showError(context, context.l10n.secretSaveFailed);
-        return;
-      }
-    }
-    final myProfile = ref.read(authProvider).profile;
-    final int? myUserId = myProfile?.id;
-    final bool hasPartnerReply =
-        currentChat?.chatType == 'direct' &&
-        myUserId != null &&
-        (ref.read(chatMessagesProvider(chatId)).asData?.value ??
-                const <ApiMessage>[])
-            .any((m) => m.senderId != myUserId);
-    if (isChatRestrictedBySpamBlock(
-      isAccountSpamBlocked: myProfile?.isRestrictedBySpamBlock ?? false,
-      chat: currentChat,
-      myUserId: myUserId,
-      hasPartnerReply: hasPartnerReply,
-    )) {
-      AppToast.showError(context, context.l10n.chatAccountRestricted);
-      return;
-    }
-    if (currentChat != null && currentChat.chatType == 'direct') {
-      final int? partnerId = currentChat.partnerUserId;
-      final bool isBlockedByMe =
-          (partnerId != null &&
-              ref.read(privacyProvider).isUserBlocked(partnerId)) ||
-          currentChat.isBlockedByMe;
-      if (isBlockedByMe) {
-        AppToast.showError(context, context.l10n.chatUnblockToSend);
-        return;
-      }
-    }
-
-    final int? replyId = _replyToMessageId;
-    final String originalText = _inputController.text;
-    final String? originalReplyPreview = _replyPreviewText;
-
-    if (currentChat?.isSecret == true || _isSecret) {
-      if (_savingSecretMessage) return;
-      _savingSecretMessage = true;
-      try {
-        await ref
-            .read(chatMessagesProvider(chatId).notifier)
-            .send(text, replyToId: replyId);
-        if (!mounted) return;
-        if (_inputController.text == originalText) _inputController.clear();
-        if (_replyToMessageId == replyId) _composer.clearReply();
-        _scrollToBottom();
-      } catch (_) {
-        if (mounted) AppToast.showError(context, context.l10n.secretSaveFailed);
-      } finally {
-        _savingSecretMessage = false;
-      }
-      return;
-    }
-
-    if (_savingSecretMessage) return;
-    _savingSecretMessage = true;
-    var savedLocally = false;
-    void clearSavedComposer() {
-      savedLocally = true;
-      _savingSecretMessage = false;
-      if (!mounted) return;
-      if (_inputController.text == originalText) _inputController.clear();
-      if (_replyToMessageId == replyId) _composer.clearReply();
-      _scrollToBottom();
-    }
-
-    unawaited(
-      ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .send(text, replyToId: replyId, onLocalSaved: clearSavedComposer)
-          .catchError((error) {
-            if (!mounted) {
-              return;
-            }
-            if (!savedLocally) _savingSecretMessage = false;
-            // A delayed failure must never replace text typed in the meantime.
-            if (savedLocally || _inputController.text != originalText) return;
-            _inputController.text = originalText;
-            _inputController.selection = TextSelection.fromPosition(
-              TextPosition(offset: originalText.length),
-            );
-            if (replyId != null && originalReplyPreview != null) {
-              _composer.notifier.value = _composer.notifier.value.copyWith(
-                replyToMessageId: () => replyId,
-                replyPreviewText: () => originalReplyPreview,
-              );
-            }
-            final String errorStr = error.toString().toLowerCase();
-            if (errorStr.contains('not accept direct messages') ||
-                errorStr.contains('unavailable between these users') ||
-                errorStr.contains('restricted by user')) {
-              ref
-                  .read(chatsProvider.notifier)
-                  .setChatBlockedByUser(chatId, true);
-              AppToast.showError(
-                context,
-                context.l10n.chatMessagesRestrictedByUser,
-              );
-            } else {
-              AppToast.showError(context, error);
-            }
-          })
-          .whenComplete(() {
-            if (!savedLocally) _savingSecretMessage = false;
-          }),
-    );
   }
 
   Future<void> _uploadAndSend({
@@ -1536,7 +1453,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     inputFocusNode: _inputFocusNode,
                     showDraftRestoredBanner: _draft.showRestoredBanner,
                     onClearDraft: _draft.clear,
-                    onSend: _sendMessage,
+                    onSend: _send.send,
                     onCommitEdit: _composer.commitEdit,
                     onCancelEdit: _composer.cancelEdit,
                     onClearReply: _composer.clearReply,
