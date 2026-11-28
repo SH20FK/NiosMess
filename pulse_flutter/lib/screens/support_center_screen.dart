@@ -9,8 +9,8 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:pulse_flutter/models/api/support_ticket_model.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
+import 'package:pulse_flutter/providers/support_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
-import 'package:pulse_flutter/repositories/support_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
@@ -23,10 +23,6 @@ class SupportCenterScreen extends ConsumerStatefulWidget {
 }
 
 class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
-  bool _loading = true;
-  String? _error;
-  SpamBlockStatus? _spamBlock;
-  List<SupportTicket> _tickets = const <SupportTicket>[];
   String _statusFilter = 'all'; // 'all' | 'open' | 'closed'
   StreamSubscription<Map<String, dynamic>>? _pushSub;
 
@@ -36,10 +32,9 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
     _pushSub = ref.read(webSocketClientProvider).pushStream.listen((event) {
       final act = event['action'] ?? event['event'];
       if (act == 'support_ticket_updated' || act == 'spam_block_changed') {
-        unawaited(_loadData(silent: true));
+        unawaited(_reloadData(silent: true));
       }
     });
-    unawaited(_loadData());
   }
 
   @override
@@ -48,35 +43,8 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
     super.dispose();
   }
 
-  Future<void> _loadData({bool silent = false}) async {
-    if (!silent && mounted) {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
-    }
-    try {
-      final repo = ref.read(supportRepositoryProvider);
-      final bundle = await repo.listTicketsWithStatus();
-      SpamBlockStatus? sb = bundle.spamBlock;
-      if (sb == null) {
-        final overview = await repo.getStatus();
-        sb = overview.spamBlock;
-      }
-      if (!mounted) return;
-      setState(() {
-        _tickets = bundle.tickets;
-        _spamBlock = sb;
-        _loading = false;
-        _error = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = '$e';
-      });
-    }
+  Future<void> _reloadData({bool silent = false}) {
+    return ref.read(supportCenterProvider.notifier).refresh(silent: silent);
   }
 
   String _formatDate(DateTime? dt) {
@@ -123,18 +91,18 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                       setDialogState(() => submitting = true);
                       try {
                         final ticket = await ref
-                            .read(supportRepositoryProvider)
-                            .submitSpamAppeal(text);
+                            .read(supportCenterProvider.notifier)
+                            .submitAppeal(text);
                         if (!ctx.mounted) return;
                         Navigator.of(ctx).pop();
-                        await _loadData(silent: true);
+                        await _reloadData(silent: true);
                         if (ticket != null && ticket.id > 0 && mounted) {
                           AppToast.showSuccess(
                             context,
                             context.l10n.supportAppealSent(ticket.id),
                           );
                           await context.push('/support/${ticket.id}');
-                          await _loadData(silent: true);
+                          await _reloadData(silent: true);
                         }
                       } catch (e) {
                         if (!ctx.mounted) return;
@@ -217,24 +185,25 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                       setDialogState(() => submitting = true);
                       try {
                         final ticket = await ref
-                            .read(supportRepositoryProvider)
-                            .createSupportRequest(
-                              ticketType:
-                                  category == 'copyright' ? 'copyright' : 'support',
+                            .read(supportCenterProvider.notifier)
+                            .createTicket(
+                              ticketType: category == 'copyright'
+                                  ? 'copyright'
+                                  : 'support',
                               category: category,
                               subject: subj,
                               body: body,
                             );
                         if (!ctx.mounted) return;
                         Navigator.of(ctx).pop();
-                        await _loadData(silent: true);
+                        await _reloadData(silent: true);
                         if (ticket != null && ticket.id > 0 && mounted) {
                           AppToast.showSuccess(
                             context,
                             context.l10n.supportTicketCreated(ticket.id),
                           );
                           await context.push('/support/${ticket.id}');
-                          await _loadData(silent: true);
+                          await _reloadData(silent: true);
                         }
                       } catch (e) {
                         if (!ctx.mounted) return;
@@ -290,14 +259,14 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
     bodyCtrl.dispose();
   }
 
-  List<SupportTicket> get _filteredTickets {
+  List<SupportTicket> _filteredTickets(List<SupportTicket> tickets) {
     if (_statusFilter == 'open') {
-      return _tickets.where((t) => !t.isClosed).toList(growable: false);
+      return tickets.where((t) => !t.isClosed).toList(growable: false);
     }
     if (_statusFilter == 'closed') {
-      return _tickets.where((t) => t.isClosed).toList(growable: false);
+      return tickets.where((t) => t.isClosed).toList(growable: false);
     }
-    return _tickets;
+    return tickets;
   }
 
   String _categoryLabel(SupportTicket t) {
@@ -317,13 +286,25 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final profile = ref.watch(authProvider).profile;
+    final AsyncValue<SupportCenterData> supportAsync = ref.watch(
+      supportCenterProvider,
+    );
+    final SupportCenterData? data = supportAsync.value;
+    final List<SupportTicket> tickets =
+        data?.tickets ?? const <SupportTicket>[];
+    final List<SupportTicket> filteredTickets = _filteredTickets(tickets);
+    final SpamBlockStatus? spamBlock = data?.spamBlock;
+    final String? error = supportAsync.hasError
+        ? '${supportAsync.error}'
+        : data?.error;
+    final bool loading = supportAsync.isLoading || (data?.loading ?? false);
     final bool effectiveBlocked =
-        _spamBlock?.isBlocked ?? (profile?.isRestrictedBySpamBlock ?? false);
+        spamBlock?.isBlocked ?? (profile?.isRestrictedBySpamBlock ?? false);
     final DateTime? effectiveUntil =
-        _spamBlock?.blockedUntil ?? profile?.spamBlockUntil;
+        spamBlock?.blockedUntil ?? profile?.spamBlockUntil;
     final String? effectiveReason =
-        _spamBlock?.reason ?? profile?.spamBlockReason;
-    final int? appealTicketId = _spamBlock?.appealTicketId;
+        spamBlock?.reason ?? profile?.spamBlockReason;
+    final int? appealTicketId = spamBlock?.appealTicketId;
 
     return Scaffold(
       appBar: AppBar(
@@ -337,7 +318,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
           IconButton(
             tooltip: context.l10n.supportRefresh,
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => unawaited(_loadData()),
+            onPressed: () => unawaited(_reloadData()),
           ),
         ],
       ),
@@ -346,10 +327,10 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
         icon: const Icon(Icons.add_rounded),
         label: Text(context.l10n.supportNewTicket),
       ),
-      body: _loading
+      body: loading
           ? const Center(child: AppLoadingIndicator())
           : RefreshIndicator(
-              onRefresh: () => _loadData(silent: true),
+              onRefresh: () => _reloadData(silent: true),
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                 children: [
@@ -367,7 +348,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          context.l10n.supportMyTickets(_tickets.length),
+                          context.l10n.supportMyTickets(tickets.length),
                           style: textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -404,7 +385,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (_error != null)
+                  if (error != null)
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -412,11 +393,11 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(
-                        context.l10n.supportLoadError(_error!),
+                        context.l10n.supportLoadError(error),
                         style: TextStyle(color: scheme.onErrorContainer),
                       ),
                     )
-                  else if (_filteredTickets.isEmpty)
+                  else if (filteredTickets.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
@@ -451,7 +432,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                       ),
                     )
                   else
-                    ..._filteredTickets.map(
+                    ...filteredTickets.map(
                       (ticket) => _buildTicketTile(
                         context,
                         scheme,
@@ -547,7 +528,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                   FilledButton.tonalIcon(
                     onPressed: () async {
                       await context.push('/support/$appealTicketId');
-                      await _loadData(silent: true);
+                      await _reloadData(silent: true);
                     },
                     icon: const Icon(Icons.forum_outlined, size: 18),
                     label: Text(
@@ -588,7 +569,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
         onTap: () async {
           HapticService.tap();
           await context.push('/support/${ticket.id}');
-          await _loadData(silent: true);
+          await _reloadData(silent: true);
         },
         child: Container(
           padding: const EdgeInsets.all(14),

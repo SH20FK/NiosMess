@@ -10,8 +10,8 @@ import 'package:pulse_flutter/models/api/chat_member_model.dart';
 import 'package:pulse_flutter/models/api/search_models.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
+import 'package:pulse_flutter/providers/chat_member_actions_provider.dart';
 import 'package:pulse_flutter/providers/search_provider.dart';
-import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/app_error_banner.dart';
 import 'package:pulse_flutter/widgets/badge_chip.dart';
@@ -33,42 +33,20 @@ class ChatMembersScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
-  List<ApiChatMember>? _members;
-  bool _loading = true;
-  String? _error;
   bool _actionBusy = false;
 
   String _query = '';
 
   int? get _myUserId => ref.read(authProvider).session?.userId;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadMembers();
+  Future<void> _refreshMembers() {
+    return ref
+        .read(chatMemberActionsProvider(widget.chatId).notifier)
+        .refreshMembers();
   }
 
-  Future<void> _loadMembers() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final List<ApiChatMember> members = await ref
-          .read(chatRepositoryProvider)
-          .getMembers(widget.chatId);
-      if (!mounted) return;
-      setState(() {
-        _members = members;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = AppErrorFormatter.format(e).toString();
-        _loading = false;
-      });
-    }
+  void _reloadMembers() {
+    ref.invalidate(chatMembersProvider(widget.chatId));
   }
 
   Future<void> _inviteUser() async {
@@ -185,9 +163,8 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
     setState(() => _actionBusy = true);
     try {
       await ref
-          .read(chatRepositoryProvider)
-          .inviteUser(widget.chatId, picked.id);
-      await _loadMembers();
+          .read(chatMemberActionsProvider(widget.chatId).notifier)
+          .invite(picked.id);
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.chatMembersInvited(picked.username));
     } catch (e) {
@@ -199,7 +176,10 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
   }
 
   Future<void> _openModeration(ApiChatMember member) async {
-    final ApiChatMember? myMember = _members?.cast<ApiChatMember?>().firstWhere(
+    final List<ApiChatMember> members =
+        ref.read(chatMembersProvider(widget.chatId)).value ??
+        const <ApiChatMember>[];
+    final ApiChatMember? myMember = members.cast<ApiChatMember?>().firstWhere(
       (m) => m?.userId == _myUserId,
       orElse: () => null,
     );
@@ -210,16 +190,15 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       member: member,
       callerRole: myRole,
     );
-    _loadMembers();
+    _refreshMembers();
   }
 
   Future<void> _promote(ApiChatMember member, String role) async {
     setState(() => _actionBusy = true);
     try {
       await ref
-          .read(chatRepositoryProvider)
-          .promoteUser(widget.chatId, member.userId, role);
-      await _loadMembers();
+          .read(chatMemberActionsProvider(widget.chatId).notifier)
+          .promote(member.userId, role);
     } catch (e) {
       if (!mounted) return;
       AppToast.showError(context, e);
@@ -242,11 +221,10 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
     setState(() => _actionBusy = true);
     try {
       await ref
-          .read(chatRepositoryProvider)
-          .banUser(widget.chatId, member.userId, true);
+          .read(chatMemberActionsProvider(widget.chatId).notifier)
+          .ban(member.userId);
       if (!mounted) return;
       AppToast.showSuccess(context, 'Участник исключен');
-      await _loadMembers();
     } catch (e) {
       if (mounted) AppToast.showError(context, e);
     } finally {
@@ -259,15 +237,19 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final chat = ref.watch(chatByIdProvider(widget.chatId));
-    final List<ApiChatMember> visibleMembers = (_members ?? const <ApiChatMember>[])
-        .where((ApiChatMember member) {
-          final String query = _query.trim().toLowerCase();
-          if (query.isEmpty) return true;
-          return member.displayName.toLowerCase().contains(query) ||
-              member.username.toLowerCase().contains(query) ||
-              member.role.toLowerCase().contains(query);
-        })
-        .toList(growable: false);
+    final AsyncValue<List<ApiChatMember>> membersAsync = ref.watch(
+      chatMembersProvider(widget.chatId),
+    );
+    final List<ApiChatMember> visibleMembers =
+        (membersAsync.value ?? const <ApiChatMember>[])
+            .where((ApiChatMember member) {
+              final String query = _query.trim().toLowerCase();
+              if (query.isEmpty) return true;
+              return member.displayName.toLowerCase().contains(query) ||
+                  member.username.toLowerCase().contains(query) ||
+                  member.role.toLowerCase().contains(query);
+            })
+            .toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -286,13 +268,15 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
       ),
       body: PulseScaffoldBody(
         maxWidth: 980,
-        child: _loading
+        child: membersAsync.isLoading
             ? const Center(child: AppLoadingIndicator())
-            : _error != null
+            : membersAsync.hasError
             ? AppErrorBanner(
-                message: _error!,
+                message: AppErrorFormatter.format(
+                  membersAsync.error,
+                ).toString(),
                 variant: AppErrorBannerVariant.centered,
-                onRetry: _loadMembers,
+                onRetry: _reloadMembers,
               )
             : Column(
                 children: <Widget>[
@@ -315,7 +299,7 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                     child: visibleMembers.isEmpty
                         ? Center(child: Text(context.l10n.chatMembersEmpty))
                         : AppRefreshIndicator(
-                            onRefresh: _loadMembers,
+                            onRefresh: _refreshMembers,
                             child: ListView.separated(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: AppConstants.screenHorizontalPadding,

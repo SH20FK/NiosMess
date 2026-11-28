@@ -7,7 +7,7 @@ import 'package:pulse_flutter/core/constants/app_constants.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
-import 'package:pulse_flutter/repositories/chat_repository.dart';
+import 'package:pulse_flutter/providers/chat_manage_provider.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/core/services/app_url_launcher.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
@@ -50,8 +50,9 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
 
   Future<void> _loadInviteLink() async {
     try {
-      final Map<String, dynamic>? res =
-          await ref.read(chatRepositoryProvider).getInviteLink(widget.chatId);
+      final Map<String, dynamic>? res = await ref
+          .read(chatManageProvider(widget.chatId).notifier)
+          .loadInviteLink();
       if (res != null && mounted) {
         setState(() {
           _inviteLink = res['invite_link'] as String? ?? _inviteLink;
@@ -78,14 +79,14 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
 
     setState(() => _rotatingLink = true);
     try {
-      final Map<String, dynamic>? res =
-          await ref.read(chatRepositoryProvider).rotateInviteLink(widget.chatId);
+      final Map<String, dynamic>? res = await ref
+          .read(chatManageProvider(widget.chatId).notifier)
+          .rotateInviteLink();
       if (res != null && mounted) {
         setState(() {
           _inviteLink = res['invite_link'] as String? ?? _inviteLink;
           _shareLink = res['share_link'] as String? ?? _shareLink;
         });
-        await ref.read(chatsProvider.notifier).refresh();
         if (mounted) {
           AppToast.showSuccess(context, 'Ссылка успешно обновлена');
         }
@@ -121,15 +122,13 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
               : _usernameController.text.trim());
 
       await ref
-          .read(chatRepositoryProvider)
+          .read(chatManageProvider(widget.chatId).notifier)
           .updateChat(
-            widget.chatId,
             name: _nameController.text.trim(),
             description: _descController.text.trim(),
             username: targetUsername,
             commentsEnabled: isChannel ? _commentsEnabled : null,
           );
-      await ref.read(chatsProvider.notifier).refresh();
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.groupManageChatUpdated);
       context.pop();
@@ -158,9 +157,8 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     setState(() => _uploadingAvatar = true);
     try {
       await ref
-          .read(chatRepositoryProvider)
-          .uploadChatAvatar(widget.chatId, bytes, filename);
-      await ref.read(chatsProvider.notifier).refresh();
+          .read(chatManageProvider(widget.chatId).notifier)
+          .uploadAvatar(bytes, filename);
       if (!mounted) return;
       AppToast.showSuccess(context, context.l10n.groupManageAvatarUpdated);
     } catch (e) {
@@ -184,8 +182,7 @@ class _ChatManageScreenState extends ConsumerState<ChatManageScreen> {
     if (confirmed != true) return;
 
     try {
-      await ref.read(chatRepositoryProvider).leaveChat(widget.chatId);
-      await ref.read(chatsProvider.notifier).refresh();
+      await ref.read(chatManageProvider(widget.chatId).notifier).leaveChat();
       if (!mounted) return;
       context.go('/main/chats');
     } catch (e) {
