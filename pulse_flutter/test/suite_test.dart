@@ -162,6 +162,7 @@ import 'widgets/inbox_saved_search_test.dart' as inbox_saved_search;
 import 'widgets/chat_input_bar_test.dart' as chat_input_motion;
 import 'widgets/chat_detail_characterization_test.dart'
     as chat_detail_characterization;
+import 'screens/chat_detail_smoke_test.dart' as screens_chat_detail_smoke;
 import 'widgets/chat_message_sheets_test.dart' as chat_message_sheets;
 import 'widgets/niosgram_video_test.dart' as niosgram_video;
 import 'providers/ordinary_chat_realtime_test.dart' as ordinary_chat_realtime;
@@ -547,6 +548,7 @@ void main() {
     inbox_saved_search.main();
     chat_input_motion.main();
     group('chat_detail_characterization', chat_detail_characterization.main);
+    group('chat_detail_smoke', screens_chat_detail_smoke.main);
     group('chat_message_sheets', chat_message_sheets.main);
     group('chat_message_presenter', chat_message_presenter.main);
     group('chat_ai_rewrite_controller', chat_ai_rewrite_controller.main);
