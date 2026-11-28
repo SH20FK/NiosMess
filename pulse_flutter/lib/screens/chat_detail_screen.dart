@@ -25,7 +25,6 @@ import 'package:pulse_flutter/widgets/chat/report_message_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/ai_actions_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/auto_delete_bottom_sheet.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 import 'package:universal_io/io.dart';
 import 'package:pulse_flutter/core/services/desktop_pasteboard_service.dart';
@@ -47,6 +46,7 @@ import 'package:pulse_flutter/widgets/chat/chat_message_list.dart';
 import 'package:pulse_flutter/widgets/chat/spamblock_banner.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
@@ -55,6 +55,7 @@ import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_ai_rewrite_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_composer_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_draft_controller.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_message_action_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_presenter.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_media_controller.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -74,14 +75,11 @@ import 'package:pulse_flutter/providers/web_socket_provider.dart';
 import 'package:pulse_flutter/repositories/chat_repository.dart';
 import 'package:pulse_flutter/repositories/report_repository.dart';
 import 'package:pulse_flutter/widgets/m3_file_picker_bottom_sheet.dart';
-import 'package:pulse_flutter/widgets/message_context_menu_sheet.dart';
-import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/core/services/desktop_window_service.dart';
 import 'package:pulse_flutter/core/utils/screen_security_service.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
-import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
 import 'package:pulse_flutter/repositories/ai_repository.dart';
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
@@ -120,6 +118,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
 
   late final ChatDraftController _draft;
   late final ChatMediaController _media;
+  late final ChatMessageActionController _actions;
   late final ChatComposerController _composer;
 
   int? get _replyToMessageId => _composer.replyToMessageId;
@@ -306,6 +305,101 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       },
       onError: (Object error) => debugPrint('Draft save failed: $error'),
     );
+    _actions = ChatMessageActionController(
+      ports: ChatDetailPorts(
+        read: <T>(ProviderListenable<T> provider) => ref.read(provider),
+        l10n: () => context.l10n,
+        chatId: () => _chatId,
+        onError: (Object error) {
+          if (mounted) AppToast.showError(context, error);
+        },
+        onSuccess: (String message) {
+          if (mounted) AppToast.showSuccess(context, message);
+        },
+        onInfo: (String message) {
+          if (mounted) AppToast.showInfo(context, message);
+        },
+        push: (String location, {Object? extra}) {
+          context.push(location, extra: extra);
+        },
+        scrollToBottom: _scrollToBottom,
+        haptics: () => ref.read(uiSettingsProvider).haptics,
+      ),
+      confirmDelete: () async =>
+          await showAppConfirmDialog(
+            context: context,
+            title: context.l10n.chatDeleteMessageTitle,
+            subtitle: context.l10n.chatDeleteMessageBody,
+            confirmLabel: context.l10n.commonDelete,
+            cancelLabel: context.l10n.commonCancel,
+            destructive: true,
+            icon: Icons.delete_outline_rounded,
+          ) ??
+          false,
+      deleteMessage: (int messageId) {
+        final int? id = _chatId;
+        if (id == null) return Future<void>.value();
+        return ref
+            .read(chatMessagesProvider(id).notifier)
+            .deleteMessage(messageId);
+      },
+      toggleReaction: (int messageId, String emoji) {
+        final int? id = _chatId;
+        if (id == null) return Future<void>.value();
+        return ref
+            .read(chatMessagesProvider(id).notifier)
+            .toggleReaction(messageId, emoji);
+      },
+      pickReaction: (ApiMessage message) =>
+          showReactionPickerSheet(context, message: message),
+      pickReportReason: (ApiMessage message) => showReportMessageSheet(context),
+      sendText: (int targetChatId, String text) =>
+          ref.read(chatMessagesProvider(targetChatId).notifier).send(text),
+      saveToSaved: (ApiMessage message, String text) => ref
+          .read(chatProductivityRepositoryProvider)
+          .saveMessageText(message, text),
+      report:
+          ({
+            required int chatId,
+            required int reportedUserId,
+            required List<int> messageIds,
+            required ApiMessage selectedMessage,
+            required String reason,
+          }) => ref
+              .read(reportRepositoryProvider)
+              .report(
+                chatId: chatId,
+                reportedUserId: reportedUserId,
+                messageIds: messageIds,
+                selectedMessage: selectedMessage,
+                reason: reason,
+              ),
+      showScheduledComposer:
+          ({
+            required int chatId,
+            required String text,
+            required ApiMessage reminder,
+          }) => showScheduledMessageComposer(
+            context,
+            ref,
+            chatId: chatId,
+            reminder: reminder,
+            text: text,
+          ),
+      uploadAndSend: _uploadAndSend,
+      fetchMedia:
+          ({required String filePath, Uint8List? e2eeFileKey}) =>
+              WsMediaFetcher.fetchAndDecryptMedia(
+                filePath: filePath,
+                wsClient: ref.read(webSocketClientProvider),
+                e2eeFileKey: e2eeFileKey,
+              ),
+      setReply: _composer.setReply,
+      beginEdit: _composer.editMessage,
+      requestFile: (ApiMessage message) => requestChatFile(ref, message),
+      requestForward: (ApiMessage message) =>
+          _actions.forwardMessage(context, message),
+    );
     _media = ChatMediaController(
       l10n: () => context.l10n,
       messages: () {
@@ -316,8 +410,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       push: (String location, {Object? extra}) {
         context.push(location, extra: extra);
       },
-      forward: _forwardMessage,
-      delete: _deleteMessage,
+      forward: (ApiMessage message) => _actions.forwardMessage(context, message),
+      delete: (ApiMessage message) => _actions.deleteMessage(message),
       wsClient: () => ref.read(webSocketClientProvider),
     );
     final int? cid = _chatId;
@@ -1107,267 +1201,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
   }
 
-  Future<void> _deleteMessage(ApiMessage message) async {
-    final int? chatId = _chatId;
-    if (chatId == null) {
-      return;
-    }
-
-    final bool confirmed =
-        await showAppConfirmDialog(
-          context: context,
-          title: context.l10n.chatDeleteMessageTitle,
-          subtitle: context.l10n.chatDeleteMessageBody,
-          confirmLabel: context.l10n.commonDelete,
-          cancelLabel: context.l10n.commonCancel,
-          destructive: true,
-          icon: Icons.delete_outline_rounded,
-        ) ??
-        false;
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .deleteMessage(message.id);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AppToast.showError(context, error);
-    }
-  }
-
-  Future<void> _react(ApiMessage message, String emoji) async {
-    final int? chatId = _chatId;
-    if (chatId == null) {
-      return;
-    }
-    try {
-      await ref
-          .read(chatMessagesProvider(chatId).notifier)
-          .toggleReaction(message.id, emoji);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AppToast.showError(context, error);
-    }
-  }
-
-  Future<void> _forwardMessage(ApiMessage message) async {
-    final AsyncValue<List<ApiChatSummary>> chatsAsync = ref.read(chatsProvider);
-    final List<ApiChatSummary> chats =
-        chatsAsync.value ?? const <ApiChatSummary>[];
-    if (chats.isEmpty) return;
-
-    final ApiChatSummary? target = await AppModal.showSheet<ApiChatSummary>(
-      context: context,
-      builder: (BuildContext ctx) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(
-              context.l10n.chatForwardTo,
-              style: Theme.of(ctx).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            ...chats.map(
-              (ApiChatSummary c) => ListTile(
-                leading: PulseAvatar(
-                  radius: 18,
-                  name: c.name,
-                  avatarUrl: c.avatarUrl,
-                ),
-                title: Text(c.name),
-                onTap: () => Navigator.of(ctx).pop(c),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (target == null || !mounted) return;
-
-    try {
-      if (message.hasMedia && message.mediaUrl != null) {
-        final Uint8List mediaBytes = await WsMediaFetcher.fetchAndDecryptMedia(
-          filePath: message.mediaUrl!,
-          wsClient: ref.read(webSocketClientProvider),
-          e2eeFileKey: message.e2eeFileKey != null
-              ? base64Decode(message.e2eeFileKey!)
-              : null,
-        );
-        if (!mounted) return;
-        final String filename = (message.mediaName ?? '').isNotEmpty
-            ? message.mediaName!
-            : 'forward_${DateTime.now().millisecondsSinceEpoch}';
-        final FileTypeInfo typeInfo = FileTypeDetector.detect(
-          fileName: filename,
-        );
-        final String? mediaType = message.mediaType;
-        final String subtype = message.msgType == 'voice'
-            ? 'voice'
-            : message.msgType == 'circle'
-                ? 'circle'
-                : mediaType == 'image' || mediaType == 'video' || mediaType == 'audio'
-                    ? mediaType!
-                    : (typeInfo.isImage
-                        ? 'image'
-                        : typeInfo.isVideo
-                            ? 'video'
-                            : typeInfo.isAudio
-                                ? 'audio'
-                                : 'document');
-        await _uploadAndSend(
-          chatId: target.id,
-          bytes: mediaBytes,
-          filename: filename,
-          mediaSubtype: subtype,
-          fileSize: message.mediaSize ?? mediaBytes.length,
-          text: message.content,
-          attachCurrentReply: false,
-        );
-      } else {
-        await ref
-            .read(chatMessagesProvider(target.id).notifier)
-            .send(message.content);
-      }
-      if (!mounted) return;
-      AppToast.showSuccess(context, context.l10n.chatMessageForwarded);
-    } catch (e) {
-      if (!mounted) return;
-      AppToast.showError(context, e);
-    }
-  }
-
-  Future<void> _showMessageActions(
-    ApiMessage message,
-    bool isMine, {
-    required bool isChannel,
-    required bool amAdminOrOwner,
-  }) async {
-    final MessageActionResult?
-    result = await AppModal.showSheet<MessageActionResult>(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: MessageContextMenuSheet(
-          message: message,
-          isMine: isMine,
-          isChannel: isChannel,
-          amAdminOrOwner: amAdminOrOwner,
-          isSecret: ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret == true,
-        ),
-      ),
-    );
-
-    if (result == null || !mounted) return;
-
-    switch (result.type) {
-      case MessageActionType.react:
-        if (result.emoji != null) {
-          _react(message, result.emoji!);
-        }
-      case MessageActionType.showAllReactions:
-        _showAllReactionsPicker(message);
-      case MessageActionType.reply:
-        _composer.setReply(message);
-      case MessageActionType.requestFile:
-        try {
-          await requestChatFile(ref, message);
-          if (mounted) AppToast.showSuccess(context, 'Запрос отправлен');
-        } catch (e) {
-          if (mounted) AppToast.showError(context, e);
-        }
-      case MessageActionType.copy:
-        Clipboard.setData(ClipboardData(text: _presenter.displayText(message)));
-        AppToast.showInfo(context, context.l10n.chatMessageTextCopied);
-      case MessageActionType.saveToSaved:
-        try {
-          var text = _presenter.displayText(message);
-          if (message.hasMedia) {
-            text =
-                '$text\n${ApiConstants.origin}/web/#/chat/${message.chatId}?highlight=${message.id}';
-          }
-          await ref
-              .read(chatProductivityRepositoryProvider)
-              .saveMessageText(message, text);
-          if (mounted) AppToast.showSuccess(context, 'Сохранено в Избранное');
-        } catch (e) {
-          if (mounted) AppToast.showError(context, e);
-        }
-      case MessageActionType.remind:
-        await showScheduledMessageComposer(
-          context,
-          ref,
-          chatId: message.chatId,
-          reminder: message,
-          text:
-              '${_presenter.displayText(message)}\n${ApiConstants.origin}/web/#/chat/${message.chatId}?highlight=${message.id}',
-        );
-      case MessageActionType.forward:
-        _forwardMessage(message);
-      case MessageActionType.comments:
-        final int? chatId = _chatId;
-        if (chatId != null) {
-          context.push('/channel/$chatId/post/${message.id}/comments');
-        }
-      case MessageActionType.edit:
-        _composer.editMessage(message);
-      case MessageActionType.delete:
-        _deleteMessage(message);
-      case MessageActionType.report:
-        _showReportMessageDialog(message);
-    }
-  }
-
-  Future<void> _showReportMessageDialog(ApiMessage message) async {
-    final String? reason = await showReportMessageSheet(context);
-    if (reason == null) return;
-    await _submitReport(message, reason);
-  }
-
-  Future<void> _submitReport(ApiMessage message, String reason) async {
-    try {
-      await ref
-          .read(reportRepositoryProvider)
-          .report(
-            chatId: message.chatId,
-            reportedUserId: message.senderId,
-            messageIds: <int>[message.id],
-            selectedMessage: message,
-            reason: reason,
-          );
-      if (!mounted) return;
-      AppToast.showSuccess(context, context.l10n.reportSent);
-    } catch (e) {
-      if (!mounted) return;
-      AppToast.showError(context, e);
-    }
-  }
-
-  Future<void> _showAllReactionsPicker(ApiMessage message) async {
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-
-    final String? emoji = await showReactionPickerSheet(
-      context,
-      message: message,
-    );
-
-    if (emoji == null) return;
-    if (ref.read(uiSettingsProvider).haptics) HapticService.reaction();
-    await ref
-        .read(chatMessagesProvider(chatId).notifier)
-        .toggleReaction(message.id, emoji);
-  }
-
   String? _replyPreviewFor(ApiMessage message, Map<int, ApiMessage> byId) {
     if (message.replyToId == null) return null;
     final int myUserId = ref.read(authProvider).session?.userId ?? -1;
@@ -1478,9 +1311,11 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     bool isChannel,
     bool amAdminOrOwner,
   ) {
-    _showMessageActions(
+    // The menu needs the screen's context; every outcome is the controller's.
+    _actions.showMessageActions(
+      context,
       message,
-      isMine,
+      isMine: isMine,
       isChannel: isChannel,
       amAdminOrOwner: amAdminOrOwner,
     );
@@ -1677,7 +1512,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                             );
                           },
                           onReactionTap: (ApiMessage msg, String emoji) =>
-                              _react(msg, emoji),
+                              _actions.react(msg, emoji),
                           onOpenMedia: _handleOpenMediaFor,
                           onLongPressMedia: _handleLongPressMediaFor,
                           onLongPress: _handleLongPressFor,
