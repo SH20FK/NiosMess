@@ -152,6 +152,66 @@ class EncryptedMessageCache {
     return Isolate.run(computation);
   }
 
+  /// Messages per batch before yielding to the event loop on web, where
+  /// isolates are unavailable and [computation] runs on the UI thread.
+  static const int _webDecodeBatch = 128;
+
+  /// Decrypts a cached payload and materializes every [ApiMessage].
+  ///
+  /// This runs inside the isolate (see [loadMessages]) so the ~2000
+  /// `ApiMessage.fromJson` calls never touch the UI thread. On web the same
+  /// function runs on the UI thread, so it yields between [_webDecodeBatch]
+  /// sized batches and no single frame performs the whole decode.
+  static Future<List<ApiMessage>?> _decodeMessages(
+    String encoded,
+    List<int> keyBytes,
+  ) async {
+    final AesGcm isolateAes = AesGcm.with256bits();
+    final SecretKey isolateKey = SecretKey(keyBytes);
+    final List<int> combined = base64.decode(encoded);
+
+    const int nonceLen = 12;
+    const int macLen = 16;
+    if (combined.length < nonceLen + macLen) {
+      return null;
+    }
+    final List<int> nonce = combined.sublist(0, nonceLen);
+    final List<int> mac = combined.sublist(combined.length - macLen);
+    final List<int> cipherText = combined.sublist(
+      nonceLen,
+      combined.length - macLen,
+    );
+
+    final SecretBox box = SecretBox(
+      cipherText,
+      nonce: nonce,
+      mac: Mac(mac),
+    );
+    final List<int> decrypted = await isolateAes.decrypt(
+      box,
+      secretKey: isolateKey,
+    );
+    final String json = utf8.decode(decrypted);
+    final dynamic decoded = jsonDecode(json);
+    if (decoded is! List) return null;
+
+    final List<ApiMessage> messages = <ApiMessage>[];
+    for (int i = 0; i < decoded.length; i++) {
+      messages.add(ApiMessage.fromJson(decoded[i] as Map<String, dynamic>));
+      if (kIsWeb && (i + 1) % _webDecodeBatch == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+    return messages;
+  }
+
+  /// Test seam for the background decode path (decrypt + materialize).
+  @visibleForTesting
+  static Future<List<ApiMessage>?> debugDecodeMessagesInBackground(
+    String encoded,
+    List<int> keyBytes,
+  ) => _runCompute(() => _decodeMessages(encoded, keyBytes));
+
   static Future<void> saveSenderPlaintext({
     required int chatId,
     required int messageId,
@@ -288,43 +348,11 @@ class EncryptedMessageCache {
       final SecretKey key = await _getOrCreateKey();
       final List<int> keyBytes = await key.extractBytes();
 
-      final List<Map<String, dynamic>>? messagesJson = await _runCompute(
-        () async {
-          final AesGcm isolateAes = AesGcm.with256bits();
-          final SecretKey isolateKey = SecretKey(keyBytes);
-          final List<int> combined = base64.decode(encoded!);
-
-          const int nonceLen = 12;
-          const int macLen = 16;
-          if (combined.length < nonceLen + macLen) {
-            return null;
-          }
-          final List<int> nonce = combined.sublist(0, nonceLen);
-          final List<int> mac = combined.sublist(combined.length - macLen);
-          final List<int> cipherText = combined.sublist(
-            nonceLen,
-            combined.length - macLen,
-          );
-
-          final SecretBox box = SecretBox(
-            cipherText,
-            nonce: nonce,
-            mac: Mac(mac),
-          );
-          final List<int> decrypted = await isolateAes.decrypt(
-            box,
-            secretKey: isolateKey,
-          );
-          final String json = utf8.decode(decrypted);
-          final dynamic decoded = jsonDecode(json);
-          if (decoded is List) {
-            return decoded.cast<Map<String, dynamic>>();
-          }
-          return null;
-        },
+      final List<ApiMessage>? messages = await _runCompute(
+        () => _decodeMessages(encoded!, keyBytes),
       );
 
-      if (messagesJson == null) {
+      if (messages == null) {
         if (strict) {
           throw const FormatException('Legacy cache authentication failed');
         }
@@ -332,7 +360,7 @@ class EncryptedMessageCache {
         return [];
       }
 
-      return messagesJson.map((e) => ApiMessage.fromJson(e)).toList();
+      return messages;
     } catch (e) {
       if (strict) rethrow;
       debugPrint('[EncryptedMessageCache] Load error: $e');

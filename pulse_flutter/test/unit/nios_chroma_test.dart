@@ -8,23 +8,10 @@ void main() {
       NiosChroma.clearCache();
     });
 
-    test('Custom user wallpapers strictly take precedence over Chroma', () {
-      expect(
-        NiosChroma.shouldApply(hasCustomWallpaper: true, userChromaEnabled: true),
-        isFalse,
-      );
-      expect(
-        NiosChroma.shouldApply(hasCustomWallpaper: true, userChromaEnabled: false),
-        isFalse,
-      );
-      expect(
-        NiosChroma.shouldApply(hasCustomWallpaper: false, userChromaEnabled: true),
-        isTrue,
-      );
-      expect(
-        NiosChroma.shouldApply(hasCustomWallpaper: false, userChromaEnabled: false),
-        isFalse,
-      );
+    test('Chroma applies unless the user turned it off', () {
+      expect(NiosChroma.shouldApply(), isTrue);
+      expect(NiosChroma.shouldApply(userChromaEnabled: true), isTrue);
+      expect(NiosChroma.shouldApply(userChromaEnabled: false), isFalse);
     });
 
     test('resolveChromaScheme caches result and returns identical instance on repeated queries', () {

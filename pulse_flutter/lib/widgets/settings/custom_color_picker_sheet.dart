@@ -43,6 +43,16 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
   late double _hue;
   late final TextEditingController _hex;
   bool _valid = true;
+
+  // CAM16 seed schemes are expensive, so the preview only adopts a new seed
+  // when a gesture commits (tap, pan end, slider end). Dragging repaints the
+  // thumb and the code live but reuses the already-computed scheme.
+  late Color _previewSeed;
+  Color? _schemeSeed;
+  Brightness? _schemeBrightness;
+  ColorScheme? _scheme;
+  final Map<Color, Color> _presetOnPrimary = <Color, Color>{};
+
   String _code(Color color) =>
       color.toARGB32().toRadixString(16).substring(2).toUpperCase();
   @override
@@ -50,8 +60,31 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
     super.initState();
     _selected = widget.initialColor.withValues(alpha: 1);
     _hue = HSVColor.fromColor(_selected).hue;
+    _previewSeed = _selected;
     _hex = TextEditingController(text: _code(_selected));
   }
+
+  ColorScheme _schemeFor(Color seed, Brightness brightness) {
+    if (_scheme == null ||
+        _schemeSeed != seed ||
+        _schemeBrightness != brightness) {
+      _schemeSeed = seed;
+      _schemeBrightness = brightness;
+      _scheme = ColorScheme.fromSeed(
+        seedColor: seed,
+        brightness: brightness,
+        dynamicSchemeVariant: DynamicSchemeVariant.expressive,
+      );
+    }
+    return _scheme!;
+  }
+
+  /// One tonal-spot scheme per preset swatch, computed when it is first
+  /// selected instead of inside every item build.
+  Color _presetOnPrimaryFor(Color color) => _presetOnPrimary.putIfAbsent(
+    color,
+    () => ColorScheme.fromSeed(seedColor: color).onPrimary,
+  );
 
   @override
   void dispose() {
@@ -59,24 +92,34 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
     super.dispose();
   }
 
+  void _setDraft(Color color) {
+    _selected = color;
+    final hsv = HSVColor.fromColor(color);
+    if (hsv.saturation > 0 && hsv.value > 0) _hue = hsv.hue;
+    _hex.text = _code(color);
+    _valid = true;
+  }
+
+  /// A committed selection also refreshes the preview scheme.
   void _select(Color color) {
     setState(() {
-      _selected = color;
-      final hsv = HSVColor.fromColor(color);
-      if (hsv.saturation > 0 && hsv.value > 0) _hue = hsv.hue;
-      _hex.text = _code(color);
-      _valid = true;
+      _setDraft(color);
+      _previewSeed = color;
     });
+  }
+
+  /// Dragging only moves the draft color; the scheme catches up on release.
+  void _selectTransient(Color color) => setState(() => _setDraft(color));
+
+  void _commitPreview() {
+    if (_previewSeed == _selected) return;
+    setState(() => _previewSeed = _selected);
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final preview = ColorScheme.fromSeed(
-      seedColor: _selected,
-      brightness: scheme.brightness,
-      dynamicSchemeVariant: DynamicSchemeVariant.expressive,
-    );
+    final preview = _schemeFor(_previewSeed, scheme.brightness);
     final hsv = HSVColor.fromColor(_selected).withHue(_hue);
     return Material(
       color: scheme.surfaceContainerLow,
@@ -198,21 +241,32 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
                   final height = width / 2.1;
-                  void pick(Offset offset) => _select(
-                    HSVColor.fromAHSV(
+                  void pick(Offset offset, {bool commit = false}) {
+                    final color = HSVColor.fromAHSV(
                       1,
                       _hue,
                       (offset.dx / width).clamp(0, 1),
                       (1 - offset.dy / height).clamp(0, 1),
-                    ).toColor(),
-                  );
+                    ).toColor();
+                    if (commit) {
+                      _select(color);
+                    } else {
+                      _selectTransient(color);
+                    }
+                  }
+
                   return Semantics(
                     label: context.l10n.appearanceCustomColor,
                     value: '#${_code(_selected)}',
                     child: GestureDetector(
                       key: const ValueKey('custom-color-plane'),
-                      onTapDown: (event) => pick(event.localPosition),
+                      onTapDown: (event) => pick(
+                        event.localPosition,
+                        commit: true,
+                      ),
                       onPanUpdate: (event) => pick(event.localPosition),
+                      onPanEnd: (_) => _commitPreview(),
+                      onPanCancel: _commitPreview,
                       child: SizedBox(
                         height: height,
                         child: ClipRRect(
@@ -331,8 +385,9 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                         label: '#${_code(_selected)}',
                         onChanged: (hue) {
                           _hue = hue;
-                          _select(hsv.withHue(hue).toColor());
+                          _selectTransient(hsv.withHue(hue).toColor());
                         },
+                        onChangeEnd: (_) => _commitPreview(),
                       ),
                     ),
                   ],
@@ -366,9 +421,7 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                               child: _selected.toARGB32() == color.toARGB32()
                                   ? Icon(
                                       Icons.check_rounded,
-                                      color: ColorScheme.fromSeed(
-                                        seedColor: color,
-                                      ).onPrimary,
+                                      color: _presetOnPrimaryFor(color),
                                     )
                                   : null,
                             ),
@@ -405,6 +458,8 @@ class _CustomColorPickerSheetState extends State<CustomColorPickerSheet> {
                   if (parsed != null) {
                     _selected = Color(0xff000000 | parsed);
                     _hue = HSVColor.fromColor(_selected).hue;
+                    // Typing is not a gesture: the preview follows each keystroke.
+                    _previewSeed = _selected;
                   }
                 }),
               ),

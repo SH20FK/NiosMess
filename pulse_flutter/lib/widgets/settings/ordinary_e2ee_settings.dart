@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
+import 'package:pulse_flutter/models/api/chat_summary_model.dart';
 import 'package:pulse_flutter/providers/backend_chat_provider.dart';
 import 'package:pulse_flutter/services/bluetooth_mesh/bluetooth_mesh_service.dart';
 import 'package:pulse_flutter/services/bluetooth_mesh/mesh_preferences.dart';
@@ -16,6 +17,53 @@ import 'package:pulse_flutter/services/ordinary_e2ee/ordinary_e2ee_service.dart'
 import 'package:pulse_flutter/widgets/app_dialogs.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/settings_ui.dart';
+
+/// One chat the E2EE page offers as a pairing target.
+typedef E2eeContactOption = ({int id, String name});
+
+/// Filtered chat list compared by value.
+///
+/// A message in any chat replaces the whole [chatsProvider] list, which gives a
+/// new list instance every time. Selecting a plain list would therefore rebuild
+/// the settings page on every message; this value only changes when the set of
+/// offered chats, or one of their names, actually changes.
+class E2eeContactCandidates {
+  const E2eeContactCandidates(this.options);
+
+  final List<E2eeContactOption> options;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! E2eeContactCandidates ||
+        other.options.length != options.length) {
+      return false;
+    }
+    for (var index = 0; index < options.length; index++) {
+      if (other.options[index] != options[index]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(options);
+}
+
+/// Direct, non-secret, non-bot chats the E2EE contact picker may pair with.
+final Provider<E2eeContactCandidates> e2eeContactCandidatesProvider =
+    Provider<E2eeContactCandidates>((Ref ref) {
+      final List<ApiChatSummary> chats = ref.watch(
+        chatsProvider.select(
+          (AsyncValue<List<ApiChatSummary>> value) =>
+              value.value ?? const <ApiChatSummary>[],
+        ),
+      );
+      return E2eeContactCandidates(<E2eeContactOption>[
+        for (final ApiChatSummary chat in chats)
+          if (chat.chatType == 'direct' && !chat.isSecret && !chat.isBotChat)
+            (id: chat.id, name: chat.name),
+      ]);
+    });
 
 class OrdinaryE2eeSettings extends ConsumerStatefulWidget {
   const OrdinaryE2eeSettings({super.key});
@@ -578,10 +626,7 @@ class _OrdinaryE2eeSettingsState extends ConsumerState<OrdinaryE2eeSettings> {
   );
 
   Widget _contactSection() {
-    final chats = ref.watch(chatsProvider).value ?? const [];
-    final candidates = chats
-        .where((c) => c.chatType == 'direct' && !c.isSecret && !c.isBotChat)
-        .toList();
+    final candidates = ref.watch(e2eeContactCandidatesProvider).options;
     return SettingsSection(
       title: context.l10n.settingsE2eeContactTitle,
       accentIcon: Icons.person_search_rounded,

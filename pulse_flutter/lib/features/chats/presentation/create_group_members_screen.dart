@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/localization/l10n.dart';
+import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -91,8 +92,10 @@ class _CreateGroupMembersScreenState
 
         // Selected Members Horizontal Strip
         AnimatedSize(
-          duration: M3Durations.medium1,
-          curve: Curves.fastOutSlowIn,
+          duration: context.reduceMotion
+              ? Duration.zero
+              : M3Durations.spatialFast,
+          curve: M3SpringCurves.spatialFast,
           child: selected.isNotEmpty
               ? Container(
                   height: 96,

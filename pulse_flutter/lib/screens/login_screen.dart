@@ -637,6 +637,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildDeviceCodeCard(ColorScheme scheme, TextTheme textTheme) {
     final NiosDeviceCodeResponse resp = _deviceCodeResponse!;
     final bool isExpired = _remainingSeconds <= 0;
+    // QR scanners need a light quiet zone and dark modules regardless of the
+    // app brightness, so the code is always rendered on a light scheme.
+    final ColorScheme qrScheme = ColorScheme.fromSeed(
+      seedColor: scheme.primary,
+      brightness: Brightness.light,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
@@ -775,7 +781,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: qrScheme.surface,
                     borderRadius: AppRadii.mdRadius,
                     border: Border.all(
                       color: scheme.outlineVariant.withValues(alpha: 0.3),
@@ -787,13 +793,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     version: QrVersions.auto,
                     size: 160,
                     padding: EdgeInsets.zero,
-                    eyeStyle: const QrEyeStyle(
+                    eyeStyle: QrEyeStyle(
                       eyeShape: QrEyeShape.square,
-                      color: Color(0xFF151515),
+                      color: qrScheme.onSurface,
                     ),
-                    dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleStyle: QrDataModuleStyle(
                       dataModuleShape: QrDataModuleShape.square,
-                      color: Color(0xFF151515),
+                      color: qrScheme.onSurface,
                     ),
                   ),
                 ),

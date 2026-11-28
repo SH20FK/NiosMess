@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
+import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:pulse_flutter/widgets/chat/chat_message_edge_fade.dart';
 
 /// Single RenderProxyBox to measure the dynamic height of the composer.
@@ -48,7 +49,7 @@ class _MeasureSize extends SingleChildRenderObjectWidget {
 /// Unified chat viewport architecture for NiosMess.
 ///
 /// Single owner for:
-/// - Wallpaper (fills viewport)
+/// - Neutral chat backdrop (AppSurfaces)
 /// - Messages scroll view (with bottom padding = composerHeight)
 /// - Top edge fade
 /// - Dynamic bottom edge fade (anchored directly to top boundary of composer)
@@ -58,7 +59,6 @@ class _MeasureSize extends SingleChildRenderObjectWidget {
 class ChatViewport extends StatefulWidget {
   const ChatViewport({
     super.key,
-    required this.wallpaper,
     required this.messagesBuilder,
     required this.composer,
     this.topBanner,
@@ -68,9 +68,6 @@ class ChatViewport extends StatefulWidget {
     this.topFadeHeight = 44.0,
     this.messagesGap = 8.0,
   });
-
-  /// Fullscreen wallpaper filling the viewport
-  final Widget wallpaper;
 
   /// Builder for messages scrollable view. `bottomInset` is the composer
   /// height plus [messagesGap]; the list listens to it instead of being
@@ -147,9 +144,9 @@ class _ChatViewportState extends State<ChatViewport> {
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        // 1. Wallpaper (full screen)
+        // 1. Neutral backdrop behind the conversation
         Positioned.fill(
-          child: widget.wallpaper,
+          child: ColoredBox(color: AppSurfaces.of(context)),
         ),
 
         // 2. Messages scroll view (full viewport, bottom padding = composerHeight)

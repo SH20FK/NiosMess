@@ -1,0 +1,308 @@
+{
+  "area": "mess",
+  "items": [
+    {
+      "rule": "MESS-1",
+      "file": "lib/widgets/wallpaper/chat_wallpaper_background.dart",
+      "line": 11,
+      "verdict": "confirmed",
+      "reason": "Виджет действительно живой (chat_detail_screen.dart:2487), но build игнорирует chatId и всегда отдаёт ColoredBox; в самом файле комментарий «no wallpaper is loaded or painted». При этом hasCustomWallpaper (chat_detail_screen.dart:2380) гасит NiosChroma (nios_chroma.dart:24), т.е. пользователь теряет expressive-палитру и не получает ничего. imagePath/imageDim/imageBlur читает только студия (effects_tab.dart:22,91,110), рендерер — ноль. Сам painter-стек мёртв (только тесты) — см. CODE-3 wallpaper_image_cache, чтобы не считать дважды. Строки файла-заглушки: 14.",
+      "refs_found": "виджет: lib/screens/chat_detail_screen.dart:2487; test/widgets/neutral_inbox_test.dart:174; настройки: lib/features/wallpaper/presentation/widgets/tabs/effects_tab.dart:22,91,110; рендер-путь: 0 прод-вызовов",
+      "lines": 14
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/core/worker/headless_worker_client.dart",
+      "line": 11,
+      "verdict": "downgraded",
+      "reason": "В lib/ ноль потребителей: единственный импорт — test/unit/headless_worker_test.dart:5, тест реально конструирует клиент (:10,:15). По правилу это использование, поэтому не rejected, но в прод-бандл каталог не входит и мёртв целиком. Пересчёт: 3 файла, 534 строки (208+235+91), а не ~470.",
+      "refs_found": "test/unit/headless_worker_test.dart:5,10,15 (прод: 0)",
+      "lines": 534
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/services/calls/e2ee_key_manager.dart",
+      "line": 5,
+      "verdict": "confirmed",
+      "reason": "E2eeKeyManager (только объявление+конструктор), VideoPipeline/VideoOutputPipeline/WsCallTransport — 0 ссылок во всём lib/test/integration_test. Файлы не импортирует никто (grep по именам файлов — 0); единственное внешнее упоминание VideoPipeline — dartdoc-ссылка [VideoPipeline] в call_video_provider.dart:36, не код. Тестов на эти классы нет. Реально 572 строки (136+270+54+112), а не 488.",
+      "refs_found": "0 (lib/providers/call_video_provider.dart:36 — комментарий)",
+      "lines": 572
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/screens/chat_redirect_screen.dart",
+      "line": 8,
+      "verdict": "confirmed",
+      "reason": "ChatRedirectScreen, DirectChatResolverScreen, CreateChatScreen не упоминаются вне своих файлов; импортов путей этих трёх файлов — 0 в lib/test/integration_test. Пересчёт: 99+79+95 = 273 строки, а не 241.",
+      "refs_found": "0",
+      "lines": 273
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/widgets/chat/chat_state_surface.dart",
+      "line": 7,
+      "verdict": "confirmed",
+      "reason": "Класс ChatStateSurface — 0 ссылок вне файла. Импорт chat_detail_screen.dart:84 вхолостую: chat_empty_state.dart уже импортирован отдельно (:21), поэтому ChatEmptyState на :2920,:2928,:2994 приходит не через ре-экспорт. `features` действительно теряется в build (:103-110). Освобождается 113 строк + 1 импорт; проверка «файл импортируют» не спасает — импорт нерабочий (unused_import).",
+      "refs_found": "lib/screens/chat_detail_screen.dart:84 (unused import; ChatEmptyState из :21)",
+      "lines": 113
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/core/utils/shared_utilities.dart",
+      "line": 15,
+      "verdict": "confirmed",
+      "reason": "getIconForFileType (:15) и getIconColorForFileType (:52) — 0 вызовов в lib/test. Файл живой за счёт других функций: asStringMap (53 ссылки, напр. web_socket_client.dart:684) и getIconDataByName (message_bubble.dart:1212, m3_file_preview_bottom_sheet.dart:102), так что «14 импортов» относятся к ним. Освобождается :15-72 = 58 строк, а не 57.",
+      "refs_found": "0 для обеих функций; файл используется через asStringMap/getIconDataByName",
+      "lines": 58
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/models/comment_thread.dart",
+      "line": 12,
+      "verdict": "rejected",
+      "reason": "buildCommentThread вызывается в прод-коде: lib/screens/post_comments_screen.dart:322 (импорт на :12), CommentThreadRow — его возвращаемый тип :58,:63. Есть и юнит-тест. Файл не мёртвый.",
+      "refs_found": "lib/screens/post_comments_screen.dart:12,322; test/unit/comment_thread_test.dart:3,16,26,34,43"
+    },
+    {
+      "rule": "CODE-3",
+      "file": "lib/providers/api_provider.dart",
+      "line": 9,
+      "verdict": "downgraded",
+      "reason": "ApiClient в прод-коде конструируется только в api_client.dart и api_provider.dart, читателей провайдера в lib/ нет — утверждение о мёртвом HTTP-слое для прода верно. Но apiClientProvider читается в test/providers/auth_lifecycle_race_test.dart:393 и используется по существу (:395 api.onUnauthorized!()), поэтому по правилу «есть реальное использование» это не rejected. Удаление = 165 строк (35+130) плюс правка теста.",
+      "refs_found": "test/providers/auth_lifecycle_race_test.dart:3,393,395",
+      "lines": 165
+    },
+    {
+      "rule": "CODE-3",
+      "file": "lib/widgets/wallpaper/wallpaper_image_cache.dart",
+      "line": 159,
+      "verdict": "confirmed",
+      "reason": "render() и getSyncCachedImage() — 0 вызовов; paintToCanvas вызывается только из мёртвого render; MaterialSymbolsData/IconSourcesCatalog/CupertinoIconsData/CuratedWallpaperCatalog/WallpaperColorResolver имеют 0 внешних ссылок; ChatWallpaperPainter встречается только в test/widgets/chat_wallpaper_painter_test.dart. WallpaperImageCache.clear() — 4 вызова в провайдере, но это обход изначально пустых карт (тоже мусор). Пересчёт строк: 10 634 (весь каталог 10 648 минус живая заглушка 14). Удаление требует убрать test/widgets/chat_wallpaper_painter_test.dart и 4 clear().",
+      "refs_found": "прод: lib/providers/chat_wallpaper_provider.dart:128,141,174,183 (только clear); тесты: test/widgets/chat_wallpaper_painter_test.dart, test/perf/chat_performance_benchmarks_test.dart:98-112",
+      "lines": 10634
+    },
+    {
+      "rule": "CODE-4",
+      "file": "lib/screens/chat_list_screen.dart",
+      "line": 1,
+      "verdict": "confirmed",
+      "reason": "Пересчёт: в lib/ 32 файла >1000 строк, из них 7 — l10n/generated (трогать нельзя); в screens/ — 9 файлов, сумма 14 424 строки, а не 8 файлов / 12 653. chat_list_screen.dart действительно гигант — 1815. Верх: backend_chat_provider 4928, chat_detail_screen 3478, material_symbols_data 8563 (мёртв, см. CODE-3), chat_list 1815, native_file_viewer 1701, contacts 1514, message_bubble 1626. Числа в находке занижены, суть верна.",
+      "refs_found": "lib/screens: chat_detail 3478, chat_list 1815, native_file_viewer 1701, contacts 1514, legal_viewer 1390, public_profile 1302, create_post 1107, main_shell 1073, profile 1044"
+    },
+    {
+      "rule": "CODE-5",
+      "file": "lib/widgets/chat/chat_input_bar.dart",
+      "line": 606,
+      "verdict": "confirmed",
+      "reason": "Каркас обеих панелей идентичен: Container margin bottom 6, padding 12/8, radius 12, Border(left:) 3dp, Row, Icon 16, close 18. Логика уже разошлась: в edit-панели есть заголовок chatEditingMessage и обрезка текста по 80 символам (:631-642), в reply — один Text maxLines 2. Сведение в один виджет изменит вид одной из панелей. RTL-баг (физический Border(left:)) присутствует в обеих — это верно.",
+      "refs_found": "lib/widgets/chat/chat_input_bar.dart:596-655 и 666-708"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/screens/media_viewer_screen.dart",
+      "line": 604,
+      "verdict": "confirmed",
+      "reason": "Три бутстрапа acquirePlaybackSource → VideoPlayerController → initialize → ChewieController: media_viewer_screen.dart:205-243 (_initMedia) и :592-621 (_InlineVideoPlayerState._init), native_file_viewer_screen.dart:1109-1117. Уже разошлись: deviceOrientationsAfterFullScreen только в первом, autoPlay !kIsWeb vs isActive && !kIsWeb, allowFullScreen/allowMuting только в третьем; dispose-порядок одинаков. Сведение изменит поведение плейлиста или инлайн-плеера.",
+      "refs_found": "lib/screens/media_viewer_screen.dart:205,592; lib/screens/native_file_viewer_screen.dart:1109"
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/router/app_router.dart",
+      "line": 247,
+      "verdict": "downgraded",
+      "reason": "Как мёртвый код — неверно: GoRoute зарегистрирован (:248-252), экран используется, а '/dev/' входит в isPublic (:226), т.е. открывается без авторизации. Это не мусор, а dev-экран в боевом роутере: убрать его стоит по гигиене/безопасности, но MESS-1 здесь не применим. Удаление маршрута + initialLocation-ветки (:174-176) освобождает 586 строк экрана и 5 строк роутера.",
+      "refs_found": "lib/router/app_router.dart:25,174,175,249,251; lib/screens/dev/extended_image_demo_screen.dart:20",
+      "lines": 591
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/screens/settings_security_screen.dart",
+      "line": 72,
+      "verdict": "downgraded",
+      "reason": "Сами флаги действительно мёртвые: linkPreviewsInSecretChats/secureScreenshotsInSecretChats встречаются 11 раз каждый и только в ui_settings_provider (объявление, copyWith, prefs, сеттеры), потребителей нет. Но текст находки неверен: экран тумблеры НЕ показывает — в settings_security_screen.dart:62-66 стоит комментарий, что они убраны из UI до реализации, «чтобы экран не обещал переключатель, который ничего не меняет». Значит это мёртвая проводка ~22 строк, а не ложное обещание безопасности.",
+      "refs_found": "только lib/providers/ui_settings_provider.dart:96,150,179,211,247,401,753,754 (и симметрично для второго флага); в UI 0",
+      "lines": 22
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/core/storage/local_storage_service.dart",
+      "line": 212,
+      "verdict": "confirmed",
+      "reason": "checkIntegrity() — 1 вхождение (объявление), LocalStorageHealth — только объявление (:43) и возврат из checkIntegrity (:212,:260), внешних читателей 0. Экран хранилища пользуется snapshot()/clear*. Освобождается 68 строк: класс 43-55 (13) + метод 212-266 (55), а не ~55.",
+      "refs_found": "0 (все 4 вхождения внутри local_storage_service.dart)",
+      "lines": 68
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/core/utils/datetime_helpers.dart",
+      "line": 99,
+      "verdict": "confirmed",
+      "reason": "formatCallDuration (:99-109) и computeCallElapsed (:117-128) — по 1 вхождению, только объявления. Заодно подтверждается тезис о размножении форматтеров: FileTypeDetector.formatDuration живой (video_message_preview.dart:261), плюс 5 приватных _formatDuration в m3_file_picker_bottom_sheet:1218, media_grid_picker:1116, voice_message_player:500, bubble_circle_player:351, VoiceRecorderService:131. Освобождается 25 строк (23 кода + 2 пустых).",
+      "refs_found": "0 для обеих функций; рядом живые: lib/core/utils/file_type_detector.dart:247, lib/core/utils/voice_recorder_service.dart:131",
+      "lines": 25
+    },
+    {
+      "rule": "MESS-1",
+      "file": "lib/widgets/chat/bubble/bubble_text_renderer.dart",
+      "line": 27,
+      "verdict": "confirmed",
+      "reason": "Поле ParsedTextToken.isLink объявлено (:27), задаётся в конструкторе (:18) и записывается дважды (:150, :164), но не читается нигде: единственная ветка отрисовки — isMention. Вне файла 0 вхождений. Освобождается 3 строки; это write-only поле, а не публичный API.",
+      "refs_found": "0",
+      "lines": 3
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/core/modal/app_date_picker.dart",
+      "line": 31,
+      "verdict": "confirmed",
+      "reason": "Дубль подтверждён и он вредный: AppTheme.themed уже задаёт datePickerTheme/timePickerTheme (app_theme.dart:324-339) через RoundedSuperellipseBorder(circular(settings.uiCornerRadius)), а хелперы перекрывают их на RoundedRectangleBorder(AppRadii.xlRadius) + side outlineVariant 0.20. То есть игнорируется пользовательский радиус и появляется борт. app_time_picker.dart:29-38 повторяет то же. Оба хелпера живые (edit_profile_sheet.dart:154, working_hours_planner_dialog.dart:125,137), поэтому сведение на одну тему ИЗМЕНИТ вид пикеров: исчезнет борт и вернётся настройка радиуса.",
+      "refs_found": "lib/widgets/profile/edit_profile_sheet.dart:154; lib/widgets/profile/working_hours_planner_dialog.dart:125,137"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/models/api/chat_summary_model.dart",
+      "line": 212,
+      "verdict": "confirmed",
+      "reason": "Два предиката «это бот» действительно есть, но часть находки ложна: BotDetector — не мёртвый дубль, он вызывается в chat_detail:2795-2796, contacts:219,249,974,999,1286, call_starter:88. Логика расходится по существу: isBotChat (:212-219) срабатывает по бейджам ('bot'/'ai' в имени или иконке) и username.endsWith('_bot'), но не ловит 'foo_bot' без бейджа и не смотрит флаг isBotChat; BotDetector.isBotAccount (bot_detector.dart:2-7) ловит любой username, оканчивающийся на 'bot', и флаг, но игнорирует бейджи. Сведение изменит классификацию в одной из зон: либо боты с бейджем перестанут быть ботами в контактах, либо «...bot» перестанет быть ботом в инбоксе.",
+      "refs_found": "isBotChat: chat_list_screen:658,662, backend_chat_provider:2115,3447,3599; BotDetector: 6 мест (см. reason)"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 100,
+      "verdict": "confirmed",
+      "reason": "Слушатель stateStream скопирован почти дословно: video :100-120 и voice :80-100 (те же connected/ended, playEvent, AppToast по fatalError, обновление _timerNotifier, одинаковый комментарий). Расходится обвязка: видео делает setState после подписки, голос — retry-цикл до неё. _popOrGoHome продублирован ТРИ раза (active_call:69, video:169, voice:111), а не четыре: call_overlay:106 — это _expandCall с router.push, другая функция. Сведение в миксин безопасно, если вынести только слушатель и не тащить retry-логику голоса.",
+      "refs_found": "video:100-120; voice:80-100; _popOrGoHome: active_call:69, video:169, voice:111"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 184,
+      "verdict": "confirmed",
+      "reason": "Алгоритм снапа идентичен: _snapPip (video:184-195) и _snapToEdge (call_overlay:68-82) — тот же порог 700 px/s (_pipMinFlingVelocity :43 против _minFlingVelocity :36), то же сравнение центра, тот же springTo с velocity и reduceMotion. Но содержимое PiP разное по назначению: call_overlay._VideoOverlayTile (:384-512) показывает удалённое видео + таймер + mute/end, PiP в видеоэкране (:686-752) — локальное зеркальное видео + переключение камеры. Утверждение о «радиусах 20/27» неверно: оба используют CallTokens.pipBorderRadius (:414 и :692). Сведение рамки безопасно, сведение содержимого — изменит оба сценария.",
+      "refs_found": "video:184,686-752; call_overlay:36,68,384-512"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/screens/settings_appearance_accent_screen.dart",
+      "line": 33,
+      "verdict": "confirmed",
+      "reason": "_PaletteEntry (:33-37), список из 8 seed-цветов (:39-48) и _appearanceThemeProvider (:50-56) совпадают дословно с settings_appearance_screen.dart:33-56, включая все восемь hex. Дублируется и обёртка DynamicColorBuilder → ValueListenableBuilder(CircularThemeSwitcher.revealing) → AnimatedTheme (accent:80-118, appearance:89-129). Отличается только набор аргументов _buildContent (themeMode/fontScale/messageBubbleRadius против paletteStyle/dynamicSeed), поэтому вынос должен параметризовать колбэк, иначе поведение одного экрана изменится.",
+      "refs_found": "lib/screens/settings_appearance_screen.dart:33-56,89-129"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/widgets/chat/bubble/bubble_gestures.dart",
+      "line": 24,
+      "verdict": "confirmed",
+      "reason": "Два самописных свайп-движка: SwipeToReply (свой SingleMotionController, _rubberBand/_inverseRubberBand/_rubberBandSlope :40-62, порог 64 px, stretch 32) и SwipeActionRow (порог как доля ширины 0.35, две стороны, RTL-знак, без резины). Но замена НЕ эквивалентна: у SwipeActionRow порог 0.35×ширина (≈126 px на телефоне) и нет асимптотической растяжки, поэтому жест ответа станет длиннее и «жёстче»; в обратную сторону сведение сохранит логику только если перенести резину и фиксированный порог в общий виджет.",
+      "refs_found": "lib/widgets/chat/swipe_action_row.dart:16-49,63; SwipeToReply используется в message_bubble.dart:597"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/widgets/chat/chat_detail_input_area.dart",
+      "line": 144,
+      "verdict": "confirmed",
+      "reason": "Каркас двух баннеров совпадает: SafeArea(top:false) → Container(width infinity, margin 16/8, padding 16/12, radius 20, Border.all alpha 0.3) → Row(Icon 22, gap 12). Содержимое разное: isBlockedByMe — одна строка + FilledButton.tonal «разблокировать», isBlockedByUser — Column из заголовка и подписи без действия; третий, SpamBlockBanner (:232), вообще stateful с таймером. Вынос только оболочки безопасен; попытка свести содержимое изменит оба состояния.",
+      "refs_found": "lib/widgets/chat/chat_detail_input_area.dart:140-180,182-226,232; lib/widgets/chat/spamblock_banner.dart:42-68"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/widgets/chat/chat_message_list.dart",
+      "line": 1189,
+      "verdict": "confirmed",
+      "reason": "_CallEventPill (:1147-1229) и _SystemEventPill (:1231-1297) — один пилл: Container + margin vertical 6 + padding 14/7-8 + radius 16 + border 0.8 alpha 0.25 + Row(Icon 16, gap 8, labelMedium w600, gap 8, labelSmall 11). Отличия: у call-пилла нет horizontal 16 и текст без Flexible, у system-пилла есть Flexible; цвета зависят от isMissed/isScreenshot. Сведение с параметрами безопасно, «в лоб» — изменит перенос длинного текста у системных событий.",
+      "refs_found": "lib/widgets/chat/chat_message_list.dart:688,709 (вызовы), 1147,1231"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/widgets/message_bubble.dart",
+      "line": 359,
+      "verdict": "confirmed",
+      "reason": "Reply-превью действительно дважды в одном build: обычное (:269-303: padding 8/4, primary/secondary alpha 0.12, радиус только topRight/bottomRight, MouseRegion) и стикерное (:355-387: padding 10/5, surfaceContainerHighest alpha 0.9, полный радиус, без MouseRegion). Это не косметика: на стикере нужен непрозрачный фон поверх картинки, иначе превью читается плохо. Сведение через dense-флаг сохранит вид; наивное сведение изменит одну из плашек.",
+      "refs_found": "lib/widgets/message_bubble.dart:269-303 и 355-387"
+    },
+    {
+      "rule": "MESS-2",
+      "file": "lib/widgets/message_bubble.dart",
+      "line": 746,
+      "verdict": "confirmed",
+      "reason": "Стикер-бабл рисует статус сам (:701-757): done_rounded/done_all_rounded, size 12, без Tooltip/Semantics/AnimatedSwitcher. MessageBubbleFooter (bubble_footer.dart:120-158) использует check_rounded/done_all_rounded, size 14, AnimatedSwitcher + Tooltip + Semantics(liveRegion). Разница видимая и по доступности: у стикера «отправлено» — галочка другого типа, смена статуса скачком, скринридер молчит. Замена на MessageBubbleFooter(isUnframed) ИЗМЕНИТ иконку, размер и добавит анимацию — это осознанная правка, а не рефакторинг.",
+      "refs_found": "lib/widgets/message_bubble.dart:701-757; lib/widgets/chat/bubble/bubble_footer.dart:120-158"
+    },
+    {
+      "rule": "CODE-3",
+      "file": "lib/providers/call_video_provider.dart",
+      "line": 43,
+      "verdict": "confirmed",
+      "reason": "Файл (52 строки) не импортируется нигде; три провайдера и функция имеют только внутренние ссылки (remoteVideoFrameProvider читается лишь в startListeningToVideoFrames :50, которая сама не вызывается). Дополнительно подтверждены 4 одиночных мёртвых провайдера: isCallScreenVisibleProvider (call_incoming_provider.dart:114), stickerSetByIdProvider (sticker_provider.dart:153), activeChatUploadsProvider (upload_queue_provider.dart:573) — у каждого 1 вхождение. Живой механизм видео — session.isLocalVideoEnabled/setLocalVideoEnabled. Освобождается 52 строки + ~14 строк четырёх провайдеров.",
+      "refs_found": "0 (remoteVideoFrameProvider — 3 вхождения, все в своём файле)",
+      "lines": 66
+    },
+    {
+      "rule": "CODE-4",
+      "file": "lib/repositories/chat_repository.dart",
+      "line": 24,
+      "verdict": "confirmed",
+      "reason": "Пересчёт: 1628 строк, ровно ОДИН класс ChatRepository (:24) — весь файл это методы одного класса, 40+ методов от listChats до banUser/downloadMedia. В каталоге repositories 11 файлов, и только этот >1000 (call_repository ~123, search_repository ~34). Разрезать по зонам (чаты/участники/медиа) можно без изменения поведения, если не трогать _ref-зависимости.",
+      "refs_found": "lib/repositories/chat_repository.dart:24 (единственное объявление класса)"
+    },
+    {
+      "rule": "CODE-4",
+      "file": "lib/services/secret_chat/secret_chat_engine.dart",
+      "line": 22,
+      "verdict": "confirmed",
+      "reason": "Пересчёт: 1402 строки; основной класс SecretChatEngine (:22-1386, ~1365 строк), плюс мелкие SecretTransportException (:14) и _SecretMessageProjection (:1387). Заявленные зоны подтверждаются по коду (handshake/ратчет, транспортный цикл, проекции, импорт легаси), но это один класс, а не набор — разделение потребует вынести состояние _serial/журнала, иначе поведение изменится.",
+      "refs_found": "lib/services/secret_chat/secret_chat_engine.dart:22"
+    },
+    {
+      "rule": "CODE-5",
+      "file": "lib/core/storage/niosgram_saved_store.dart",
+      "line": 19,
+      "verdict": "confirmed",
+      "reason": "Примитив «очередь на аккаунт + _generations + _tails + двойная _valid» действительно скопирован: saved (:19-32) и draft (:99-112) почти дословно (различаются только текстом StateError), а вариант с Completer — archive._serialized (:71-89). Копий больше, чем в находке: четвёртый вариант есть в services/protocol/nios_protocol_accounts.dart:72-81 (тот же _tails с глушением ошибок, но epoch-проверка снаружи). Политики ошибок уже разошлись: saved/draft глушат ошибку в tail, archive удаляет tail только по identical и пробрасывает ошибку в Completer. Сведение в один AccountSerialQueue безопасно только с параметром error-policy; иначе изменится поведение одного из сторов.",
+      "refs_found": "saved:19-32,64-75; draft:99-112,186-209; archive:71-89; nios_protocol_accounts:72-81"
+    },
+    {
+      "rule": "CODE-5",
+      "file": "lib/repositories/chat_repository.dart",
+      "line": 609,
+      "verdict": "downgraded",
+      "reason": "«Четыре независимые реализации» — преувеличение: _httpMultipartUpload (:880-909) — тонкая обёртка с BackgroundService.retainWork вокруг _httpMultipartUploadOwned (:911), uploadChunk (:447) — одиночный примитив. Реальных транспортов три (multipart, parallel binary :609, WS chunked :1047), и все живые: uploadStreamInChunks вызывается из upload_queue_provider:290 и create_post_screen:585, uploadSecretCiphertext — из secret_chat_provider:915. Зато внутри _httpMultipartUploadOwned трижды скопирован один и тот же counted-stream блок (:943-961, :966-981, :987-1005) — вот это настоящий дубль, ~60 строк. Свести транспорты нельзя без изменения поведения: у них разные endpoint'ы и флаги.",
+      "refs_found": "uploadStreamInChunks: upload_queue_provider:290, create_post_screen:585; uploadSecretCiphertext: secret_chat_provider:915"
+    },
+    {
+      "rule": "CODE-5",
+      "file": "lib/screens/media_viewer_screen.dart",
+      "line": 592,
+      "verdict": "confirmed",
+      "reason": "То же, что MESS-2 media_viewer_screen:592, отдельным пунктом не считается дважды. Внутри файла два инициализатора плеера (:205-243 и :592-621) расходятся: deviceOrientationsAfterFullScreen есть только в первом, autoPlay !kIsWeb против isActive && !kIsWeb, onVisibilityChanged разный. Третий бутстрап — native_file_viewer_screen.dart:1109-1117 (allowFullScreen/allowMuting). Сведение в один хелпер изменит поведение плейлиста или инлайн-плеера, пока различия не параметризованы.",
+      "refs_found": "media_viewer_screen:205,592; native_file_viewer_screen:1109"
+    },
+    {
+      "rule": "CODE-5",
+      "file": "lib/services/ordinary_e2ee/ordinary_e2ee_service.dart",
+      "line": 317,
+      "verdict": "confirmed",
+      "reason": "Схема {keys, recovery, old} собирается литералами в service:318-320 (_save) и codec:345-347 (pair), разбирается кастами в :263-267, :880-894, :1110-1118. Третья точка из находки расходится: pending-bundle в resetAfterLoss (:1036-1039) пишет ТОЛЬКО keys+recovery, без 'old'. Поэтому сведение в общую модель без учёта этого различия изменит содержимое pending-файла (и потенциально восстановление старых эпох). Дубль реальный, но merge требует явного optional-поля.",
+      "refs_found": "service:263-267,318-320,880-894,1036-1039,1110-1118; codec:345-347"
+    },
+    {
+      "rule": "CODE-5",
+      "file": "lib/models/api/message_model.dart",
+      "line": 8,
+      "verdict": "confirmed",
+      "reason": "Четыре дословные приватные копии _parseBool: message_model.dart:8-13, chat_summary_model.dart:5-7 (в одну строку, те же 4 условия), chat_member_model.dart:4-9, sticker_model.dart:5-10. Общей функции нет (jsonBool — 0 вхождений). Семантика идентична, поэтому сведение в один jsonBool поведение НЕ меняет — самый безопасный дубль из партии.",
+      "refs_found": "message_model:8; chat_summary_model:5; chat_member_model:4; sticker_model:5"
+    },
+    {
+      "rule": "CODE-5",
+      "file": "lib/repositories/chat_repository.dart",
+      "line": 1281,
+      "verdict": "confirmed",
+      "reason": "sendComment (:1225-1279) и getComments (:1281-1332) — по 1 вхождению, только объявления; вызовов `.getComments(`/`.sendComment(` нет ни в lib, ни в test. Живая реализация — repositories/post_comments_repository.dart (импортируется из backend_chat_provider:1 и post_comments_screen:13). Параметры пагинации у мёртвой копии другие, поэтому «починить пагинацию» можно не в том файле. Освобождается 107 строк.",
+      "refs_found": "0 (живой путь: post_comments_repository.dart + post_comments_screen.dart:13)",
+      "lines": 107
+    }
+  ]
+}

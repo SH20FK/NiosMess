@@ -1,5 +1,4 @@
 import 'package:pulse_flutter/widgets/app_refresh_indicator.dart';
-import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/platform/client_capabilities.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/widgets/settings/settings_profile_card.dart';
 import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
+import 'package:pulse_flutter/widgets/motion/m3_spring_switcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pulse_flutter/core/constants/app_constants.dart';
@@ -21,7 +21,6 @@ import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/features/account_deletion/presentation/account_deletion_screen.dart';
 import 'package:pulse_flutter/screens/blocked_users_screen.dart';
 import 'package:pulse_flutter/screens/privacy_rule_detail_screen.dart';
-import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/e2ee_settings_screen.dart';
 import 'package:pulse_flutter/screens/sessions_screen.dart';
 import 'package:pulse_flutter/screens/settings_about_screen.dart';
@@ -654,27 +653,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   );
 
   Widget _animatedDetail(SettingsSectionId section, {bool pane = false}) {
-    final reduced = context.reduceMotion;
     // A screen opened under this section takes its place in the pane.
     final String? route = pane && _subpage?.section == section
         ? _subpage!.route
         : null;
-    final Widget switcher = AnimatedSwitcher(
-      duration: reduced ? Duration.zero : M3Durations.medium1,
-      reverseDuration: reduced ? Duration.zero : M3Durations.short3,
-      switchInCurve: M3SpringCurves.expressiveDecel,
-      switchOutCurve: M3SpringCurves.expressiveAccel,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, .015),
-            end: Offset.zero,
-          ).animate(animation),
-          child: child,
-        ),
-      ),
-      layoutBuilder: (current, previous) => Stack(
+    // Same layout builder as before: the outgoing pane must keep its size but
+    // must not take focus or taps while it fades out.
+    final Widget switcher = M3SpringSwitcher(
+      type: M3SwitcherType.fade,
+      duration: M3Durations.medium1,
+      reverseDuration: M3Durations.short3,
+      layoutBuilder: (Widget? current, List<Widget> previous) => Stack(
         fit: StackFit.expand,
         children: [
           for (final old in previous)
@@ -750,16 +739,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       '/settings/account/password' => (
         page: const SettingsPasswordScreen(isEmbedded: true),
         fullWidth: false,
-      ),
-      // The studio lays itself out across the whole pane.
-      '/settings/wallpaper' => (
-        page: SettingsWallpaperScreen(
-          chatId: uri.queryParameters['chatId'],
-          chatTitle: uri.queryParameters['chatTitle'],
-          initialCode: uri.queryParameters['code'],
-          isEmbedded: true,
-        ),
-        fullWidth: true,
       ),
       _ => null,
     };

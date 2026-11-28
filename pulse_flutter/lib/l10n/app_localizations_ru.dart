@@ -2631,6 +2631,307 @@ class AppLocalizationsRu extends AppLocalizations {
   String get filePickerReadError => 'Не удалось прочитать файл';
 
   @override
+  String get filePickerRecentMedia => 'Недавние медиа';
+
+  @override
+  String get filePickerAllAlbums => 'Все альбомы';
+
+  @override
+  String get filePickerLimitedPhotosOnly => 'Доступны только выбранные фото';
+
+  @override
+  String get filePickerNoRecentMedia => 'Нет недавних фото или альбом пуст';
+
+  @override
+  String get filePickerPickPhoto => 'Выбрать фото';
+
+  @override
+  String get filePickerCamera => 'Камера';
+
+  @override
+  String get filePickerExplorer => 'Проводник';
+
+  @override
+  String get filePickerSettings => 'Настройки';
+
+  @override
+  String get filePickerGalleryDeniedTitle => 'Доступ к галерее не предоставлен';
+
+  @override
+  String get filePickerGalleryDeniedBody =>
+      'Разрешите доступ в настройках или выберите файлы через проводник';
+
+  @override
+  String get filePickerCaptionHint => 'Добавить подпись...';
+
+  @override
+  String get filePickerAsFile => 'Как файл (без сжатия)';
+
+  @override
+  String get filePickerAsPhoto => 'Как фото';
+
+  @override
+  String filePickerCounter(int current, int total) {
+    return '$current из $total';
+  }
+
+  @override
+  String get filePickerUploadError => 'Не удалось загрузить выбранные файлы';
+
+  @override
+  String get chatCreationFormatSubtitle =>
+      'Выберите формат для общения или трансляций';
+
+  @override
+  String get chatCreationGroupSubtitle =>
+      'Чат для друзей, коллег или сообщества';
+
+  @override
+  String get chatCreationSecretTitle => 'Новый секретный чат';
+
+  @override
+  String get chatCreationSecretSubtitle =>
+      'Сквозное E2EE-шифрование, без следов на сервере';
+
+  @override
+  String get chatCreationChannelSubtitle =>
+      'Канал для публикаций, новостей и контента';
+
+  @override
+  String get supportCenterTitle => 'Поддержка и Спам-Блок';
+
+  @override
+  String get supportChatWithBot => 'Чат с @Support';
+
+  @override
+  String get supportRefresh => 'Обновить';
+
+  @override
+  String get supportNewTicket => 'Новый тикет';
+
+  @override
+  String supportMyTickets(int count) {
+    return 'Мои обращения ($count)';
+  }
+
+  @override
+  String get supportFilterAll => 'Все';
+
+  @override
+  String get supportFilterOpen => 'Открытые';
+
+  @override
+  String get supportFilterClosed => 'Закрытые';
+
+  @override
+  String supportLoadError(Object error) {
+    return 'Не удалось загрузить тикеты: $error';
+  }
+
+  @override
+  String get supportEmptyTitle => 'Обращений пока нет';
+
+  @override
+  String get supportEmptyBody =>
+      'Нажмите «Новый тикет» или напишите боту @Support — все сообщения соберутся в один удобный тред.';
+
+  @override
+  String get supportBlockedTitle => 'На аккаунте действует Спам-Блок';
+
+  @override
+  String get supportNotBlockedTitle => 'Статус аккаунта: без ограничений';
+
+  @override
+  String get supportNotBlockedBody =>
+      'Свободный доступ к публичным группам, каналам, NiosGram и личным сообщениям соблюдается.';
+
+  @override
+  String supportBlockReason(String reason) {
+    return 'Причина: $reason';
+  }
+
+  @override
+  String get supportDefaultBlockReason => 'Нарушение правил NiosMess';
+
+  @override
+  String supportBlockUntil(String date) {
+    return 'Окончание: $date (автоматически снимается по истечении)';
+  }
+
+  @override
+  String get supportBlockedSupportNote =>
+      'Связь с @Support и тикеты поддержки остаются полностью доступными.';
+
+  @override
+  String supportOpenAppeal(Object id) {
+    return 'Открыть апелляцию #$id';
+  }
+
+  @override
+  String get supportSubmitAppeal => 'Подать апелляцию';
+
+  @override
+  String get supportStatusOpen => 'Открыт';
+
+  @override
+  String get supportStatusClosed => 'Закрыт';
+
+  @override
+  String get supportAppealTitle => 'Апелляция спам-блока';
+
+  @override
+  String get supportSend => 'Отправить';
+
+  @override
+  String get supportAppealTooShort =>
+      'Опишите ситуацию подробнее (минимум 10 символов)';
+
+  @override
+  String supportAppealSent(Object id) {
+    return 'Апелляция отправлена (#$id)';
+  }
+
+  @override
+  String get supportAppealBody =>
+      'Расскажите модераторам, почему ограничение было наложено ошибочно или что вы уже исправили.';
+
+  @override
+  String get supportAppealFieldLabel => 'Пояснение к апелляции';
+
+  @override
+  String get supportAppealFieldHint => 'Минимум 10 символов...';
+
+  @override
+  String get supportNewTicketTitle => 'Новое обращение';
+
+  @override
+  String get supportFillFields => 'Заполните тему и сообщение';
+
+  @override
+  String supportTicketCreated(Object id) {
+    return 'Тикет #$id создан';
+  }
+
+  @override
+  String get supportSubjectLabel => 'Тема';
+
+  @override
+  String get supportBodyLabel => 'Подробности';
+
+  @override
+  String get supportCategoryGeneral => 'Общий вопрос';
+
+  @override
+  String get supportCategoryBug => 'Ошибка / баг';
+
+  @override
+  String get supportCategoryPrivacy => 'Приватность / безопасность';
+
+  @override
+  String get supportCategoryCopyright => 'Авторские права';
+
+  @override
+  String get supportCategoryAbuse => 'Жалоба / злоупотребление';
+
+  @override
+  String get supportCategoryAppeal => 'Апелляция';
+
+  @override
+  String get supportCategoryBugShort => 'Баг';
+
+  @override
+  String get supportCategoryPrivacyShort => 'Приватность';
+
+  @override
+  String get supportCategoryCopyrightShort => 'Авторское право';
+
+  @override
+  String get supportCategoryAbuseShort => 'Нарушение';
+
+  @override
+  String get supportCategoryAccount => 'Аккаунт';
+
+  @override
+  String get supportCategorySupport => 'Поддержка';
+
+  @override
+  String get mediaGridPermissionDenied =>
+      'Разрешение на доступ к галерее не предоставлено';
+
+  @override
+  String mediaGridLoadError(Object error) {
+    return 'Не удалось загрузить галерею: $error';
+  }
+
+  @override
+  String get mediaGridAlbums => 'Альбомы';
+
+  @override
+  String get mediaGridPickError => 'Ошибка выбора файлов';
+
+  @override
+  String get mediaGridEmpty =>
+      'В галерее нет медиафайлов или доступ ограничен';
+
+  @override
+  String get mediaGridLimitedTitle => 'Ограниченный доступ к фото';
+
+  @override
+  String get mediaGridSelectMore => 'Выбрать ещё';
+
+  @override
+  String get mediaGridAsFile => 'Как файл';
+
+  @override
+  String get mediaGridPhoto => 'Фото';
+
+  @override
+  String mediaGridSelectedCount(int count) {
+    return 'Выбрано: $count';
+  }
+
+  @override
+  String mediaGridSendCount(int count) {
+    return 'Отправить ($count)';
+  }
+
+  @override
+  String get interactiveFutureTimeRequired =>
+      'Выберите будущее время завершения';
+
+  @override
+  String get interactiveRepeatNever => 'Не повторять';
+
+  @override
+  String get interactiveRepeatDaily => 'Каждый день';
+
+  @override
+  String get interactiveRepeatWeekly => 'Каждую неделю';
+
+  @override
+  String get interactiveVoteSettings => 'Настройки голосования';
+
+  @override
+  String get interactiveVoteDuration => 'Срок голосования';
+
+  @override
+  String get interactiveDurationAlways => 'Всегда';
+
+  @override
+  String get interactiveDuration1h => '1 час';
+
+  @override
+  String get interactiveDuration24h => '24 часа';
+
+  @override
+  String get interactiveDurationCustom => 'Своё время';
+
+  @override
+  String interactiveUntil(String date) {
+    return 'До $date';
+  }
+
+  @override
   String get badgeFieldName => 'Название';
 
   @override
@@ -3828,12 +4129,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appearanceFloatingNavSubtitle => 'Открепить нижнюю панель от края экрана';
 
   @override
-  String get appearanceWallpaperColors => 'Цвета из обоев';
-
-  @override
-  String get appearanceWallpaperColorsSubtitle => 'Обновляются автоматически при смене обоев';
-
-  @override
   String get preferencesResetAll => 'Сбросить все настройки';
 
   @override
@@ -4231,7 +4526,8 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get supportCannotBeReported => 'На службу поддержки NiosMess нельзя пожаловаться';
   @override
-  String get reportSentSuccess => 'Жалоба отправлена';
+  String get reportSentSuccess => 'Жалоба отправлена';
+
   String get reportNeedsChat => 'Жалоба станет доступна после начала чата с этим пользователем';
   @override
   String get blockedUsersTitle => 'Заблокированные пользователи';
@@ -4303,8 +4599,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatConnecting => 'Подключение к серверу...';
   @override
   String get chatReconnecting => 'Восстанавливаем соединение с чатом';
-  @override
-  String get chatWallpaperMenu => 'Обои чата';
   @override
   String get deleteForEveryone => 'Удалить для всех';
   @override
@@ -4505,14 +4799,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appearancePredictiveBack => 'Предиктивный жест «Назад»';
   @override
   String get appearancePredictiveBackDesc => 'Плавная системная M3 анимация возврата на предыдущий экран';
-  @override
-  String get appearanceChatWallpaperTitle => 'Обои чатов';
-  @override
-  String get appearanceChatWallpaperDesc => 'Живой генератор узоров на основе векторных иконок и цветов темы';
-  @override
-  String get appearanceWallpaperGenerator => 'Генератор фона чатов';
-  @override
-  String get appearanceWallpaperGeneratorDesc => 'Выбор глифа, раскладки сетки, плотности и анимации';
   @override
   String get appearanceCustomColor => 'Пользовательский цвет';
   @override
@@ -4757,13 +5043,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsChatsSelectedEmoji => 'Выбранный эмодзи';
   @override
   String get settingsChatsDoubleTapHint => 'Двойной тап по сообщению отправит эту реакцию';
-  String get settingsChatsWallpaperSection => 'Оформление и фон';
-  @override
-  String get settingsChatsWallpaperSectionDesc => 'Индивидуальные обои и генератор векторных узоров';
-  @override
-  String get settingsChatsWallpaperGenerator => 'Генератор обоев чатов';
-  @override
-  String get settingsChatsWallpaperGeneratorDesc => 'Настройка паттернов, анимации и цветовой гаммы';
   @override
   String get settingsAccountNiosIdError => 'Не удалось открыть страницу Nios ID';
   @override
@@ -4981,159 +5260,4 @@ class AppLocalizationsRu extends AppLocalizations {
   String get autoDeleteCustom => 'Свой срок';
   @override
   String get autoDeleteUpdated => 'Автоудаление сообщений обновлено';
-  @override
-  String get wallpaperScreenTitle => 'Фон чатов';
-  @override
-  String get wallpaperResetTitle => 'Сбросить обои?';
-  @override
-  String get wallpaperResetSubtitle =>
-      'Все параметры раскладки, плотности и символов вернутся к значениям по умолчанию.';
-  @override
-  String get wallpaperResetAction => 'Сбросить';
-  @override
-  String get wallpaperRandomUndo => 'Случайный узор применён';
-  @override
-  String get wallpaperSaved => 'Обои сохранены';
-  @override
-  String get wallpaperForThisChat => 'Для этого чата';
-  @override
-  String get wallpaperForAllChats => 'Для всех чатов';
-  @override
-  String get wallpaperCustomize => 'Настроить узор';
-  @override
-  String get wallpaperApply => 'Применить';
-  @override
-  String get wallpaperDiscard => 'Отмена';
-  @override
-  String get wallpaperRandomize => 'Случайный узор';
-  @override
-  String get wallpaperMyPhoto => 'Моё фото';
-  @override
-  String get wallpaperChoosePhoto => 'Выбрать фото';
-  @override
-  String get wallpaperPhotoBlur => 'Размытие';
-  @override
-  String get wallpaperPhotoDim => 'Затемнение';
-  @override
-  String get wallpaperRemovePhoto => 'Удалить фото';
-  @override
-  String get wallpaperTabPattern => 'Узор';
-  @override
-  String get wallpaperTabColors => 'Цвет';
-  @override
-  String get wallpaperTabGeometry => 'Геометрия';
-  @override
-  String get wallpaperAdvanced => 'Дополнительно';
-  @override
-  String get wallpaperLayoutGrid => 'Сетка';
-  @override
-  String get wallpaperLayoutStagger => 'Шахматы';
-  @override
-  String get wallpaperLayoutScatter => 'Россыпь';
-  @override
-  String get wallpaperLayoutHex => 'Соты';
-  @override
-  String get wallpaperLayoutSpiral => 'Спираль';
-  @override
-  String get wallpaperBgSolid => 'Сплошной';
-  @override
-  String get wallpaperBgGradient => 'Градиент';
-  @override
-  String get wallpaperBgGlow => 'Свечение';
-  @override
-  String get wallpaperColorModeSingle => 'Один тон';
-  @override
-  String get wallpaperColorModeAccents => 'Акценты';
-  @override
-  String get wallpaperColorModePalette => 'Палитра';
-  @override
-  String get wallpaperPackAll => 'Все';
-  @override
-  String get wallpaperPackChat => 'Общение';
-  @override
-  String get wallpaperPackTech => 'Технологии';
-  @override
-  String get wallpaperPackSpace => 'Космос';
-  @override
-  String get wallpaperPackFood => 'Еда';
-  @override
-  String get wallpaperPackNature => 'Природа';
-  @override
-  String get wallpaperPackMinimal => 'Минимализм';
-  @override
-  String get wallpaperPackCustom => 'Свой набор';
-  @override
-  String get wallpaperSourceMaterial => 'Material Symbols';
-  @override
-  String get wallpaperSourceLucide => 'Lucide';
-  @override
-  String get wallpaperSourceTabler => 'Tabler';
-  @override
-  String get wallpaperSourceCupertino => 'Cupertino';
-  @override
-  String get wallpaperSourceShapes => 'Формы M3';
-  @override
-  String get wallpaperCellSize => 'Размер ячейки';
-  @override
-  String get wallpaperDensity => 'Плотность';
-  @override
-  String get wallpaperOpacity => 'Прозрачность';
-  @override
-  String get wallpaperFilled => 'Сплошная заливка';
-  @override
-  String get wallpaperGridAngle => 'Угол сетки';
-  @override
-  String get wallpaperRandomRotation => 'Разброс угла';
-  @override
-  String get wallpaperRandomScale => 'Разброс размера';
-  @override
-  String get wallpaperWeight => 'Толщина символов';
-  @override
-  String get wallpaperBaseColor => 'Базовый цвет';
-  @override
-  String get wallpaperSecondaryColor => 'Второй цвет';
-  @override
-  String get wallpaperPresetCosmos => 'Космос';
-  @override
-  String get wallpaperPresetCyberpunk => 'Киберпанк';
-  @override
-  String get wallpaperPresetSunset => 'Неоновый закат';
-  @override
-  String get wallpaperPresetOled => 'OLED Минимал';
-  @override
-  String get wallpaperPresetCupertino => 'Купертино';
-  @override
-  String get wallpaperPresetPastel => 'Пастель';
-  @override
-  String get wallpaperPresetMatrix => 'Nios Matrix';
-  @override
-  String get wallpaperCustomSetTitle => 'Выбор символов';
-  @override
-  String get wallpaperCustomSetLimit => 'Максимум 12 символов';
-  @override
-  String get wallpaperSearchGlyphs => 'Поиск символа...';
-  @override
-  String get wallpaperSaveSet => 'Сохранить набор';
-  @override
-  String get wallpaperTryOn => 'Примерить';
-  @override
-  String get wallpaperMockupToggle => 'Примерка чата';
-  @override
-  String get wallpaperNoPhotoSelected => 'Фото не выбрано';
-  @override
-  String get wallpaperDiscardConfirmTitle => 'Отменить изменения?';
-  @override
-  String get wallpaperDiscardConfirmBody => 'Все несохранённые изменения обоев будут потеряны.';
-  @override
-  String get wallpaperDiscardConfirmAction => 'Сбросить изменения';
-  @override
-  String get wallpaperPacksTitle => 'Тематические наборы';
-  @override
-  String get wallpaperSymbolsStyle => 'Стиль символов';
-  @override
-  String get wallpaperRevert => 'Вернуть';
-  @override
-  String get wallpaperMockupUserMessage => 'NiosMess Обои';
-  @override
-  String get wallpaperMockupPartnerMessage => 'Material 3 Expressive';
 }

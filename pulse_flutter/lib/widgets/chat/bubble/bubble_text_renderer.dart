@@ -15,7 +15,6 @@ class ParsedTextToken {
     required this.token,
     required this.trailing,
     required this.isMention,
-    required this.isLink,
     required this.target,
   });
 
@@ -24,7 +23,6 @@ class ParsedTextToken {
   final String token;
   final String trailing;
   final bool isMention;
-  final bool isLink;
   final String target;
 }
 
@@ -147,7 +145,6 @@ class InteractiveMessageTextState extends State<InteractiveMessageText> {
           token: token,
           trailing: trailing,
           isMention: isMention,
-          isLink: !isMention,
           target: target,
         ),
       );
@@ -161,7 +158,6 @@ class InteractiveMessageTextState extends State<InteractiveMessageText> {
         token: '',
         trailing: '',
         isMention: false,
-        isLink: false,
         target: '',
       ),
     );

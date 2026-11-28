@@ -96,35 +96,10 @@ String formatMessageTime(DateTime dateTime) {
   return _timeFormat.format(resolved);
 }
 
-String formatCallDuration(Duration duration) {
-  if (duration.isNegative) return '00:00';
-  final int totalSeconds = duration.inSeconds;
-  final int hours = totalSeconds ~/ 3600;
-  final int minutes = (totalSeconds % 3600) ~/ 60;
-  final int seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-  return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-}
-
 String formatFullDateTime(DateTime dateTime) {
   if (dateTime.millisecondsSinceEpoch <= 0) return '--';
   final DateTime resolved = AppTimeSettings.resolve(dateTime);
   return _dateTimeFormat.format(resolved);
-}
-
-Duration computeCallElapsed(DateTime? startedAt, int? durationSeconds) {
-  if (durationSeconds != null && durationSeconds > 0) {
-    return Duration(seconds: durationSeconds);
-  }
-  if (startedAt != null && startedAt.millisecondsSinceEpoch > 0) {
-    final Duration diff = AppTimeSettings.now().difference(
-      AppTimeSettings.resolve(startedAt),
-    );
-    return diff.isNegative ? Duration.zero : diff;
-  }
-  return Duration.zero;
 }
 
 /// Short unit words for relative timestamps.

@@ -1,0 +1,156 @@
+{
+  "lane": "lib/screens + lib/router + lib/main.dart",
+  "truncated": 0,
+  "findings": [
+    {
+      "rule": "ARCH-3",
+      "severity": "high",
+      "file": "lib/screens/chat_detail_screen.dart",
+      "line": 109,
+      "evidence": "class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>\n    with WidgetsBindingObserver, SingleTickerProviderStateMixin {\n  final TextEditingController _inputController = CustomEmojiTextController();\n  late final ChatScrollCoordinator _scrollCoordinator;",
+      "why": "Один State на 3276 строк владеет всем сразу: AI-обработкой текста (`_processTextWithAi`:442), E2EE-верификацией (:391), детектом скриншота (:299), автосохранением черновика (:437, :759), тремя путями загрузки (:929, :1064, :1081), стикерами (:1103), правкой (:1284), удалением (:1447), реакциями (:1481), форвардом (:1517), репортом (:1686) и медиа-действиями (:1885). Любая правка любой из этих функций задевает файл, в котором живёт главный экран пользователя, а сценарии нельзя собрать/протестировать по отдельности. Плюс это главный источник конфликтов при параллельной разработке.",
+      "impact": "Стоимость поддержки главного экрана приложения; риск регрессий в отправке сообщений при правке форварда/репорта.",
+      "patch_sketch": "Вынести композер (ai/reply/draft), медиа-конвейер и меню действий сообщения в отдельные контроллеры под `lib/features/chat/`, оставив экрану только сборку дерева.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "medium",
+      "file": "lib/screens/chat_redirect_screen.dart",
+      "line": 8,
+      "evidence": "class ChatRedirectScreen extends ConsumerStatefulWidget {\n  const ChatRedirectScreen({required this.slug, super.key});",
+      "why": "Три экрана объявлены и не имеют ни одной ссылки: `ChatRedirectScreen` (87 строк), `DirectChatResolverScreen` (`direct_chat_resolver_screen.dart:11`, 67 строк), `CreateChatScreen` (`create_chat_screen.dart:6`, 87 строк). Grep по именам классов во всём `lib/` возвращает только сами объявления — ни роутов, ни `context.go`, ни `Navigator.push`. 241 строка, которую читают как «действующий сценарий»; в `CreateChatScreen` вдобавок лежит запрещённый `BoxShadow` (:55), который легко скопировать в живой код.",
+      "impact": "Читаемость зоны и риск, что новый экран сделают по образцу мёртвого.",
+      "patch_sketch": "Удалить три файла; маршруты давно живут в `/chat/create` → `/new-message|/new-group/members|/new-channel` и `/u/:slug` → `/profile/:username`.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "lib/screens/settings_appearance_accent_screen.dart",
+      "line": 33,
+      "evidence": "class _PaletteEntry {\n  const _PaletteEntry(this.color, this.getName);\n  final Color color;\n  final String Function(AppLocalizations l10n) getName;",
+      "why": "`_PaletteEntry`, список из 8 seed-цветов `_palettes`, `_appearanceThemeProvider` и вся обёртка `DynamicColorBuilder` + `ValueListenableBuilder(CircularThemeSwitcher.revealing)` + `AnimatedTheme` продублированы дословно в `settings_appearance_screen.dart:33-56,89-129` и здесь (:33-56,:80-117). Восемь hex-литералов заданы дважды: добавление палитры или правка правила `customSelected` в одном файле молча рассинхронизирует сетку на «Быстром» экране и селектор на «Акцентном».",
+      "impact": "Рассинхронизация двух экранов настроек темы — пользователь видит на одном экране выбранным не то, что на другом.",
+      "patch_sketch": "Вынести `_PaletteEntry`/`_palettes`/провайдер темы и обёртку `AnimatedTheme` в общий файл (например `lib/features/settings/presentation/appearance_palette.dart`).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-5",
+      "severity": "medium",
+      "file": "lib/screens/media_viewer_screen.dart",
+      "line": 592,
+      "evidence": "  Future<void> _init() async {\n    try {\n      final source = await WsMediaFetcher.acquirePlaybackSource(\n        filePath: widget.url,",
+      "why": "В одном файле два почти идентичных инициализатора плеера: `_MediaViewerScreenState._initMedia` (:205-243) и `_InlineVideoPlayerState._init` (:592-621) — оба делают `acquirePlaybackSource` → `VideoPlayerController.networkUrl/file` → `initialize()` → `ChewieController(customControls: M3VideoOverlayControls(...), placeholder: AppLoadingIndicator(size: 32))`. Они уже разошлись: только в первом есть `deviceOrientationsAfterFullScreen`, а условие автоплея разное (`!kIsWeb` против `isActive && !kIsWeb`). Правка поведения видео (например, safe-close источника или новый placeholder) требует помнить о двух местах.",
+      "impact": "Дрейф поведения видео в плейлисте против видео внутри экрана: разная ориентация и автоплей.",
+      "patch_sketch": "Один хелпер `createChewieFor(MediaSource, {bool autoPlay, bool withOrientations})` на файл и вызов из обоих мест.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-3",
+      "severity": "medium",
+      "file": "lib/screens/contacts_screen.dart",
+      "line": 652,
+      "evidence": "      child: Material(\n        color: scheme.surfaceContainerHigh,\n        borderRadius: BorderRadius.circular(16),",
+      "why": "В зоне 25 литеральных радиусов и `fontSize` в 5 файлах (`contacts_screen` 8, `chat_detail_screen` 7, `chat_members_screen` 6, `circle_video_recorder_screen` 2, `chat_manage_screen` 2), при том что `AppRadii`/`AppRadiiTheme` уже есть в `expressive_tokens.dart`, а в теме радиус управляется настройкой `settings.uiCornerRadius` (`app_theme.dart:224`). Эти поверхности не читают `AppRadiiTheme`, поэтому пользовательский слайдер «скругление углов» на них не действует — настройка выглядит сломанной: часть карточек перестраивается, часть нет.",
+      "impact": "Настройка формы применяется выборочно; визуальная несогласованность одного экрана с остальным приложением.",
+      "patch_sketch": "Заменить литералы на `AppRadiiTheme.of(context).lgRadius/mdRadius` (или `AppRadii.lgRadius`, если поверхность не масштабируется).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-3",
+      "severity": "medium",
+      "file": "lib/screens/group_profile_screen.dart",
+      "line": 182,
+      "evidence": "                boxShadow: <BoxShadow>[\n                  BoxShadow(\n                    color: scheme.shadow.withValues(alpha: 0.06),\n                    blurRadius: 16,\n                    offset: const Offset(0, 8),\n                  ),",
+      "why": "Нарушено правило проекта «глубина — тональными поверхностями»: карточка-шапка группы кладёт мягкую тень поверх `Container` с радиусом 24. Тень на каждой пересборке шапки — это saveLayer на скруглённом прямоугольнике; в `native_file_viewer_screen.dart:1409` и `:1494` (обложка аудио и второй блок) то же самое, в `create_chat_screen.dart:55` — `blurRadius: 36`. Глубина при этом не следует `surfaceContainer*`, поэтому в тёмной теме тень невидима, а в светлой даёт грязный ореол.",
+      "impact": "Лишний слой растеризации на шапке профиля канала/группы и на экране аудио; разная глубина в двух темах.",
+      "patch_sketch": "Убрать `boxShadow`, поднять `surfaceContainerHigh`/добавить `outlineVariant`-обводку, как это сделано в остальных карточках.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-6",
+      "severity": "medium",
+      "file": "lib/screens/support_center_screen.dart",
+      "line": 325,
+      "evidence": "        title: const Text('Поддержка и Спам-Блок'),",
+      "why": "Приложение локализовано на ru/en, но 22 пользовательские строки в 8 экранах заданы литералами: `support_center_screen` 7 (`'Чат с @Support'`, `'Мой тикет'`, `'Да'`, `'Отмена'`, `'Закрыть'`), `chat_detail_screen` 4 (диалог копирайта: `'Нарушение авторских прав (copyright)'` и т.д.), `sticker_set_screen` 4 (`'Добавить'`, `'Удалить из набора'`), по одной — `plus_activation_screen`, `legal_viewer_screen:231/908`, `support_ticket_detail_screen`, `active_voice_call_screen`. У англоязычного пользователя эти диалоги и тост останутся на русском, причём `'Да'`/`'Отмена'` — это кнопки разрушающего действия.",
+      "impact": "Английская локаль: русские кнопки подтверждения в диалогах удаления и копирайта.",
+      "patch_sketch": "Завести ключи в `AppLocalizations` для этих 22 строк и заменить литералы на `context.l10n.*`.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "medium",
+      "file": "lib/screens/legal_viewer_screen.dart",
+      "line": 242,
+      "evidence": "        title: _searchActive\n            ? TextField(\n                controller: _searchController,\n                autofocus: true,",
+      "why": "Включение поиска — самое резкое изменение состояния на экране: заголовок, три `actions` и всё тело документа меняются одним кадром (`setState(() => _searchActive = true)` :292), без анимации. При этом `AppBar` — это `PreferredSize` фиксированной высоты, поэтому переход дешёвый: пересобираются только title/actions и один `SliverList`-подобный Column. Подходящий готовый блок — `M3SpringSwitcher` из `lib/widgets/motion/m3_spring_switcher.dart` (`type: M3SwitcherType.fadeSlideY`, он же сам гасит анимацию по `MediaQuery.disableAnimations`).",
+      "impact": "Поиск по документу «щёлкает» вместо M3-перехода; экран, который открывают чаще всего из настроек.",
+      "patch_sketch": "Обернуть `title:` и блок `actions` в `M3SpringSwitcher` с разными `key` для режима поиска; телу дать тот же свитчер вокруг результатов.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "low",
+      "file": "lib/screens/chat_members_screen.dart",
+      "line": 118,
+      "evidence": "                    child: users.isEmpty\n                        ? Padding(\n                            padding: const EdgeInsets.all(16),\n                            child: Text(context.l10n.chatMembersSearchPrompt),\n                          )",
+      "why": "В шите приглашения подсказка «начните вводить» заменяется списком результатов без перехода: каждый ввод/очистка поиска — мгновенная подмена поддерева внутри `ConstrainedBox(maxHeight: 40% экрана)`. Высота при этом меняется скачком, и шит дёргается. Готовый блок — `M3SpringSwitcher(type: M3SwitcherType.fadeSlideY)`; пересобирается только содержимое ограниченного бокса, а не шит.",
+      "impact": "Поиск участников при добавлении в группу дёргается на каждом пустом/непустом результате.",
+      "patch_sketch": "Обернуть ветку `users.isEmpty ? ... : ListView` в `M3SpringSwitcher` с `key` по `users.isEmpty`.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "MOTION-2",
+      "severity": "low",
+      "file": "lib/screens/profile_screen.dart",
+      "line": 657,
+      "evidence": "    final Widget switcher = AnimatedSwitcher(\n      duration: reduced ? Duration.zero : M3Durations.medium1,\n      reverseDuration: reduced ? Duration.zero : M3Durations.short3,\n      switchInCurve: M3SpringCurves.expressiveDecel,\n      switchOutCurve: M3SpringCurves.expressiveAccel,",
+      "why": "`_animatedDetail` вручную воспроизводит `M3SpringSwitcher` (`lib/widgets/motion/m3_spring_switcher.dart`): те же две пружины, тот же fade+slide, тот же `Duration.zero` при reduced motion — который сам `M3SpringSwitcher` делает внутри `build()` по `context.reduceMotion`. Разница только в `layoutBuilder` (`ExcludeFocus`/`IgnorePointer` на уходящей панели), то есть это копия готового блока плюс полезный фикс, который копия не вернёт в общий блок. Итог: две разные политики перехода панелей настроек, которые разойдутся.",
+      "impact": "Любое улучшение M3-свитчера (например, новая политика overshoot) не доедет до панели настроек.",
+      "patch_sketch": "Добавить в `M3SpringSwitcher` параметр «изолировать уходящего» (или сделать такой `layoutBuilder` дефолтом) и вызывать его здесь.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "medium",
+      "file": "lib/router/app_router.dart",
+      "line": 247,
+      "evidence": "      // Временный dev-экран сравнения просмотрщиков изображений.\n      GoRoute(\n        path: ExtendedImageDemoScreen.routePath,\n        pageBuilder: (context, state) =>\n            _page(state, const ExtendedImageDemoScreen()),",
+      "why": "Отладочный экран «сравнение двух просмотрщиков изображений» (543 строки, 15 обращений к `Colors.white`) зарегистрирован в боевом роутере и доступен по `/dev/...` — путь входит в `isPublic` (`:226`), то есть открывается даже без авторизации. Он же единственный в зоне, кто делает `Navigator.push(PageRouteBuilder(...))` (`extended_image_demo_screen.dart:52-53`), обходя `M3SharedAxisPageTransitionsBuilder` из темы. Реальный просмотрщик (`MediaViewerScreen`) при этом один — второй, «сравниваемый», живёт только здесь.",
+      "impact": "Публично доступный отладочный код с собственными цветами и собственной навигацией; лишний вес и путаница «какой просмотрщик настоящий».",
+      "patch_sketch": "Убрать `GoRoute` и `initialLocation`-ветку `IMAGE_DEMO` из `app_router.dart`, а экран — в `test/` или за `--dart-define` в отдельном entrypoint.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-2",
+      "severity": "low",
+      "file": "lib/screens/legal_viewer_screen.dart",
+      "line": 269,
+      "evidence": "        leading: IconButton(\n          icon: const Icon(Icons.arrow_back_rounded),\n          tooltip: 'Назад',",
+      "why": "Проект заявляет M3E, но `StyleVariant.material3Expressive` не включён нигде: `iconButtonTheme` в `app_theme.dart:227` задаёт только `iconColor`, без `IconButtonTheme.variantOf`. Все `IconButton` зоны (навигация в `legal_viewer`, `native_file_viewer`, `chat_members`, `profile`, `post_comments`) наследуют базовый M3 — то есть единственный компонент, у которого в `material_ui` 1.11.1 опт-ин уже есть, остался не включённым. Это не дефект, а неиспользованная возможность темы.",
+      "impact": "Кнопки-иконки выглядят как обычный M3 на фоне остальных expressive-поверхностей.",
+      "patch_sketch": "`iconButtonTheme: IconButtonTheme.variantOf(StyleVariant.material3Expressive, ...)` в `app_theme.dart` (проверить точную сигнатуру `IconButtonTheme.variantOf` перед правкой).",
+      "confidence": "likely"
+    },
+    {
+      "rule": "CODE-4",
+      "severity": "low",
+      "file": "lib/screens/chat_list_screen.dart",
+      "line": 1,
+      "evidence": "lib/screens/chat_detail_screen.dart: 3276\nlib/screens/chat_list_screen.dart: 1719\nlib/screens/native_file_viewer_screen.dart: 1568\nlib/screens/contacts_screen.dart: 1453\nlib/screens/legal_viewer_screen.dart: 1321",
+      "why": "Восемь файлов зоны перевалили за 1000 строк: кроме перечисленных — `public_profile_screen.dart` 1234, `create_post_screen.dart` 1075, `main_shell_screen.dart` 1007. В сумме 12 653 строки в 8 файлах — 34% всей зоны. Каждый такой файл держит 30-60 приватных виджетов и `_build*`-методов, поэтому любая правка требует чтения всего файла, а `dart analyze`/diff/review по ним нечитаемы.",
+      "impact": "Стоимость любой правки в зоне; конфликты при параллельной работе над одним экраном.",
+      "patch_sketch": "Резать по границам уже выделенных `_Scope`-виджетов (`_ChatHeaderScope`, `_ChatMessagesScope`, `_ChatComposerScope` — в отдельные файлы).",
+      "confidence": "certain"
+    }
+  ],
+  "perf_status": [
+    { "from": "audit/perf/00-summary.md#13", "status": "still", "file": "lib/widgets/create_chat_wizard_view.dart", "line": 918, "note": "shrinkWrap: true на месте; комментарий на :1036 утверждает, что список ленив, но shrinkWrap остался. chat_members_screen.dart:124 тоже still — ограничен 40% высоты, как и признал perf-аудит. chat_detail_screen.dart:1526 (`...chats.map(...)` в шите «Переслать») still, только сдвинулся с :1494 на :1526" },
+    { "from": "audit/perf/00-summary.md#17", "status": "still", "file": "lib/screens/media_viewer_screen.dart", "line": 280, "note": "`_dragProgress` объявлен на :112, `setState(() => _dragProgress = progress)` на :280; в `build()` по-прежнему не читается — затемнение считается из `progress` параметра (:284)" },
+    { "from": "audit/perf/00-summary.md#18", "status": "still", "file": "lib/screens/native_file_viewer_screen.dart", "line": 870, "note": "`final List<String> lines = _content.split('\\n');` в `build()`; `onChanged` по-прежнему через `setState`" },
+    { "from": "audit/perf/00-summary.md#19", "status": "still", "file": "lib/screens/legal_viewer_screen.dart", "line": 341, "note": "`SingleChildScrollView` (:317) + `for (int i = 0; i < _parsedDoc!.sections.length; i++)` (:341), фильтр с `toLowerCase()` на каждый символ" },
+    { "from": "audit/PROJECT-CONTEXT.md#M3E-4", "status": "fixed", "file": "lib/main.dart", "line": 4, "note": "Все 5 импортов `package:flutter/material.dart` закрыты: main.dart, settings_appearance_screen.dart, settings_appearance_accent_screen.dart, markdown_theme.dart, app_localizations.dart теперь содержат только комментарии, объясняющие, почему `dynamic_color` отдаёт `Color` из SDK-типов; код на `material_ui`. У `settings_appearance_*` остался лишь `builder: (lightDynamic, darkDynamic)` — тип выводится, импорт не нужен" }
+  ]
+}

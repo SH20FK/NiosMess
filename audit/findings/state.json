@@ -1,0 +1,173 @@
+{
+  "lane": "state",
+  "truncated": 0,
+  "findings": [
+    {
+      "rule": "ARCH-1",
+      "severity": "high",
+      "file": "lib/providers/auth_provider.dart",
+      "line": 20,
+      "evidence": "import 'package:pulse_flutter/providers/web_socket_provider.dart';\nimport 'package:pulse_flutter/providers/auth_provider.dart';",
+      "why": "Первая строка — auth_provider.dart:20, вторая — web_socket_provider.dart:7. Это прямой двусторонний цикл: auth_provider создаёт AuthNotifier, который держит сессию и токен, а web_socket_provider читает authProvider, чтобы взять accessToken. Через auth_provider замкнуты ещё четыре ребра: auth_provider:9 <-> secret_chat_provider:25 (логаут должен закрывать секретную сессию), auth_provider:3 <-> call_incoming_provider:2, auth_provider:29 <-> notifications_provider:8, auth_provider:21 <-> repositories/auth_repository.dart:12. Итог: auth_provider — хаб из шести циклов, любая правка контракта AuthState тянет весь граф пересборки, а циклическая инициализация уже обходится защитой `if (_current(epoch))` во всех ветках build(). Направление должно быть одно: token/сессия в отдельном низком модуле, который не знает ни о сокете, ни о секретах.",
+      "impact": "Любое изменение AuthState компилируется во всю полосу providers/repositories; причинно-следственная связь между модулями не восстановима без чтения всего графа.",
+      "patch_sketch": "Вынести AuthState + token чтение в lib/providers/auth_session_core.dart, auth_provider/web_socket/secret/calls/notifications импортируют только его.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-1",
+      "severity": "high",
+      "file": "lib/providers/backend_chat_provider.dart",
+      "line": 41,
+      "evidence": "import 'package:pulse_flutter/providers/websocket_dispatcher_provider.dart';\nimport 'package:pulse_flutter/providers/backend_chat_provider.dart';",
+      "why": "Строки из backend_chat_provider.dart:41 и websocket_dispatcher_provider.dart:8. Диспетчеру нужны ChatPushEvent и chatsProvider.notifier (upsertChat/refresh), а чат-провайдеру нужен WebSocketPushDispatcher.registerChat/_ChatListPushSync. Так как backend_chat_provider — 4927-строчный монолит, цикл делает его ещё и узким местом компиляции: любой push-тип (edited/deleted/reaction/read/status/blocked/call) обязан быть объявлен в диспетчере, а обработан — в двух разных notifier'ах этого файла.",
+      "impact": "Маршрутизация пушей размазана по двум файлам, которые нельзя разнести без разрезания цикла; новые типы пушей правятся в двух местах.",
+      "patch_sketch": "Вынести ChatPushEvent/ChatPushEventKind в lib/models/push/chat_push_event.dart и оставить диспетчер зависящим только от него + callback-интерфейса нотифаера.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-2",
+      "severity": "high",
+      "file": "lib/repositories/auth_repository.dart",
+      "line": 1,
+      "evidence": "import 'package:pulse_flutter/providers/token_provider.dart';\nimport 'package:pulse_flutter/providers/web_socket_provider.dart';",
+      "why": "Слой данных импортирует слой состояния: все 11 репозиториев берут транспорт и токен из providers (auth_repository:1,12; chat_repository:21; sticker/search/privacy/call/bot/support/post_comments — `providers/web_socket_provider.dart`). Из-за этого замкнут цикл auth_repository -> web_socket_provider -> auth_provider -> auth_repository, а сами репозитории становятся Riverpod-провайдерами (`chatRepositoryProvider`), то есть их нельзя ни протестировать, ни переиспользовать без ProviderContainer. Транспорт (WebSocketClient) и токен — это инфраструктура, а не состояние UI.",
+      "impact": "Репозитории не тестируемы без Riverpod; цикл через auth не даёт разложить граф инициализации при старте.",
+      "patch_sketch": "Ввести lib/core/network/api_transport.dart (интерфейс + token supplier) и передавать его в конструкторы репозиториев из одного composition root.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-2",
+      "severity": "high",
+      "file": "lib/screens/chat_detail_screen.dart",
+      "line": 74,
+      "evidence": "import 'package:pulse_flutter/repositories/chat_repository.dart';\nimport 'package:pulse_flutter/repositories/report_repository.dart';\nimport 'package:pulse_flutter/repositories/ai_repository.dart';",
+      "why": "Виджеты и экраны ходят в репозитории напрямую, минуя провайдер: 45 импортов `repositories/` в screens/widgets/features, среди них chat_detail_screen (chat/report/ai), media_viewer_screen, chat_members_screen, chat_manage_screen, create_post_screen, support_center_screen, badge_picker_sheet, user_search_picker_sheet. Каждый такой вызов — `ref.read(chatRepositoryProvider).getMembers(...)` прямо из build/onTap, то есть UI сам решает, когда и с какими аргументами идти в сеть. Кэш, инвалидация и ошибки не проходят через провайдеры: например, после inviteUser в chat_members_screen список участников обновляется локальным setState, а не chatMembersProvider.",
+      "impact": "Один и тот же эндпоинт дёргается из двух слоёв, состояние экранов расходится с провайдерами; тестировать экран без сети невозможно.",
+      "patch_sketch": "Для каждого прямого вызова завести метод в существующем notifier'е (chatMembersProvider, chatManage, support) и удалить импорты repositories из screens/widgets.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-3",
+      "severity": "high",
+      "file": "lib/providers/backend_chat_provider.dart",
+      "line": 4881,
+      "evidence": "final postCommentsProvider = AsyncNotifierProvider.autoDispose\n    .family<PostCommentsNotifier, List<ApiMessage>, PostCommentsArgs>(\n      PostCommentsNotifier.new,\n    );\n\nclass ChatMembersNotifier extends AsyncNotifier<List<ApiChatMember>> {",
+      "why": "4927 строк и пять независимых нотифаеров в одном файле: ChatsNotifier (инбокс, read-receipts, mute-upload, push-роутинг), ChatMessagesNotifier (окно истории, архив, кэш, mesh, expiry, E2EE-расшифровка и HELO-хендшейк), PostCommentsNotifier (комментарии ленты с 8-секундным поллингом), ChatMembersNotifier и family-провайдеры. Зоны не связаны: комментарии к посту не имеют отношения к истории чата, а E2EE-хендшейк — к инбоксу. Цена: файл пересобирается целиком на любую правку, а `_decryptE2eeMessages` (2697-2876) и `_send` (3531-3968) живут в том же классе, что и список чатов.",
+      "impact": "Любая правка в истории чата инвалидирует компиляцию инбокса и комментариев; границы ответственности нельзя увидеть по имени файла.",
+      "patch_sketch": "Разрезать на 5 файлов: inbox_notifier.dart (ChatsNotifier+push), chat_history_notifier.dart (окно/архив/кэш), e2ee_message_opener.dart (2697-2990), message_sender.dart (send/edit/delete/reaction), post_comments_provider.dart + chat_members_provider.dart.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-3",
+      "severity": "medium",
+      "file": "lib/providers/secret_chat_provider.dart",
+      "line": 861,
+      "evidence": "  Future<Uint8List> readStream(String uri, Uint8List key) {\n    final streams = _streams;\n    if (streams == null) throw StateError('Secret streaming unavailable');\n    return streams.readBytes(_streamFile(uri, key));\n  }",
+      "why": "Один класс SecretChatCoordinator (1112 строк) совмещает: транспорт и поллинг (`register`, `_runTick`, `_schedulePoll`), журнал и expiry (`_scheduleExpiry`, `_expireLocalMessages`), вложения (`enqueueAttachment`, `enqueueAttachmentFile`, `upload`, `_attachmentJob`), медиа-стриминг (этот `readStream`, `openStreamPlayback`, `exportStream`), слияние чатов (`importChats`/`mergeChats`), lifecycle (`setBackground`, `didChangeAppLifecycleState`) и уничтожение аккаунта (`close({erase})`). Это шесть зон, каждая со своим состоянием и своими таймерами; сбой в одной (например, загрузка вложения) держит `tick` и журнал того же объекта.",
+      "impact": "Нельзя отдельно профилировать поллинг и вложения; изменение формата вложения задевает класс, который держит транспорт секретов.",
+      "patch_sketch": "Вынести SecretAttachmentCrypto (enqueue/read/upload/stream) и SecretChatPoller (register/tick/expiry) в services/secret_chat/, оставив координатору только importChats/close.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-2",
+      "severity": "medium",
+      "file": "lib/providers/ota_update_provider.dart",
+      "line": 431,
+      "evidence": "      if (context != null && context.mounted) {\n        final bool confirmed = await AppModal.confirm(\n          context: context,",
+      "why": "Провайдер состояния импортирует BuildContext, material_ui и core/modal/app_modal.dart и сам показывает диалоги/шиты (`installUpdate({BuildContext? context})` 397, `_showPermissionDialog` 511). У `ota_update_provider.dart` появляется зависимость от дерева виджетов: таймер проверки обновления может сработать при размонтированном экране и молча завершиться, а тест обновления требует WidgetTester. То же направление у chat_wallpaper_provider (импорт widgets/wallpaper/wallpaper_image_cache.dart) — провайдеры тянут UI-модули.",
+      "impact": "Логика обновления непроверяема без UI; при закрытом экране диалог подтверждения просто не показывается, и апдейт остаётся в состоянии 'ждёт подтверждения'.",
+      "patch_sketch": "Провайдер публикует state.pendingInstall, а диалог показывает экран/шелл, слушающий этот флаг.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-2",
+      "severity": "medium",
+      "file": "lib/screens/contacts_screen.dart",
+      "line": 303,
+      "evidence": "    ref.listen<AsyncValue<List<ApiChatSummary>>>(chatsProvider, (prev, next) {\n      final List<ApiChatSummary>? freshChats = next.asData?.value;\n      if (freshChats != null) {\n        final List<ApiChatSummary> direct = _recentDirectChats(freshChats);\n        _cachedDirectContacts = direct;\n        ref.read(cacheServiceProvider).saveContacts(direct);",
+      "why": "`chatsProvider` публикует новый List на каждый пуш нового сообщения/прочтения/presence (ChatsNotifier._applyNewMessagePush -> state = AsyncData(...)), поэтому этот listen в открытом экране контактов срабатывает на каждое сообщение в приложении: фильтр по direct по всем чатам, конвертация в JSON и запись всей коллекции контактов в Hive (`saveContacts` -> `contacts.map((e) => e.toJson())` + `box.put`) прямо в UI-изоляте. При активном канале это несколько записей в секунду, а данные контактов меняются раз в день. Строка 300 того же build дополнительно подписывает весь экран на список инбокса.",
+      "impact": "Дисковый ввод-вывод на каждое входящее сообщение, пока экран контактов открыт; сериализация всех direct-чатов без изменения данных.",
+      "patch_sketch": "Заменить listen на список id+имени в отдельном provider.select по хэшу direct-строки и писать кэш только при реальном изменении.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-2",
+      "severity": "medium",
+      "file": "lib/screens/public_profile_screen.dart",
+      "line": 338,
+      "evidence": "    final List<ApiChatSummary> chats =\n        ref.watch(chatsProvider).value ?? const <ApiChatSummary>[];",
+      "why": "Экран чужого профиля подписан на весь инбокс, хотя использует только одно: есть ли direct-чат с этим username и онлайн ли он (351: `matchingChat?.isOnline`). Каждое сообщение в любом чате создаёт новый List в chatsProvider, ref.watch отдаёт новое значение, и пересобирается весь CustomScrollView профиля (hero-шапка, бейджи, вкладки), а в build крутится линейный скан всех чатов (341-349). Сидя в профиле при активной переписке, пользователь получает полную пересборку страницы несколько раз в секунду; тот же паттерн в user_search_picker_sheet.dart:121.",
+      "impact": "Полный rebuild тяжёлого экрана + O(N) скан на каждое сообщение в приложении.",
+      "patch_sketch": "Завести в backend_chat_provider family-провайдер по username, отдающий только (chatId, isOnline), и его watch'ить.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-3",
+      "severity": "medium",
+      "file": "lib/providers/api_provider.dart",
+      "line": 9,
+      "evidence": "final Provider<ApiClient> apiClientProvider = Provider<ApiClient>((Ref ref) {\n  const String fromDefine = String.fromEnvironment('API_BASE_URL');",
+      "why": "Мёртвая параллельная реализация сетевого слоя: `ApiClient` (lib/core/network/api_client.dart, 149 строк, get/post/put/patch/delete/_request/postBytes) не упоминается ни в одном файле lib, кроме собственного объявления и этого провайдера (grep по `ApiClient` — 4 вхождения: файл класса, его конструктор и api_provider). Весь реальный трафик идёт через WebSocketClient, который репозитории берут из webSocket_provider. То есть в проекте два HTTP-клиента, один из которых никто не конструирует, и провайдер, который никто не читает; `String.fromEnvironment('API_BASE_URL')` тоже ни на что не влияет.",
+      "impact": "Читатель делает вывод, что запросы идут через ApiClient с обработкой 401, хотя реальный путь другой; мёртвый код маскирует точку входа в сеть.",
+      "patch_sketch": "Удалить lib/providers/api_provider.dart и lib/core/network/api_client.dart (или подключить ApiClient как единственный транспорт, если он задуман).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-5",
+      "severity": "medium",
+      "file": "lib/repositories/chat_repository.dart",
+      "line": 609,
+      "evidence": "  Future<String> _parallelBinaryUpload({\n    Uint8List? bytes,\n    String? filePath,\n    required String filename,\n    required String mediaSubtype,",
+      "why": "Один и тот же запрос 'залить файл' реализован четырежды в одном классе: `uploadStreamInChunks` (489, параллельные чанки), `_parallelBinaryUpload` (609), `_httpMultipartUpload`/`_httpMultipartUploadOwned` (880/911, multipart через http), `_wsChunkedUpload` (1047, чанки по WS) и поверх них `uploadSecretCiphertext` (828). У каждой ветки свои сигнатуры, свои CancellationToken/BackgroundService.retainWork и своя логика прогресса; выбор ветки зависит от флагов внутри `uploadStreamInChunks`. Правка контракта загрузки (например, ключ идемпотентности localId) должна быть внесена в 5 местах, и любая забытая ветка даёт дубли или потерю файла.",
+      "impact": "Дублирование критичного пути с ретраями и прогрессом: разъехавшиеся ветки дают разные баги загрузки в зависимости от размера/типа медиа.",
+      "patch_sketch": "Оставить один транспортный примитив uploadChunked(transport, chunks, cancel) и сделать остальные тонкими обёртками, выбирающими только endpoint.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-5",
+      "severity": "low",
+      "file": "lib/repositories/chat_repository.dart",
+      "line": 1281,
+      "evidence": "  Future<List<ApiMessage>> getComments(\n    int channelId,\n    int postId, {\n    int page = 1,\n    int pageSize = 50,",
+      "why": "Комментарии к посту реализованы дважды: здесь (`getComments` 1281, `sendComment` 1225) и в repositories/post_comments_repository.dart (`page`, `request`), причём второй — единственный используемый (post_comments_screen.dart:34, backend_chat_provider.dart:4595). Методы этого файла не вызываются ниоткуда: grep по `.getComments(`/`.sendComment(` вне объявления даёт 0. Это не только мёртвый код — две реализации одного запроса с разными page/pageSize, так что при починке пагинации комментариев легко починить не ту.",
+      "impact": "Мёртвый дубль сетевого контракта рядом с живым; путает, какая пагинация настоящая.",
+      "patch_sketch": "Удалить getComments/sendComment из ChatRepository, оставив комментарии только в PostCommentsRepository.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-3",
+      "severity": "low",
+      "file": "lib/providers/call_video_provider.dart",
+      "line": 43,
+      "evidence": "StreamSubscription<Uint8List> startListeningToVideoFrames(\n  WidgetRef ref,\n  Stream<Uint8List> frameStream, {\n  StreamSubscription<Uint8List>? existingSub,\n}) {",
+      "why": "Файл целиком мёртв: три провайдера (remoteVideoFrameProvider:14, localVideoEnabledProvider:25, localCameraControllerProvider:37) и эта функция не имеют ни одной ссылки вне самого файла — grep по каждому имени даёт только объявления и внутреннее `ref.read(remoteVideoFrameProvider.notifier)`. Живой видеозвонок использует session.isLocalVideoEnabled (active_video_call_screen.dart:706) и setLocalVideoEnabled в call_session_provider:530, то есть второй, работающий механизм. Также без ссылок: isCallScreenVisibleProvider (call_incoming_provider.dart:114), stickerSetByIdProvider (sticker_provider.dart:153), activeChatUploadsProvider (upload_queue_provider.dart:573). Пять мёртвых состояний на 43+ файла провайдеров.",
+      "impact": "Читатель выбирает мёртвый провайдер для новой фичи (PiP-превью) и получает состояние, которое никто не обновляет.",
+      "patch_sketch": "Удалить lib/providers/call_video_provider.dart и четыре перечисленных провайдера.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-4",
+      "severity": "low",
+      "file": "lib/repositories/chat_repository.dart",
+      "line": 24,
+      "evidence": "class ChatRepository {",
+      "why": "1628 строк в одном классе: 40+ методов от listChats/getHistory до uploadChatAvatar/inviteUsers/banUser/promoteUser/downloadMedia/resolveShortLink и пяти реализаций загрузки. В том же каталоге repositories 11 файлов, и только этот превышает 1000 строк; в providers превышают backend_chat_provider.dart (4927) и secret_chat_provider.dart (1112). Один класс держит пять зон: чаты/история, участники и роли, инвайты, медиа/загрузки, комментарии. Для сравнения: call_repository — 123 строки, search_repository — 34.",
+      "impact": "Поиск нужного метода и ревью правок идут по 1628 строкам; любой merge конфликтует в одном файле.",
+      "patch_sketch": "Разделить на chat_repository (чаты/история), chat_members_repository (участники/роли/инвайты) и media_upload_repository (upload*/downloadMedia).",
+      "confidence": "certain"
+    }
+  ],
+  "perf_status": [
+    {"from": "audit/perf/00-summary.md#2", "status": "still", "file": "lib/providers/backend_chat_provider.dart", "line": 2711, "note": "ordinary.decrypt(message) по одному в Future.wait — по-прежнему main isolate; secret-ветка :2837 последовательный for (2774-2874)"},
+    {"from": "audit/perf/00-summary.md#3", "status": "fixed", "file": "lib/providers/backend_chat_provider.dart", "line": 2624, "note": "догон ограничен: static const maxCatchUpPages = 4 (:1629) и условие `page >= maxCatchUpPages`; while(true) остался, но потолок 4 страницы"},
+    {"from": "audit/perf/00-summary.md#3", "status": "still", "file": "lib/providers/backend_chat_provider.dart", "line": 3252, "note": "_fetchHistoryPage всё ещё расшифровывает каждую страницу в UI-изоляте: `final decoded = await _decryptE2eeMessages(remote);`"},
+    {"from": "audit/perf/00-summary.md#14", "status": "still", "file": "lib/widgets/settings/ordinary_e2ee_settings.dart", "line": 581, "note": "вне полосы; было 574, теперь 581 — `final chats = ref.watch(chatsProvider).value ?? const [];`"},
+    {"from": "audit/perf/05-data-layer.md#M5", "status": "still", "file": "lib/providers/backend_chat_provider.dart", "line": 351, "note": "синхронный getCachedChats в build() (:349-355)"},
+    {"from": "audit/perf/05-data-layer.md#M6", "status": "still", "file": "lib/providers/backend_chat_provider.dart", "line": 2085, "note": "на каждое изменение журнала `_secretMessages()` (:2259 map(fromJson) по всей истории) и state = AsyncData"},
+    {"from": "audit/perf/05-data-layer.md#M7", "status": "still", "file": "lib/providers/backend_chat_provider.dart", "line": 4619, "note": "Timer.periodic(8s) -> refresh(silent:true), refresh перечитывает все страницы и заменяет список (:4687)"},
+    {"from": "audit/perf/05-data-layer.md#M8", "status": "still", "file": "lib/providers/backend_chat_provider.dart", "line": 2798, "note": "saveSenderPlaintext с flush внутри цикла расшифровки"},
+    {"from": "audit/perf/05-data-layer.md#m4", "status": "still", "file": "lib/providers/backend_chat_provider.dart", "line": 1502, "note": "select по списку = линейный скан (chatByIdProvider), chatOnlineProvider :1522"},
+    {"from": "audit/perf/05-data-layer.md#n3", "status": "still", "file": "lib/providers/upload_queue_provider.dart", "line": 107, "note": "unawaited(_sweepStaleEncryptions()) в build"},
+    {"from": "audit/perf/05-data-layer.md#n4", "status": "still", "file": "lib/providers/upload_queue_provider.dart", "line": 194, "note": "pending.removeAt(0)"}
+  ]
+}

@@ -40,20 +40,6 @@ class LocalStorageSnapshot {
       documentsBytes + supportBytes + temporaryBytes + draftBytes;
 }
 
-class LocalStorageHealth {
-  const LocalStorageHealth({
-    required this.schemaVersion,
-    required this.ok,
-    required this.issues,
-    required this.snapshot,
-  });
-
-  final int schemaVersion;
-  final bool ok;
-  final List<String> issues;
-  final LocalStorageSnapshot snapshot;
-}
-
 class LocalStorageService {
   const LocalStorageService({
     this.temporaryDirectory,
@@ -207,62 +193,6 @@ class LocalStorageService {
     _cachedSnapshot = result;
     _lastSnapshotTime = now;
     return result;
-  }
-
-  Future<LocalStorageHealth> checkIntegrity() async {
-    final List<String> issues = <String>[];
-    int schemaVersion = currentSchemaVersion;
-    LocalStorageSnapshot snapshot = const LocalStorageSnapshot.empty();
-
-    try {
-      schemaVersion = await ensureInitialized();
-      if (schemaVersion > currentSchemaVersion) {
-        issues.add('Storage schema is newer than this app build.');
-      }
-    } catch (error) {
-      issues.add('Could not initialize storage schema: $error');
-    }
-
-    try {
-      snapshot = await this.snapshot();
-    } catch (error) {
-      issues.add('Could not calculate storage snapshot: $error');
-    }
-
-    try {
-      if (!kIsWeb) {
-        final Directory documents = await _documentsDirectory();
-        final Directory temporary = await _temporaryDirectory();
-        if (!await documents.exists()) {
-          issues.add('Documents directory is not available.');
-        }
-        if (!await temporary.exists()) {
-          issues.add('Temporary directory is not available.');
-        }
-      }
-    } catch (error) {
-      issues.add('Could not inspect app directories: $error');
-    }
-
-    try {
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final List<String> draftKeys = prefs
-          .getKeys()
-          .where((String key) => key.startsWith(_draftPrefix))
-          .toList();
-      if (draftKeys.length > 100) {
-        issues.add('Excessive draft count: ${draftKeys.length}');
-      }
-    } catch (error) {
-      issues.add('Could not read local draft keys: $error');
-    }
-
-    return LocalStorageHealth(
-      schemaVersion: schemaVersion,
-      ok: issues.isEmpty,
-      issues: List<String>.unmodifiable(issues),
-      snapshot: snapshot,
-    );
   }
 
   Future<int> clearTemporaryFiles() async {

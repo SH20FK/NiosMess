@@ -613,11 +613,17 @@ class _DocxViewerState extends State<_DocxViewer> {
       } catch (_) {}
     }
 
-    if (mounted && data != null && data.isNotEmpty) {
-      _doc = DocxParser.parseBytes(data);
+    DocxDocument? doc;
+    if (data != null && data.isNotEmpty) {
+      // Zip inflate + XML passes run off the UI isolate so the skeleton keeps
+      // animating instead of the frame stalling for 20-80 ms.
+      doc = await DocxParser.parseBytesAsync(data);
     }
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _doc = doc;
+        _isLoading = false;
+      });
     }
   }
 
@@ -627,7 +633,7 @@ class _DocxViewerState extends State<_DocxViewer> {
     final textTheme = Theme.of(context).textTheme;
 
     if (_isLoading) {
-      return const Center(child: AppLoadingIndicator(size: 32));
+      return _DocxSkeleton(scheme: scheme);
     }
 
     if (_doc == null || !_doc!.hasContent) {
@@ -804,6 +810,43 @@ class _DocxViewerState extends State<_DocxViewer> {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+/// Page-shaped placeholder shown while the DOCX document is parsed off-thread.
+class _DocxSkeleton extends StatelessWidget {
+  const _DocxSkeleton({required this.scheme});
+
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bar = scheme.surfaceContainerHighest.withValues(alpha: 0.7);
+    // Alternating widths read as paragraphs rather than a loading spinner.
+    const List<double> widths = <double>[0.62, 0.94, 0.88, 0.5, 0.78, 0.9, 0.34];
+    return IgnorePointer(
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        physics: const NeverScrollableScrollPhysics(),
+        children: <Widget>[
+          for (int i = 0; i < widths.length; i++)
+            Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 4 : 12, bottom: 2),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: widths[i],
+                child: Container(
+                  height: i == 0 ? 22 : 13,
+                  decoration: BoxDecoration(
+                    color: bar,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

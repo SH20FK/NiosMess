@@ -1,0 +1,194 @@
+{
+  "lane": "models-utils",
+  "truncated": 2,
+  "perf_status": [
+    {
+      "from": "audit/perf/00-summary.md#P1-11",
+      "status": "still",
+      "file": "lib/models/interactive_message.dart",
+      "line": 48,
+      "note": "Стало хуже по числу вызовов: parse вызывается в itemBuilder (widgets/chat/chat_message_list.dart:744) И в build бабла (widgets/message_bubble.dart:1570), плюс screens/chat_detail_screen.dart:1285,1977 и widgets/message_context_menu_sheet.dart:264,359. RegExp-валидация + jsonDecode + 2 substring на каждый вызов."
+    },
+    {
+      "from": "audit/perf/00-summary.md#P2-datetime_helpers",
+      "status": "still",
+      "file": "lib/core/utils/datetime_helpers.dart",
+      "line": 55,
+      "note": "RegExp(r\"[_-]\") литералом внутри formatRelativeTime, вызов из itemBuilder: screens/chat_list_screen.dart:1186. Статические DateFormat (строки 4-7) уже вынесены — это правильная часть."
+    },
+    {
+      "from": "audit/perf/00-summary.md#P2-message_preview_text",
+      "status": "still",
+      "file": "lib/core/utils/message_preview_text.dart",
+      "line": 36,
+      "note": "md.Document + ExtensionSet.gitHubFlavored создаются на каждый вызов; кеш MessagePreviewFormatter отключён для секретных чатов (chat_list_screen.dart:1416 cache: !chat.isSecret) и не используется для черновика (chat_list_screen.dart:1183)."
+    }
+  ],
+  "findings": [
+    {
+      "rule": "LAG-1",
+      "severity": "high",
+      "file": "lib/models/interactive_message.dart",
+      "line": 48,
+      "evidence": "    final start = text.lastIndexOf(marker);\n    if (start < 0) return null;\n    try {\n      final raw = jsonDecode(text.substring(start + marker.length));",
+      "why": "InteractiveMessage.parse — это полный повторный разбор полезной нагрузки до 12 КБ: lastIndexOf по всему тексту, два substring (копии), jsonDecode в Map, затем ~10 проверок и RegExp-валидация. Он вызывается дважды на один бабл в одном кадре: в itemBuilder (chat_message_list.dart:744) ради preview и снова в build бабла (message_bubble.dart:1570) ради isDocument — то есть на каждое перестроение строки при скролле это 2×(jsonDecode + валидация) синхронно в UI-изоляте. Дополнительно parse дёргается в chat_detail_screen.dart:1285 и 1977 и в контекстном меню (:264, :359). Результат детерминирован для строки, но нигде не запоминается.",
+      "impact": "Каждый кадр скролла чата с интерактивными сообщениями: 2 разбора JSON на такой бабл; на 300-сообщенном окне с десятком опросов это десятки разборов за кадр.",
+      "patch_sketch": "Разбирать один раз: перенести разбор в слой данных (ApiMessage.parseInteractive при fromJson/декоде) и хранить готовый InteractiveMessage? рядом с сообщением; в UI оставить чтение геттера. Кандидат в изолят при пакетном декоде истории.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-1",
+      "severity": "high",
+      "file": "lib/core/utils/docx_parser.dart",
+      "line": 95,
+      "evidence": "    final RegExp elementRegex = RegExp(r'<w:(p|tbl)[\\s>].*?<\\/w:\\1>', dotAll: true);\n    final Iterable<Match> matches = elementRegex.allMatches(xml);",
+      "why": "Разбор DOCX целиком синхронный: ZipDecoder().decodeBytes (inflate всего архива) + шесть последовательных проходов регулярками с dotAll и ленивым .*? по всему word/document.xml, причём RegExp создаются заново внутри циклов (runRegex на каждый абзац :151, textRegex на каждый run :161, rowRegex/cellRegex на каждую строку таблицы :189,:196). Вызывается из _DocxViewerState._parse после await — то есть прямо в кадре UI-изолята (screens/native_file_viewer_screen.dart:617).",
+      "impact": "Открытие .docx на 50–200 КБ = сотни миллисекунд блокировки кадра: белый экран вместо документа, дрожание всего приложения, а не только вьюера.",
+      "patch_sketch": "Вынести DocxParser.parseBytes в Isolate.run/compute (результат сериализуем) и поднять RegExp в static final. Кандидат в Rust/изолят: inflate + XML-скан — чистый CPU-bound.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-1",
+      "severity": "medium",
+      "file": "lib/core/utils/datetime_helpers.dart",
+      "line": 55,
+      "evidence": "  final locale = (localeCode ?? AppTimeSettings.localeCode)\n      .split(RegExp(r\"[_-]\"))\n      .first;",
+      "why": "formatRelativeTime на каждом вызове компилирует новый RegExp и режет строку локали через split + List, затем делает AppTimeSettings.resolve (toLocal/tz), сравнения дат, DateFormat.format и Intl.plural с загрузкой данных локали. Вызывается из itemBuilder инбокса (chat_list_screen.dart:1186), из post_card.dart:593 и call_log_view.dart:388 — то есть на каждую видимую строку на каждое перестроение, хотя результат зависит только от (дата, локаль, настройка часового пояса).",
+      "impact": "Инбокс из 20 видимых строк при новом сообщении/скролле: 20× (RegExp + split + DateFormat + Intl.plural) в кадре; Intl.plural — самый дорогой из них.",
+      "patch_sketch": "RegExp и извлечение языка — в static final/const (локаль уже приходит готовой строкой); разбор оставить, но кешировать пару (минута, локаль) → готовая подпись для повторяющихся значений.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-1",
+      "severity": "medium",
+      "file": "lib/core/utils/app_time.dart",
+      "line": 55,
+      "evidence": "      try {\n        return tz.TZDateTime.from(\n          base.toUtc(),\n          tz.getLocation(_timeZoneId!.trim()),\n        );",
+      "why": "AppTimeSettings.resolve — геттер-путь, который дергается из ApiMessage.resolvedSentAt (models/api/message_model.dart:164). При ручном часовом поясе каждый вызов делает tz.getLocation(строка) (разбор id + поиск в карте) и создаёт TZDateTime — без кеша Location. resolvedSentAt в свою очередь вызывается 4 раза на строку в chat_message_list.dart (строки 641, 699, 719, 891, 934) и в message_layout_store.dart:36,46. Плюс сама настройка читается из глобальных static-полей (строки 9-12), то есть модель «знает» о UI-настройках.",
+      "impact": "При выбранном вручную поясе — 4-6 tz-локаций на каждую строку списка на каждое перестроение; на 20 видимых строках это ~100 разборов id пояса за кадр.",
+      "patch_sketch": "Кешировать tz.Location по id при configure(); в ApiMessage хранить resolvedSentAt (или вычислить один раз в fromJson), а не геттером.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "LAG-1",
+      "severity": "medium",
+      "file": "lib/models/api/custom_emoji_model.dart",
+      "line": 4,
+      "evidence": "int customEmojiLength(String text) =>\n    text.replaceAll(customEmojiPattern, '\\uFFFC').characters.length;",
+      "why": "Функция делает полную копию строки через replaceAll по всему тексту, а затем полную графемную сегментацию .characters — два O(n) прохода с аллокацией. Она стоит в TextInputFormatter на каждом нажатии клавиши (widgets/chat/custom_emoji_text.dart:159, подключён в create_post_screen.dart:870 с лимитом 10000, interactive_composer.dart:289,388,618, chat_productivity.dart:508), а также вызывается прямо в build ради счётчика символов (create_post_screen.dart:935,941).",
+      "impact": "Пост/подпись на 10000 символов: каждое нажатие = копия всей строки + сегментация в графемы, плюс то же самое в build; на 120 Гц ввод начинает отставать от пальца.",
+      "patch_sketch": "Считать длину без replaceAll: разность (text.length - вхождения шорткодов) с поправкой на графемы только вокруг совпадений, результат кешировать по (text identity/hash). Кандидат в Rust/изолят при пакетной валидации длинных текстов.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-1",
+      "severity": "medium",
+      "file": "lib/models/interactive_message.dart",
+      "line": 21,
+      "evidence": "  String get fingerprint {\n    final keys = data.keys.toList()..sort();\n    return sha256\n        .convert(utf8.encode(jsonEncode({for (final k in keys) k: data[k]})))",
+      "why": "fingerprint — геттер, который каждый раз сортирует ключи, сериализует весь Map в JSON и считает SHA-256. Он читается в build карточки опроса (widgets/chat/interactive_message_card.dart:98 внутри _stateFor) и дважды в didUpdateWidget (:124) ради сравнения с прошлым значением, плюс в InteractiveState (строка 165) и при отправке голоса (:199). Данные неизменяемы (Map.unmodifiable в parse), значит хеш стабилен и должен считаться один раз при разборе.",
+      "impact": "Голосование/опрос: sha256 + сортировка + jsonEncode на каждое перестроение карточки и на каждый апдейт виджета; на доске с несколькими опросами это лишние хеши в кадре.",
+      "patch_sketch": "Считать fingerprint в parse() и хранить final-полем InteractiveMessage; геттер оставить как чтение поля.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-1",
+      "severity": "medium",
+      "file": "lib/core/utils/message_preview_text.dart",
+      "line": 36,
+      "evidence": "  final document = md.Document(\n    extensionSet: md.ExtensionSet.gitHubFlavored,\n    encodeHtml: false,\n  );\n  for (final node in document.parseLines(source.split('\\n'))) {",
+      "why": "На каждый вызов строится новый md.Document с полным GitHub-flavored набором инлайн-синтаксисов, source режется split('\\n'), дерево обходится рекурсивно, затем RegExp(r'\\s+') по результату. Кеш MessagePreviewFormatter есть, но в инбоксе он отключён для секретных чатов (chat_list_screen.dart:1416 `cache: !chat.isSecret`) и обходится для черновика (:1183 `messagePreviewText(draft!)`), а всё это — внутри itemBuilder списка чатов.",
+      "impact": "Секретный чат в инбоксе переразбирает markdown последнего сообщения на каждое перестроение строки при скролле; живой черновик — на каждый кадр набора текста.",
+      "patch_sketch": "Кешировать по содержимому без исключения для секретных чатов (это проекция уже расшифрованного текста, не шифртекст), и брать кеш для draft.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-2",
+      "severity": "medium",
+      "file": "lib/core/utils/app_time.dart",
+      "line": 2,
+      "evidence": "import 'package:pulse_flutter/providers/ui_settings_provider.dart';",
+      "why": "Слой core/utils (и через него models) тянет вверх provider-слой: models/api/message_model.dart → core/utils/datetime_helpers.dart → core/utils/app_time.dart → providers/ui_settings_provider.dart, а тот импортирует material_ui и flutter_riverpod. При этом сам datetime_helpers.dart:132-135 утверждает, что «must never import package:flutter — dart test runs those models without dart:ui». Цепочка это утверждение нарушает: любая попытка прогнать модели в чистом dart test падает на dart:ui, а модели начинают зависеть от глобальных static-настроек UI.",
+      "impact": "Модели нельзя покрыть юнит-тестами без Flutter-рантайма; часовой пояс/локаль меняются глобально, минуя провайдер, и любой код, читающий модель, зависит от порядка инициализации.",
+      "patch_sketch": "Вынести AppTimeZoneMode и настройку времени в core (например core/time/app_time_config.dart) без riverpod, а provider пусть пишет в неё; models импортируют только core.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-2",
+      "severity": "low",
+      "file": "lib/models/settings/settings_node.dart",
+      "line": 4,
+      "evidence": "import 'package:pulse_flutter/core/localization/secret_chat_l10n.dart';\nimport 'package:material_ui/material_ui.dart';\nimport 'package:pulse_flutter/l10n/app_localizations.dart';\nimport 'package:pulse_flutter/providers/settings_navigation_provider.dart';",
+      "why": "Модель узла дерева настроек для одного enum-типа SettingsSectionId импортирует провайдер навигации, который сам тянет riverpod/Flutter. Тип-справочник лежит в presentation-слое, поэтому модель не может быть использована (и протестирована) без UI-слоя; ветка «models → providers» в графе зависимостей появляется ради одного enum.",
+      "impact": "Модель настроек нельзя переиспользовать в чистом Dart (генерация дерева, тесты, серверная валидация); при переносе экранов навигации придётся править модели.",
+      "patch_sketch": "Перенести SettingsSectionId в models/settings (или в core), провайдер пусть импортирует его оттуда.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "lib/models/api/chat_summary_model.dart",
+      "line": 212,
+      "evidence": "  bool get isBotChat =>\n      partnerBadges.any(\n        (ApiBadge b) =>\n            b.name.toLowerCase().contains('bot') ||\n            b.name.toLowerCase().contains('ai') ||",
+      "why": "В проекте две несовпадающие реализации «это бот»: этот геттер (бейджи: подстрока 'bot'/'ai' + username endsWith('_bot')) и core/utils/bot_detector.dart:2 с комментарием «Unified bot detection logic across NiosMess» (clean == 'bot' || endsWith('bot')). Геттер используют 12+ мест (chat_list_screen.dart:658,662, filters, call_starter, mesh, file_request_action), а bot_detector — только contacts/profile/call_starter через BotDetector.isBot. Один и тот же чат классифицируется по-разному в инбоксе и в контактах, а «единая» функция остаётся мёртвым дублем.",
+      "impact": "Фильтры инбокса и списки контактов могут разойтись в том, кого считать ботом; логика детекта меняется в двух местах; в hot path — toLowerCase() на каждый бейдж на каждый ребилд строки.",
+      "patch_sketch": "Оставить один предикат (в модели, с учётом бейджей) и заменить BotDetector.isBot вызовом геттера; бейджи нормализовать один раз в fromJson.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-6",
+      "severity": "medium",
+      "file": "lib/models/api/chat_summary_model.dart",
+      "line": 147,
+      "evidence": "    if (sec < 3600) {\n      final int m = (sec / 60).round();\n      return '$m мин.';\n    } else if (sec < 86400) {\n      final int h = (sec / 3600).round();\n      return '$h ч.';",
+      "why": "Модель сама форматирует интервал автоудаления русскими литералами ('мин.', 'ч.', 'дн.', 'мес.') без AppLocalizations и без учёта localeCode; рядом в fromJson:317 так же захардкожено 'Избранное', а models/live_location.dart:20 — 'Геопозиция'. Потребитель (group_profile_screen.dart:365, chat_detail_screen.dart:2788) вынужден подставлять свой fallback, потому что строка уже русская.",
+      "impact": "Английский/другой язык интерфейса получает русские подписи в настройках чата и в превью «Избранного»; строки нельзя перевести через ARB, они не попадают в l10n-аудит.",
+      "patch_sketch": "Вернуть из модели числа (autoDeleteSeconds / isSaved), а подпись собирать в UI через AppLocalizations (Intl.plural для единиц).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "low",
+      "file": "lib/core/utils/shared_utilities.dart",
+      "line": 15,
+      "evidence": "IconData getIconForFileType(String? mimeType, {String? fileName}) {\n  final String type = (mimeType ?? '').toLowerCase();\n  final String ext = (fileName ?? '').toLowerCase();",
+      "why": "getIconForFileType (строка 15) и getIconColorForFileType (строка 52) — 57 строк с ручным перебором расширений, при этом файл импортируют 14 модулей, но обе функции не вызываются ни разу (grep по lib+test: только объявления). Живую задачу решает core/utils/file_type_detector.dart (FileTypeCategory + getIconDataByName в этом же файле), то есть это вторая, мёртвая реализация «mime/extension → иконка», ещё и с цветами из ColorScheme внутри util-функции.",
+      "impact": "Новые форматы файлов правят в двух местах, и правка в shared_utilities не даёт эффекта; читателю кажется, что иконки типов задаются здесь.",
+      "patch_sketch": "Удалить обе функции; если нужен цвет — брать FileTypeCategory из FileTypeDetector и мапить на scheme в виджете.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "low",
+      "file": "lib/models/comment_thread.dart",
+      "line": 12,
+      "evidence": "List<CommentThreadRow> buildCommentThread(\n  List<ApiMessage> messages, {\n  Set<int> collapsed = const <int>{},\n}) {",
+      "why": "Весь файл (67 строк: CommentThreadRow + buildCommentThread с обходом дерева, подсчётом поддерева и свёрнутыми ветками) не используется вне себя: grep по lib+test даёт только объявления и внутренние ссылки (стр. 3, 12, 58, 63). Актуальная лента комментариев собирает список иначе (screens/post_comments_screen.dart + comment_item.dart), так что это заброшенная реализация веток обсуждений.",
+      "impact": "Мёртвая модель дерева комментариев выглядит как действующий контракт: новый код может начать строить треды через неё и разойтись с реальным поведением ленты.",
+      "patch_sketch": "Удалить models/comment_thread.dart целиком.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "low",
+      "file": "lib/core/utils/datetime_helpers.dart",
+      "line": 99,
+      "evidence": "String formatCallDuration(Duration duration) {\n  if (duration.isNegative) return '00:00';",
+      "why": "formatCallDuration (строка 99) и computeCallElapsed (строка 117) не вызываются нигде: grep по lib+test находит только объявления. При этом в проекте есть FileTypeDetector.formatDuration (core/utils/file_type_detector.dart:247) с тем же форматом mm:ss/hh:mm:ss, а экраны звонков считают длительность сами. То есть форматирование длительности существует в двух-трёх местах, а «каноническая» версия — мёртвая.",
+      "impact": "Формат длительности звонка меняют в одном из живых мест, мёртвая копия продолжает лгать о намерениях; ещё одна копия — widgets/update/app_update_dialog.dart:29.",
+      "patch_sketch": "Удалить обе функции из datetime_helpers, оставить один formatDuration в FileTypeDetector (или перенести его сюда как единственный).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-5",
+      "severity": "low",
+      "file": "lib/models/api/message_model.dart",
+      "line": 8,
+      "evidence": "bool _parseBool(dynamic value) {\n  return value == true ||\n      value == 1 ||\n      value == '1' ||\n      value == 'true';\n}",
+      "why": "Один и тот же парсер булевых значений из JSON скопирован дословно в четырёх моделях: message_model.dart:8, chat_summary_model.dart:5 (в одну строку), chat_member_model.dart:4, sticker_model.dart:5. Все четыре — приватные копии, поэтому разойтись они могут незаметно: например, добавив поддержку 'yes'/'on' в одной, вы получите три модели, которые по-прежнему возвращают false.",
+      "impact": "Разбор флагов (is_e2ee, is_read, is_deleted) ведёт себя по-разному в зависимости от модели; исправление требует правки в 4 файлах.",
+      "patch_sketch": "Завести один jsonBool(dynamic) в models/api (или core/utils/json.dart) и заменить четыре копии.",
+      "confidence": "certain"
+    }
+  ]
+}

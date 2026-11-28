@@ -225,6 +225,10 @@ class AppTheme {
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
+        // Material 3 Expressive icon buttons: 40x40 with a stadium shape,
+        // opted in globally. Only IconButton/ElevatedButton expose a
+        // StyleVariant opt-in in material_ui, so this is the whole surface.
+        variant: StyleVariant.material3Expressive,
         style: ButtonStyle(
           iconColor: WidgetStateProperty.resolveWith<Color?>(
             (Set<WidgetState> states) => states.contains(WidgetState.disabled)

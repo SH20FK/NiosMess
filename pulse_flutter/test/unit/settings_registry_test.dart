@@ -131,40 +131,20 @@ void main() {
       expect(enResults.any((r) => r.node.id == 'ui_corner_radius'), isTrue);
     });
 
-    test(
-      'search does not advertise disabled backgrounds and navigation styles',
-      () {
-        final ids = SettingsRegistry.getAllNodes().map((node) => node.id);
-        expect(ids, isNot(contains('true_black_oled')));
-        expect(ids, isNot(contains('navbar_floating')));
-        final ruResults = SettingsRegistry.search('обои', l10nRu);
-        expect(
-          ruResults.every((r) => r.node.id != 'wallpaper_generator'),
-          isTrue,
-        );
-
-        final enResults = SettingsRegistry.search('wallpaper', l10nEn);
-        expect(
-          enResults.every((r) => r.node.id != 'wallpaper_generator'),
-          isTrue,
-        );
-      },
-    );
-
-    test('search leads to the wallpaper entry in Chats', () {
-      final results = SettingsRegistry.search('обои', l10nRu);
-      final wallpaper = results.firstWhere(
-        (r) => r.node.id == 'appearance.wallpaper',
-      );
-      // The wallpaper row moved to the chats screen with its group; the old
-      // id stays as the anchor so deep links still highlight the row.
-      expect(wallpaper.targetRoute, equals('/settings/chats'));
-      expect(wallpaper.anchor, equals('appearance.wallpaper'));
+    test('search does not advertise disabled navigation styles', () {
+      final ids = SettingsRegistry.getAllNodes().map((node) => node.id);
+      expect(ids, isNot(contains('true_black_oled')));
+      expect(ids, isNot(contains('navbar_floating')));
+      final ruResults = SettingsRegistry.search('обои', l10nRu);
       expect(
-        SettingsRegistry.search('wallpaper', l10nEn).any(
-          (r) => r.node.id == 'appearance.wallpaper',
-        ),
-        isTrue,
+        ruResults.any((r) => r.node.id == 'appearance.wallpaper'),
+        isFalse,
+      );
+
+      final enResults = SettingsRegistry.search('wallpaper', l10nEn);
+      expect(
+        enResults.any((r) => r.node.id == 'appearance.wallpaper'),
+        isFalse,
       );
     });
 

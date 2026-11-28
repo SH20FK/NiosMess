@@ -613,15 +613,6 @@ class SettingsRegistry {
       route: '/settings/chats',
       keywords: ["плотность", "компактность", "compact", "density"],
     ),
-    SettingsNavNode(
-      id: 'appearance.wallpaper',
-      parentNavId: 'chats',
-      title: (l) => l.appearanceChatWallpaperTitle,
-      icon: Icons.texture_rounded,
-      group: SettingsGroup.chats,
-      route: '/settings/chats',
-      keywords: ['обои', 'фон чата', 'узор', 'wallpaper', 'background'],
-    ),
     // Account items
     SettingsItemNode(
       id: 'account.password',

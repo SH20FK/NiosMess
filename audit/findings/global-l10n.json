@@ -1,0 +1,39 @@
+{
+  "lane": "global-l10n",
+  "truncated": 0,
+  "findings": [
+    {
+      "rule": "UI-6",
+      "severity": "high",
+      "file": "lib/widgets/m3_file_picker_bottom_sheet.dart",
+      "line": 767,
+      "evidence": "label: const Text('Выбрать фото'),",
+      "why": "Правило проекта (AGENTS.md, п.10) требует все пользовательские строки через context.l10n.key. Здесь и ещё в 21 месте этого файла строки захардкожены по-русски: английская локаль получит русский UI. Это не данные, а именно подписи кнопок и hintText.",
+      "impact": "Английская локаль (RU/EN заявлены в AGENTS.md), скринридеры, будущие языки",
+      "patch_sketch": "Вынести строки в lib/l10n/app_*.arb и брать через context.l10n",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-6",
+      "severity": "high",
+      "file": "lib/widgets/chat_creation_surfaces.dart",
+      "line": 277,
+      "evidence": "title: 'Новый секретный чат',\nsubtitle: 'Сквозное E2EE-шифрование, без следов на сервере',",
+      "why": "Экран создания чата — первое, что видит пользователь, и он целиком захардкожен по-русски (269-287: четыре actionTile с title/subtitle). По правилу проекта такие строки берутся только из l10n.",
+      "impact": "Первый экран после онбординга в EN-локали",
+      "patch_sketch": "Завести ключи в arb для 4 плиток и заменить литералы",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-6",
+      "severity": "medium",
+      "file": "lib/core/utils/app_error_formatter.dart",
+      "line": 47,
+      "evidence": "title: l10n?.errorNoInternet ?? 'Нет подключения к интернету',",
+      "why": "Здесь l10n есть, но с русским fallback-литералом. В файле 61 такая строка: если l10n не передан (а вызывающих без него надо проверить), пользователь видит русский текст в EN-сборке. Это не нарушение само по себе, но маскирует пропущенную передачу l10n.",
+      "impact": "Диагностические сообщения пользователю",
+      "patch_sketch": "Проверить вызывающих: если l10n всегда есть — убрать fallback, иначе завести EN-fallback",
+      "confidence": "likely"
+    }
+  ]
+}

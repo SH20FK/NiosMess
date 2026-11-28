@@ -117,7 +117,9 @@ class M3ModalSurface extends StatelessWidget {
 
     Widget surface = Material(
       color: backgroundColor,
-      shape: RoundedRectangleBorder(borderRadius: borderRadius),
+      // Squircle, not a plain rounded rectangle: every sheet and dialog in the
+      // app rides this one surface (M3 Expressive shape).
+      shape: RoundedSuperellipseBorder(borderRadius: borderRadius),
       clipBehavior: Clip.antiAlias,
       elevation: 0,
       child: body,

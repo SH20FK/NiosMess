@@ -1,0 +1,50 @@
+{
+  "area": "security",
+  "items": [
+    {
+      "rule": "SEC-4",
+      "file": "lib/services/ordinary_e2ee/ordinary_e2ee_service.dart",
+      "line": 1080,
+      "verdict": "downgraded",
+      "severity_final": "high",
+      "reason": "Механика отчёта неверна в главном. Клиент действительно проверяет только v и user_id (1077), но тезис «такой код может сгенерировать кто угодно, публичного userId достаточно» опровергается сервером: pair_approve ищет OrdinaryPairing по (user.id аутентифицированного пользователя, request_id) (ordinary_e2ee.py:200-201), требует row.target_key == присланный target_key (203) и проверяет Ed25519-подпись от ТЕКУЩЕГО identity жертвы над 'niosmess-pair-v1:{user.id}:{request_id}:{target_key}:{packet}' (205); pair_start вообще доступен только своей сессии и при наличии own identity (185-186). Код, сгенерированный атакующим с чужим userId, получает E2E_PAIR_EXPIRED (нет строки под жертвой); подмена target_key в перехваченном коде — E2E_PAIR_MISMATCH. Привязка есть и в крипто: AAD = '$domain:$userId:$request:$target' (codec:337, 368), а секрет из кода сам по себе бесполезен — пакет запечатан на X25519 target_key, приватный ключ которого остаётся на новом устройстве. Остаётся реальный, но более узкий путь: украденная сессия аккаунта -> pair_start со своим target_key (подпись на pair_start не требуется) -> пользователь вручную вставляет код в поле ordinary_e2ee_settings.dart:549-573 -> approvePairing шифрует весь _keyring + _recovery -> pair_get под той же сессией. То есть сессия эскалируется до постоянных ключей и recovery-кода. Это high, но не blocker и не «одно нажатие»: нет атаки без сессии жертвы и без ручного ввода кода. Настоящий дефект — отсутствие на клиенте и в UI какой-либо привязки/подтверждения (не показывается, какое устройство сопрягается, нет SAS/фингерпринта, нет подписи в коде); вся защита делегирована серверу, любая его регрессия становится утечкой ключей.",
+      "evidence_checked": "ordinary_e2ee_service.dart:1067-1097 (approvePairing: проверки v/user_id, decodeE2e(secret,32), pair -> pair_approve, подпись niosmess-pair-v1); :831-893 (auto-enrollment с proof NiosID и проверкой подписи доставки); :1057-1065 (beginPairing создаёт пару на enroll-устройстве); ordinary_e2ee_codec.dart:327-381 (pair/unpair, AAD domain:user:request:target, HKDF через _wrap); server_core/app/services/ordinary_e2ee.py:96-98 (own = identity вызывающего), 184-209 (pair_start/pair_get/pair_approve: строка по user.id, target_key сверяется, подпись проверяется собственным ed), 23-29 (PK = user_id+request_id); widgets/settings/ordinary_e2ee_settings.dart:160-196, 543-577 (генерация кода на одном устройстве, вставка строки в TextField + FilledButton на другом, без подтверждения и без отображения устройства)"
+    },
+    {
+      "rule": "SEC-3",
+      "file": "lib/core/utils/screen_security_service.dart",
+      "line": 6,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Факты подтверждены по платформам. Android: канал com.niosmess.pulse/security реально регистрируется и setSecureFlag ставит/снимает WindowManager.LayoutParams.FLAG_SECURE (MainActivity.kt:34, 41-50) — работает. iOS: ios/Runner/AppDelegate.swift — 15 строк, только GeneratedPluginRegistrant, ни канала, ни обработчика; grep по ios/ (setSecureFlag, niosmess.pulse/security, MethodChannel, isCaptured, screenshot) — 0 совпадений. Windows/macOS/web/linux: grep по всему нативному коду (cpp/swift/h/js/html/cc/m) на 'niosmess.pulse/security' и 'setSecureFlag' — 0 совпадений, плагина защиты экрана в pubspec нет. Поведение при отсутствии обработчика: invokeMethod бросает MissingPluginException, она глотается пустым catch с комментарием (9-11) — не падает, не логируется, никакого фолбэка (блюр/оверлей/privacy-screen) нет. Все вызовы fire-and-forget и зависят только от isSecret (chat_detail_screen.dart:293, 367, 2352, 2376), пользовательская настройка не участвует. Severity понижена до medium: утечки без действия пользователя/физического доступа нет, экран секретного чата просто попадает в скриншоты и в снапшот переключателя задач на iOS/desktop/web, а UI больше не обещает защиту (тумблеры убраны).",
+      "evidence_checked": "screen_security_service.dart:1-13 (единственный канал, пустой catch); android/app/src/main/kotlin/com/niosmess/pulse/MainActivity.kt:34-53 (реальный FLAG_SECURE); ios/Runner/AppDelegate.swift (полный файл — обработчика нет); grep ios/, windows/, macos/, web/, linux/ — 0; pubspec.yaml — плагина screen-protection нет; chat_detail_screen.dart:2436-2456 (_handleScreenshotAction — только хоткеи PrintScreen/Cmd+Shift+3-4 на desktop, реального детектора нет)"
+    },
+    {
+      "rule": "MESS-3",
+      "file": "lib/providers/ui_settings_provider.dart",
+      "line": 179,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "linkPreviewsInSecretChats — мёртвое состояние. Полный список вхождений в lib/: объявление поля (179), defaults (96), copyWith-параметр и присваивание (211, 247-248), чтение prefs (401-402), setter setLinkPreviewsInSecretChats (750-755), ключ 'ui.linkPreviewsSecret' (295), удаление ключа в resetAll (810). Ни одного потребителя: пайплайна превью в секретных чатах нет, settings_security_screen.dart его больше не рисует, l10n-строка осталась сиротой. То есть настройка сохраняется на диск и сбрасывается, но ни на что не влияет.",
+      "evidence_checked": "grep 'linkPreviews|linkPreviewsInSecretChats' по всему lib/ (28 попаданий только в ui_settings_provider.dart + 2 неиспользуемые l10n-строки); settings_security_screen.dart:62-66 (комментарий, что тумблеры убраны из UI); проверка всех 4 call-sites ScreenSecurityService"
+    },
+    {
+      "rule": "MESS-3",
+      "file": "lib/providers/ui_settings_provider.dart",
+      "line": 180,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "secureScreenshotsInSecretChats — мёртвое состояние того же типа: поле (180), default true (97/151), copyWith (212, 249-250), чтение prefs (403-404), setter (757-762), ключ 'ui.secureScreenshotsSecret' (296), очистка в resetAll (811). Ни одного потребителя: ScreenSecurityService.setSecureFlag не принимает эту настройку и включается только по isSecret (chat_detail_screen.dart:293/367/2352/2376). Пользователь больше не может её включить (UI убран), но значение всё равно читается из SharedPreferences и лежит в состоянии.",
+      "evidence_checked": "grep 'secureScreenshots|secureScreenshotsInSecretChats' по lib/; все 5 call-sites setSecureFlag; settings_security_screen.dart целиком (72 строки, настройки нет); Test-Path audit/verify"
+    },
+    {
+      "rule": "MESS-3",
+      "file": "lib/screens/settings_security_screen.dart",
+      "line": 72,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "Находка устарела: «мёртвые тумблеры» на экране безопасности уже удалены. Файл — 72 строки, последняя строка 72 это закрывающая скобка build(); в секции секретных чатов осталась одна навигационная строка и комментарий 62-66: «Link previews and the screenshot guard are stored in UiSettingsState, but nothing consumes them yet... They stay out of the UI until the behaviour lands, so the screen does not promise a switch that changes nothing». Ни settingsSecretScreenshotTitle, ни settingsSecretLinkPreviewTitle в экране не используются. Следовательно и рекомендация FINAL-REPORT «Волна 0: settings_security_screen.dart:72 — убрать или реализовать мёртвые тумблеры» указывает на код, которого нет; остаётся только мёртвое состояние в ui_settings_provider (см. два пункта выше).",
+      "evidence_checked": "settings_security_screen.dart:1-72 (полный файл); grep 'settingsSecretScreenshotTitle' по lib/ вне l10n — 0 использований; сверка с FINAL-REPORT.md:118-119, 224-226"
+    }
+  ]
+}

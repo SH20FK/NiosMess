@@ -1,0 +1,215 @@
+{
+  "lane": "chat-bubble",
+  "truncated": 4,
+  "findings": [
+    {
+      "rule": "MESS-4",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 63,
+      "evidence": "class MessageBubble extends ConsumerWidget {\n  const MessageBubble({\n    required this.text,\n    required this.formattedTime,\n    required this.isMine,",
+      "why": "1625 строк в одном файле. Внутри одного класса: 5 медиа-веток в build (стикер, кружок, эмодзи, картинка, файл), 6 widget-хелперов (_buildStickerContent, _buildCircleVideoContent, _mediaPreview, _buildUnframedMessage, _buildInlineKeyboard, _buildMessageTextAndFooter), 4 места, где собирается футер/статус (498, 518, 1372 и самодельный бейдж 701-757), второй расчёт прогресса загрузки (1068-1097) и два inline reply-превью (274-303, 356-387). Любая правка бабла — правка файла, в котором одновременно живут текст, медиа, аплоад и стикер; профиль пересборки строки списка смотреть негде, потому что всё в одном build.",
+      "impact": "Риск регрессии в самом горячем виджете приложения: правка статуса доставки перезапускает и медиа-ветку, и файловую карточку.",
+      "patch_sketch": "Разрезать по ветке build: bubble_text.dart, bubble_media.dart, bubble_file_card.dart, bubble_sticker.dart; MessageBubble остаётся арбитром выбора.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 746,
+      "evidence": "                          Icon(\n                            isRead\n                                ? Icons.done_all_rounded\n                                : Icons.done_rounded,\n                            size: 12,",
+      "why": "Стикер-бабл рендерит собственный статус доставки (701-757) вместо импортированного рядом MessageBubbleFooter: другой набор иконок (done_rounded вместо check_rounded в bubble_footer.dart:150), другой размер (12 вместо 14), нет AnimatedSwitcher — смена «отправлено → прочитано» происходит скачком, нет Semantics(liveRegion: true) и нет Tooltip. То есть для одного типа сообщения две разные реализации одного элемента, и стикер проигрывает по доступности и анимации.",
+      "impact": "Скринридер не объявляет смену статуса у стикеров; поведение статуса зависит от типа сообщения.",
+      "patch_sketch": "Внутрь floating-бейджа положить MessageBubbleFooter(isUnframed: true) на scrim-подложке, руками оставить только padding.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 1073,
+      "evidence": "    } else if (uploadTask?.stage == UploadStage.processing) {\n      progressSubtitle = 'Обработка файла...';\n    } else if (uploadTask?.stage == UploadStage.sendingMessage) {\n      progressSubtitle = 'Отправка сообщения...';",
+      "why": "Тот же расчёт подписи стадии загрузки целиком повторён в bubble_upload_overlay.dart:39-59, и тексты уже разошлись: 'Обработка...' против 'Обработка файла...', 'Отправка...' против 'Отправка сообщения...'. Плюс в обоих местах строки захардкожены по-русски вместо AppLocalizations, хотя в этом же файле соседние строки берутся из context.l10n (1234, 1104). Один и тот же аплоад показывает разные подписи в зависимости от того, круглая это видеозаметка или обычная картинка.",
+      "impact": "Расхождение копий и невозможность перевести статус загрузки: 6 захардкоженных русских строк в двух файлах.",
+      "patch_sketch": "Один хелпер uploadStageLabel(stage, metrics, l10n) в bubble_upload_overlay.dart, вызывать из _mediaPreview.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/chat/bubble/bubble_footer.dart",
+      "line": 92,
+      "evidence": "          formattedTime,\n          style: textTheme.labelSmall?.copyWith(\n            fontSize: 11,\n            color: footerTextColor,\n          ),",
+      "why": "Размеры типографики заданы числами поверх уже взятого из темы стиля: 11 и 10 здесь (81-84, 88, 94, 206), 11 в статус-бейдже message_bubble.dart:727, 11 в бейдже длительности bubble_circle_player.dart:296, 12 в счётчике карусели bubble_carousel.dart:120, 10/11 в оверлее загрузки. Числа не масштабируются textScaler: при системном масштабе 2.0 тело сообщения вырастает, а время, «изменено», замок E2EE и статус доставки остаются 10-11 px — ровно в футере, где пользователь ищет подтверждение отправки, текст перестаёт читаться. Токен AppTypography/labelSmall для этого уже есть и используется в том же файле.",
+      "impact": "Нарушение доступности при крупном системном шрифте и обход типографической шкалы в самом частом элементе UI.",
+      "patch_sketch": "Убрать fontSize, оставить textTheme.labelSmall (или AppTypography) и один размер на все баблы.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/chat/bubble/bubble_upload_overlay.dart",
+      "line": 92,
+      "evidence": "                        color: scheme.surfaceContainerHighest.withValues(\n                          alpha: 0.88,\n                        ),\n                        borderRadius: BorderRadius.circular(10),\n                      ),",
+      "why": "В одном бабле шесть радиусов числами при наличии AppRadii (4/8/12/16/28) и AppShape (bubble 20, media 16, control 12): 8 в bubble_circle_player.dart:290,313; 10 здесь (95, 252), в bubble_carousel.dart:114, message_bubble.dart:711 и bubble_header.dart:53; 12 в bubble_upload_overlay.dart:120,145 и по умолчанию в bubble_carousel.dart:17; 20 и 24 в media_album_bubble.dart:129,171; 6 в message_bubble.dart:1229. Итог в одном сообщении-альбоме: карточка 20, плашка поверх 10, бейдж времени 10, кнопка повтора 12 — четыре геометрии, которые не следуют ни шкале, ни пользовательской настройке uiCornerRadius.",
+      "impact": "Форма бабла перестаёт быть системной: при смене uiCornerRadius половина внутренних элементов остаётся прежней.",
+      "patch_sketch": "Перевести на AppRadii.sm/md/lg и AppShape.media/bubble(.superellipse) во всех семи файлах bubble/.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-2",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/features/chats/presentation/create_group_members_screen.dart",
+      "line": 404,
+      "evidence": "      trailing: AnimatedContainer(\n        duration: M3Durations.short4,\n        width: 26,\n        height: 26,\n        decoration: BoxDecoration(",
+      "why": "Правило 6 проекта (Switch/Checkbox без M3-стиля запрещены) нарушено: чекбокс выбора участника — самодельный 26x26 AnimatedContainer с BoxShape.circle и иконкой check, без Semantics(checked:) и без onChanged, поэтому для скринридера строка остаётся простой кнопкой и выбранность никак не объявляется. Внутри одной фичи создания чата это третий вид «галочки»: список чатов, поиск и здесь.",
+      "impact": "Недоступное состояние выбора при создании группы; расхождение с M3 Checkbox в остальном приложении.",
+      "patch_sketch": "Checkbox(value:, onChanged:) в trailing + M3SelectionMotion на всю строку.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-2",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/features/chats/presentation/create_channel_screen.dart",
+      "line": 96,
+      "evidence": "              // Channel Avatar Placeholder (Squircle M3E)\n              Container(\n                width: 64,\n                height: 64,\n                decoration: BoxDecoration(",
+      "why": "Комментарий обещает «Squircle M3E», а форма — обычный rounded rect (borderRadius: AppRadii.lg ниже): правило 5 требует flutter_m3shapes/сквиркл, и пакет в проекте уже подключён. Канон в приложении другой — empty_state_widget.dart:52-61 рисует ShapeDecoration(shape: AppRadii.lgSuperellipse()). Те же 64x64-заглушки в create_group_details_screen.dart:96 и 40x40 акцент-иконки в compose_action_sheet.dart:81 дают третью и четвёртую форму «аватара» в одном флоу создания чата.",
+      "impact": "Форма заглушки меняется от экрана к экрану, заявленный M3E-сквиркл не рисуется.",
+      "patch_sketch": "ShapeDecoration(color: scheme.tertiaryContainer, shape: AppRadii.lgSuperellipse()) в трёх местах.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 421,
+      "evidence": "              InkWell(\n                borderRadius: bubbleRadius,\n                onDoubleTap: onReactionTap != null\n                    ? () {",
+      "why": "Бабл — единственная нажимаемая поверхность чата без M3 press-scale: строки инбокса и строки поиска идут через TouchContainer (inbox_search_results.dart:398-403, scaleDown 0.98, releaseCurve M3SpringCurves.spatialFast), а здесь голый InkWell с ripple. Долгое нажатие — главный жест (открывает панель действий) и не даёт ни сжатия, ни «взятия» бабла: экран отвечает только haptic (434-439), визуально ничего не происходит до появления шита. Готовый блок M3PressScale (widgets/motion/m3_press_scale.dart:10) подключается одним обёртыванием по onHighlightChanged; перестраивается один бабл, не список.",
+      "impact": "Основной жест (long-press → действия) ощущается как рывок; баблы выпадают из общей тактильной системы.",
+      "patch_sketch": "Обернуть child InkWell в M3PressScale(pressed: _pressed) с onHighlightChanged; второй такой же для медиа-ветки.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/chat/bubble/bubble_upload_overlay.dart",
+      "line": 159,
+      "evidence": "                  ] else ...[\n                    Container(\n                      width: 48,\n                      height: 48,\n                      decoration: BoxDecoration(",
+      "why": "Пять состояний аплоада (queued/processing/uploading/sendingMessage/failed) переключаются if/else-деревом прямо в build: кольцо прогресса, проценты и пара кнопок «Повторить/Отменить» появляются и исчезают мгновенно, без AnimatedSwitcher. Переход uploading→failed — самый заметный момент (медиа не ушло) — это скачок на месте. AnimatedSwitcher там, где он уже нужен, в bubble/ есть: счётчик реакции анимируется (bubble_reaction_chip.dart:96-104, M3Durations.short4), а M3SpringSwitcher лежит в widgets/motion. Цена: перестраивается только оверлей (~10 детей внутри одного RepaintBoundary строки).",
+      "impact": "Смена стадии загрузки читается как баг рендера, а не как ответ приложения.",
+      "patch_sketch": "Обернуть центральный блок в M3SpringSwitcher / AnimatedSwitcher с ValueKey(stage) и M3Durations.short3.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "MOTION-4",
+      "severity": "low",
+      "file": "pulse_flutter/lib/features/chats/presentation/create_group_members_screen.dart",
+      "line": 93,
+      "evidence": "        AnimatedSize(\n          duration: M3Durations.medium1,\n          curve: Curves.fastOutSlowIn,",
+      "why": "Единственная анимация в полосе выбранных участников: (а) кривая не из M3SpringCurves, хотя протокол проекта требует только их, (б) не читается context.reduceMotion — при выключенных анимациях полоса всё равно 250 мс меняет высоту и сдвигает весь список кандидатов под пальцем, то есть ровно то, от чего reduced motion должен избавлять. Аналогично строка `color: isSelected ? scheme.primary : Colors.transparent` (409) меняет цвет без M3-перехода, только длительностью.",
+      "impact": "Пользователь с отключёнными анимациями получает релэйаут списка на каждое добавление участника.",
+      "patch_sketch": "duration: context.reduceMotion ? Duration.zero : M3Durations.spatialFast, curve: M3SpringCurves.spatialFast.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/chat/bubble/bubble_gestures.dart",
+      "line": 24,
+      "evidence": "class SwipeToReplyState extends State<SwipeToReply>\n    with SingleTickerProviderStateMixin {\n  static const double _maxDrag = 64;",
+      "why": "Второй свайп-движок рядом с общим SwipeActionRow (lib/widgets/chat/swipe_action_row.dart, 192 строки, используется для строк инбокса): свой SingleMotionController, своя резина _rubberBand/_inverseRubberBand/_rubberBandSlope (40-62), свой порог 64 px и своя логика хинта. SwipeActionRow уже покрывает ровно этот сценарий через enabled/threshold/onEndTriggered/endBackground/onArmed, включая reduceMotion и springTo по скорости пальца. Разные пороги и разная резина → свайп по строке чата и свайп по сообщению ощущаются по-разному, а любой фикс свайпа нужно делать дважды.",
+      "impact": "Дублирование 144 строк жестовой логики и несогласованная тактильность свайпа в двух местах приложения.",
+      "patch_sketch": "SwipeToReply = SwipeActionRow(onEndTriggered: onReply, endBackground: круг с Icons.reply_rounded), удалить резину.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "low",
+      "file": "pulse_flutter/lib/widgets/chat/bubble/bubble_text_renderer.dart",
+      "line": 27,
+      "evidence": "  final bool isLink;",
+      "why": "Поле ParsedTextToken.isLink записывается дважды (строки 150 и 164) и нигде не читается: grep по всему lib/ находит только объявление и эти две записи, а _updateSpans ветвится по isMention. Мёртвое поле в парсере ссылок заставляет читателя искать третью ветку отрисовки, которой нет.",
+      "impact": "Ложный сигнал при чтении парсера; при добавлении новых типов токенов поле будет заполняться неверно.",
+      "patch_sketch": "Убрать поле и обе записи isLink:.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LIST-1",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/features/chats/presentation/people_picker_screen.dart",
+      "line": 201,
+      "evidence": "    return ListView(\n      padding: const EdgeInsets.symmetric(vertical: 8),\n      children: <Widget>[",
+      "why": "Список recent-контактов собран нелениво: строка 250 разворачивает `...state.recentCandidates.map((c) => _buildCandidateTile(...))` внутрь ListView(children:) — все строки с PulseAvatar/CachedNetworkImage строятся до первого кадра, независимо от высоты экрана. Для того же PeoplePickerController в create_group_members_screen.dart:241 уже сделан правильный ListView.separated, то есть один источник данных имеет две реализации списка с разной ценой.",
+      "impact": "Открытие «Новое сообщение» на аккаунте с сотнями контактов строит все аватары сразу.",
+      "patch_sketch": "ListView.builder: быстрые действия отдельными sliver/индексами, дальше recentCandidates[index].",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-2",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/features/chats/presentation/inbox_search_results.dart",
+      "line": 49,
+      "evidence": "    final List<ApiChatSummary> allChats =\n        ref.watch(chatsProvider).value ?? const <ApiChatSummary>[];",
+      "why": "ConsumerWidget поиска подписан на весь chatsProvider без select и тут же перебирает все чаты (83-90) плюс строит Map known (77-79) и список rows на каждый build. Любое входящее сообщение или read-подтверждение меняет chatsProvider → весь поисковый sliver перестраивается и заново гоняет O(n) contains по имени/username/описанию каждого чата, пока пользователь печатает запрос. Подписка на список целиком тут не нужна: совпадения считает контроллер.",
+      "impact": "Печать в поиске инбокса нагружает UI-изолятор на каждом входящем сообщении, а не на изменении запроса.",
+      "patch_sketch": "Перенести фильтрацию chatHits в inboxSearchController (один расчёт на query+снимок чатов), в виджете читать готовые hits через select.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 359,
+      "evidence": "                  child: Container(\n                    margin: const EdgeInsets.only(bottom: 6),\n                    padding: const EdgeInsets.symmetric(\n                      horizontal: 10,\n                      vertical: 5,",
+      "why": "Reply-превью реализовано дважды в одном build: 274-303 (padding 8/4, фон primary/secondary с alpha 0.12, левая полоса 3) и здесь, для стикера (padding 10/5, фон surfaceContainerHighest с alpha 0.9). Один и тот же ответ на сообщение выглядит двумя разными плашками в зависимости от типа сообщения, и правка стиля ответа делается в двух местах.",
+      "impact": "Визуальная несогласованность ответа на стикер/медиа и удвоенная цена правки.",
+      "patch_sketch": "Один Widget _replyPreview({required bool dense}) — плотность вместо второго Container.",
+      "confidence": "certain"
+    }
+  ],
+  "perf_status": [
+    {
+      "from": "audit/perf/00-summary.md#4",
+      "status": "fixed",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 927,
+      "note": "cacheWidth добавлен: Image.memory — строка 927, Image.file — строка 945 (было 915/930 без него). Комментарий на 925-926 объясняет причину. P0 закрыт."
+    },
+    {
+      "from": "audit/perf/00-summary.md#11",
+      "status": "still",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 1570,
+      "note": "InteractiveMessage.parse по-прежнему в build (1570), плюс chat_message_list.dart:744 для превью строки и chat_detail_screen.dart:1975 (_displayText, сместилось с 1946) — 2-3 jsonDecode на строку. Половина фикса сделана: регулярки вынесены в static final (interactive_message.dart:12-13), но повторный парс остался."
+    },
+    {
+      "from": "audit/perf/00-summary.md#12",
+      "status": "still",
+      "file": "pulse_flutter/lib/widgets/m3_file_picker_bottom_sheet.dart",
+      "line": 1136,
+      "note": "Вне моей полосы, но проверено: FutureBuilder(future: asset.thumbnailDataWithSize(...)) в build на 1136 и 1290 — не исправлено. В моей зоне media_album_bubble.dart:38,109 паттерн корректный: future лежит в state, а не создаётся в build."
+    },
+    {
+      "from": "audit/perf/00-summary.md#P2 (message_bubble.dart:1036,1198,1353 FileTypeDetector x3)",
+      "status": "still",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 1051,
+      "note": "detect по-прежнему трижды на бабл: 1051 (typeInfo), 1213 (иконка), 1368 (isVideo в _buildUnframedMessage); реализация detectFromFileName всё так же split('.').last + линейный проход по таблице."
+    },
+    {
+      "from": "audit/perf/01-chat.md#m7",
+      "status": "still",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 244,
+      "note": "cachedAuthHeaders(mediaUrl) в build — новая Map на каждую пересборку медиа-бабла, уходит в httpHeaders CachedNetworkImage."
+    },
+    {
+      "from": "audit/perf/01-chat.md#m8",
+      "status": "still",
+      "file": "pulse_flutter/lib/widgets/message_bubble.dart",
+      "line": 1527,
+      "note": "_parseForwarded: trim() + fwdRegExp.firstMatch на каждый build бабла (было 1512-1519, теперь 1527-1535)."
+    }
+  ]
+}

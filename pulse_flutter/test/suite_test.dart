@@ -146,6 +146,7 @@ import 'services/call_signaling_connection_test.dart'
     as call_signaling_connection;
 import 'services/call_negotiation_test.dart' as call_negotiation;
 import 'providers/incoming_call_delivery_test.dart' as incoming_call_delivery;
+import 'providers/call_session_tick_test.dart' as call_session_tick;
 import 'services/secret_chat_e2ee_test.dart' as secret_chat_e2ee;
 import 'widgets/secret_chat_ui_test.dart' as secret_chat_ui;
 import 'widgets/m3_route_tab_switcher_test.dart' as route_tab_switcher;
@@ -184,7 +185,6 @@ import 'e2e/niosgram_and_settings_e2e_test.dart' as e2e_niosgram_and_settings;
 import 'integration/e2e_auth_flow_test.dart' as integration_e2e_auth_flow;
 import 'integration/e2e_cold_start_and_logout_test.dart'
     as integration_e2e_cold_start;
-import 'models/chat_wallpaper_config_test.dart' as models_chat_wallpaper_config;
 import 'screens/login_screen_test.dart' as screens_login_screen;
 import 'screens/register_screen_test.dart' as screens_register_screen;
 import 'unit/adaptive_performance_engine_test.dart'
@@ -221,8 +221,6 @@ import 'widgets/adaptive_glass_test.dart' as widgets_adaptive_glass;
 import 'm3e_design_audit_test.dart' as m3e_design_audit;
 import 'widgets/chat_list_header_and_performance_test.dart'
     as widgets_chat_list_header;
-import 'widgets/chat_wallpaper_painter_test.dart'
-    as widgets_chat_wallpaper_painter;
 import 'widgets/create_post_screen_test.dart' as widgets_create_post_screen;
 import 'widgets/niosgram_feed_m3_test.dart' as widgets_niosgram_feed_m3;
 import 'widgets/public_profile_and_grouped_gallery_test.dart'
@@ -325,7 +323,6 @@ void main() {
     group('secret_stream_delivery', secret_stream_delivery.main);
     // Core & Models
     core_m3_spring_constants.main();
-    models_chat_wallpaper_config.main();
 
     // Unit Tests
     unit_adaptive_performance_engine.main();
@@ -426,6 +423,7 @@ void main() {
 
     // Screen & UI Widget Tests
     group('Incoming call regression', incoming_call_delivery.main);
+    group('Call session tick', call_session_tick.main);
     chat_list_m1.main();
     legal_viewer_screen.main();
     onboarding_screens.main();
@@ -499,7 +497,6 @@ void main() {
     widgets_adaptive_glass.main();
     m3e_design_audit.main();
     widgets_chat_list_header.main();
-    widgets_chat_wallpaper_painter.main();
     widgets_create_post_screen.main();
     widgets_niosgram_feed_m3.main();
     widgets_public_profile_gallery.main();

@@ -13,8 +13,8 @@ import 'package:pulse_flutter/providers/settings_navigation_provider.dart';
 import 'package:pulse_flutter/providers/ui_settings_provider.dart';
 import 'package:pulse_flutter/screens/settings_account_screen.dart';
 import 'package:pulse_flutter/screens/settings_appearance_screen.dart';
+import 'package:pulse_flutter/screens/settings_appearance_shape_screen.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
-import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/settings_privacy_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/screens/settings_notifications_screen.dart';
@@ -109,9 +109,9 @@ Widget _buildProfileScreenTestHarness({
             const Scaffold(body: Text('chats-tab')),
       ),
       GoRoute(
-        path: '/settings/wallpaper',
+        path: '/settings/appearance/shape',
         builder: (BuildContext context, GoRouterState state) =>
-            const Scaffold(body: Text('wallpaper-route')),
+            const Scaffold(body: Text('shape-route')),
       ),
       GoRoute(
         path: '/settings/account',
@@ -768,7 +768,7 @@ void main() {
       );
     });
 
-    Future<void> openWallpaperInPane(WidgetTester tester) async {
+    Future<void> openAppearanceSubpageInPane(WidgetTester tester) async {
       tester.view.physicalSize = desktopSize;
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -778,18 +778,16 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      // The wallpaper row lives on the chats screen now; the pane flow it
-      // exercises is the same one it used to reach through Appearance.
-      final Finder chats = find.byKey(
-        const ValueKey('settings-destination-chats'),
+      final Finder appearance = find.byKey(
+        const ValueKey('settings-destination-appearance'),
       );
-      await tester.ensureVisible(chats);
+      await tester.ensureVisible(appearance);
       await tester.pump();
-      await tester.tap(chats);
+      await tester.tap(appearance);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      final Finder entry = find.byKey(
-        const ValueKey('settings-wallpaper-entry'),
+      final Finder entry = find.text(
+        AppLocalizationsRu().settingsV2Advanced,
       );
       await tester.ensureVisible(entry);
       await tester.pump();
@@ -802,30 +800,31 @@ void main() {
         'list, and the link above it returns to the section', (
       WidgetTester tester,
     ) async {
-      await openWallpaperInPane(tester);
+      await openAppearanceSubpageInPane(tester);
       final Finder master = find.byKey(const ValueKey('settings-master-pane'));
       expect(master, findsOneWidget);
-      expect(find.byType(SettingsWallpaperScreen), findsOneWidget);
-      expect(find.byType(SettingsChatsScreen), findsNothing);
+      expect(find.byType(SettingsAppearanceShapeScreen), findsOneWidget);
+      expect(find.byType(SettingsAppearanceScreen), findsNothing);
       // Not the pushed page: that one would cover the list.
-      expect(find.text('wallpaper-route'), findsNothing);
+      expect(find.text('shape-route'), findsNothing);
       expect(
-        tester.getRect(find.byType(SettingsWallpaperScreen)).left,
+        tester.getRect(find.byType(SettingsAppearanceShapeScreen)).left,
         greaterThanOrEqualTo(tester.getRect(master).right),
       );
 
+      final AppLocalizations l10n = tester.element(find.byType(ProfileScreen)).l10n;
       final Finder back = find.byKey(
         const ValueKey<String>('settings-subpage-back'),
       );
       expect(
-        find.descendant(of: back, matching: find.text('Чаты')),
+        find.descendant(of: back, matching: find.text(l10n.settingsV2Appearance)),
         findsOneWidget,
       );
       await tester.tap(back);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.byType(SettingsWallpaperScreen), findsNothing);
-      expect(find.byType(SettingsChatsScreen), findsOneWidget);
+      expect(find.byType(SettingsAppearanceShapeScreen), findsNothing);
+      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -833,16 +832,14 @@ void main() {
         'the section and leaves the settings tab alone', (
       WidgetTester tester,
     ) async {
-      await openWallpaperInPane(tester);
-      final String discard = tester
-          .element(find.byType(ProfileScreen))
-          .l10n
-          .wallpaperDiscard;
-      await tester.tap(find.widgetWithText(OutlinedButton, discard));
+      await openAppearanceSubpageInPane(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('settings-subpage-back')),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.byType(SettingsWallpaperScreen), findsNothing);
-      expect(find.byType(SettingsChatsScreen), findsOneWidget);
+      expect(find.byType(SettingsAppearanceShapeScreen), findsNothing);
+      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
       expect(find.byType(ProfileScreen), findsOneWidget);
       expect(find.text('chats-tab'), findsNothing);
       expect(tester.takeException(), isNull);
@@ -850,21 +847,21 @@ void main() {
 
     testWidgets('1.5o The back key closes the opened screen before it '
         'leaves the settings', (WidgetTester tester) async {
-      await openWallpaperInPane(tester);
+      await openAppearanceSubpageInPane(tester);
       ProviderScope.containerOf(tester.element(find.byType(ProfileScreen)))
           .read(settingsKeyCommandProvider.notifier)
           .send(SettingsKeyCommand.back);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.byType(SettingsWallpaperScreen), findsNothing);
-      expect(find.byType(SettingsChatsScreen), findsOneWidget);
+      expect(find.byType(SettingsAppearanceShapeScreen), findsNothing);
+      expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
       expect(find.text('chats-tab'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('1.5p Choosing a section drops the screen opened under the '
         'previous one', (WidgetTester tester) async {
-      await openWallpaperInPane(tester);
+      await openAppearanceSubpageInPane(tester);
       final Finder account = find.byKey(
         const ValueKey('settings-destination-account'),
       );
@@ -874,7 +871,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(SettingsAccountScreen), findsOneWidget);
-      expect(find.byType(SettingsWallpaperScreen), findsNothing);
+      expect(find.byType(SettingsAppearanceShapeScreen), findsNothing);
 
       final Finder appearance = find.byKey(
         const ValueKey('settings-destination-appearance'),
@@ -886,7 +883,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       // The section itself, not the screen that was left open under it.
       expect(find.byType(SettingsAppearanceScreen), findsOneWidget);
-      expect(find.byType(SettingsWallpaperScreen), findsNothing);
+      expect(find.byType(SettingsAppearanceShapeScreen), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -904,24 +901,24 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      final Finder chats = find.byKey(
-        const ValueKey('settings-destination-chats'),
+      final Finder appearance = find.byKey(
+        const ValueKey('settings-destination-appearance'),
       );
-      await tester.ensureVisible(chats);
+      await tester.ensureVisible(appearance);
       await tester.pump();
-      await tester.tap(chats);
+      await tester.tap(appearance);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
-      final Finder entry = find.byKey(
-        const ValueKey('settings-wallpaper-entry'),
+      final Finder entry = find.text(
+        AppLocalizationsRu().settingsV2Advanced,
       );
       await tester.ensureVisible(entry);
       await tester.pump();
       await tester.tap(entry);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
-      expect(find.text('wallpaper-route'), findsOneWidget);
-      expect(find.byType(SettingsWallpaperScreen), findsNothing);
+      expect(find.text('shape-route'), findsOneWidget);
+      expect(find.byType(SettingsAppearanceShapeScreen), findsNothing);
       expect(tester.takeException(), isNull);
     });
   });

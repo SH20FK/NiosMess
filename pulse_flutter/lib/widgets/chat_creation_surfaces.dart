@@ -238,7 +238,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
                         ),
                       ),
                       Text(
-                        'Выберите формат для общения или трансляций',
+                        ctx.l10n.chatCreationFormatSubtitle,
                         style: textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                           fontSize: 12,
@@ -266,7 +266,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
               value: 'group',
               icon: Icons.groups_rounded,
               title: context.l10n.groupNewGroup,
-              subtitle: 'Чат для друзей, коллег или сообщества',
+              subtitle: ctx.l10n.chatCreationGroupSubtitle,
               iconContainerColor: scheme.primaryContainer,
               iconColor: scheme.onPrimaryContainer,
             ),
@@ -274,8 +274,8 @@ Future<String?> showCreateChatMenu(BuildContext context) {
             actionTile(
               value: 'secret',
               icon: Icons.lock_rounded,
-              title: 'Новый секретный чат',
-              subtitle: 'Сквозное E2EE-шифрование, без следов на сервере',
+              title: ctx.l10n.chatCreationSecretTitle,
+              subtitle: ctx.l10n.chatCreationSecretSubtitle,
               iconContainerColor: scheme.secondaryContainer,
               iconColor: scheme.onSecondaryContainer,
             ),
@@ -284,7 +284,7 @@ Future<String?> showCreateChatMenu(BuildContext context) {
               value: 'channel',
               icon: Icons.campaign_rounded,
               title: context.l10n.groupNewChannel,
-              subtitle: 'Канал для публикаций, новостей и контента',
+              subtitle: ctx.l10n.chatCreationChannelSubtitle,
               iconContainerColor: scheme.tertiaryContainer,
               iconColor: scheme.onTertiaryContainer,
             ),

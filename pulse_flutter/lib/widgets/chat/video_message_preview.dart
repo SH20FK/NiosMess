@@ -14,6 +14,7 @@ import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/models/settings/auto_download.dart';
 import 'package:pulse_flutter/providers/connectivity_provider.dart';
 import 'package:pulse_flutter/providers/web_socket_provider.dart';
+import 'package:pulse_flutter/widgets/media/media_hero.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 /// A muted first frame, with the same viewport/decoder budget as other media.
@@ -25,12 +26,17 @@ class VideoMessagePreview extends ConsumerStatefulWidget {
     this.mimeType,
     this.duration,
     this.name,
+    this.heroTag,
     this.onOpen,
     this.onLongPress,
     super.key,
   });
   final String url;
   final String? fileKey, mimeType, name;
+
+  /// Hero tag shared with the full-screen viewer so the first frame flies
+  /// instead of the video appearing out of nowhere.
+  final String? heroTag;
   final int? duration;
   final VoidCallback? onOpen, onLongPress;
   @override
@@ -201,71 +207,74 @@ class _VideoMessagePreviewState extends ConsumerState<VideoMessagePreview> {
         button: true,
         child: Tooltip(
           message: widget.name ?? context.l10n.videoPreview,
-          child: Material(
-            color: scheme.surfaceContainerHighest,
-            child: InkWell(
-              onTap: widget.onOpen,
-              onLongPress: widget.onLongPress,
-              child: AspectRatio(
-                aspectRatio: 16 / 10,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (ready)
-                      FittedBox(
-                        fit: BoxFit.cover,
-                        child: SizedBox(
-                          width: controller!.value.size.width,
-                          height: controller.value.size.height,
-                          child: VideoPlayer(controller),
-                        ),
-                      ),
-                    Center(
-                      child: Material(
-                        color: scheme.surfaceContainerHigh.withValues(
-                          alpha: .94,
-                        ),
-                        shape: const CircleBorder(),
-                        child: SizedBox.square(
-                          dimension: 56,
-                          child: _loading
-                              ? const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: AppLoadingIndicator(size: 24),
-                                )
-                              : Icon(
-                                  Icons.play_arrow_rounded,
-                                  size: 32,
-                                  color: scheme.onSurface,
-                                ),
-                        ),
-                      ),
-                    ),
-                    if (duration != null && duration > 0)
-                      Positioned(
-                        left: 8,
-                        top: 8,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHigh.withValues(
-                              alpha: .94,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
+          child: MediaHero(
+            tag: widget.heroTag,
+            child: Material(
+              color: scheme.surfaceContainerHighest,
+              child: InkWell(
+                onTap: widget.onOpen,
+                onLongPress: widget.onLongPress,
+                child: AspectRatio(
+                  aspectRatio: 16 / 10,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (ready)
+                        FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width: controller!.value.size.width,
+                            height: controller.value.size.height,
+                            child: VideoPlayer(controller),
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            child: Text(
-                              FileTypeDetector.formatDuration(duration),
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: scheme.onSurface),
-                            ),
+                        ),
+                      Center(
+                        child: Material(
+                          color: scheme.surfaceContainerHigh.withValues(
+                            alpha: .94,
+                          ),
+                          shape: const CircleBorder(),
+                          child: SizedBox.square(
+                            dimension: 56,
+                            child: _loading
+                                ? const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: AppLoadingIndicator(size: 24),
+                                  )
+                                : Icon(
+                                    Icons.play_arrow_rounded,
+                                    size: 32,
+                                    color: scheme.onSurface,
+                                  ),
                           ),
                         ),
                       ),
-                  ],
+                      if (duration != null && duration > 0)
+                        Positioned(
+                          left: 8,
+                          top: 8,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHigh.withValues(
+                                alpha: .94,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              child: Text(
+                                FileTypeDetector.formatDuration(duration),
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(color: scheme.onSurface),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),

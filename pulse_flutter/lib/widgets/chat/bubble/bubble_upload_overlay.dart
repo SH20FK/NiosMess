@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/models/api/upload_models.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
+import 'package:pulse_flutter/widgets/motion/m3_spring_switcher.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 class UploadProgressOverlay extends StatelessWidget {
@@ -65,203 +67,208 @@ class UploadProgressOverlay extends StatelessWidget {
           Center(
             child: Material(
               color: Colors.transparent,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (stage == UploadStage.failed) ...[
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: scheme.errorContainer.withValues(alpha: 0.92),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.refresh_rounded,
-                        color: scheme.onErrorContainer,
-                        size: 26,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withValues(
-                          alpha: 0.88,
+              child: M3SpringSwitcher(
+                type: M3SwitcherType.fadeScale,
+                duration: M3Durations.short3,
+                child: Column(
+                  key: ValueKey<UploadStage>(stage),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (stage == UploadStage.failed) ...[
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: scheme.errorContainer.withValues(alpha: 0.92),
+                          shape: BoxShape.circle,
                         ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        progressLabel,
-                        style: TextStyle(
-                          color: scheme.error,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                        child: Icon(
+                          Icons.refresh_rounded,
+                          color: scheme.onErrorContainer,
+                          size: 26,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (onRetry != null)
-                          GestureDetector(
-                            onTap: onRetry,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.primary,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'Повторить',
-                                style: TextStyle(
-                                  color: scheme.onPrimary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest.withValues(
+                            alpha: 0.88,
                           ),
-                        if (onRetry != null && onCancel != null)
-                          const SizedBox(width: 8),
-                        if (onCancel != null)
-                          GestureDetector(
-                            onTap: onCancel,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.88),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'Отменить',
-                                style: TextStyle(
-                                  color: scheme.onSurface,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ] else ...[
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withValues(
-                          alpha: 0.88,
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        shape: BoxShape.circle,
+                        child: Text(
+                          progressLabel,
+                          style: TextStyle(
+                            color: scheme.error,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                      child: Stack(
-                        alignment: Alignment.center,
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (stage == UploadStage.queued)
-                            Icon(
-                              Icons.hourglass_top_rounded,
-                              size: 22,
-                              color: scheme.primary,
-                            )
-                          else if (stage == UploadStage.processing ||
-                              stage == UploadStage.sendingMessage)
-                            SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: AppLoadingIndicator(
-                                size: 40,
-                                value: 1.0,
-                                backgroundColor: scheme.onSurface.withValues(
-                                  alpha: 0.2,
+                          if (onRetry != null)
+                            GestureDetector(
+                              onTap: onRetry,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
                                 ),
-                                color: scheme.primary,
-                              ),
-                            )
-                          else
-                            SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: AppLoadingIndicator(
-                                size: 40,
-                                value: p > 0.01 ? p : null,
-                                backgroundColor: scheme.onSurface.withValues(
-                                  alpha: 0.2,
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                color: scheme.primary,
+                                child: Text(
+                                  'Повторить',
+                                  style: TextStyle(
+                                    color: scheme.onPrimary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ),
-                          if (onCancel != null && stage != UploadStage.queued)
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                Icons.close_rounded,
-                                color: scheme.onSurface,
-                                size: 20,
-                              ),
-                              onPressed: onCancel,
-                              tooltip: 'Отменить',
-                            )
-                          else if (onCancel != null &&
-                              stage == UploadStage.queued)
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                Icons.close_rounded,
-                                color: scheme.onSurface,
-                                size: 18,
-                              ),
-                              onPressed: onCancel,
-                              tooltip: 'Отменить',
-                            )
-                          else
-                            Text(
-                              '$percent%',
-                              style: TextStyle(
-                                color: scheme.onSurface,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                          if (onRetry != null && onCancel != null)
+                            const SizedBox(width: 8),
+                          if (onCancel != null)
+                            GestureDetector(
+                              onTap: onCancel,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.88),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'Отменить',
+                                  style: TextStyle(
+                                    color: scheme.onSurface,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withValues(
-                          alpha: 0.88,
+                    ] else ...[
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest.withValues(
+                            alpha: 0.88,
+                          ),
+                          shape: BoxShape.circle,
                         ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        progressLabel,
-                        style: TextStyle(
-                          color: scheme.onSurface,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            if (stage == UploadStage.queued)
+                              Icon(
+                                Icons.hourglass_top_rounded,
+                                size: 22,
+                                color: scheme.primary,
+                              )
+                            else if (stage == UploadStage.processing ||
+                                stage == UploadStage.sendingMessage)
+                              SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: AppLoadingIndicator(
+                                  size: 40,
+                                  value: 1.0,
+                                  backgroundColor: scheme.onSurface.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  color: scheme.primary,
+                                ),
+                              )
+                            else
+                              SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: AppLoadingIndicator(
+                                  size: 40,
+                                  value: p > 0.01 ? p : null,
+                                  backgroundColor: scheme.onSurface.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  color: scheme.primary,
+                                ),
+                              ),
+                            if (onCancel != null && stage != UploadStage.queued)
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: scheme.onSurface,
+                                  size: 20,
+                                ),
+                                onPressed: onCancel,
+                                tooltip: 'Отменить',
+                              )
+                            else if (onCancel != null &&
+                                stage == UploadStage.queued)
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: scheme.onSurface,
+                                  size: 18,
+                                ),
+                                onPressed: onCancel,
+                                tooltip: 'Отменить',
+                              )
+                            else
+                              Text(
+                                '$percent%',
+                                style: TextStyle(
+                                  color: scheme.onSurface,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest.withValues(
+                            alpha: 0.88,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          progressLabel,
+                          style: TextStyle(
+                            color: scheme.onSurface,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),

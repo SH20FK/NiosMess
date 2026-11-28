@@ -18,6 +18,7 @@ import 'package:pulse_flutter/widgets/badge_chip.dart';
 import 'package:pulse_flutter/widgets/chat/moderation_bottom_sheet.dart';
 import 'package:pulse_flutter/widgets/common/app_action_menu_item.dart';
 import 'package:pulse_flutter/widgets/common/app_pill_field.dart';
+import 'package:pulse_flutter/widgets/motion/m3_reveal.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
@@ -115,12 +116,22 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                     constraints: BoxConstraints(
                       maxHeight: MediaQuery.of(ctx).size.height * 0.4,
                     ),
-                    child: users.isEmpty
-                        ? Padding(
+                    // The hint and the results cross-fade while the sheet
+                    // resizes: M3Reveal animates the height itself, so the
+                    // sheet no longer jumps between the two states.
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        M3Reveal(
+                          revealed: users.isEmpty,
+                          child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Text(context.l10n.chatMembersSearchPrompt),
-                          )
-                        : ListView.builder(
+                          ),
+                        ),
+                        M3Reveal(
+                          revealed: users.isNotEmpty,
+                          child: ListView.builder(
                             shrinkWrap: true,
                             itemCount: users.length,
                             itemBuilder: (BuildContext ctx, int index) {
@@ -155,6 +166,9 @@ class _ChatMembersScreenState extends ConsumerState<ChatMembersScreen> {
                               );
                             },
                           ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

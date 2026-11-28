@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/gestures.dart' show PointerEnterEvent, PointerExitEvent;
 import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
@@ -108,6 +109,7 @@ class TouchContainer extends StatefulWidget {
 class _TouchContainerState extends State<TouchContainer> {
   Timer? _pressTimer;
   bool _isPressed = false;
+  bool _isHovered = false;
 
   bool get _isInteractive =>
       widget.enabled &&
@@ -169,7 +171,7 @@ class _TouchContainerState extends State<TouchContainer> {
         widget.stateLayerColor ??
         Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
 
-    final Widget container = AnimatedContainer(
+    Widget container = AnimatedContainer(
       width: widget.width,
       height: widget.height,
       padding: widget.padding,
@@ -177,10 +179,10 @@ class _TouchContainerState extends State<TouchContainer> {
       // Colour and state layer ride effects curves: no overshoot.
       duration: reduceMotion
           ? Duration.zero
-          : _isPressed
+          : (_isPressed || _isHovered)
           ? M3Durations.effectsFast
           : M3Durations.effectsDefault,
-      curve: _isPressed
+      curve: (_isPressed || _isHovered)
           ? M3SpringCurves.effectsFast
           : M3SpringCurves.effectsDefault,
       decoration: BoxDecoration(
@@ -189,9 +191,11 @@ class _TouchContainerState extends State<TouchContainer> {
         border: widget.border,
         boxShadow: widget.boxShadow,
       ),
-      // Foreground (not background) so the 8% press layer reads on top of the
-      // tile/button fill exactly like an M3 InkWell highlight — without blur.
-      foregroundDecoration: widget.stateLayer && _isPressed
+      // Foreground (not background) so the 8% press/hover layer reads on top of
+      // the tile/button fill exactly like an M3 InkWell highlight — without blur.
+      foregroundDecoration: widget.stateLayer &&
+              widget.enabled &&
+              (_isPressed || _isHovered)
           ? BoxDecoration(color: stateLayerColor, borderRadius: effectiveRadius)
           : null,
       clipBehavior: widget.clipBehavior,
@@ -201,6 +205,22 @@ class _TouchContainerState extends State<TouchContainer> {
     if (!_isInteractive) {
       return container;
     }
+
+    // Pointer hover: Windows and Web had no M3 state layer on 25 call sites.
+    // Only enter/exit flip state, so moving the mouse inside a tile is free.
+    container = MouseRegion(
+      onEnter: (PointerEnterEvent _) {
+        if (widget.stateLayer && widget.enabled && !_isHovered) {
+          setState(() => _isHovered = true);
+        }
+      },
+      onExit: (PointerExitEvent _) {
+        if (_isHovered) {
+          setState(() => _isHovered = false);
+        }
+      },
+      child: container,
+    );
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,

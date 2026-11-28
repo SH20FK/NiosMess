@@ -37,8 +37,6 @@ import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/bot_detector.dart';
 import 'package:pulse_flutter/core/utils/file_type_detector.dart';
 import 'package:pulse_flutter/core/theme/nios_chroma.dart';
-import 'package:pulse_flutter/providers/chat_wallpaper_provider.dart';
-import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart'
@@ -81,7 +79,6 @@ import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
 import 'package:pulse_flutter/widgets/pulse_skeleton.dart';
 import 'package:pulse_flutter/core/services/desktop_window_service.dart';
 import 'package:pulse_flutter/core/utils/screen_security_service.dart';
-import 'package:pulse_flutter/widgets/chat/chat_state_surface.dart';
 import 'package:pulse_flutter/core/services/push_notification_service.dart';
 import 'package:pulse_flutter/core/network/api_constants.dart';
 import 'package:pulse_flutter/core/network/ws_media_fetcher.dart';
@@ -492,6 +489,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         AppToast.showError(context, error);
       },
       vsync: this,
+      reduceMotion: context.reduceMotion,
     );
 
     try {
@@ -2377,17 +2375,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     }
 
     final ColorScheme baseScheme = Theme.of(context).colorScheme;
-    final bool hasCustomWallpaper = ref.watch(
-      chatWallpaperProvider.select((s) {
-        final cw = s.forChat(chatId.toString());
-        return cw != s.global || cw.imagePath != null;
-      }),
-    );
 
     final bool isDirect = chatType == 'direct';
-    final ColorScheme scheme =
-        (isDirect &&
-            NiosChroma.shouldApply(hasCustomWallpaper: hasCustomWallpaper))
+    final ColorScheme scheme = (isDirect && NiosChroma.shouldApply())
         ? NiosChroma.resolveChromaScheme(
             userScheme: baseScheme,
             partnerId: chatName.isNotEmpty ? chatName : chatId.toString(),
@@ -2484,9 +2474,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
               body: DesktopDragDropArea(
                 onFilesDropped: _uploadDesktopFiles,
                 child: ChatViewport(
-                  wallpaper: ChatWallpaperBackground(
-                    chatId: widget.chatId.toString(),
-                  ),
                   topBanner: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

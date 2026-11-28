@@ -1,0 +1,410 @@
+{
+  "area": "m3e",
+  "items": [
+    {
+      "rule": "M3E-1",
+      "file": "lib/core/theme/app_theme.dart",
+      "line": 227,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Ключевой пункт плана подтверждён: IconButtonThemeData действительно принимает variant, StyleVariant.material3Expressive существует, и IconButton реально читает IconButtonTheme.variantOf (icon_button.dart:789) и переключает дефолты на *DefaultsM3E (1146-1181), т.е. одна строка рабочая. Цена: глобально меняет все 128 IconButton (M3E: minimumSize 40x40, shape StadiumBorder вместо M3-круга 48), поэтому после включения нужна визуальная проверка дока звонка/композера/шитов; при этом фраза в why «проектный AGENTS.md прямо называет это ожидаемым способом» неверна — AGENTS.md:114 утверждает обратное (SDK даёт только M3 baseline), StyleVariant там не упомянут.",
+      "api_checked": "IconButtonThemeData({this.style, this.variant}) — material_ui-1.11.1/lib/src/icon_button_theme.dart:43; final StyleVariant? variant — :76; enum StyleVariant {material3, material3Expressive} — lib/src/theme_data.dart:200-214; потребление — lib/src/icon_button.dart:789 (IconButtonTheme.variantOf), :1146-1181 (switch на _FilledTonalIconButtonDefaultsM3E и др.); экспорт — lib/material_ui.dart:104,198"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/widgets/calls/call_control_dock.dart",
+      "line": 215,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: в доке звонка стоит PopupMenuButton (215-229) с шестью сырыми PopupMenuItem и русскими литералами — правило 4 запрещает его без исключений. Замена локальна (один виджет), но это единственный путь к реакциям в звонке, поэтому нарушение видно при каждом звонке.",
+      "api_checked": "MenuAnchor — material_ui-1.11.1/lib/src/menu_anchor.dart:263,267; MenuItemButton — :995,999; оба экспортированы (lib/material_ui.dart:127); AppModal — lib/core/modal/app_modal.dart"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/features/chats/presentation/create_group_members_screen.dart",
+      "line": 404,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Самодельный чекбокс подтверждён (404-423: AnimatedContainer 26x26, BoxShape.circle, иконка check), а ListTile в :381 имеет только onTap — ни selected:, ни Semantics(checked:), поэтому выбранность не объявляется скринридеру (правило 6). Цена — одна строка списка, M3SelectionMotion оборачивает её без перестроения всего списка кандидатов.",
+      "api_checked": "Checkbox(value:, onChanged:) — material_ui-1.11.1/lib/src/checkbox.dart (экспорт lib/material_ui.dart:54); M3SelectionMotion({required selected, required child}) — lib/widgets/motion/m3_selection_motion.dart:13-18"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 355,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Литералы подтверждены: Colors.white:356, Colors.black54:335, Colors.black:394, Shadow(blurRadius: 4):357 (правила 7 и 3). Экран принудительно тёмный (CallTokens.darkSurface:508, dark-схема и dark-textTheme:468-480), поэтому замена на scheme.onSurface/scrim + тональный пилл не конфликтует с правилом «beautiful dark call UI» и не меняет контраст в тёмной теме.",
+      "api_checked": "ColorScheme.onSurface/scrim/surfaceContainer* — material_ui ThemeData.colorScheme; AppSurfaces — lib/core/theme/app_surfaces.dart; локальная dark-схема — active_video_call_screen.dart:466-480"
+    },
+    {
+      "rule": "M3E-3",
+      "file": "lib/core/modal/m3_modal_surface.dart",
+      "line": 118,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: единая поверхность всех шитов/диалогов — Material(shape: RoundedRectangleBorder) с радиусом из const AppRadii.xlRadius / Radius.circular(AppRadii.xl) (:52-62), т.е. пользовательский uiCornerRadius до модалок не доходит, хотя AppRadiiTheme уже зарегистрирован в теме (app_theme.dart:70-71). Риск адресный: меняется форма всех модалок сразу (в проекте уже 48 RoundedSuperellipseBorder), поэтому нужен один визуальный прогон шитов.",
+      "api_checked": "AppRadii.of(context) — lib/core/theme/expressive_tokens.dart:59; AppRadiiTheme.lgSuperellipse/xlSuperellipse — :146-149; AppRadii.superellipse(radius) — :38-46; RoundedSuperellipseBorder — ShapeBorder из Flutter SDK (ссылка в material_ui lib/src/input_border.dart:610), используется в app_theme.dart:212,223"
+    },
+    {
+      "rule": "M3E-3",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 813,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: _StageBadge берёт Theme.of(context).textTheme.labelSmall (:815), тогда как бейджи строятся под локальной тёмной схемой/текст-темой (:468-480) и экран не обёрнут в Theme с brightness.dark — в светлой теме приложения подпись получает тёмный onSurface на dark-плашке surfaceContainerHigh@0.85. Соседний _NoVideoPlaceholder получает textTheme параметром, значит фикс односторонний и дешёвый.",
+      "api_checked": "Theme.of(context).textTheme — material_ui ThemeData; ThemeData(brightness: dark).textTheme — active_video_call_screen.dart:474-477; параметры _StageBadge — :791-800"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/screens/media_viewer_screen.dart",
+      "line": 392,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: видео-страница строится как _InlineVideoPlayer без Hero (:393-398), хотя heroTag выставляется и для видео (chat_detail_screen.dart:1918 — chatMediaHeroTag для img и vid), а изображение уже обёрнуто MediaHero (message_bubble.dart:1010). Цена: один Hero на страницу, перестраивается только на push/pop; flightShuttleBuilder держит превью, пока грузится полноразмер, reduceMotion учтён внутри блока.",
+      "api_checked": "MediaHero({required String? tag, required Widget child}) — lib/widgets/media/media_hero.dart:8-12; reduceMotion-гейт — :16; chatMediaHeroTag — :5; вызов в пузыре — lib/widgets/message_bubble.dart:1010"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/widgets/message_bubble.dart",
+      "line": 421,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: основной жест бабла — голый InkWell (:421-439), отклик только haptic на long-press, press-scale нет; M3PressScale существует и уже используется с onHighlightChanged-паттерном в app_nav_item.dart:239,302-304. Цена чуть выше заявленной: MessageBubble — ConsumerWidget (:63), поэтому нужен локальный Stateful-враппер с _pressed, но перестраивается один бабл, не список.",
+      "api_checked": "M3PressScale({required bool pressed, required Widget child, double scale, Curve? releaseCurve}) — lib/widgets/motion/m3_press_scale.dart:11-26; reduceMotion внутри — :30-37; образец использования — lib/widgets/nav/app_nav_item.dart:239"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/widgets/common/touch_container.dart",
+      "line": 194,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: foregroundDecoration зависит только от _isPressed (:110,194-196), MouseRegion/onHover в файле нет (0 вхождений), а AnimatedContainer уже анимирует смену decoration на M3SpringCurves.effectsFast/Default с reduceMotion-гейтом (:167-185). Правка внутри одного State даёт hover всем 29 вызовам и не ломает reduced motion (при нём duration уже Duration.zero).",
+      "api_checked": "MouseRegion(onEnter/onExit) — flutter/widgets; AnimatedContainer + M3SpringCurves.effectsFast/effectsDefault — lib/core/motion/m3_spring_constants.dart:153-161; M3Durations.effectsFast/Default — :209-211"
+    },
+    {
+      "rule": "MOTION-2",
+      "file": "lib/widgets/settings/ordinary_e2ee_settings.dart",
+      "line": 701,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: ручной AnimatedSize + KeyedSubtree, только высота, без fade (:701-710) — при том что M3Reveal(expandY) делает то же с нормализованной пружиной и fade, сам держит контроллер, reduceMotion и TickerMode (:72-96,130-134) и уже применён в 4 других местах настроек. Цена — только раскрываемая секция, перестроение не выходит за её границы.",
+      "api_checked": "M3Reveal({required bool revealed, required Widget child, M3RevealType type, Duration duration, Curve curve, Alignment alignment}) — lib/widgets/motion/m3_reveal.dart:21-30; enum M3RevealType.expandY/fadeScale/fade — :6-15"
+    },
+    {
+      "rule": "MOTION-2",
+      "file": "lib/core/illustration/app_illustration.dart",
+      "line": 113,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Копия M3Entrance подтверждена: свой AnimationController в initState (:101-104, M3Durations.medium2), scale 0.94 на expressiveDecel (:106-111), альфа на Curves.easeOut (:113-118) — то есть fade вне M3-токенов, что и для правила anti-jank (overshoot на FadeTransition). M3Entrance(scaleFrom:) делает то же и уже гейтит reduceMotion; единственная цена замены — его длительность spatialDefault (500 ms) против medium2 (300 ms) сейчас.",
+      "api_checked": "M3Entrance({required Widget child, Duration delay, double scaleFrom, double offsetY}) — lib/widgets/motion/m3_entrance.dart:11-17; длительность total=delay+M3Durations.spatialDefault — :44; extension .entrance(scaleFrom:) — :103-114; reduceMotion — :66-67"
+    },
+    {
+      "rule": "MOTION-4",
+      "file": "lib/core/motion/smooth_text_streamer.dart",
+      "line": 10,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: ни конструктор (:10-19), ни _advance() (:140-183) не читают reduceMotion, и вызов из chat_detail_screen.dart:464-494 тоже без гейта — при «убрать анимацию» посимвольная печать продолжается. Фикс локальный (поле reduceMotion + сразу _target), не трогает состояние экрана и не влияет на другие блоки.",
+      "api_checked": "extension M3ReduceMotion on BuildContext { bool get reduceMotion; Duration motionDuration(Duration) } — lib/core/motion/m3_motion.dart:51-56; образец гейта — m3_press_scale.dart:30, m3_reveal.dart:130, m3_spring_switcher.dart:234"
+    },
+    {
+      "rule": "MOTION-2",
+      "file": "lib/screens/settings_about_screen.dart",
+      "line": 462,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "no such API: у M3SpringSwitcher нет ни direction, ни travel — M3SwitcherType содержит только fadeScale/fadeSlideY/fadeSlideX/fade/scale с фиксированным знаком и смещением 0.12 от размера child (m3_spring_switcher.dart:109-121), а _TabTravelTransition едет на travel dp вверх/вниз по знаку (:462-487). «Свернуть в M3SpringSwitcher» без нового параметра direction невозможно — правило «называть точный существующий API» не выполнено.",
+      "api_checked": "M3SpringSwitcher({required Widget? child, M3SwitcherType type, Duration duration, Curve switchInCurve, Curve switchOutCurve, AnimatedSwitcherLayoutBuilder layoutBuilder}) + enum M3SwitcherType — lib/widgets/motion/m3_spring_switcher.dart:6-42; направление/амплитуда в _TabTravelTransition — lib/screens/settings_about_screen.dart:469-483"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/screens/calls/outgoing_call_screen.dart",
+      "line": 199,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "no such API: CallAudioRipple требует animation: Animation<double> и scheme (call_audio_ripple.dart:6-13) — сигнатуры «isActive: !_errorMessage» без анимации не существует, а экран объявлен как ConsumerStatefulWidget без TickerProvider (:36), т.е. нужен новый контроллер. Плюс блок фиксирует size*2.5 (при avatarLargeSize=128 это 320 dp вокруг 128 dp аватара) — это не подключение готового блока, а новый виджет; заявленная «одна обёртка» неверна.",
+      "api_checked": "CallAudioRipple({required Animation<double> animation, required ColorScheme scheme, required bool isActive, required Widget child, double size}) — lib/widgets/calls/call_audio_ripple.dart:5-13; avatarLargeSize = 128.0 — lib/core/call_design_tokens.dart:17; класс экрана — lib/screens/calls/outgoing_call_screen.dart:36"
+    },
+    {
+      "rule": "M3E-3",
+      "file": "lib/widgets/chat/chat_detail_fab.dart",
+      "line": 40,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "no such API: у M3AnimatedBadge нет child — он сам рисует pill (count/label/minSize/textStyle) и в инбоксе используется как элемент Row (chat_list_screen.dart:422-427), поэтому «M3AnimatedBadge(count:) вокруг FloatingActionButton.small» невозможен без Stack/Positioned и правки блока. Живая часть находки (литералы fontSize 11/w700 и BorderRadius.circular(16) вместо textTheme.labelSmall) уже покрыта отдельным пунктом M3E-3 lib/widgets/motion/m3_animated_badge.dart:172 — здесь это дубль с невалидным патчем.",
+      "api_checked": "M3AnimatedBadge({int? count, String? label, Color? backgroundColor, Color? textColor, TextStyle? textStyle, EdgeInsetsGeometry padding, double minSize, ...}) — lib/widgets/motion/m3_animated_badge.dart:10-21; использование без child — lib/screens/chat_list_screen.dart:422-427"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/screens/chat_members_screen.dart",
+      "line": 118,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "Патч не лечит заявленный симптом: M3SpringSwitcher — это AnimatedSwitcher с layoutBuilder = AnimatedSwitcher.defaultLayoutBuilder (Stack), высоту он не анимирует (m3_spring_switcher.dart:41,240-248), а ConstrainedBox(maxHeight: 40%) в :114-117 меняет высоту по контенту (shrinkWrap ListView). Для «шит дёргается при смене высоты» нужен M3Reveal/AnimatedSize, а не свитчер, поэтому находка с этим API отклонена (сам факт мгновенной подмены подсказки ↔ списка верен).",
+      "api_checked": "M3SpringSwitcher.layoutBuilder по умолчанию AnimatedSwitcher.defaultLayoutBuilder — lib/widgets/motion/m3_spring_switcher.dart:41,240-248; M3Reveal(revealed:) — lib/widgets/motion/m3_reveal.dart:21-30; ConstrainedBox maxHeight 40% + shrinkWrap — lib/screens/chat_members_screen.dart:114-124"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/features/chats/presentation/create_channel_screen.dart",
+      "line": 96,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Комментарий «Squircle M3E» и форма подтверждены: 64x64 с BorderRadius.circular(AppRadii.lg)=16 (97-103), т.е. обычный rounded rect вместо сквиркла (правило 5). AppRadii.lgSuperellipse() существует и уже применён в empty_state_widget.dart:59-61; цена — один контейнер, риск нулевой (статические 64 dp).",
+      "api_checked": "AppRadii.lgSuperellipse() — lib/core/theme/expressive_tokens.dart:53-54; образец ShapeDecoration(color:, shape:) — lib/widgets/empty_state_widget.dart:55-61"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/widgets/chat/chat_empty_state.dart",
+      "line": 151,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: 58x58 с BorderRadius.circular(18) (:151-157) и второй 52x52 radius 16 (:234-240) — обычные rounded rect, тогда как в том же чате e2ee_status_card.dart:91 использует RoundedSuperellipseBorder(22). Правило 5 применимо (акцентная плашка под иконку); правка локальна, меняются две декорации.",
+      "api_checked": "RoundedSuperellipseBorder(borderRadius:) — Flutter SDK ShapeBorder, используется в lib/widgets/chat/e2ee_status_card.dart:91; AppRadii.lgSuperellipse() — expressive_tokens.dart:53"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/core/theme/app_theme.dart",
+      "line": 94,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: OutlinedButton — RoundedSuperellipseBorder(circular(uiCornerRadius)) (:94-99), FilledButton/TextButton — AppShape.controlBorder() = superellipse 12 (:88, :109), FAB — литерал 16 (:119-121). В одной строке действий Outlined 20 и Filled 12 дают разные сквирклы, и ползунок скругления двигает только часть контролов; AppRadii/AppShape уже импортированы, риск — смена формы всех OutlinedButton (нужен визуальный прогон).",
+      "api_checked": "AppShape.controlBorder() — lib/core/theme/expressive_tokens.dart:88-89; AppRadii.superellipse(radius) — :38-46; AppRadiiTheme.fromCornerRadius — :113"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/screens/group_profile_screen.dart",
+      "line": 182,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "BoxShadow подтверждены во всех названных файлах: group_profile_screen:182-188 (blur 16, alpha .06), native_file_viewer_screen:1409-1415 (blur 24, alpha .15) и :1494-1500 (primary@0.3, blur 16, spread 2), create_chat_screen:55-61 (blur 36, alpha .22) — правило 3 требует глубину через surfaceContainer*. Замена на тональную поверхность/обводку локальна, но в create_chat_screen это единственный акцент экрана — проверять тёмную тему (там тень невидима).",
+      "api_checked": "Правило 3 (AGENTS.md:128-129) — tonal surfaces; ColorScheme.surfaceContainerHigh/outlineVariant — material_ui ThemeData; сохранение композиции — BoxDecoration(border:, color:)"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/widgets/chat/inline_query_overlay.dart",
+      "line": 42,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "reason": "Основное подтверждено: Material(elevation: 4, shadowColor: scheme.shadow@0.15) при уже тональном surfaceContainerHigh (:42-46) — тень дублирует глубину (правило 3), внутри скроллящийся список с maxHeight 260. Но вторичный аргумент «Clip.antiAlias = saveLayer на каждую перерисовку» переоценён: это не тайл списка, клип нужен для скругления; и угол 16 — литерал, хотя AppShape.media = 16.",
+      "api_checked": "Material(elevation:, shadowColor:, borderRadius:, clipBehavior:) — material_ui; AppShape.media — expressive_tokens.dart:80; Clip.antiAlias — flutter/widgets"
+    },
+    {
+      "rule": "M3E-3",
+      "file": "lib/widgets/chat/bubble/bubble_upload_overlay.dart",
+      "line": 92,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "Радиусы-литералы подтверждены в бабле: 10 (:95, :252) и 12 (:120, :145), тогда как AppRadii даёт 8/12/16 и AppShape.media = 16. 12 совпадает с AppRadii.md, 10 вне шкалы; правка — AppRadii.sm/md, риск нулевой (только decoration).",
+      "api_checked": "AppRadii.xs/sm/md/lg + xsRadius..lgRadius — lib/core/theme/expressive_tokens.dart:11-34; AppShape.media — :80"
+    },
+    {
+      "rule": "M3E-3",
+      "file": "lib/widgets/chat/chat_filter_bar.dart",
+      "line": 598,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "Подтверждено: бейдж счётчика — Container height 20, BorderRadius.circular(10), тон не зависит от selected (:593-601). M3AnimatedBadge(count:) существует и рисует pill (StadiumBorder, minSize), и здесь подходит без child, т.к. бейдж автономный — в отличие от chat_detail_fab, где child обязателен.",
+      "api_checked": "M3AnimatedBadge({int? count, double minSize, ...}) — lib/widgets/motion/m3_animated_badge.dart:10-21; StadiumBorder в ShapeDecoration — :166-169"
+    },
+    {
+      "rule": "M3E-3",
+      "file": "lib/core/theme/markdown_theme.dart",
+      "line": 56,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "Литералы подтверждены: blockquote radius 3 (:58), codeblock 2.0 (:66), horizontal rule width 5.0 (:70) при AppRadii.sm=8 и divider 1 dp. Правка — три числа на токены, риск нулевой (статические декорации, не влияют на layout).",
+      "api_checked": "AppRadii.smRadius — expressive_tokens.dart:31; DividerTheme/theme.dividerColor — material_ui ThemeData (используется рядом, :51, :70)"
+    },
+    {
+      "rule": "M3E-3",
+      "file": "lib/features/settings/presentation/settings_row.dart",
+      "line": 70,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "reason": "Литерал 16 подтверждён (:66-71), но он совпадает с AppRadii.lg по умолчанию (16.0), поэтому расхождение видно только при uiCornerRadius != 20 (AppRadiiTheme.fromCornerRadius). Это обход темы, но не текущий визуальный дефект; Colors.transparent правилами не запрещён (запрещены только white/black), так что и эта часть why неверна.",
+      "api_checked": "AppRadii.of(context) — expressive_tokens.dart:59; AppRadii.lg = 16.0 — :20; AppRadiiTheme.fromCornerRadius — :113-123"
+    },
+    {
+      "rule": "M3E-3",
+      "file": "lib/widgets/motion/m3_animated_badge.dart",
+      "line": 172,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "Подтверждено: textStyle ?? TextStyle(fontSize: 11, w700, height 1.0) (:173-179), хотя badgeTheme в теме задаёт textTheme.labelSmall (app_theme.dart:353-357). textTheme доступен рядом (Theme.of(context) уже читается в :156) — правка в одну строку и не трогает анимацию/состояние бейджа.",
+      "api_checked": "BadgeThemeData(textStyle:) — material_ui (app_theme.dart:353); M3AnimatedBadge.textStyle — m3_animated_badge.dart:16,36"
+    },
+    {
+      "rule": "M3E-3",
+      "file": "lib/widgets/chat/bubble/bubble_footer.dart",
+      "line": 92,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "Механизм неверен: fontSize не «выходит из textScaler» — любой Text масштабируется через MediaQuery.textScaler независимо от того, задан размер ролью или числом. Реальная проблема только в расхождении с labelSmall (11/16, w500) и в двух размерах 11/10 в одном футере, т.е. это M3E-3 про токен, а не про доступность; заявленная severity не подтверждается.",
+      "api_checked": "Text/MediaQuery.textScalerOf — flutter/widgets (масштабирует любой fontSize); textTheme.labelSmall — material_ui TextTheme; типографика проекта — lib/core/theme/app_typography.dart"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/core/theme/app_colors.dart",
+      "line": 8,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "Механизм неверен: statusDanger (#E53935) не используется нигде в lib/ — одно вхождение, само объявление (:11). Значит «два разных красных в одном экране» и «рядом FilledButton с scheme.error» невозможны: это мёртвая константа (MESS-1), а не живой обход ColorScheme. statusOnline тоже не обязан совпадать со scheme — в M3 нет роли success; максимум это statusDanger следует удалить.",
+      "api_checked": "grep statusDanger по lib/ — 1 вхождение (объявление); ColorScheme.error/errorContainer — material_ui; ModalTone.error использует scheme.errorContainer — m3_modal_surface.dart:35-37"
+    },
+    {
+      "rule": "M3E-1",
+      "file": "lib/screens/legal_viewer_screen.dart",
+      "line": 269,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "no such API: предложено `IconButtonTheme.variantOf(StyleVariant.material3Expressive, ...)` в app_theme, но variantOf — статический метод `static StyleVariant variantOf(BuildContext)`, который возвращает вариант, а не конструктор темы; такой код не соберётся. Правильная форма — IconButtonThemeData(variant:) внутри ThemeData (уже подтверждена пунктом app_theme:227), сам факт «IconButton без M3E» верен и покрыт корневой находкой.",
+      "api_checked": "static StyleVariant variantOf(BuildContext context) — material_ui-1.11.1/lib/src/icon_button_theme.dart:161-181; конструктор только IconButtonThemeData({style, variant}) — :43"
+    },
+    {
+      "rule": "M3E-2",
+      "file": "lib/widgets/media/m3_video_controls.dart",
+      "line": 227,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "Правило процитировано неверно: AGENTS.md:142 запрещает только Colors.white/Colors.black, а Colors.transparent разрешён — нарушения M3E-2 нет. Патч `overlayColor:` у InkWell существует (ink_well.dart:332), но NoSplash + прозрачный highlight на полноэкранной поверхности видео — осознанный выбор, чтобы ripple не перекрывал кадр; это UX-предложение (TouchContainer/M3PressScale), а не дефект правила.",
+      "api_checked": "InkWell(overlayColor:, splashFactory:, highlightColor:) — material_ui-1.11.1/lib/src/ink_well.dart:332,1586; NoSplash.splashFactory — material_ui"
+    },
+    {
+      "rule": "M3E-1",
+      "file": "lib/widgets/calls/call_control_dock.dart",
+      "line": 68,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "Дубль корневой находки app_theme:227: variant в IconButtonThemeData уже включает M3E для всех IconButton, включая этот IconButton.filledTonal. Локальная обёртка дока даст 1 из 128 кнопок в M3E и оставит рассинхрон с самодельными _CallDockButton — то есть патч работает против собственной цели (единый внешний слой темы).",
+      "api_checked": "IconButtonThemeData(variant:) / IconButtonTheme.variantOf — icon_button_theme.dart:43,161; M3E-дефолты filledTonal — icon_button.dart:1161"
+    },
+    {
+      "rule": "M3E-1",
+      "file": "lib/widgets/chat/chat_list_header.dart",
+      "line": 126,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "Дубль: тот же корень, что app_theme:227 (0 вхождений StyleVariant, 128 IconButton) — после включения variant в теме шапка, режим, пикеры и композер уже получают M3E. Факт верен, но отдельного пункта не даёт: правка одна и уже описана в корневой находке.",
+      "api_checked": "IconButtonThemeData(variant:) — icon_button_theme.dart:43; StyleVariant.material3Expressive — theme_data.dart:213; grep StyleVariant по lib/ — 0"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 390,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: _buildStage возвращает три разных корня — spotlight (:390-410), GridView.count(childAspectRatio 3/4, :413-435) и одиночное видео (:438+), переключение одним кадром. M3SpringSwitcher(fade) существует и сам гейтит reduceMotion; состояние уже в State экрана, переносить нечего. Риск выше обещанного: AnimatedSwitcher держит обе ветки 300 мс, т.е. два RTCVideoView (и до 9 плиток) одновременно — нужно убедиться, что плагин допускает два view на один рендерер, и ключ ветки обязателен.",
+      "api_checked": "M3SpringSwitcher({required child, type, duration}) + reduceMotion-гейт — lib/widgets/motion/m3_spring_switcher.dart:32-42,234-238; M3SwitcherType.fade — :17; источник ветвей — active_video_call_screen.dart:205-212,278,518"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/widgets/chat/bubble/bubble_upload_overlay.dart",
+      "line": 159,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: при stage==failed весь блок заменяется карточкой с «Повторить/Отменить» (:100-158), иначе рисуется 48x48 со спиннером (:160-241) — переход uploading->failed скачком. M3SpringSwitcher/AnimatedSwitcher с ValueKey(stage) существует; UploadProgressOverlay — StatelessWidget со stage из провайдера (:6-32), состояние переезжать не должно, цена — ~10 детей внутри одного бабла. Уточнение: верхнеуровневых ветвей две (failed / остальные), «пять состояний» — это вложенные иконки.",
+      "api_checked": "M3SpringSwitcher({required Widget? child, M3SwitcherType type, Duration duration}) — m3_spring_switcher.dart:32-42; UploadStage — lib/models/api/upload_models.dart; Stateless-контракт — bubble_upload_overlay.dart:6-32"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/widgets/contacts/call_log_view.dart",
+      "line": 174,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "Подтверждено: FilterChip.onSelected -> setState(_filter) (:170-175), ниже список подменяется одним кадром. M3SpringSwitcher(fade) существует; риск — обе ветки-скролла живут 300 мс (Stack в defaultLayoutBuilder), позиция скролла сбрасывается, поэтому ключ по фильтру обязателен; перестраивается только видимая часть списка.",
+      "api_checked": "M3SpringSwitcher(type: M3SwitcherType.fade, child) — m3_spring_switcher.dart:17,32-45; layoutBuilder по умолчанию — :41"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/widgets/contacts/online_presence_radar.dart",
+      "line": 212,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "Подтверждено: InkWell без state layer/press-scale и без customBorder (:212-230), отклик только haptic. M3PressScale(pressed:) существует, но родитель — ConsumerWidget с ref, поэтому нужен локальный Stateful-элемент плитки (или ValueNotifier): иначе setState перестроит весь радар. Перестраивается одна плитка, что соответствует обещанию.",
+      "api_checked": "M3PressScale({required bool pressed, required Widget child, double scale, Curve? releaseCurve}) — lib/widgets/motion/m3_press_scale.dart:11-26; образец с onHighlightChanged — app_nav_item.dart:239,302-304"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/widgets/chat/interactive_message_card.dart",
+      "line": 737,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: Tween(begin: percentage, end: percentage) — нулевая анимация (:737-739), второй бар стартует от 0 на каждом rebuild (:849-851). Патч Tween<double>(end: percentage) рабочий: begin==null допустим (так уже сделано в M3SelectionMotion:28), reduceMotion уже учтён в duration (:649-651), так что цена — только пересборка бара.",
+      "api_checked": "TweenAnimationBuilder tween.begin==null — flutter/widgets (поддержано в проекте: lib/widgets/motion/m3_selection_motion.dart:27-31); duration из context.reduceMotion — :649"
+    },
+    {
+      "rule": "MOTION-2",
+      "file": "lib/widgets/chat/chat_input_bar.dart",
+      "line": 1326,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "reason": "Подтверждено только одно из четырёх мест: _iconSwapTransition (:1326-1337, scale 0.6, expressiveDecel/spatialFast) действительно копия M3SwitcherType.scale. Остальные три — AnimatedSwitcher с scale от 0.85 (:827-829) и 0.8 (:1060-1062), а у M3SpringSwitcher старт scale зашит (0.88/0.6) и параметра scaleFrom нет — миграция изменит амплитуду «поп», т.е. это не drop-in. Корректный вывод: дубль один, остальным нужен блок с параметром scaleFrom.",
+      "api_checked": "M3SpringSwitcher scale-тип: зашитые 0.88 (fadeScale) и 0.6 (scale), параметра scaleFrom нет — m3_spring_switcher.dart:96-150,33-42; вызовы — chat_input_bar.dart:810-834,1049-1066,1326,1342"
+    },
+    {
+      "rule": "MOTION-2",
+      "file": "lib/screens/profile_screen.dart",
+      "line": 657,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "Подтверждено: AnimatedSwitcher с medium1/short3 и expressiveDecel/Accel + FadeTransition/SlideTransition + layoutBuilder с ExcludeFocus/IgnorePointer (:662-693) — воспроизводит M3SpringSwitcher. Поправка к патчу: layoutBuilder уже параметр M3SpringSwitcher (:41,63), «добавлять параметр» не нужно — достаточно передать существующий; замена не пиксель-в-пиксель (0.12 от child против 0.015), это надо решить явно.",
+      "api_checked": "M3SpringSwitcher.layoutBuilder (AnimatedSwitcherLayoutBuilder) — m3_spring_switcher.dart:41,63,246; switchIn/OutCurve — :39-40; reduceMotion — :234"
+    },
+    {
+      "rule": "MOTION-2",
+      "file": "lib/widgets/chat/chat_empty_state.dart",
+      "line": 131,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "Подтверждено: TweenAnimationBuilder -> Opacity + Transform.scale(0.98->1.0), reduceMotion учтён (:130-143). M3Entrance(scaleFrom: 0.98) делает то же и читает reduceMotion в didChangeDependencies; цена — duration станет spatialDefault (500 мс) вместо short4 (200 мс), а утверждение «без saveLayer от Opacity» неточно: FadeTransition тоже рисует слой прозрачности, выигрыш в отсутствии пересборки и едином гейте.",
+      "api_checked": "M3Entrance({required child, Duration delay, double scaleFrom, double offsetY}) — m3_entrance.dart:11-17; extension .entrance(scaleFrom:) — :103-114; длительность — :44"
+    },
+    {
+      "rule": "MOTION-4",
+      "file": "lib/features/chats/presentation/create_group_members_screen.dart",
+      "line": 93,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Подтверждено: AnimatedSize(M3Durations.medium1, curve: Curves.fastOutSlowIn) без reduceMotion (:93-95); в файле 0 вхождений reduceMotion. Новых классов не нужно: context.reduceMotion -> Duration.zero (так уже сделано в соседнем AnimatedContainer :404-405) и M3SpringCurves вместо fastOutSlowIn; иначе при «убрать анимацию» полоса выбранных на 250 мс сдвигает список под пальцем.",
+      "api_checked": "context.reduceMotion — lib/core/motion/m3_motion.dart:51-56; M3Durations.medium1/spatialFast — m3_spring_constants.dart:193,206; M3SpringCurves.spatialFast — :129"
+    },
+    {
+      "rule": "MOTION-4",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 836,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "reason": "Подтверждено: _CallControlsFade — StatelessWidget с FadeTransition/IgnorePointer (:823-841), а контроллер и 4-секундный таймер живут в State (:37-38,75-83,141-163) с ручными ветками reduceMotion; M3Reveal(revealed:, type: fade) существует и сам гейтит reduceMotion/TickerMode. Замена убирает _controlsFadeController и четыре ручных ветки, перестраивается только док.",
+      "api_checked": "M3Reveal({required bool revealed, required Widget child, M3RevealType type}) — lib/widgets/motion/m3_reveal.dart:21-30; reduceMotion/TickerMode — :87-96,130-134; M3RevealType.fade — :14"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/widgets/common/touch_container.dart",
+      "line": 194,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Дополнение к первой партии (перепроверка риска): call-sites 25, а не 29; ни один не передаёт stateLayer:false и ни в одном ближайшие 40 строк нет вложенного InkWell/GestureDetector (0 совпадений), а _isInteractive требует onTap/onLongPress/onDoubleTap (:112-117) — значит hover-слой появится только на реально нажимаемых плитках и не задвоит отклик. AnimatedContainer уже на effectsFast/Default с reduceMotion (:178-185); правка внутри одного State, вызовы не меняются.",
+      "api_checked": "TouchContainer/stateLayer — touch_container.dart:15,101-102; _isInteractive — :112-117; MouseRegion(onEnter/onExit) — flutter/widgets; M3SpringCurves.effectsFast/Default — m3_spring_constants.dart:153-161"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/screens/legal_viewer_screen.dart",
+      "line": 242,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "reason": "title-часть подтверждена: TextField <-> Text меняются одним setState (:242-262, :292), M3SpringSwitcher(fadeSlideY) для title применим. Но `actions:` у AppBar — это List<Widget> (:274-300), в него нельзя передать один виджет-свитчер без замены на Row из двух IconButton, что меняет раскладку actions; значит патч «обернуть блок actions» в описанном виде не соберётся.",
+      "api_checked": "M3SpringSwitcher(type: M3SwitcherType.fadeSlideY) — m3_spring_switcher.dart:11,32-45; AppBar.actions — List<Widget> (material_ui app_bar.dart); состояние — legal_viewer_screen.dart:35"
+    },
+    {
+      "rule": "MOTION-1",
+      "file": "lib/features/sessions/presentation/sessions_screen.dart",
+      "line": 138,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "reason": "M3StaggeredItem(index:) существует и уже применён в settings_ui.dart:196, но в цикле `for (final session in ready.otherSessions)` индекса нет (:138-139), а патч подставляет `index: i` без перехода на .indexed — как есть не соберётся. Вторая часть («скрывать отозванную строку через M3Reveal(revealed:false)») невозможна: сессия просто исчезает из otherSessions, виджета уже нет.",
+      "api_checked": "M3StaggeredItem({required int index, required Widget child, maxStaggerIndex}) — lib/widgets/motion/m3_staggered_list.dart:12-22; образец — lib/widgets/settings_ui.dart:196; M3Reveal(revealed:) — m3_reveal.dart:21-30"
+    }
+  ]
+}

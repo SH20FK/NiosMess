@@ -1,0 +1,179 @@
+{
+  "lane": "media",
+  "truncated": 2,
+  "findings": [
+    {
+      "rule": "MESS-1",
+      "severity": "high",
+      "file": "pulse_flutter/lib/widgets/wallpaper/chat_wallpaper_background.dart",
+      "line": 11,
+      "evidence": "  Widget build(BuildContext context) =>\n      ColoredBox(color: AppSurfaces.of(context));",
+      "why": "Обои не рисуются вообще: `chatId` игнорируется, вьюпорт чата получает плоский ColoredBox. При этом наличие кастомных обоев читается в screens/chat_detail_screen.dart:2380-2385 и выключает тональную палитру чата (`nios_chroma.dart:24 if (hasCustomWallpaper) return false;`), т.е. действие пользователя в Wallpaper Studio отнимает expressive-окраску чата и не даёт взамен ничего: настройки imagePath/imageDim/imageBlur (models/chat_wallpaper_config.dart:120-122) сохраняются в SharedPreferences, но их не читает ни один рендерер (в chat_wallpaper_painter.dart 0 вхождений imagePath), а WallpaperPreviewPane вообще не использует переданный `config`. Итог — сломанный сценарий: 6 пресетов, 8 слайдеров и «Применить» не меняют ни пикселя.",
+      "impact": "Пользователь правит фон студии и теряет цветовую схему чата; фича выглядит работающей.",
+      "patch_sketch": "Либо подключить реальный рендер (WallpaperImageCache.render → RawImage в ChatWallpaperBackground по chatId+config), либо убрать студию, провайдер и флаг hasCustomWallpaper из chat_detail_screen.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/wallpaper/wallpaper_image_cache.dart",
+      "line": 159,
+      "evidence": "  static Future<ui.Image?> render({\n    required ChatWallpaperConfig config,\n    required ColorScheme scheme,\n    required Size size,\n    double pixelRatio = 1.0,",
+      "why": "render/getSyncCachedImage/evictExcept/loadPatternSvg не имеют ни одного вызова вне своего файла (grep по lib/), ChatWallpaperPainter.paintToCanvas вызывается только из мёртвого render. В бандл (включая web-сборку из CI) при этом входят chat_wallpaper_painter.dart 789 строк, material_symbols_data.dart 8563 строки map-литералов, icon_sources_catalog.dart 364 строки, cupertino_icons_data.dart 216 строк — ~270 КБ исходников на фичу, которая не запускается. Дополнительно провайдер вызывает WallpaperImageCache.clear() на каждое изменение (chat_wallpaper_provider.dart:128,141,174,183) — обход и dispose пустых карт на каждое движение слайдера.",
+      "impact": "Вес бандла, время парсинга стартового snapshot на web, ложное впечатление живой фичи; 4 бесполезных clear() на каждую правку конфига.",
+      "patch_sketch": "Удалить widgets/wallpaper/{wallpaper_image_cache,chat_wallpaper_painter,material_symbols_data,icon_sources_catalog,cupertino_icons_data,curated_wallpaper_catalog,wallpaper_color_resolver}.dart и вызовы clear() из провайдера.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-2",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/features/wallpaper/presentation/wallpaper_studio_screen.dart",
+      "line": 67,
+      "evidence": "  void _updateConfig(ChatWallpaperConfig newConfig) {\n    setState(() {\n      _draftConfig = newConfig;\n    });\n  }",
+      "why": "Каждое событие слайдера (density/cellSize/iconAlpha/imageDim/imageBlur, divisions 9-24) поднимает setState в корень 328-строчного экрана: пересобираются Scaffold, AppBar с MenuAnchor (создаются menuChildren), TabBar, два ChoiceChip, панель bottomActions и TabBarView. На драге слайдера это 60-120 событий в секунду, и ни одно из них не меняет видимый результат: WallpaperPreviewPane игнорирует config, а чат обои не рисует. Чистая работа в кадре на пустом месте.",
+      "impact": "Jank при драге слайдеров в студии; rebuild ~40 виджетов на событие.",
+      "patch_sketch": "Держать черновик в ValueNotifier<ChatWallpaperConfig> и перестраивать только затронутый таб/подпись значения, а не экран.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/screens/media_viewer_screen.dart",
+      "line": 604,
+      "evidence": "      _videoController = source.uri != null\n          ? VideoPlayerController.networkUrl(source.uri!)\n          : VideoPlayerController.file(File(source.filePath!));\n      await _videoController!.initialize();\n      _chewieController = ChewieController(",
+      "why": "Один и тот же бутстрап плеера написан трижды: media_viewer_screen.dart:205-243 (_MediaViewerScreenState._initMedia), :592-633 (_InlineVideoPlayerState._init) и native_file_viewer_screen.dart:127-…,1109 (ChewieController). В каждом — свой порядок освобождения (chewie → controller → source.close в unawaited-замыкании), свой `placeholder`, свои allowedScreenSleep. Любой баг «capability-source не закрыт» или «autoPlay на web» правится в трёх местах; каталог lib/widgets/media/ уже существует и содержит общие контролы, но не общий плеер.",
+      "impact": "Расхождение поведения (autoPlay/ориентации/sleep) между чатом и файловым просмотрщиком; тройная цена правки.",
+      "patch_sketch": "Вынести StatefulWidget (MediaPlaybackView) в lib/widgets/media/: acquirePlaybackSource → VideoPlayerController → ChewieController → единый dispose, параметры isActive/autoPlay/onVisibilityChanged.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/screens/media_viewer_screen.dart",
+      "line": 392,
+      "evidence": "          } else if (item.mediaType == MediaType.video) {\n            return _InlineVideoPlayer(\n              key: ValueKey('video_${item.heroTag ?? index}'),\n              url: item.url,\n              e2eeFileKey: key,",
+      "why": "Каждому элементу плейлиста выдан heroTag (chat_detail_screen.dart:1918), но страница видео не обёрнута в MediaHero — Hero-flight не имеет ни источника, ни цели, поэтому видео открывается жёсткой подменой экрана, тогда как изображение перелетает (:750 `Widget build(BuildContext context) => MediaHero(`). Готовый блок уже есть в моей полосе: widgets/media/media_hero.dart (учёт reduceMotion, flightShuttleBuilder держит миниатюру, пока грузится полноразмер). Цена: один Hero на страницу, перестраивается только на push/pop.",
+      "impact": "Рассинхронизация ощущения: картинки «летят», видео «прыгает»; heroTag для видео — мёртвая проводка.",
+      "patch_sketch": "Обернуть _InlineVideoPlayer в MediaHero(tag: item.heroTag, child: …) и обернуть видео-превью в пузыре (widgets/chat/video_message_preview.dart) тем же тегом.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "LAG-4",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/media/m3_video_controls.dart",
+      "line": 242,
+      "evidence": "            child: AnimatedOpacity(\n              opacity: _visible ? 1 : 0,\n              curve: M3SpringCurves.expressiveDecel,\n              duration: context.reduceMotion\n                  ? Duration.zero\n                  : M3Durations.short3,",
+      "why": "Ребёнок AnimatedOpacity — Center → ConstrainedBox → M3VideoPlaybackBar, внутри Slider, 6 IconButton, MenuAnchor и LayoutBuilder; RepaintBoundary внутри нет, поэтому RenderAnimatedOpacity не может применить альфу на композитинге и делает saveLayer + полную перерисовку панели каждый кадр на протяжении M3Durations.short3 при каждом показе/скрытии контролов (тап по видео). Это происходит одновременно с декодом видео — самый дорогой момент экрана. Ровно этот порядок уже исправлен в m3_route_tab_switcher.dart:213-224 (RepaintBoundary внутрь Opacity), здесь — нет.",
+      "impact": "3-5 лишних растеризаций панели за показ контролов при работающем декодере.",
+      "patch_sketch": "AnimatedOpacity(child: RepaintBoundary(child: Center(...))) — или заменить на FadeTransition с RepaintBoundary-ребёнком.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-1",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/contacts/call_log_view.dart",
+      "line": 388,
+      "evidence": "                                    Text(\n                                      '$statusText • ${formatRelativeTime(entry.timestamp)}',\n                                      style: textTheme.bodySmall?.copyWith(",
+      "why": "formatRelativeTime (core/utils/datetime_helpers.dart, регулярки — см. perf 04) вызывается в itemBuilder на каждую строку журнала при каждой пересборке: смена фильтра, обновление callHistoryProvider, любое setState родителя. Плюс в том же build дважды считаются O(n)-срезы: `allEntries.where((e) => e.isMissed).length` в label чипа (:197) и фильтр списка (:157) — на журнале в сотни записей это двойной полный проход на каждый кадр смены фильтра. Для одного и того же entry.timestamp строка пересчитывается заново каждый раз.",
+      "impact": "Регулярки × N строк на каждую пересборку журнала; O(n) сканы дважды за build.",
+      "patch_sketch": "Считать relative time один раз в модели/провайдере (или мемоизировать по entry.id в Map) и держать missedCount отдельным полем состояния.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-6",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/contacts/online_presence_radar.dart",
+      "line": 117,
+      "evidence": "                  title: const Text('Видеозвонок'),",
+      "why": "Весь блок контактов собран на русских литералах вместо AppLocalizations: 'Недавние диалоги', 'Добавить в избранное', 'Информация о контакте' (online_presence_radar.dart), 'Позвонить', 'Видеозвонок', 'Открыть чат', 'Удалить из журнала', 'Пропущенный • Исходящий • Входящий', 'Очистить историю звонков?' (call_log_view.dart:65,81,97,119,137,262,388). В проекте есть context.l10n (l10n.dart) и остальные экраны им пользуются — значит смена локали или новый язык не переведёт именно эти два виджета, а строки нельзя проверить линтером.",
+      "impact": "Фича остаётся ru-only независимо от локали приложения; дубли строк для перевода.",
+      "patch_sketch": "Завести ключи в l10n (calls*/contacts*) и заменить литералы на context.l10n.*.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/widgets/contacts/call_log_view.dart",
+      "line": 187,
+      "evidence": "                side: BorderSide.none,\n                shape: RoundedRectangleBorder(\n                  borderRadius: BorderRadius.circular(12),\n                ),",
+      "why": "Геометрия задана числами там, где в проекте есть токены: core/theme/expressive_tokens.dart:30-35 даёт AppRadii.xs..fullRadius (и AppRadiiTheme как ThemeExtension). В этой полосе литералы: 12/18 в call_log_view.dart (:60,76,92,113,187,216,312,332), 14/16 в features/wallpaper/presentation/widgets/tabs/* и wallpaper_studio_screen.dart:199,214,272,314, 8/16/18 в app_update_dialog.dart:65,102,144,274, 16 в app_nav_item.dart:308. При смене радиуса в токенах половина карточек/чипов/шитов остаётся на старых числах — радиусы расходятся между соседними экранами.",
+      "impact": "Разъезжающаяся геометрия, дубли чисел, невозможность поменять радиус темы одним изменением.",
+      "patch_sketch": "Заменить BorderRadius.circular(n) на AppRadiiTheme.of(context).{md,lg,xl}Radius, локальные константы — на токены.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-3",
+      "severity": "low",
+      "file": "pulse_flutter/lib/widgets/media/m3_video_controls.dart",
+      "line": 227,
+      "evidence": "              child: InkWell(\n                splashFactory: NoSplash.splashFactory,\n                highlightColor: Colors.transparent,",
+      "why": "`Colors.*` в виджете запрещён правилами проекта (только colorScheme), а вместе с NoSplash это полностью убивает визуальный отклик на тап по поверхности видео — в остальном приложении отклик дают TouchContainer (state layer через foregroundDecoration) и M3PressScale. Пользователь не видит, что тап принят: единственный признак — исчезновение панели контролов.",
+      "impact": "Нет press-feedback на главной интерактивной поверхности видеоплеера; обход темы.",
+      "patch_sketch": "overlayColor: WidgetStatePropertyAll(scheme.onSurface.withValues(alpha: 0.08)) или TouchContainer вместо InkWell.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "low",
+      "file": "pulse_flutter/lib/widgets/contacts/online_presence_radar.dart",
+      "line": 212,
+      "evidence": "              return InkWell(\n                onTap: () {\n                  if (ref.read(uiSettingsProvider).haptics) {\n                    HapticService.tap();\n                  }\n                  context.push('/chat/${chat.id}');",
+      "why": "Тап по аватару радара мгновенно пушит чат: у плитки нет ни press-scale, ни state layer поверх аватара (InkWell без customBorder вообще не рисует скругление). Готовый блок для этого уже есть и применён в этой же полосе: widgets/motion/m3_press_scale.dart — app_nav_item.dart:239 `icon = M3PressScale(pressed: _pressed, scale: 0.9, child: icon);`. Цена: перестраивается только нажатая плитка (до 15 в радаре), аватар 48dp — дешёвый RepaintBoundary-ребёнок.",
+      "impact": "Сухая реакция на тап в самой частой точке входа в чат.",
+      "patch_sketch": "Обернуть содержимое плитки в M3PressScale с локальным `_pressed` из onHighlightChanged, как в AppNavItem.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "low",
+      "file": "pulse_flutter/lib/widgets/contacts/call_log_view.dart",
+      "line": 174,
+      "evidence": "                onSelected: (_) {\n                  if (ref.read(uiSettingsProvider).haptics) {\n                    HapticService.tap();\n                  }\n                  setState(() => _filter = _CallFilter.all);",
+      "why": "Переключение фильтра «Все / Пропущенные» подменяет содержимое 443-строчного Column (Expanded → ListView.separated) мгновенно, без перехода: строки исчезают и появляются одним кадром, хотя меняется целый набор элементов. Готовый блок: widgets/motion/m3_spring_switcher.dart (M3SpringSwitcher, type: M3SwitcherType.fade, 300 мс, нормированные кривые) — достаточно обернуть ListView с ключом по фильтру. Цена: перестраивается только видимая часть списка.",
+      "impact": "Резкая смена состояния там, где уместен spring-переход; нет ориентира «что изменилось».",
+      "patch_sketch": "M3SpringSwitcher(child: ListView.separated(key: ValueKey(_filter), …)) вокруг списка журнала.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "LAG-2",
+      "severity": "low",
+      "file": "pulse_flutter/lib/widgets/nav/shell_window_title.dart",
+      "line": 102,
+      "evidence": "    if (!_browser) {\n      // Like Title below, the name is handed to the platform while building.\n      // The service drops a title that is already shown.\n      DesktopWindowService.instance.setTitle(title);",
+      "why": "Побочный эффект в build(): на каждую пересборку обёртки (а это корень шелла, зависящий от clientCapabilitiesProvider и desktopSelectedSettingsSectionProvider) вызывается platform-channel setTitle, а перед этим `SettingsRegistry.getAllNodes().whereType<SettingsNavNode>().where(...)` — полный обход реестра настроек и построение строки заголовка. Плюс `_themeColor` мутируется прямо в build (:106). Заголовок меняется только при смене секции/таба, т.е. почти всё это — работа впустую в горячем корне дерева.",
+      "impact": "Лишние аллокации и platform-вызов на каждом rebuild шелла; скрытая мутация состояния в build.",
+      "patch_sketch": "Считать title в didChangeDependencies/слушателе провайдера и отправлять в платформу оттуда; реестр индексировать по sectionId один раз.",
+      "confidence": "certain"
+    }
+  ],
+  "perf_status": [
+    {
+      "from": "audit/perf/00-summary.md#5",
+      "status": "still",
+      "file": "pulse_flutter/lib/widgets/nav/m3_route_tab_switcher.dart",
+      "line": 193,
+      "note": "saveLayer-часть исправлена: RepaintBoundary теперь внутри Opacity (:213-224, комментарий на :210-212), порядок верный. Осталась вторая половина находки: AnimatedBuilder без `child` (:193-195, `builder: (context, _)`) пересобирает Stack из 5 Offstage/TickerMode/ExcludeFocus/ExcludeSemantics/IgnorePointer-ветвей на каждом кадре перехода."
+    },
+    {
+      "from": "audit/perf/00-summary.md#6",
+      "status": "fixed",
+      "file": "pulse_flutter/lib/widgets/profile_header_delegate.dart",
+      "line": 45,
+      "note": "Вне моей полосы, но проверил: `return Opacity(opacity: opacity, child: RepaintBoundary(child: child));` — boundary внутри Opacity, альфа идёт на композитинге."
+    },
+    {
+      "from": "audit/perf/00-summary.md#17",
+      "status": "still",
+      "file": "pulse_flutter/lib/screens/media_viewer_screen.dart",
+      "line": 280,
+      "note": "Вне полосы. `if ((_dragProgress - progress).abs() > 0.01) { setState(() => _dragProgress = progress); }` — поле пишется (:112, :280) и не читается нигде (3 вхождения в файле, все — запись/сравнение)."
+    },
+    {
+      "from": "audit/perf/00-summary.md#21",
+      "status": "still",
+      "file": "pulse_flutter/lib/core/media/media_playback_visibility.dart",
+      "line": 55,
+      "note": "_onScroll → _scheduleCheck на каждый ScrollUpdate, в post-frame обход всех предков до корня (RenderOffstage + RenderAbstractViewport + localToGlobal, :58-80) у каждого смонтированного медиа-бабла; _scheduled глушит только повторы внутри одного виджета, не между виджетами."
+    }
+  ]
+}

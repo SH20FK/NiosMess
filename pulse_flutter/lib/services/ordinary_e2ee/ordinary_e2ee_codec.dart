@@ -124,11 +124,18 @@ class OrdinaryCodec {
     );
   }
 
+  /// Ed25519 verification attempts made by [verify]. Diagnostics only: tests
+  /// assert a Bluetooth mesh packet is authenticated exactly twice — the
+  /// transport device signature and the inner message signature — never a third
+  /// time. Never used for any security decision.
+  static int verifications = 0;
+
   static Future<bool> verify(
     String text,
     String signature,
     String public,
   ) async {
+    verifications++;
     try {
       return await Ed25519().verify(
         utf8.encode(text),
@@ -277,6 +284,11 @@ class OrdinaryCodec {
     );
   }
 
+  /// Opens a message. [authenticated] is the proof produced by
+  /// [VerifiedSignature.mint]: when it seals exactly this body, signature and
+  /// author key, the Ed25519 check is skipped because that identical triple was
+  /// already verified for this very packet by `MeshPacket.parse`. Any mismatch
+  /// falls back to a fresh verification, so the check can never be bypassed.
   static Future<E2eJson> decrypt(
     OrdinaryKeys own,
     E2eJson sender,
@@ -285,6 +297,7 @@ class OrdinaryCodec {
     int from, {
     int? reply,
     int? edit,
+    VerifiedSignature? authenticated,
   }) async {
     final p = packet(encoded), h = header(encoded);
     if (h['v'] != 1 ||
@@ -293,12 +306,14 @@ class OrdinaryCodec {
         h['epoch'] != sender['epoch'] ||
         sender['user_id'] != from ||
         h['reply'] != reply ||
-        h['edit'] != edit ||
-        !await verify(
-          p['body'] as String,
-          p['signature'] as String,
-          sender['ed'] as String,
-        )) {
+        h['edit'] != edit) {
+      throw const FormatException('E2E authentication failed');
+    }
+    final body = p['body'] as String,
+        signature = p['signature'] as String,
+        author = sender['ed'] as String;
+    if (authenticated?.seals(author, body, signature) != true &&
+        !await verify(body, signature, author)) {
       throw const FormatException('E2E authentication failed');
     }
     final boxes = h['boxes'] as E2eJson;
@@ -382,4 +397,53 @@ class OrdinaryCodec {
         )
         as E2eJson;
   }
+}
+
+/// Opens a page of ordinary envelopes as one unit of work.
+///
+/// Every job carries only JSON-compatible data — the recipient's own secret
+/// (`OrdinaryKeys.secret()`), the sender's public identity, the packet and the
+/// message coordinates — so a caller may run the whole list inside an isolate.
+/// No network or storage access happens here. A failure is reported for its
+/// own job and never aborts the page; results keep the input order.
+Future<List<E2eJson>> decryptOrdinaryBatch(List<E2eJson> jobs) async {
+  final results = <E2eJson>[];
+  for (final job in jobs) {
+    try {
+      final body = await OrdinaryCodec.decrypt(
+        OrdinaryKeys.fromJson(job['own'] as E2eJson),
+        job['sender'] as E2eJson,
+        job['packet'] as String,
+        job['chat'] as int,
+        job['from'] as int,
+        reply: job['reply'] as int?,
+        edit: job['edit'] as int?,
+      );
+      results.add({'ok': true, 'body': body});
+    } catch (error) {
+      results.add({'ok': false, 'error': error.toString()});
+    }
+  }
+  return results;
+}
+
+/// Non-forgeable evidence that an inner `(body, signature)` was already
+/// accepted by [OrdinaryCodec.verify] against [key]. The constructor is
+/// private, so the only way to obtain one is [mint], which runs the real
+/// Ed25519 verification. Consumers must present it for the exact same triple;
+/// [seals] enforces that, and a mismatch is handled by verifying again.
+class VerifiedSignature {
+  VerifiedSignature._(this.key, this.body, this.signature);
+  final String key, body, signature;
+
+  static Future<VerifiedSignature?> mint(
+    String key,
+    String body,
+    String signature,
+  ) async => await OrdinaryCodec.verify(body, signature, key)
+      ? VerifiedSignature._(key, body, signature)
+      : null;
+
+  bool seals(String key, String body, String signature) =>
+      this.key == key && this.body == body && this.signature == signature;
 }

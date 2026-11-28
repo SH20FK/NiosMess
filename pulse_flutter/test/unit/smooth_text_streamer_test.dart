@@ -111,5 +111,35 @@ void main() {
 
       streamer.dispose();
     });
+
+    test('reduced motion writes the text at once without a ticker', () {
+      final updates = <String>[];
+      var doneCalls = 0;
+
+      final streamer = SmoothTextStreamer(
+        reduceMotion: true,
+        onUpdate: (text, isFinished) {
+          updates.add('$text|$isFinished');
+        },
+        onDone: (_) {
+          doneCalls++;
+        },
+      );
+
+      streamer.appendChunk('Сразу ');
+      expect(updates, <String>['Сразу |false']);
+      expect(streamer.isActive, isFalse);
+
+      streamer.appendChunk('весь текст');
+      expect(streamer.currentText, 'Сразу весь текст');
+      expect(streamer.isActive, isFalse);
+
+      streamer.completeStream();
+      expect(updates.last, 'Сразу весь текст|true');
+      expect(doneCalls, 1);
+      expect(streamer.isActive, isFalse);
+
+      streamer.dispose();
+    });
   });
 }

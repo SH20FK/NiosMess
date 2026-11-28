@@ -30,6 +30,47 @@ class _Chats extends ChatsNotifier {
   ];
 }
 
+ApiChatSummary _summary(
+  int id, {
+  required String name,
+  String chatType = 'direct',
+  String? username,
+  bool isSecret = false,
+  int unread = 0,
+  String last = '',
+}) {
+  return ApiChatSummary.fromJson(<String, dynamic>{
+    'id': id,
+    'chat_type': chatType,
+    'name': name,
+    'username': username,
+    'unread_count': unread,
+    'is_secret': isSecret,
+    'members_count': 2,
+    'last_message': <String, dynamic>{
+      'id': 1000 + unread,
+      'chat_id': id,
+      'sender_id': 5,
+      'sender_username': 'peer',
+      'sender_display_name': 'Пир',
+      'content': last,
+      'msg_type': 'text',
+    },
+  });
+}
+
+class _MutableChats extends ChatsNotifier {
+  @override
+  Future<List<ApiChatSummary>> build() async => <ApiChatSummary>[
+    _summary(11, name: 'Елена'),
+    _summary(12, name: 'Бот', username: 'helper_bot'),
+    _summary(13, name: 'Секрет', isSecret: true),
+    _summary(14, name: 'Группа', chatType: 'group'),
+  ];
+
+  void emit(List<ApiChatSummary> chats) => state = AsyncData(chats);
+}
+
 void main() {
   group('Ordinary E2E settings', () {
     setUp(() {
@@ -174,5 +215,67 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+
+    test('a message in any chat does not rebuild the E2EE contact picker', () async {
+      final ProviderContainer container = ProviderContainer(
+        overrides: [chatsProvider.overrideWith(_MutableChats.new)],
+      );
+      addTearDown(container.dispose);
+      var notifications = 0;
+      container.listen<E2eeContactCandidates>(
+        e2eeContactCandidatesProvider,
+        (_, _) => notifications++,
+        fireImmediately: true,
+      );
+      await container.read(chatsProvider.future);
+      expect(
+        container.read(e2eeContactCandidatesProvider).options,
+        <E2eeContactOption>[(id: 11, name: 'Елена')],
+        reason: 'bots, secret chats and groups are not pairing targets',
+      );
+
+      final int before = notifications;
+      final _MutableChats notifier =
+          container.read(chatsProvider.notifier) as _MutableChats;
+      notifier.emit(<ApiChatSummary>[
+        _summary(11, name: 'Елена', unread: 3, last: 'привет'),
+        _summary(12, name: 'Бот', username: 'helper_bot', unread: 1),
+        _summary(13, name: 'Секрет', isSecret: true, unread: 7),
+        _summary(14, name: 'Группа', chatType: 'group', unread: 4),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        notifications,
+        before,
+        reason: 'new activity must not reach the settings page',
+      );
+
+      notifier.emit(<ApiChatSummary>[
+        _summary(11, name: 'Елена К.', unread: 3, last: 'привет'),
+        _summary(12, name: 'Бот', username: 'helper_bot'),
+        _summary(13, name: 'Секрет', isSecret: true),
+        _summary(14, name: 'Группа', chatType: 'group'),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      expect(notifications, before + 1);
+      expect(
+        container.read(e2eeContactCandidatesProvider).options.single.name,
+        'Елена К.',
+      );
+
+      notifier.emit(<ApiChatSummary>[
+        _summary(11, name: 'Елена К.', unread: 3, last: 'привет'),
+        _summary(12, name: 'Бот', username: 'helper_bot'),
+        _summary(13, name: 'Секрет', isSecret: true),
+        _summary(14, name: 'Группа', chatType: 'group'),
+        _summary(15, name: 'Новый контакт', username: 'new_peer'),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      expect(notifications, before + 2);
+      expect(
+        container.read(e2eeContactCandidatesProvider).options.last,
+        (id: 15, name: 'Новый контакт'),
+      );
+    });
   });
 }

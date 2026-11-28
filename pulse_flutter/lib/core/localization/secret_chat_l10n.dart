@@ -486,7 +486,6 @@ extension SecretChatL10n on AppLocalizations {
   String get inboxSavedOpening => _secret.inboxSavedOpening;
   String get inboxScheduleLockedPreview =>
       _secret.inboxScheduleLockedPreview;
-  String get backgroundsPaused => _secret.backgroundsPaused;
   String updateFailureMessage(String message) =>
       message == 'UPDATE_INTEGRITY_MISMATCH'
       ? _secret.updateIntegrityFailed
@@ -831,13 +830,6 @@ extension SecretChatL10n on AppLocalizations {
   String get settingsLockTimeout5Minutes => _secret.settingsLockTimeout5Minutes;
   String get settingsLockTimeout30Minutes =>
       _secret.settingsLockTimeout30Minutes;
-  String get settingsWallpaperEntryHint => _secret.settingsWallpaperEntryHint;
-  String wallpaperForChatNamed(String title) =>
-      _secret.wallpaperForChatNamed(title);
-  String get wallpaperTabPresets => _secret.wallpaperTabPresets;
-  String get wallpaperTabEffects => _secret.wallpaperTabEffects;
-  String get wallpaperResetDefault => _secret.wallpaperResetDefault;
-  String get wallpaperCopyCode => _secret.wallpaperCopyCode;
   String get settingsSpamBlockServerHint => _secret.settingsSpamBlockServerHint;
   String get accountDeleteTitle => _secret.accountDeleteTitle;
   String get accountDeleteEntry => _secret.accountDeleteEntry;

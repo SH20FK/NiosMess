@@ -8,6 +8,7 @@ import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:pulse_flutter/core/services/call_history_service.dart';
 import 'package:pulse_flutter/core/services/favorite_contacts_service.dart';
 import 'package:pulse_flutter/core/storage/cache_service.dart';
+import 'package:pulse_flutter/core/storage/contacts_cache_sync.dart';
 import 'package:pulse_flutter/core/modal/app_modal.dart';
 import 'package:pulse_flutter/core/utils/app_error_formatter.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
@@ -53,15 +54,19 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
   String _searchQuery = '';
   String? _openingUsername;
   List<ApiChatSummary>? _cachedDirectContacts;
+  late final ContactsCacheSync _contactsCache;
 
   @override
   void initState() {
     super.initState();
-    _cachedDirectContacts = ref.read(cacheServiceProvider).getCachedContacts();
+    final CacheService cache = ref.read(cacheServiceProvider);
+    _cachedDirectContacts = cache.getCachedContacts();
+    _contactsCache = ContactsCacheSync(save: cache.saveContacts);
   }
 
   @override
   void dispose() {
+    _contactsCache.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -302,11 +307,12 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
 
     ref.listen<AsyncValue<List<ApiChatSummary>>>(chatsProvider, (prev, next) {
       final List<ApiChatSummary>? freshChats = next.asData?.value;
-      if (freshChats != null) {
-        final List<ApiChatSummary> direct = _recentDirectChats(freshChats);
-        _cachedDirectContacts = direct;
-        ref.read(cacheServiceProvider).saveContacts(direct);
-      }
+      if (freshChats == null) return;
+      final List<ApiChatSummary> direct = _recentDirectChats(freshChats);
+      _cachedDirectContacts = direct;
+      // The list gains a new instance on every message in any chat. Only a
+      // real contact change (id, name, username, avatar, badges) is persisted.
+      _contactsCache.submit(direct);
     });
 
     return Scaffold(

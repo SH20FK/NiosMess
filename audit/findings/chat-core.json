@@ -1,0 +1,194 @@
+{
+  "lane": "chat-core (lib/widgets/chat top-level + features/chats/application + domain)",
+  "truncated": 0,
+  "perf_status": [
+    {
+      "from": "audit/perf/00-summary.md#9",
+      "status": "fixed",
+      "file": "lib/widgets/chat/chat_input_bar.dart",
+      "line": 548,
+      "note": "MediaQuery.of(context) больше нет: 548 sizeOf, 549 paddingOf, 536 viewInsetsOf, 532 sizeOf"
+    },
+    {
+      "from": "audit/perf/00-summary.md#13",
+      "status": "still",
+      "file": "lib/widgets/create_chat_wizard_view.dart",
+      "line": 918,
+      "note": "shrinkWrap: true на месте; также chat_members_screen.dart:124 и chat_detail_screen.dart:1534 (Column(chats.map))"
+    },
+    {
+      "from": "audit/perf/00-summary.md#16",
+      "status": "still",
+      "file": "lib/screens/chat_list_screen.dart",
+      "line": 1006,
+      "note": "indexWhere:1006, List.of:986-987, SliverList:1065 без itemExtent; строки съехали с 865/920, файл вне моей полосы — проверено grep'ом"
+    }
+  ],
+  "findings": [
+    {
+      "rule": "MESS-1",
+      "severity": "medium",
+      "file": "lib/widgets/chat/chat_state_surface.dart",
+      "line": 7,
+      "evidence": "class ChatStateSurface extends StatelessWidget {\n  const ChatStateSurface({",
+      "why": "112-строчный «адаптер» не вызывается ни разу: grep по lib/ даёт 10 совпадений и все — внутри самого файла. При этом ChatStateSurface.secret требует `required List<String> features` (строка 41) и молча его выбрасывает: build передаёт в ChatEmptyState только variant/title/description/icon/actionLabel/onAction (103-110). Второй публичный API одного и того же пустого состояния, с потерянным параметром.",
+      "impact": "112 мёртвых строк и вторая точка входа для пустых состояний чата; ChatEmptyState напрямую используется в chat_detail_screen.dart:2920/2928/2994.",
+      "patch_sketch": "Удалить файл целиком; после удаления проверить, что export 'chat_empty_state.dart' никто не импортировал через этот путь.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "lib/widgets/chat/chat_input_bar.dart",
+      "line": 606,
+      "evidence": "                            borderRadius: BorderRadius.circular(12),\n                            border: Border(\n                              left: BorderSide(color: scheme.primary, width: 3),\n                            ),",
+      "why": "Панель «редактирование» (596-655) и панель «ответ» (666-708) — один и тот же блок: Container + margin bottom 6 + padding 12/8 + radius 12 + цветная полоса 3dp слева + Row(icon 16, текст, IconButton close 18). Отличаются тремя литералами (primaryContainer/secondaryContainer, edit/reply, chatEditingMessage/chatReply). Копипаста закрепляет и RTL-баг: `Border(left:)` физический, поэтому в RTL полоса встаёт справа от текста в обеих панелях.",
+      "impact": "~120 строк копипасты в панели, которая пересобирается на каждый кадр клавиатуры.",
+      "patch_sketch": "Один приватный _ComposerContextPanel({icon, accent, label, text, onClose}), вызванный дважды; border через BorderDirectional(start:).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "lib/widgets/chat/chat_message_list.dart",
+      "line": 1189,
+      "evidence": "          color: isMissed\n              ? scheme.errorContainer.withValues(alpha: isDark ? 0.40 : 0.60)\n              : (isDark\n                    ? scheme.surfaceContainerHighest.withValues(alpha: 0.60)\n                    : scheme.surfaceContainerHigh.withValues(alpha: 0.80)),",
+      "why": "_CallEventPill (1184-1228) и _SystemEventPill (1254-1296) — один пилл: Container + margin vertical 6 + padding 14/7-8 + borderRadius 16 + border 0.8 alpha .25 + Row(Icon 16, gap 8, labelMedium w600, gap 8, labelSmall 11 время). Разница только в иконке, цвете и тексте. Оба вручную ветвят `isDark` и подмешивают альфу к тональным токенам (0.60/0.80) вместо того, чтобы взять готовый тон темы.",
+      "impact": "Два одинаковых виджета-пилла на каждой строке системного события; тона пиллов не совпадают с баблами при смене темы.",
+      "patch_sketch": "Один _EventPill({icon, accent, label, time}); цвет — scheme.surfaceContainerHigh без ручного isDark.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "lib/widgets/chat/chat_detail_input_area.dart",
+      "line": 144,
+      "evidence": "          width: double.infinity,\n          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),\n          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),\n          decoration: BoxDecoration(\n            color: scheme.surfaceContainerHigh.withValues(alpha: 0.85),",
+      "why": "isBlockedByMe (140-180) и isBlockedByUser (182-226) — два рукописных баннера с одинаковым каркасом: SafeArea → Container(width infinity, margin 16/8, padding 16/12, radius 20, Border.all alpha 0.3) → Row(icon 22, gap 12, текст). Третий вариант того же паттерна уже есть виджетом — SpamBlockBanner (spamblock_banner.dart:42), и он тут же используется строкой 232.",
+      "impact": "Дубли ~80 строк; три разных набора отступов/радиусов у одного и того же «баннера в композере».",
+      "patch_sketch": "Вынести ChatComposerBanner({tone, icon, title, subtitle, action}) и переиспользовать в обеих ветках; SpamBlockBanner оставить как его контент.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-4",
+      "severity": "low",
+      "file": "lib/widgets/chat/chat_input_bar.dart",
+      "line": 90,
+      "evidence": "class _ChatInputBarState extends ConsumerState<ChatInputBar>\n    with WidgetsBindingObserver {",
+      "why": "1409 строк в одном State: IME-handoff, запись голоса с тремя ValueNotifier, панель эмодзи, десктопное attach-меню, планировщик сообщений. Второй файл полосы — chat_message_list.dart, 1297 строк (пиллы системных событий, якоря истории, upload-обёртки). Оба пересобираются в горячем пути и оба за порогом 1000.",
+      "impact": "Любая правка ввода или списка — правка файла на 1400/1300 строк; конфликты при параллельной работе.",
+      "patch_sketch": "Вынести voice-recording, host панели выражений и attach-меню из ChatInputBar; _CallEventPill/_SystemEventPill/_HistoryAnchor — из списка.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-2",
+      "severity": "medium",
+      "file": "lib/widgets/chat/chat_empty_state.dart",
+      "line": 151,
+      "evidence": "              Container(\n                width: 58,\n                height: 58,\n                decoration: BoxDecoration(\n                  color: containerColor,",
+      "why": "Правило 5 (акцентные иконки/бейджи не плоскими прямоугольниками): иконка сидит в контейнере 58×58 с BorderRadius.circular(18) — обычный rounded rect, без m3shapes/сквиркла. Соседний виджет того же слоя уже использует RoundedSuperellipseBorder (e2ee_status_card.dart:91), то есть в одном чате встречаются две разные формы акцентных плашек. Второй такой же контейнер — 234-240 (52×52, radius 16).",
+      "impact": "Пустое состояние — первый экран нового чата; расхождение форм видно рядом с баблами и E2EE-карточкой.",
+      "patch_sketch": "ShapeDecoration(shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(18))) либо сквиркл из flutter_m3shapes.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-2",
+      "severity": "low",
+      "file": "lib/widgets/chat/chat_filter_bar.dart",
+      "line": 598,
+      "evidence": "      decoration: BoxDecoration(\n        color: alert ? scheme.primary : scheme.surfaceContainerHighest,\n        borderRadius: BorderRadius.circular(10),",
+      "why": "Счётчик непрочитанных в пилюле папки — плоский Container с BorderRadius.circular(10), то есть прямоугольная плашка внутри stadium-рельса; правило 5 требует сквиркл/m3shapes для бейджей. Плюс тон бейджа не зависит от `selected`: на выбранной пилюле (secondaryContainer) он остаётся surfaceContainerHighest и читается как отдельная серая клякса.",
+      "impact": "Бейдж есть на каждой папке и перерисовывается при каждом обновлении счётчиков.",
+      "patch_sketch": "StadiumBorder или сквиркл + тон, производный от selected; смену числа отдать M3AnimatedBadge.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-2",
+      "severity": "medium",
+      "file": "lib/widgets/chat/inline_query_overlay.dart",
+      "line": 42,
+      "evidence": "    return Material(\n      color: scheme.surfaceContainerHigh,\n      elevation: 4,\n      shadowColor: scheme.shadow.withValues(alpha: 0.15),\n      borderRadius: BorderRadius.circular(16),",
+      "why": "Правило 3 (глубина — тональными поверхностями, а не тенью): оверлей инлайн-запроса получает depth через elevation 4 + shadowColor, хотя вся остальная система в полосе строит depth на surfaceContainer*. Рядом, строкой 47, стоит clipBehavior: Clip.antiAlias на контейнере, внутри которого лежит скроллящийся ListView (169) — это saveLayer на каждую перерисовку оверлея при вводе.",
+      "impact": "Оверлей открыт во время набора текста и пересобирается на каждый ввод: тень + save-слой над полем ввода.",
+      "patch_sketch": "Убрать elevation/shadowColor и Clip.antiAlias; тональный surfaceContainerHigh + Border, как у остальных панелей.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-3",
+      "severity": "medium",
+      "file": "lib/widgets/chat/chat_detail_fab.dart",
+      "line": 40,
+      "evidence": "                unreadCount > 99 ? '99+' : '$unreadCount',\n                style: const TextStyle(\n                  fontWeight: FontWeight.bold,\n                  fontSize: 11,\n                ),",
+      "why": "Счётчик на FAB собран из голого Badge + литеральный TextStyle(fontSize: 11, bold) и BorderRadius.circular(16) (строка 58) вместо textTheme/AppShape. В проекте уже есть готовый M3AnimatedBadge (lib/widgets/motion/m3_animated_badge.dart), и он используется в инбоксе (chat_list_screen.dart:422) — то есть один и тот же бейдж в двух местах приложения выглядит и анимируется по-разному.",
+      "impact": "Кнопка «вниз» в каждом чате: бейдж мимо токенов типографики и мимо готового блока, метрика плашки не совпадает с инбоксом.",
+      "patch_sketch": "M3AnimatedBadge(count: unreadCount) вокруг FloatingActionButton.small; shape из темы FAB, без литерала 16.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-1",
+      "severity": "low",
+      "file": "lib/widgets/chat/chat_list_header.dart",
+      "line": 126,
+      "evidence": "            IconButton(\n              key: const ValueKey<String>('inbox-search-open'),\n              tooltip: l10n.chatListSearchMessagesHint,\n              onPressed: () => ref.read(inboxSearchProvider.notifier).open(),\n              iconSize: 24,",
+      "why": "StyleVariant.material3Expressive в проекте не включён ни разу (0 вхождений), а у IconButton опт-ин возможен только через IconButtonThemeData(variant: ...) — проверено по исходникам material_ui 1.11.1 (icon_button.dart:199-202). Значит все 30+ IconButton полосы (chat_list_header 126/139/226/367/424, chat_detail_app_bar 101/294/299/319, custom_emoji_picker 39/332, expression_picker_panel 170/176/185/516, chat_input_bar 646/699) рендерятся обычным M3, без expressive-формы и размера.",
+      "impact": "Иконки-кнопки инбокса и шапки чата — самая частая точка нажатия в приложении; expressive-вариант доступен без нового кода.",
+      "patch_sketch": "Обернуть рельс/шапку в IconButtonTheme(data: IconButtonThemeData(variant: StyleVariant.material3Expressive), child: ...); системно — в AppTheme.themed.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "medium",
+      "file": "lib/widgets/chat/interactive_message_card.dart",
+      "line": 737,
+      "evidence": "                      child: TweenAnimationBuilder<double>(\n                        tween: Tween(begin: percentage, end: percentage),\n                        duration: duration,",
+      "why": "begin == end == percentage: анимация нулевая по значению, поэтому результат голосования меняется скачком, хотя duration и reduce-motion посчитаны выше (649-651). Второй такой бар в том же файле (849-858) идёт от begin: 0, то есть при любом rebuild заново «вырастает» из нуля. Ни один из двух не анимирует переход старое → новое, при этом это две разные реализации одной полосы результата.",
+      "impact": "После голосования проценты в опросе/списке дёргаются; на медленном устройстве читается как лаг, а не как ответ системы.",
+      "patch_sketch": "tween: Tween<double>(end: percentage) (begin null — старт от прошлого end) и один общий виджет бара на оба места.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-2",
+      "severity": "medium",
+      "file": "lib/widgets/chat/chat_input_bar.dart",
+      "line": 1326,
+      "evidence": "    return FadeTransition(\n      opacity: anim.drive(CurveTween(curve: M3SpringCurves.effectsDefault)),\n      child: ScaleTransition(\n        scale: anim.drive(\n          Tween<double>(",
+      "why": "_iconSwapTransition — рукописная копия M3SpringSwitcher(type: M3SwitcherType.scale) из lib/widgets/motion/m3_spring_switcher.dart: там тот же fade на expressiveDecel/Accel и тот же scale 0.6→1.0 (136-150). В файле ещё три таких места: 810-834 (эмодзи↔клавиатура), 1049-1067 (микрофон↔отправить), 1342-1346 (отправить↔галочка). Свой вариант не переключается при смене reduce-motion на лету — M3SpringSwitcher в этом случае отдаёт child без анимации (build, 236-238).",
+      "impact": "4 копии одного перехода в панели, которую пересобирает каждый кадр клавиатуры.",
+      "patch_sketch": "Заменить все четыре AnimatedSwitcher/Fade+Scale на M3SpringSwitcher(type: M3SwitcherType.scale, child: ...).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-2",
+      "severity": "low",
+      "file": "lib/widgets/chat/chat_empty_state.dart",
+      "line": 131,
+      "evidence": "        tween: Tween<double>(begin: 0.0, end: 1.0),\n        duration: context.reduceMotion\n            ? Duration.zero\n            : M3Durations.short4,\n        curve: M3SpringCurves.expressiveDecel,",
+      "why": "Появление пустого состояния (и переход пусто ↔ история) собрано вручную: TweenAnimationBuilder → Opacity + Transform.scale(0.98→1.0). Это ровно M3Entrance(scaleFrom: 0.98) из lib/widgets/motion/m3_entrance.dart: у него внутри FadeTransition (без saveLayer от Opacity) и reduce-motion обрабатывается в didChangeDependencies. Perf-аудит (n3) отметил Opacity; новая причина — дублирование готового блока и расхождение кривой/шкалы с остальным приложением.",
+      "impact": "Один лишний слой и своя кривая на каждый показ пустого состояния чата.",
+      "patch_sketch": "Обернуть Padding в .entrance(scaleFrom: 0.98) (extension m3_entrance.dart:103).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-6",
+      "severity": "medium",
+      "file": "lib/widgets/chat/spamblock_banner.dart",
+      "line": 78,
+      "evidence": "    if (widget.until == null) return 'Бессрочно';\n    final DateTime local = widget.until!.toLocal();\n    final String untilText = DateFormat('dd.MM, HH:mm').format(local);",
+      "why": "Целый пользовательский баннер собран из русских литералов мимо AppLocalizations: 'Бессрочно', 'Срок истёк', 'До …', 'Нарушение правил платформы', 'Ограничение аккаунта', 'Ограничение на отправку', 'Оспорить' (78-101, 122-179). Так же по полосе: chat_empty_state 250-311, chat_detail_app_bar 338/371/378, live_location_card 43-203, file_request_action 109-112, encrypted_draft_conflict_notice 34-115, auto_delete_bottom_sheet 80-86/198-207/289/347, interactive_message_card 141/814, chat_input_bar 488.",
+      "impact": "≥9 файлов полосы вне l10n; баннер спам-блока — единственный текст, который пользователь видит вместо поля ввода, и в не-русской локали он остаётся русским.",
+      "patch_sketch": "Ключи spamBlockForever/spamBlockExpired/spamBlockUntil(...) в AppLocalizations и context.l10n в перечисленных местах.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-5",
+      "severity": "medium",
+      "file": "lib/widgets/chat/spamblock_banner.dart",
+      "line": 172,
+      "evidence": "                      minimumSize: Size.zero,\n                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,",
+      "why": "Кнопка «Оспорить» явно выключает минимальную зону: Size.zero + shrinkWrap дают цель высотой с текст (~20 dp) у правого края баннера поверх поля ввода. Рядом, строкой 174, ещё и RoundedRectangleBorder(radius 8) вместо StadiumBorder, которым живут остальные кнопки полосы.",
+      "impact": "Зона нажатия меньше 48 dp на самом видном месте (композер) — промахи пальцем и нарушение M3/WCAG.",
+      "patch_sketch": "Убрать minimumSize/tapTargetSize override; TextButton по умолчанию (48 dp) со StadiumBorder.",
+      "confidence": "certain"
+    }
+  ]
+}

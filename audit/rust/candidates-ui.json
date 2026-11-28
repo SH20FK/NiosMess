@@ -1,0 +1,112 @@
+[
+  {
+    "id": "iso-date-parse",
+    "file": "pulse_flutter/lib/core/utils/datetime_helpers.dart",
+    "line": 14,
+    "what": "parseApiDateTime: every message date goes through DateTime.tryParse (a RegExp + int.tryParse inside the SDK), then _hasExplicitTimeZone (second RegExp) and a DateTime.utc() rebuild; called from ApiMessage.fromJson/ChatSummary.fromJson for every field of every message",
+    "evidence": "  final String value = iso.trim();\n  final DateTime? parsed = DateTime.tryParse(value);\n  if (parsed == null) {\n    return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);\n  }\n  if (_hasExplicitTimeZone(value)) return parsed.toUtc();",
+    "why_hot": "encrypted_message_cache.dart:335 maps up to 2000 messages through ApiMessage.fromJson on the UI isolate AFTER the isolate returned (decrypt+jsonDecode are inside _runCompute, fromJson is not; maxLimit=2000 at :236); history catch-up decodes pages repeatedly (backend_chat_provider.dart:2610,3223,3358); cold inbox start parses 2-3 dates per chat (ChatSummary.lastActivity/pinnedAt + lastMessage). Measured: DateTime.tryParse = 32 us, parseApiDateTime = 22.9 us/date x 2000 = 45.8 ms; with edited_at up to ~92 ms, plus jsonDecode 12.6 ms",
+    "est_gain": "2000-message restore: 46-92 ms -> 3-5 ms (batch FFI, ~30x). Measured on JIT desktop; AOT/mobile multiplier typically 1.5-3x worse for Dart, so the absolute saving is larger",
+    "risk": "low boundary (String -> int64 epoch micros + hasOffset flag, ~24 bytes, FFI call ~0.3-1 us), but batch API is mandatory or 2000 calls eat the win; must reproduce the 'no timezone -> treat as UTC' branch exactly or every sort/date separator shifts; WEB: no dart:ffi, and compute/Isolate.run on web runs on the same thread, so this is one of the few places where Rust->wasm is the only real speed-up rather than a thread-offload",
+    "verdict": "rust-candidate"
+  },
+  {
+    "id": "markdown-preview-inbox",
+    "file": "pulse_flutter/lib/core/utils/message_preview_text.dart",
+    "line": 36,
+    "what": "messagePreviewText: builds a fresh md.Document with the full GitHub-flavored extension set, parses to an AST, walks it into a StringBuffer and collapses whitespace with a RegExp - per chat preview, synchronously inside the itemBuilder of the inbox list",
+    "evidence": "  final document = md.Document(\n    extensionSet: md.ExtensionSet.gitHubFlavored,\n    encodeHtml: false,\n  );\n  for (final node in document.parseLines(source.split('\\n'))) {\n    write(node);\n  }\n  final plain = buffer.toString().replaceAll(RegExp(r'\\s+'), ' ').trim();",
+    "why_hot": "chat_list_screen.dart:1334-1348 calls it from the row builder of every visible chat (via MessagePreviewFormatter, cache 512 at :48-59); the cache is empty on cold start (:464 clears it on account/filter change) so the first inbox screen costs 15 visible rows x 162 us, and scrolling 200 chats ~32 ms; cache:false for secret chats (:1416) parses on every rebuild. Measured: 40 us for 7 chars, 162 us for 153 chars, 473 us for 444 chars; 128 us of that is parseLines alone",
+    "est_gain": "15-row inbox: 2.4 ms -> ~0.1 ms; 200 chats: ~32 ms -> ~1 ms. Batch API over the visible window (Vec<String> in, one buffer + offsets out)",
+    "risk": "pulldown-cmark is not the same GFM dialect as package:markdown, and the preview sits next to the full text in the list, so divergences on tables/footnotes/HTML will be visible; safest scope is 'strip markup + collapse whitespace' only; strings copy both ways (~153 B per row, negligible) but the API must be batched; WEB needs a wasm backend (an isolate cannot help on web, where compute is same-thread)",
+    "verdict": "rust-candidate"
+  },
+  {
+    "id": "docx-parse-main-thread",
+    "file": "pulse_flutter/lib/core/utils/docx_parser.dart",
+    "line": 70,
+    "what": "DocxParser.parseBytes: ZipDecoder inflates the whole archive, utf8-decodes word/document.xml, then one dotAll lazy RegExp with a backreference walks the entire XML, with 2 more RegExps per paragraph, 1 per run and 5 sequential replaceAll per text node (_unescapeXml) - all synchronous on the UI isolate",
+    "evidence": "  static DocxDocument parseBytes(Uint8List bytes) {\n    try {\n      final Archive archive = ZipDecoder().decodeBytes(bytes);\n      final ArchiveFile? docFile = archive.findFile('word/document.xml');\n...\n    final RegExp elementRegex = RegExp(r'<w:(p|tbl)[\\s>].*?<\\/w:\\1>', dotAll: true);",
+    "why_hot": "native_file_viewer_screen.dart:608-618: _parse() in initState calls parseBytes synchronously, setState(_isLoading=false) only afterwards, so tapping a .docx attachment freezes the UI with no progress indicator. Already listed in audit/perf/00-summary.md as 'requires profiler' (50-200 KB docs). Measured on a 610 KB document.xml: outer regex 8 ms + 13 ms per 1000 paragraphs (3000 -> ~39 ms) + 3.4 ms inflate ~ 50 ms/MB",
+    "est_gain": "5-20 ms for a 50-200 KB docx today, 50 ms/MB; compute() removes it from the frame entirely. Rust (inflate + quick-xml, no regex) would cut the work itself to 2-5 ms and also help web, but the document opens once per file",
+    "risk": "low for compute(): Uint8List in, plain List<DocxBlock> out, one copy; WEB: compute on web is same-thread, so the isolate fix buys nothing there (the 5-20 ms stay, only the blocked frame moves). Rust here is only worth it as part of a real docx reader (styles, lists, tables, images), not for this regex parser",
+    "verdict": "isolate-first"
+  },
+  {
+    "id": "text-viewer-split-per-keystroke",
+    "file": "pulse_flutter/lib/screens/native_file_viewer_screen.dart",
+    "line": 870,
+    "what": "_content.split('\\n') runs inside build() of the plain-text viewer (re-executed on every search keystroke, wrap toggle and theme change), and itemBuilder lowercases each visible line on every build",
+    "evidence": "    final List<String> lines = _content.split('\\n');\n...\n                final bool isMatch = _searchQuery.isNotEmpty &&\n                    line.toLowerCase().contains(_searchQuery);",
+    "why_hot": "onChanged: (val) => setState(() => _searchQuery = ...) at :912-913 rebuilds on every typed character, and :926 rebuilds on the wrap toggle; the viewer opens arbitrary chat attachments with no size cap. Measured: split of a 1 MB / 20k-line text = 3.85 ms, toLowerCase of 1 MB = 5.55 ms -> a 5 MB log costs ~20 ms of main-thread work per keystroke (keyboard feels sticky); already in perf P1 #18 for the split, this adds the per-line lowercase",
+    "est_gain": "1 MB: 3.85 ms per rebuild -> 0 by splitting once at load and keeping a match index; Rust on UTF-8 offsets would be ~0.3 ms/MB, the only path that also helps web",
+    "risk": "isolate returns List<String> (20-100k objects) which is copied across the boundary - better to return one text buffer + Int32List offsets; WEB: compute is same-thread so only the caching part helps there; FFI would need the same flat buffer shape",
+    "verdict": "isolate-first"
+  },
+  {
+    "id": "custom-emoji-length-per-keystroke",
+    "file": "pulse_flutter/lib/models/api/custom_emoji_model.dart",
+    "line": 3,
+    "what": "customEmojiLength: replaceAll(RegExp, replacement) over the whole draft (always allocates a new string even with zero matches) plus a full grapheme segmentation via package:characters, run as a TextInputFormatter on every keystroke and again in build() for the counter",
+    "evidence": "int customEmojiLength(String text) =>\n    text.replaceAll(customEmojiPattern, '\\uFFFC').characters.length;\n...\n      !newValue.composing.isCollapsed ||\n          customEmojiLength(newValue.text) <= maximum\n      ? newValue\n      : oldValue;",
+    "why_hot": "CustomEmojiLengthFormatter is on inputFormatters for comments with a 10000 limit (post_comments_screen.dart:472-473), post creation with 4096 (create_post_screen.dart:869-870, plus a second call in build() at :935 for the counter), interactive composer (180/100/500). Measured: 294 us per call on 8400 code units, 245 us of which is replaceAll",
+    "est_gain": "294 us -> ~30-80 us with Rust grapheme counting, but a one-line Dart guard (if (text.length <= maximum) return value, since code units >= graphemes) removes the cost for almost every keystroke",
+    "risk": "a plugin for a 0.3 ms operation is not worth an FFI + wasm build; grapheme tables must match package:characters exactly (Unicode version) or the limit stops matching what the UI shows",
+    "verdict": "no"
+  },
+  {
+    "id": "inbox-resort-per-message",
+    "file": "pulse_flutter/lib/providers/backend_chat_provider.dart",
+    "line": 860,
+    "what": "Every incoming message re-sorts the whole chat list (updated.sort(compareChatRecency)) and the inbox screen rebuilds its full projection: two List.of copies, filter, indexWhere for the saved chat and a Map<int,int> idToIndex of all chats",
+    "evidence": "      updated.sort(compareChatRecency);\n\n      state = AsyncData<List<ApiChatSummary>>(updated);\n      _persistChats(updated);\n...\n    final Map<int, int> idToIndex = <int, int>{\n      for (int i = 0; i < filtered.length; i++) filtered[i].id: i,\n    };",
+    "why_hot": "the websocket push path (backend_chat_provider _onMessage) calls this for every message of every chat, including group chats at a few messages per second, and chatsProvider drives the whole inbox screen; an incremental insertSorted(updated, chat, compareChatRecency) already exists at :1150 but is used on only one of seven paths. Cost: ~0.2 ms at 200 chats, ~2-3 ms per message at 2000",
+    "est_gain": "0.2-3 ms per incoming message removed by making the update incremental; Rust cannot help (sorting 2000 pointers through FFI costs more than Dart's in-place sort with DateTime.compareTo)",
+    "risk": "no FFI risk because it is not a Rust case; the projection must stay keyed by chat identity or the list flickers",
+    "verdict": "no"
+  },
+  {
+    "id": "local-search-per-keystroke",
+    "file": "pulse_flutter/lib/providers/search_provider.dart",
+    "line": 50,
+    "what": "DebouncedSearchNotifier.search runs the local pass synchronously on every keystroke: per chat three toLowerCase().contains() allocations (name/username/lastMessage.content) and per feed post three more, one of them over the full post body; only the backend request is debounced",
+    "evidence": "    for (final ApiChatSummary chat in localChats) {\n      final String name = chat.name;\n      final String? username = chat.username;\n      final String? lastMsg = chat.lastMessage?.content;\n\n      final bool nameMatch = name.toLowerCase().contains(lowerQuery);",
+    "why_hot": "contacts_screen.dart:523 and chat_members_screen.dart:109 call search(q) directly from onChanged; the feed pass (search_provider.dart:92-98) lowercases post.content of every loaded post. Measured: toLowerCase costs 5.55 ms/MB, so 200 posts x ~1 KB ~ 1.1 ms plus 600 string allocations per keystroke",
+    "est_gain": "0.5-1.5 ms per keystroke; removed by debouncing the local pass and storing a normalized copy next to the model",
+    "risk": "an isolate per keystroke is worse (round trip + reordering); a Rust inverted index would only pay off if local full-text search over history is ever added (message search is server-side today)",
+    "verdict": "no"
+  },
+  {
+    "id": "post-card-markdown-build",
+    "file": "pulse_flutter/lib/widgets/post_card.dart",
+    "line": 384,
+    "what": "Each feed card constructs MarkdownBody + a new CustomEmojiSyntax instance (which owns its own RegExp) + a new builders map inside build(); flutter_markdown_plus re-parses only when data changes, so the cost lands on card mount",
+    "evidence": "    final markdown = MarkdownBody(\n      data: post.content,\n      inlineSyntaxes: [CustomEmojiSyntax()],\n      builders: {'nios-emoji': CustomEmojiMarkdownBuilder()},\n      // Cached in didChangeDependencies: fromTheme() builds dozens of styles.\n      styleSheet: _markdownStyle,",
+    "why_hot": "the feed mounts cards while scrolling; a post over 400 chars is parsed into an AST and then into a widget tree, on top of image decoding in the same frame; the stylesheet part is already fixed (cached in didChangeDependencies), the syntax/builder allocation is not",
+    "est_gain": "0.2-1 ms per mounted card; the markdown parse could move to Rust but the result is a widget/InlineSpan tree, so the win is eaten by rebuilding it in Dart",
+    "risk": "moving markdown parsing to Rust does not remove widget construction, which dominates; the only cheap fix is hoisting the syntax/builder instances, and that is Dart-only",
+    "verdict": "no"
+  },
+  {
+    "id": "qr-matrix-per-message",
+    "file": "pulse_flutter/lib/widgets/settings/ordinary_e2ee_settings.dart",
+    "line": 518,
+    "what": "QrImageView recomputes the QR matrix in build() (QrValidator.validate -> QrCode.fromData: bit stream + Reed-Solomon + version check); the page also watches chatsProvider without select, so it rebuilds on every incoming message of the account",
+    "evidence": "                            child: QrImageView(\n                              data: _pairCode!,\n                              size: constraints.maxWidth.clamp(0, 210),\n...\n    final chats = ref.watch(chatsProvider).value ?? const [];",
+    "why_hot": "_contactSection() at :580 reads chatsProvider unselected (already perf P1 #14) and _reveal('pair-code', QrImageView) is in the same build() tree, so every message anywhere regenerates the pairing QR while that page is open; qr_flutter 4.1.0 has no internal cache and QrImageView.withQr is not used",
+    "est_gain": "~100-200 us per message for a version 2-5 QR; fixed by computing QrCode.fromData once in initState and passing QrImageView.withQr, plus a select on the provider",
+    "risk": "no FFI risk; a Rust QR encoder (rcq/fast_qr) would be ~50x faster but on a single short payload it is a micro-optimisation with no scale",
+    "verdict": "no"
+  },
+  {
+    "id": "image-compress-native",
+    "file": "pulse_flutter/lib/core/utils/image_compressor.dart",
+    "line": 32,
+    "what": "Image resize/JPEG re-encode before upload is already delegated to the platform: FlutterImageCompress.compressWithList / compressAndGetFile (Android native, Windows native, flutter_image_compress_web on web); the Dart side only decides whether to compress at all",
+    "evidence": "      final Uint8List result = await FlutterImageCompress.compressWithList(\n        bytes,\n        minWidth: maxWidth ?? _maxWidth,\n        minHeight: maxHeight ?? _maxHeight,\n        quality: quality,\n        format: CompressFormat.jpeg,\n      );",
+    "why_hot": "called from account_profile_section.dart:176, create_post_screen.dart:174 and :449 for every avatar/photo upload; the heavy work is already off the Dart isolate",
+    "est_gain": "none - a Rust JPEG codec would be a regression against a native platform encoder and would add a wasm backend for web",
+    "risk": "adding Rust here means shipping our own JPEG encoder and a second web code path for something the platform already does in native/hardware code",
+    "verdict": "native-plugin-first"
+  }
+]

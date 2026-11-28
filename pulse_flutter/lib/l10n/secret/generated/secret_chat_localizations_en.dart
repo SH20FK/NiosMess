@@ -147,9 +147,6 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
   String get inboxActions => 'Actions';
 
   @override
-  String get backgroundsPaused => 'Backgrounds are temporarily disabled';
-
-  @override
   String get inboxChatType => 'Chat type';
 
   @override
@@ -2606,27 +2603,6 @@ class SecretChatLocalizationsEn extends SecretChatLocalizations {
 
   @override
   String get settingsLockTimeout30Minutes => 'After 30 minutes';
-
-  @override
-  String get settingsWallpaperEntryHint =>
-      'Pattern, colors and a photo behind your chats';
-
-  @override
-  String wallpaperForChatNamed(String title) {
-    return 'For “$title”';
-  }
-
-  @override
-  String get wallpaperTabPresets => 'Presets';
-
-  @override
-  String get wallpaperTabEffects => 'Effects';
-
-  @override
-  String get wallpaperResetDefault => 'Reset to default';
-
-  @override
-  String get wallpaperCopyCode => 'Copy wallpaper code';
 
   @override
   String get settingsSpamBlockServerHint =>

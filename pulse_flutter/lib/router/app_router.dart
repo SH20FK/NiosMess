@@ -56,7 +56,6 @@ import 'package:pulse_flutter/screens/blocked_users_screen.dart';
 import 'package:pulse_flutter/screens/settings_storage_screen.dart';
 import 'package:pulse_flutter/screens/splash_screen.dart';
 import 'package:pulse_flutter/providers/auth_provider.dart';
-import 'package:pulse_flutter/screens/settings_wallpaper_screen.dart';
 import 'package:pulse_flutter/screens/settings_chats_screen.dart';
 import 'package:pulse_flutter/screens/calls/active_call_screen.dart';
 import 'package:pulse_flutter/screens/calls/outgoing_call_screen.dart';
@@ -171,7 +170,7 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
 
   return GoRouter(
     navigatorKey: AppRouter.navigatorKey,
-    initialLocation: const bool.fromEnvironment('IMAGE_DEMO')
+    initialLocation: kDebugMode && const bool.fromEnvironment('IMAGE_DEMO')
         ? ExtendedImageDemoScreen.routePath
         : '/',
     refreshListenable: refreshListenable,
@@ -216,9 +215,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
           path == '/login' ||
           path == '/onboarding' ||
           path.startsWith('/legal') ||
-          path.startsWith('/w/') ||
-          path == '/w' ||
-          path == '/wallpaper' ||
           path.startsWith('/u/') ||
           path.startsWith('/c/') ||
           path.startsWith('/g/') ||
@@ -245,11 +241,12 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
     },
     routes: <RouteBase>[
       // Временный dev-экран сравнения просмотрщиков изображений.
-      GoRoute(
-        path: ExtendedImageDemoScreen.routePath,
-        pageBuilder: (context, state) =>
-            _page(state, const ExtendedImageDemoScreen()),
-      ),
+      if (kDebugMode)
+        GoRoute(
+          path: ExtendedImageDemoScreen.routePath,
+          pageBuilder: (context, state) =>
+              _page(state, const ExtendedImageDemoScreen()),
+        ),
       GoRoute(
         path: '/plus/activate',
         builder: (context, state) =>
@@ -382,29 +379,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
       GoRoute(
         path: '/c/:slug',
         redirect: (context, state) => '/u/${state.pathParameters['slug']}',
-      ),
-      GoRoute(
-        path: '/w/:code',
-        redirect: (context, state) =>
-            '/settings/wallpaper?code=${state.pathParameters['code']}',
-      ),
-      GoRoute(
-        path: '/w',
-        redirect: (context, state) {
-          final String? code = state.uri.queryParameters['code'];
-          return code != null
-              ? '/settings/wallpaper?code=$code'
-              : '/settings/wallpaper';
-        },
-      ),
-      GoRoute(
-        path: '/wallpaper',
-        redirect: (context, state) {
-          final String? code = state.uri.queryParameters['code'];
-          return code != null
-              ? '/settings/wallpaper?code=$code'
-              : '/settings/wallpaper';
-        },
       ),
       GoRoute(
         path: '/chat/:chatId',
@@ -677,18 +651,6 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             kIsWeb ? webSettingsRedirect(state.uri) : null,
         pageBuilder: (context, state) =>
             _page(state, const SettingsChatsScreen(), pageKey: state.pageKey),
-      ),
-      GoRoute(
-        path: '/settings/wallpaper',
-        pageBuilder: (context, state) => _page(
-          state,
-          SettingsWallpaperScreen(
-            chatId: state.uri.queryParameters['chatId'],
-            chatTitle: state.uri.queryParameters['chatTitle'],
-            initialCode: state.uri.queryParameters['code'],
-          ),
-          pageKey: state.pageKey,
-        ),
       ),
       GoRoute(
         path: '/settings/language-region',

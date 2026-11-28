@@ -18,7 +18,6 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatViewport(
-              wallpaper: const SizedBox.expand(),
               messagesBuilder: (context, bottomInset) {
                 messagesBuilds++;
                 inset = bottomInset;

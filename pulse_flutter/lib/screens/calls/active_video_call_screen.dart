@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:pulse_flutter/core/motion/m3_motion.dart';
+import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/theme/app_surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -15,6 +16,7 @@ import 'package:pulse_flutter/providers/call_session_provider.dart';
 import 'package:pulse_flutter/router/app_router.dart';
 import 'package:pulse_flutter/services/calls/call_session_types.dart';
 import 'package:pulse_flutter/widgets/calls/call_control_dock.dart';
+import 'package:pulse_flutter/widgets/motion/m3_spring_switcher.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 /// Material 3 Expressive 1:1 active video call screen.
@@ -332,7 +334,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black54,
+                        color: scheme.scrim.withValues(alpha: 0.54),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -353,7 +355,7 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
                           p.audioEnabled ? p.nickname : '${p.nickname} 🔇',
                           overflow: TextOverflow.ellipsis,
                           style: textTheme.labelMedium?.copyWith(
-                            color: Colors.white,
+                            color: CallTokens.onDarkSurface,
                             shadows: const [Shadow(blurRadius: 4)],
                           ),
                         ),
@@ -387,11 +389,14 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
       );
     }
 
+    final Widget stage;
+    final String branch;
     if (spotlight != null) {
-      return Stack(
+      branch = 'spotlight';
+      stage = Stack(
         fit: StackFit.expand,
         children: [
-          ColoredBox(color: Colors.black, child: spotlight),
+          ColoredBox(color: scheme.scrim, child: spotlight),
           if (tiles.isNotEmpty)
             Positioned(
               left: 8,
@@ -408,11 +413,10 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
           badges,
         ],
       );
-    }
-
-    if (tiles.length >= 2) {
+    } else if (tiles.length >= 2) {
       final int cols = tiles.length <= 4 ? 2 : 3;
-      return Stack(
+      branch = 'grid';
+      stage = Stack(
         fit: StackFit.expand,
         children: [
           Padding(
@@ -433,23 +437,33 @@ class _ActiveVideoCallScreenState extends ConsumerState<ActiveVideoCallScreen>
           badges,
         ],
       );
+    } else {
+      branch = 'single';
+      stage = Stack(
+        fit: StackFit.expand,
+        children: [
+          hasRemoteVideo
+              ? RTCVideoView(
+                  session.remoteRenderer,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                )
+              : _NoVideoPlaceholder(
+                  name: participantName,
+                  scheme: scheme,
+                  textTheme: textTheme,
+                ),
+          badges,
+        ],
+      );
     }
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        hasRemoteVideo
-            ? RTCVideoView(
-                session.remoteRenderer,
-                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-              )
-            : _NoVideoPlaceholder(
-                name: participantName,
-                scheme: scheme,
-                textTheme: textTheme,
-              ),
-        badges,
-      ],
+    // The layout swap (spotlight, grid, single) must not pop: the keyed branch
+    // crossfades on the effects spring. Kept at one short step so two RTC
+    // views never stay mounted long.
+    return M3SpringSwitcher(
+      type: M3SwitcherType.fade,
+      duration: M3Durations.short3,
+      child: KeyedSubtree(key: ValueKey<String>(branch), child: stage),
     );
   }
 

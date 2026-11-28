@@ -728,6 +728,11 @@ class SecretChatEngine {
           (response['events'] as List? ?? []).map(secretMap).toList()..sort(
             (a, b) => (a['event_id'] as int).compareTo(b['event_id'] as int),
           );
+      // Events are applied one by one: each commits its ratchet transition
+      // together with its message change, and event N+1 decrypts with the
+      // ratchet event N produced. This cannot move to an isolate — the journal
+      // owns in-memory state, the ordered Hive append and the change stream the
+      // UI listens to. Keep the per-event awaits; they already yield frames.
       for (final event in ordered) {
         await _serial.run(key, () => _receive(key, event));
       }

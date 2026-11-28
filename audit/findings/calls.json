@@ -1,0 +1,201 @@
+{
+  "lane": "calls",
+  "truncated": 2,
+  "findings": [
+    {
+      "rule": "LAG-2",
+      "severity": "high",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 459,
+      "evidence": "    final session = ref.watch(callSessionProvider);",
+      "why": "Экран по-прежнему пересобирается 2-3 раза в секунду, хотя палитра уже закэширована (P0-1 закрыт наполовину). Механизм: WebRtcCallSession зовёт onStateChanged и _stateController.add на каждый тик (_startDurationTimer, webrtc_call_session.dart:562 — раз в секунду; _statsTimer, :229 — раз в 2 с; _sampleQuality тоже), оба канала попадают в CallSessionManager._onSessionData (providers/call_session_provider.dart:301), а тот делает ref.read(callSessionProvider.notifier).notify() -> `state = null; state = cur;` (:63-67). Смена identity провайдера перестраивает каждого watcher-а: весь _buildStage (GridView.count с tiles, все RTCVideoView, _StageBadge), CallControlDock из 10 кнопок и MediaQuery-чтения. То есть layout всего 875-строчного экрана считается 2-3 раза в секунду при неизменной картинке; на Android это видно как ровные просадки кадра в звонке.",
+      "impact": "Постоянные пропуски кадров во время активного звонка; чем больше участников, тем дороже (GridView.count строит все плитки сразу).",
+      "patch_sketch": "Убрать notify() из _onSessionData и отдавать данные через ValueListenable/select (например, watch(callSessionProvider.select((m) => m?.state))) — экран не должен зависеть от тика длительности.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 100,
+      "evidence": "    _stateSubscription = session.stateStream.listen((CallSessionData data) {\n      if (!mounted) return;\n      if (data.state == CallSessionState.connected &&\n          lastState != CallSessionState.connected) {\n        ref.read(appSoundProvider).playEvent(SoundEvent.callConnected);\n      }",
+      "why": "Блок «подписка на stateStream + звук connected/ended + AppToast по fatalError + _popOrGoHome + обновление _timerNotifier» скопирован в active_voice_call_screen.dart:80-100 почти дословно (video 100-120, voice 80-100), плюс _popOrGoHome продублирован третий раз в active_call_screen.dart:69 и четвёртый в call_overlay.dart:106. Любая правка сценария завершения звонка (например, не показывать тост при minimize, или не попать дважды) требует трёх одинаковых правок, и уже сейчас video и voice расходятся в мелочах (video вызывает _popOrGoHome внутри слушателя до обновления таймера, voice — после).",
+      "impact": "Расхождение поведения видео/голосовых звонков при доработках; риск двойного pop и двойного тоста.",
+      "patch_sketch": "Вынести слушатель в общий миксин/хелпер (CallLifecycleListener) в lib/services/calls или widgets/calls, по одному вызову из обоих экранов.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-2",
+      "severity": "medium",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 184,
+      "evidence": "  void _snapPip(DragEndDetails details, double screenWidth) {\n    final double velocity = details.velocity.pixelsPerSecond.dx;\n    const double width = CallTokens.videoPipWidth;\n    final bool toStart = velocity.abs() >= _pipMinFlingVelocity\n        ? velocity < 0",
+      "why": "Та же физика «drag + fling + пружина к ближнему краю» реализована второй раз в call_overlay.dart:68-82 (_snapToEdge) с тем же порогом 700 px/s (_minFlingVelocity против _pipMinFlingVelocity) и вторым SingleMotionController + ValueNotifier. Вторая параллельная реализация PiP: _VideoOverlayTile (call_overlay.dart:409-511) и PiP в видеоэкране (:686-753) рисуют один и тот же мини-видеоплеер с разными радиусами (CallTokens.pipBorderRadius против 20/27) и разным поведением кнопок (28 dp GestureDetector против 6-px padding). Правка поведения PiP (safe-area, снап, клампы) нужна в двух местах.",
+      "impact": "Два разных PiP в одном приложении: пользователь видит разный радиус, размер кнопок и разное поведение при перетаскивании.",
+      "patch_sketch": "Один виджет CallPipTile + один DragSnapper в widgets/calls, использовать и в видеоэкране, и в оверлее.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-2",
+      "severity": "medium",
+      "file": "lib/widgets/calls/call_control_dock.dart",
+      "line": 215,
+      "evidence": "            PopupMenuButton<String>(\n              tooltip: 'Реакция',\n              color: CallTokens.darkSurfaceContainerHigh,",
+      "why": "Правило 4 проекта прямо запрещает PopupMenuButton («MenuAnchor или свой expressive-шит»). Здесь он ещё и единственный элемент дока, который открывает не M3-поверхность: color задан вручную из токена, пункты — сырые PopupMenuItem с текстом, без тональных поверхностей и без M3E-моушена остальных кнопок; на фоне TouchContainer-кнопок с пружиной (scaleDown/releaseCurve) меню появляется дефолтным Material-путём. Это же место — единственный путь к реакциям в звонке, то есть самый частый интерактив в звонке обходит дизайн-систему.",
+      "impact": "Меню реакций выбивается из M3E-дока и нарушает обязательное правило проекта.",
+      "patch_sketch": "Заменить на MenuAnchor с CallTokens.darkSurfaceContainerHigh-поверхностью и MenuItemButton, либо на AppModal.showSheet с сеткой эмодзи.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-2",
+      "severity": "medium",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 355,
+      "evidence": "                          style: textTheme.labelMedium?.copyWith(\n                            color: Colors.white,\n                            shadows: const [Shadow(blurRadius: 4)],",
+      "why": "Правило 7 запрещает Colors.white/Colors.black. В полосе звонков они ещё и работают против тёмной нейтрализованной схемы: Colors.white (:356), Colors.black54 для бейджа реакции (:335), Colors.black под spotlight (:394), Colors.transparent в скриме (:541), плюс call_overlay.dart:266,406 и outgoing_call_screen.dart:357. Ручная тень Shadow(blurRadius: 4) — это ровно та тень, которую правило 3 заменяет тональной поверхностью; на видео она ещё и дешёвая, но не темизируется: в светлой теме приложения подписи на видео остаются белыми литералами вне ColorScheme.",
+      "impact": "Нетематизируемый текст/поверхности на видео, нарушение двух обязательных правил (3 и 7), риск потери контраста при смене accent/темы.",
+      "patch_sketch": "Заменить литералы на scheme.onSurface/scrim/AppSurfaces-тональности и обернуть подпись в тональный пилл вместо Shadow.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-3",
+      "severity": "medium",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 813,
+      "evidence": "          Icon(icon, size: 14, color: scheme.primary),\n          const SizedBox(width: 5),\n          Text(label, style: Theme.of(context).textTheme.labelSmall),",
+      "why": "_StageBadge — единственное место экрана, где текст берётся из темы приложения, а не из переданных dark textTheme/scheme. Экран принудительно тёмный (CallTokens.darkSurface + AppSurfaces.neutralize(dark)), а Theme.of(context).textTheme.labelSmall в светлой теме приложения даёт тёмный onSurface. Итог: подписи бейджей («1080p · NiosPlus», «VPN · TCP/TLS», эмодзи-верификация, «Рука поднята») рисуются тёмно-серым по scheme.surfaceContainerHigh.withValues(alpha: 0.85) — то есть почти не читаются; при этом рядом _NoVideoPlaceholder корректно получает textTheme параметром.",
+      "impact": "Нечитаемые бейджи состояния звонка (высота видео, VPN-режим, SAS-эмодзи) в светлой теме приложения.",
+      "patch_sketch": "Передавать в _StageBadge textTheme/scheme.onSurface, как уже сделано для _NoVideoPlaceholder (убрать Theme.of(context) из бейджа).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "medium",
+      "file": "lib/services/calls/e2ee_key_manager.dart",
+      "line": 5,
+      "evidence": "class E2eeKeyManager {\n  E2eeKeyManager();\n\n  final Ecdh _ecdh = Ecdh.p256(length: 256);\n  final AesGcm _aesGcm = AesGcm.with256bits();",
+      "why": "Целый мёртвый параллельный стек звонков: e2ee_key_manager.dart (109 строк, ECDH P-256 + AES-GCM + свой SAS), video_pipeline.dart (232, camera+JPEG-кадры), video_output_pipeline.dart (53), ws_transport.dart (94) — 488 строк, у которых ноль ссылок и в lib/, и в test/ (grep по всему репозиторию: только call_transport/quic_transport/binary_packet/nios_calls_api имеют тесты). Реальный E2EE в звонке — DTLS-SRTP + SAS-эмодзи из SDP в webrtc_call_session.dart:584-603, реальный транспорт — WebRtcSignalingClient. Мёртвый E2eeKeyManager опаснее обычного мусора: он выглядит как «настоящее E2EE звонков» и при следующем security-аудите или правке шифрования агент/человек пойдёт по ложному следу (плюс дублирует список SAS-эмодзи, расходящийся с рабочим).",
+      "impact": "Ложная модель безопасности звонков и 488 строк, которые никто не компилирует в сценарий; риск «починить» не тот файл.",
+      "patch_sketch": "Удалить e2ee_key_manager.dart, video_pipeline.dart, video_output_pipeline.dart, ws_transport.dart (и call_transport/quic_transport/binary_packet/nios_calls_api после переноса их тестов).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-3",
+      "severity": "medium",
+      "file": "lib/widgets/calls/screen_share_picker_dialog.dart",
+      "line": 27,
+      "evidence": "  return showDialog<ScreenShareChoice>(\n    context: context,\n    builder: (_) => _ScreenSharePickerDialog(maxScreenHeight: maxScreenHeight),\n  );",
+      "why": "Сырой showDialog + AlertDialog с actions вместо AppModal.showDialog, хотя во всей остальной полосе звонков модалки идут через AppModal (call_devices_dialog.dart:21, voice_effect_picker_sheet.dart:12). Следствие не косметическое: AppModal даёт единый M3-поверхностный стиль, maxWidth и поведение на web/desktop, а этот AlertDialog рисует дефолтную платформенную панель (fixed 640x420 контент) — на маленьком окне Windows/вебе диалог может вылезти за экран, и он единственный в звонках не подчиняется смене темы поверхностей.",
+      "impact": "Пикер шаринга экрана выбивается из дизайн-системы и может не влезть в окно на desktop/web.",
+      "patch_sketch": "showScreenSharePicker -> AppModal.showDialog<ScreenShareChoice>(context:, maxWidth: 680, builder: ...) с OverflowBar для действий.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-4",
+      "severity": "medium",
+      "file": "lib/screens/calls/outgoing_call_screen.dart",
+      "line": 356,
+      "evidence": "                child: Material(\n                  color: Colors.transparent,\n                  borderRadius: BorderRadius.circular(CallTokens.meetEndButtonHeight / 2),\n                  clipBehavior: Clip.antiAlias,",
+      "why": "Кнопка «отменить звонок» реализована здесь четвёртым способом: Material+InkWell+Container с ручным радиусом и Clip.antiAlias, тогда как в call_control_dock.dart:277 и active_call_screen.dart:303 та же красная стадион-кнопка — TouchContainer с scaleDown 0.94 и M3SpringCurves.spatialFast. Пользователь нажимает одну и ту же кнопку в трёх экранах и получает три разных отклика: у outgoing нет пружинного press-эффекта и тактильной отдачи (enableHaptics), зато есть saveLayer от Clip.antiAlias на всю кнопку. Это самодельная дизайн-система поверх существующего общего виджета.",
+      "impact": "Неконсистентный отклик главного действия звонка + лишний saveLayer в момент нажатия.",
+      "patch_sketch": "Использовать TouchContainer (как в доке) с CallTokens.meetEndButton* и onTap: _cancelAndPop.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "UI-5",
+      "severity": "medium",
+      "file": "lib/widgets/calls/call_overlay.dart",
+      "line": 353,
+      "evidence": "              visualDensity: VisualDensity.compact,\n              padding: EdgeInsets.zero,\n              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),",
+      "why": "Быстрые действия плавающего оверлея звонка ужаты ниже минимума 48 dp: mute 32x32 (:355), «завершить» 32x32 на голосовом пилле (:361-363) и 28x28 на видео-плитке (:468-470, :486-490), причём последние — голые GestureDetector без tooltip и Semantics(label:). Это самый частый жест в звонке (заглушить/сбросить) и он делается вслепую, без подписи для screen reader; в доке те же действия — 52 dp с tooltip, то есть внутри одного приложения цель попадания различается в 3 раза.",
+      "impact": "Промахи по mute/end в оверлее, недоступность для TalkBack/VoiceOver.",
+      "patch_sketch": "Поднять цели до 48 dp (или обернуть в TouchContainer с hit-test padding) и добавить Semantics(label:)+Tooltip на все GestureDetector-кнопки оверлея.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "medium",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 390,
+      "evidence": "    if (spotlight != null) {\n      return Stack(\n        fit: StackFit.expand,\n        children: [\n          ColoredBox(color: Colors.black, child: spotlight),",
+      "why": "_buildStage возвращает три разные корневые ветки (spotlight при шаринге экрана :390, сетка при 2+ участниках :413, одиночное видео :438), и переключение между ними происходит в одном кадре: когда второй участник включает камеру или кто-то начинает шарить экран, дерево целиком подменяется — сетка 3x3 c childAspectRatio 3/4 мгновенно превращается в spotlight, все плитки пересоздаются и RTCVideoView перепривязываются без кроссфейда. Это ровно тот случай, где нужен готовый M3SpringSwitcher (M3SwitcherType.fade для смены раскладки: сохраняет обе ветки на время перехода и не даёт «прыжка»), который уже есть в lib/widgets/motion/.",
+      "impact": "Резкий скачок раскладки в момент старта шаринга/подключения участника — визуальный «провал» в самом нагруженном моменте звонка.",
+      "patch_sketch": "Обернуть результат _buildStage в M3SpringSwitcher(type: M3SwitcherType.fade, duration: M3Durations.medium2, child: KeyedSubtree(key: ValueKey(branch), child: stage)).",
+      "confidence": "likely"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "medium",
+      "file": "lib/screens/calls/outgoing_call_screen.dart",
+      "line": 199,
+      "evidence": "                    PulseAvatar(\n                      name: displayName,\n                      avatarUrl: widget.args.avatarUrl,\n                      radius: 64,",
+      "why": "Это экран состояния ringing/connecting, но единственная анимация на нём — AppLoadingIndicator-спиннер (:300). Аватар статичен, хотя тот же «звоним» в других местах живёт: входящий оверлей пульсирует кольцом (_PulsingCallIcon, incoming_call_overlay.dart:437-450), голосовой экран — CallAudioRipple вокруг аватара (active_voice_call_screen.dart:241-248), а голосовой статус-пилл даже не имеет перехода при смене «Звоним…» -> таймер (ValueListenableBuilder отдаёт разные контейнеры без M3SpringSwitcher). Абонент, который ждёт ответа 10-20 секунд, видит замороженную картинку.",
+      "impact": "Исходящий звонок выглядит «подвисшим» до ответа, в отличие от входящего.",
+      "patch_sketch": "Обернуть PulseAvatar в существующий CallAudioRipple с AnimationController (isActive: !_errorMessage) — как на голосовом экране; смену статус-пилла провести через M3SpringSwitcher.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-2",
+      "severity": "low",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 836,
+      "evidence": "    return IgnorePointer(\n      ignoring: !visible,\n      child: FadeTransition(opacity: opacity, child: child),\n    );",
+      "why": "Рукописный показ/скрытие дока (_controlsFadeController + CurvedAnimation + _CallControlsFade + свой Timer на 4 с) дублирует готовый M3Reveal(revealed:, type: M3RevealType.fade) из lib/widgets/motion/m3_reveal.dart, который сам держит контроллер, гасит анимацию при reduceMotion (_motionDisabled) и учитывает TickerMode. Из-за ручной реализации reduceMotion обрабатывается в четырёх местах (:140-144, :153-165) и легко забыть пятое; _areControlsVisible и значение контроллера — два источника истины, которые уже приходится синхронизировать вручную в каждом обработчике.",
+      "impact": "Дублирование моушен-механики и хрупкая синхронизация состояния дока при reduced motion.",
+      "patch_sketch": "Заменить _CallControlsFade на M3Reveal(revealed: _areControlsVisible, type: M3RevealType.fade), удалив _controlsFadeController/_controlsFadeAnimation.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "M3E-1",
+      "severity": "low",
+      "file": "lib/widgets/calls/call_control_dock.dart",
+      "line": 68,
+      "evidence": "            IconButton.filledTonal(tooltip: context.l10n.callDevicesTitle,\n              onPressed: () => showCallDevicesDialog(context, video: isVideoCall, onApply: session.setDevices),\n              icon: const Icon(Icons.tune_rounded)),",
+      "why": "M3E-опт-ин в material_ui 1.11.1 существует у IconButton (IconButtonTheme.variantOf / StyleVariant.material3Expressive), и в проекте он не включён ни разу. Здесь это особенно заметно: единственная stock-IconButton дока стоит в одном Wrap с самодельными _CallDockButton 52x52 (CallTokens.buttonBorderRadius, scaleDown 0.92, M3SpringCurves.spatialFast) и отличается от них размером, формой и тактильным откликом — при том что это та же по важности кнопка «устройства».",
+      "impact": "Одна кнопка из десяти в доке ведёт себя и выглядит иначе; M3E-возможность SDK не используется.",
+      "patch_sketch": "Навесить IconButtonTheme.variantOf(StyleVariant.material3Expressive) на поддерево дока либо заменить IconButton.filledTonal на _CallDockButton.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "UI-6",
+      "severity": "low",
+      "file": "lib/widgets/calls/call_control_dock.dart",
+      "line": 155,
+      "evidence": "                tooltip: data.isScreenSharing\n                    ? 'Остановить демонстрацию'\n                    : 'Демонстрация экрана',",
+      "why": "Полоса звонков локализована наполовину: в соседних строках берётся context.l10n.callMute/callEnd, а здесь и ещё примерно в 15 местах — русские литералы: active_video_call_screen.dart:259,593,911, active_voice_call_screen.dart:216,418,455, outgoing_call_screen.dart:286, incoming_call_overlay.dart:365, active_group_call_banner.dart:88,93, screen_share_picker_dialog.dart:67,82,141, call_control_dock.dart:184,201,254. Для не-русской локали экран звонка останется русским, и tooltip-ы (единственная подпись для иконок) тоже.",
+      "impact": "Смешанные языки в UI звонка для всех локалей, кроме ru; часть tooltip-ов не переводится.",
+      "patch_sketch": "Завести ключи в AppLocalizations для этих 15 строк и заменить литералы на context.l10n.*.",
+      "confidence": "certain"
+    }
+  ],
+  "perf_status": [
+    {
+      "from": "audit/perf/00-summary.md#P0-1",
+      "status": "fixed",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 466,
+      "note": "ColorScheme.fromSeed + ThemeData() мемоизированы по seed (_cachedSeed/_cachedScheme/_cachedTextTheme, 466-478); в слушателе потока setState убран (комментарий 117-118), остался один setState() после подписки (:121)"
+    },
+    {
+      "from": "audit/perf/00-summary.md#P0-1",
+      "status": "fixed",
+      "file": "lib/screens/calls/active_voice_call_screen.dart",
+      "line": 132,
+      "note": "схема кэшируется (_cachedCallScheme/_cachedSeed, 132-141), setState в слушателе нет (80-100)"
+    },
+    {
+      "from": "audit/perf/00-summary.md#P0-1 (остаток)",
+      "status": "still",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 459,
+      "note": "сам ребилд экрана никуда не делся: CallSessionNotifier.notify() на каждый тик (providers/call_session_provider.dart:63-67,306) -> 2-3 перестройки в секунду, см. находку LAG-2"
+    },
+    {
+      "from": "audit/perf/00-summary.md#P0-1 (новое место)",
+      "status": "still",
+      "file": "lib/screens/calls/active_call_screen.dart",
+      "line": 82,
+      "note": "тот же некэшированный AppSurfaces.neutralize(ColorScheme.fromSeed(...)) в build остался здесь (82-87), но ветка холодная: считается только пока session == null; не P0, но паттерн надо закрыть тем же кэшем"
+    }
+  ]
+}

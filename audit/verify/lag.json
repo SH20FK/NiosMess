@@ -1,0 +1,366 @@
+{
+  "area": "lag",
+  "verifier": "skeptic",
+  "verified_at": "2026-11-28",
+  "project": "F:\\Niosmess V2\\pulse_flutter",
+  "scope": "shortlist LAG-1/LAG-2/LAG-4/LAG-5, LAG-6 in shortlist: 0 entries. Batch 1: 12 of 27. Batch 2: remaining 15 + 5 requested LAG-class extras (chat_list_screen:1006, chat_list_screen:1065 itemExtent, shrinkWrap x10, FileTypeDetector x3 per bubble, chat_input_bar MediaQuery) = 32 items",
+  "measurements": [
+    "DocxParser.parseBytes (dart VM JIT, desktop): 23.3 ms for 310 KB word/document.xml (300 paras x 5 runs + tables), 73.2 ms for 1.04 MB xml",
+    "ColorScheme.fromSeed (flutter_tester JIT): expressive 0.776 ms/op, tonalSpot 0.483 ms/op, no internal cache in material_ui-1.11.1 (color_scheme.dart:347 _buildDynamicScheme per call)",
+    "cryptography 2.9.0 (pure Dart, JIT): Ed25519.verify 4 KB = 2.77 ms, X25519 sharedSecret = 0.88 ms, HKDF = 0.10 ms, AES-GCM 4 KB encrypt = 0.41 / decrypt = 0.33 ms",
+    "customEmojiLength on 10 000 chars: 0.23 ms plain, 0.35 ms with 900 shortcodes",
+    "tz.getLocation is O(1) map lookup (timezone-0.11.2/src/location_database.dart:39), no name parsing",
+    "RenderAnimatedOpacityMixin: _currentlyIsRepaintBoundary = alpha>0 + markNeedsCompositedLayerUpdate (flutter/lib/src/rendering/proxy_box.dart:1065-1079) => child is NOT repainted when opacity animates",
+    "formatRelativeTime: 4.04 us (7 min ago), 15.22 us (3 days ago) — flutter_tester JIT",
+    "messagePreviewText: 112.7 us (~100 chars), 285.6 us (~500 chars)",
+    "FileTypeDetector.detect(fileName): 0.65 us",
+    "InteractiveMessage.parse(poll, ~150 chars payload): 9.09 us; parse(6.6 KB list payload): 59.1 us; fingerprint (sort+jsonEncode+sha256): 19.83 us",
+    "shrinkWrap: true — 10 sites in lib/ (recursive grep: create_group_details_screen:241, presets_tab:58, chat_members_screen:124, onboarding_screen:790, create_chat_wizard_view:918, media_grid_picker:594, voice_effect_picker_sheet:67, interactive_composer:337, interactive_message_card:143,252)",
+    "DesktopWindowService.setTitle dedupes: if (!isDesktop || !_initialized || title == _title) return; (desktop_window_service.dart:113-115)",
+    "chat_input_bar.dart: 0 occurrences of MediaQuery.of, uses sizeOf/viewInsetsOf (:532,:536) — perf P1-9 already fixed",
+    "EncryptedHistoryArchive.write() is fed deltas, not the 300-message window: changed (backend_chat_provider:1755), page rows (:3282), [optimisticMessage] (:3844), [failed] (:3962), []+remove (:4218); JSON+AES already in EncryptedMessageCache._runCompute"
+  ],
+  "items": [
+    {
+      "rule": "LAG-5",
+      "file": "lib/services/ordinary_e2ee/ordinary_e2ee_codec.dart",
+      "line": 297,
+      "verdict": "confirmed",
+      "severity_final": "high",
+      "reason": "Дословно совпало (297-301). Закрытие чата с ordinary-E2EE = N x (Ed25519 verify + X25519 + HKDF + 2x AES-GCM). cryptography_flutter в pubspec и pubspec.lock отсутствует, FlutterCryptography в lib/ = 0 -> весь Dart. Замер: ~4.5 ms на сообщение (JIT, desktop, 4 KB body); на страницу 80 -> ~360 ms, на окно 300 -> ~1.3 s чистого CPU в UI-изоляте. Уточнение механизма: это не последовательный цикл, а Future.wait по пачке (backend_chat_provider.dart:2706-2719) — все расшифровки стартуют конкурентно, но каждая синхронно считает на главном изоляте, сумма та же. Кэши _opened (128) и _identities снимают повторную цену уже открытых сообщений, поэтому платят первый открытый чат и догон истории.",
+      "mechanism": "chat open -> ChatMessagesNotifier.build -> backend_chat_provider.dart:2706 Future.wait(map ordinary.decrypt) -> ordinary_e2ee_service.dart:723 OrdinaryCodec.decrypt -> :297 verify (Ed25519().verify, dart impl) -> :317 X25519 sharedSecretKey + HKDF (_wrap 197-218) -> :322 AES-GCM decrypt; Isolate.run/compute в lib/services/ordinary_e2ee = 0 (grep), в pubspec нет cryptography_flutter"
+    },
+    {
+      "rule": "LAG-2",
+      "file": "lib/screens/calls/active_video_call_screen.dart",
+      "line": 459,
+      "verdict": "downgraded",
+      "severity_final": "medium",
+      "reason": "Цитата и цепочка верны, но частота и цена завышены. webrtc_call_session.dart:562 — тик длительности 1/с, :229 — _sampleQuality 1/2 с и он тоже вызывает _triggerStateUpdate (:1067), итого ~1.5 перестройки в секунду, а не 2-3. Палитра уже закэширована (_cachedScheme/:466), поэтому кадр не тратит fromSeed; остаётся layout 875-строчного экрана и GridView.count с плитками (RTCVideoView — Texture, пересборка виджета текстурой не перерисовывает). Это одиночные пропуски кадра на ~2-4 ms раз в 0.5-1 с, а не 'постоянные пропуски'. Инвалидация всего экрана ради тика секундомера — всё равно дефект, фикс в одну строку (select/ValueListenable).",
+      "mechanism": "Timer.periodic(1s) in _startDurationTimer (webrtc_call_session.dart:562) -> _triggerStateUpdate (:1579) -> onStateChanged -> CallSessionManager._onSessionData (call_session_provider.dart:301) -> callSessionProvider.notifier.notify() (:63-67 state=null;state=cur) -> WidgetRef.watch at active_video_call_screen.dart:459 rebuilds Scaffold/_buildStage/GridView.count/CallControlDock; _statsTimer(2s)::_sampleQuality also fires _triggerStateUpdate"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/widgets/settings/custom_color_picker_sheet.dart",
+      "line": 75,
+      "verdict": "downgraded",
+      "severity_final": "medium",
+      "reason": "Механизм подтверждён: onPanUpdate (:215) -> pick -> _select (:62) -> setState -> build -> ColorScheme.fromSeed(dynamicSchemeVariant: expressive) на каждое событие указателя. В material_ui-1.11.1 кеша внутри fromSeed нет (color_scheme.dart:347 строит DynamicScheme заново). Замер: 0.78 ms на вызов (expressive против 0.48 tonalSpot) на desktop → с перестройкой листа ~2-4 ms на событие: на 60 Гц укладывается, на 120 Гц/low-end Android даёт заметный дрейф ползунка. Поэтому high -> medium, а не rejected. Ошибка в тексте находки: второй fromSeed (:369) стоит внутри условия 'только выбранный пресет', т.е. один вызов на билд, а не 'на каждый элемент'.",
+      "mechanism": "GestureDetector.onPanUpdate (:215) -> pick(offset) -> _select(Color) (:62) -> setState (:63) -> _CustomColorPickerSheetState.build (:73) -> ColorScheme.fromSeed(seedColor:_selected, DynamicSchemeVariant.expressive) (:75); та же State.build пересобирает SingleChildScrollView/Column/пресеты/TextField"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/core/utils/docx_parser.dart",
+      "line": 95,
+      "verdict": "downgraded",
+      "severity_final": "medium",
+      "reason": "Синхронный разбор на UI-изоляте подтверждён: _DocxViewerState._parse (native_file_viewer_screen.dart:608-618) делает await readAsBytes и затем синхронный DocxParser.parseBytes; Isolate.run/compute в файле и у вызывающего нет, RegExp внутри циклов (:151, :161, :189, :196, :201) действительно создаются повторно. Но 'сотни миллисекунд на 50-200 КБ' не подтвердилось замером: 23.3 ms на 310 КБ xml, 73.2 ms на 1 МБ xml (desktop JIT). На телефоне ~x2-3 => типичный документ 30-90 ms, большой 150-250 ms. Это 2-5 пропущенных кадров один раз на открытие файла, во вторичном сценарии; не блокер, но и не rejected, т.к. кадр действительно блокируется без прогресса.",
+      "mechanism": "_DocxViewerState.initState -> _parse (native_file_viewer_screen.dart:603-622) -> await File.readAsBytes -> DocxParser.parseBytes (docx_parser.dart:70) -> ZipDecoder().decodeBytes (полный inflate) -> _parseDocumentXml: elementRegex.allMatches по всему xml, внутри цикла _parseParagraph создаёт runRegex/textRegex на каждый абзац/run, _parseTable — rowRegex/cellRegex на строку/ячейку"
+    },
+    {
+      "rule": "LAG-5",
+      "file": "lib/services/secret_chat/secret_journal.dart",
+      "line": 298,
+      "verdict": "downgraded",
+      "severity_final": "medium",
+      "reason": "Механизм совпал: commit = jsonEncode транзакции + AES-GCM + base64 + backend.append -> box.add + box.flush (secret_journal.dart:69-72) на КАЖДОЕ событие; чекпоинт при _sequence>=128 (или при remove/delete) сериализует и шифрует снапшот всех секретных чатов целиком (:314-331). Цитата 298-303 дословна. Понижено, потому что: (а) flush — асинхронный ввод-вывод, каждая транзакция это await, изолят не блокируется сплошняком; (б) одна транзакция — это ~0.1-0.5 ms (AES-GCM замер 0.33-0.41 ms на 4 КБ), т.е. '100 fsync = секунды без отрисовки' не подтверждается; (в) реальная цена cold start — restore() (:206-240) расшифровывает снапшот всей истории, и он действительно ждётся из ChatsNotifier.build (backend_chat_provider.dart:360), но секретные строки просто появляются позже кэша, список не замирает на пустом экране.",
+      "mechanism": "secret_chat_engine sync/receive -> journal.commit (:280) -> _tail.then -> AesGcm.encrypt(utf8.encode(jsonEncode(tx))) (:298-302) -> HiveSecretJournalBackend.append -> box.add + box.flush (:69-72); при sequence>=128 -> jsonEncode(snapshot of _states/_messages) -> AES -> compact(:75-83, 2 flush + compact). restore (:206-240): base64+SecretBox.fromConcatenation+AES.decrypt+jsonDecode+_apply по каждому record, ждётся в secret_chat_provider.dart:181 (_open) -> backend_chat_provider.dart:360 (ChatsNotifier.build)"
+    },
+    {
+      "rule": "LAG-5",
+      "file": "lib/core/storage/encrypted_message_cache.dart",
+      "line": 335,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Дословно и по механизму верно: jsonDecode и AES уходят в Isolate.run (_runCompute :148-152, :291-325), но ApiMessage.fromJson по всем элементам выполняется уже на UI-изоляте (:335). Для секретного чата maxLimit = 2000 (:236), поэтому открытие секретного чата с длинной историей = 2000 fromJson подряд на главном изоляте (обычные чаты ограничены 100). Вызывается из открытия окна (backend_chat_provider.dart:2209/2347/2372, secret_chat_provider.dart:521).",
+      "mechanism": "ChatMessagesNotifier.build -> EncryptedMessageCache.loadMessages (:273) -> _runCompute(base64+AES.decrypt+utf8.decode+jsonDecode) (:291-325) -> returns List<Map> -> UI isolate: messagesJson.map(ApiMessage.fromJson).toList() (:335)"
+    },
+    {
+      "rule": "LAG-5",
+      "file": "lib/core/storage/chat_media_cache.dart",
+      "line": 140,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "reason": "Механизм верен: saveMediaMessages на каждое сохранение снапшота окна делает getCachedMediaSync — синхронное чтение Hive-бокса и ApiMessage.fromJson до 300 медиа-сообщений (:88-105, _maxCachedMedia=300), затем merge и sort. saveMediaMessages вызывается из _saveToCache (backend_chat_provider.dart:3106), а _saveToCache висит на всей мутации окна: входящий push (:2109), отправка, правка, удаление, реакция, read-подтверждение, выход из чата (19 вызовов). Уточнение: при снапшоте без медиа возврат на :131 — для текстовых чатов бесплатно; цена есть только в медиа-чатах. Отдельно getCachedMediaSync зовут из profile_shared_media_tab_view.dart:108,121.",
+      "mechanism": "_saveToCache -> EncryptedMessageCache.saveMessages -> ChatMediaCache.saveMediaMessages (:120) -> getCachedMediaSync (:140) -> box.get('chat_$chatId') + whereType<Map>.map(ApiMessage.fromJson).where(isMediaMessage) на UI-изоляте для <=300 элементов -> byId/merge/sort -> box.put"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/models/interactive_message.dart",
+      "line": 48,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "reason": "Двойной разбор на один бабл в одном кадре подтверждён: chat_message_list.dart:744 (preview) и message_bubble.dart:1570 (isDocument) для одной и той же строки. Но масштаб не тот, что в находке: parse начинается с guards — text.length > 12000 (:44) и lastIndexOf(marker) (:45), поэтому для обычного сообщения это один проход по строке (~1 мкс); jsonDecode + RegExp-валидация выполняются только для сообщений с маркером, и полезная нагрузка опроса это сотни байт, не 12 КБ. В кадре скролла видно 2-4 опроса => единицы десятков микросекунд; 'десятки разборов за кадр' получаются только при полной пересборке окна, и это ~0.3 ms. Дефект архитектурный (результат не мемоизирован), выигрыш от фикса реальный, но lag-эффект ниже порога заметности.",
+      "mechanism": "itemBuilder (chat_message_list.dart:744) -> InteractiveMessage.parse(rawText) -> :45 lastIndexOf(marker) -> :48 jsonDecode(substring) + _documentIdPattern/_definitionPattern проверки -> .preview; затем MessageBubble.build -> _buildMessageTextAndFooter (message_bubble.dart:1569-1570) -> InteractiveMessage.parse(messageData.content) снова"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/models/api/custom_emoji_model.dart",
+      "line": 4,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "reason": "Путь подтверждён: CustomEmojiLengthFormatter.formatEditUpdate вызывает customEmojiLength на каждый edit текста (custom_emoji_text.dart:158-159), плюс счётчики в build (create_post_screen.dart:935,941). Но цена измерена: 0.23 ms на 10 000 символов без шорткодов и 0.35 ms с 900 шорткодами (desktop JIT; на телефоне ~x2-3 => до ~1 ms). Два вызова на нажатие = ~0.5-2 ms, при том что layout/repaint самого TextField на 10k символов дороже. 'Ввод начинает отставать от пальца' за счёт этой функции не подтверждается; O(n)-работа есть, порог заметности не пройден.",
+      "mechanism": "TextField.inputFormatters -> CustomEmojiLengthFormatter.formatEditUpdate (custom_emoji_text.dart:154-161) -> customEmojiLength(newValue.text) -> String.replaceAll(customEmojiPattern, U+FFFC) + Characters.length (графемная сегментация всего текста); дополнительно в build: create_post_screen.dart:935,941"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/core/utils/app_time.dart",
+      "line": 55,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "reason": "Цитата совпала (52-55), вызов resolve из ApiMessage.resolvedSentAt и 4-6 чтений на строку списка тоже. Но описанный механизм неверен: tz.getLocation — это O(1) поиск в Map по имени (timezone-0.11.2/src/location_database.dart:30-46), никакого 'разбора id' нет; на вызов остаётся trim() + хеш строки + TZDateTime.from (бинарный поиск перехода зоны). Итог ~100 таких вызовов на кадр = десятки микросекунд. Работа реальная и лишняя (кеш Location по id убирает её полностью), но это не LAG-класс: severity low.",
+      "mechanism": "chat_message_list itemBuilder -> ApiMessage.resolvedSentAt (models/api/message_model.dart:164) -> AppTimeSettings.resolve (app_time.dart:47) -> tz.TZDateTime.from(base.toUtc(), tz.getLocation(_timeZoneId!.trim())) (:53-55) -> LocationDatabase.get(name) = map lookup (location_database.dart:39)"
+    },
+    {
+      "rule": "LAG-4",
+      "file": "lib/widgets/media/m3_video_controls.dart",
+      "line": 242,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "Заявленного механизма не существует. AnimatedOpacity строится на RenderAnimatedOpacityMixin, который сам является composited-слоем: при изменении opacity он ставит _currentlyIsRepaintBoundary = alpha>0 и вызывает markNeedsCompositedLayerUpdate (flutter/lib/src/rendering/proxy_box.dart:1065-1079), а paint идёт через OpacityLayer; ребёнок НЕ перерисовывается и saveLayer на панель на каждом кадре не делается. Поэтому предложенный патч (RepaintBoundary внутрь Opacity) ничего не меняет — граница уже есть на самом Opacity. Остаётся один лишний композитный слой на время M3Durations.short3, это не jank. Цитата дословна, но диагноз и patch неверны.",
+      "mechanism": "setState(_visible) -> AnimatedOpacity (:242) -> ImplicitlyAnimatedWidget build -> Opacity(opacity: animation.value, child: Center->ConstrainedBox->M3VideoPlaybackBar) -> RenderAnimatedOpacityMixin._updateOpacity -> markNeedsCompositedLayerUpdate, OpacityLayer.alpha = _alpha (proxy_box.dart:1059-1093) -> child layer переиспользуется"
+    },
+    {
+      "rule": "LAG-4",
+      "file": "lib/widgets/settings/settings_skeleton.dart",
+      "line": 103,
+      "verdict": "rejected",
+      "severity_final": null,
+      "reason": "Тот же неверный диагноз, плюс в этом файле он ещё и вдвое слабее: AnimatedBuilder получает готовый child (Column с _SkeletonRow строится вне builder, :107-120), поэтому на кадр пульсации не пересобирается вообще ничего, кроме Opacity. RenderAnimatedOpacityMixin сам держит composited-слой (proxy_box.dart:1065-1079), ребёнок не перерисовывается, saveLayer всей колонки на каждом кадре 1200-мс цикла не происходит. Цитата дословна, механизм 'Opacity без RepaintBoundary = перерисовка' опровергнут по исходникам Flutter в установленной версии SDK.",
+      "mechanism": "AnimationController(_pulse 1200ms) -> AnimatedBuilder(animation:_opacity, builder: Opacity(opacity:_opacity.value, child: child), child: Column(rows)) (:101-121) -> RenderAnimatedOpacityMixin._updateOpacity only, child subtree не помечается needsPaint"
+    },
+    {
+      "rule": "LAG-2",
+      "file": "lib/features/wallpaper/presentation/wallpaper_studio_screen.dart",
+      "line": 67,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "quote": "void _updateConfig(ChatWallpaperConfig newConfig) {\n    setState(() {\n      _draftConfig = newConfig;\n    });\n  }",
+      "reason": "Подтверждено. Каждое событие любого слайдера (colors_tab:64, effects_tab:85,104, pattern/presets tab) вызывает onChanged(config.copyWith(...)) -> _updateConfig -> setState корня экрана: пересобираются AppBar с MenuAnchor, TabBar, TabBarView с четырьмя табами, обе панели WallpaperPreviewPane и bottomActions. При драге это 60-120 событий в секунду. Хуже того, работа гарантированно впустую: ChatWallpaperBackground (:11-12) возвращает плоский ColoredBox, а WallpaperPreviewPane (:16,:22-40) вообще не читает config (показывает l10n.backgroundsPaused) — рендер обоев отключён. Единственное наблюдаемое следствие — отставание самого ползунка. medium.",
+      "mechanism": "Slider.onChanged -> ChatWallpaperConfig.copyWith -> onChanged callback -> _updateConfig (:66-70) -> setState root screen -> build (:103+) -> TabBar/TabBarView(4 tabs)/WallpaperPreviewPane x2/bottomActions rebuilt; ChatWallpaperBackground returns ColoredBox(color: AppSurfaces.of(context)) (chat_wallpaper_background.dart:11-12); WallpaperPreviewPane ignores `config`"
+    },
+    {
+      "rule": "LAG-2",
+      "file": "lib/screens/contacts_screen.dart",
+      "line": 303,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "quote": "ref.listen<AsyncValue<List<ApiChatSummary>>>(chatsProvider, (prev, next) {\n      final List<ApiChatSummary>? freshChats = next.asData?.value;\n      if (freshChats != null) {\n        final List<ApiChatSummary> direct = _recentDirectChats(freshChats);\n        _cachedDirectContacts = direct;\n        ref.read(cacheServiceProvider).saveContacts(direct);",
+      "reason": "Подтверждено по всей цепочке. ChatsNotifier._applyNewMessagePush (backend_chat_provider.dart:790-849) публикует НОВЫЙ List на каждый входящий пуш/прочтение, поэтому listen в открытом экране контактов срабатывает на каждое сообщение в приложении: полный фильтр direct по всем чатам + CacheService.saveContacts (cache_service.dart:202-213) = map(toJson) всех direct-чатов + box.put('list') в Hive. Для ~100 direct-чатов это ~0.5-2 мс сериализации и дисковый put на событие при данных, меняющихся раз в день. medium — но только пока экран контактов открыт.",
+      "mechanism": "_applyNewMessagePush -> updated[index] = chat.copyWith(...) -> state = AsyncData(newList) -> ref.listen(chatsProvider) at contacts_screen.dart:303 -> _recentDirectChats(all chats) -> CacheService.saveContacts -> contacts.map(toJson) -> box.put('list') (cache_service.dart:206-209)"
+    },
+    {
+      "rule": "LAG-2",
+      "file": "lib/screens/public_profile_screen.dart",
+      "line": 338,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "quote": "final List<ApiChatSummary> chats =\n        ref.watch(chatsProvider).value ?? const <ApiChatSummary>[];",
+      "reason": "Подтверждено: экран чужого профиля подписан на весь инбокс вместо одного признака (есть ли direct-чат и online). Новый List на каждый пуш -> пересборка тяжёлого CustomScrollView: SliverPersistentHeader c ProfileHeaderDelegate (тоже собирается заново), hero-шапка, бейджи, вкладки, плюс линейный скан чатов (:341-349). Оценка 2-5 мс на пересборку при активной переписке — несколько раз в секунду. medium.",
+      "mechanism": "chat push -> state = AsyncData(new List) -> ref.watch(chatsProvider) at public_profile_screen.dart:339 -> linear scan for direct by username (:341-349) -> Scaffold/CustomScrollView/SliverPersistentHeader(ProfileHeaderDelegate)/tabs rebuilt (:354+)"
+    },
+    {
+      "rule": "LAG-2",
+      "file": "lib/widgets/settings/ordinary_e2ee_settings.dart",
+      "line": 581,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "quote": "Widget _contactSection() {\n  final chats = ref.watch(chatsProvider).value ?? const [];\n  final candidates = chats\n      .where((c) => c.chatType == 'direct' && !c.isSecret && !c.isBotChat)\n      .toList();",
+      "reason": "P1-14 прошлого аудита жив: было :574, стало :581, текст дословно совпал. Любое входящее сообщение/read/presence публикует новый List -> перестраивается вся секция и пересоздаются items DropdownButtonFormField (по элементу на каждый direct-чат, :604-613). Пока страница E2EE-настроек открыта, каждое сообщение в приложении стоит build+layout секции. medium.",
+      "mechanism": "chatsProvider emission -> _contactSection (:580) ref.watch (:581) -> filter direct (not secret/bot) (:582-584) -> SettingsSection + DropdownButtonFormField items rebuilt (:595-613)"
+    },
+    {
+      "rule": "LAG-5",
+      "file": "lib/services/secret_chat/secret_chat_engine.dart",
+      "line": 731,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "quote": "for (final event in ordered) {\n        await _serial.run(key, () => _receive(key, event));\n      }",
+      "reason": "Подтверждено: строго по одному событию, всё pure-Dart на UI-изоляте (в ordinary-крипте замерено: HKDF 0.10 мс, AES-GCM 4 КБ 0.33-0.41 мс, X25519 0.88 мс, плюс ratchet-шаги, jsonDecode и коммит журнала AES+jsonEncode+flush) — порядка 1-2 мс на событие. Страница 100 событий = 100-200 мс работы, разбитой на await'ы, в которые попадают кадры; после реконнекта это серия пропущенных кадров. Не 'секунды без отрисовки' (страница обычно одна: has_more=false), поэтому high перф-аудита -> medium.",
+      "mechanism": "_sync (:705) -> for page<50: transport.request('secret_sync', limit:100) (:708-712) -> ordered.sort (:727-730) -> for event: _serial.run(key, () => _receive(key, event)) (:731-733) -> _receive: DoubleRatchet decrypt (HKDF+AES-GCM) + jsonDecode + journal.commit (AES+jsonEncode+box.flush)"
+    },
+    {
+      "rule": "LAG-2",
+      "file": "lib/features/chats/presentation/inbox_search_results.dart",
+      "line": 49,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "quote": "final List<ApiChatSummary> allChats =\n        ref.watch(chatsProvider).value ?? const <ApiChatSummary>[];",
+      "reason": "Подписка на весь список и полный перебор в build подтверждены (:49-50, Map known :77-79, скан с тремя contains по каждому чату :83-90). Но цена — один линейный проход: для 200 чатов ~4 lowercase+contains на чат, оценочно 50-150 мкс, и происходит он на ввод и на пуш, а не на кадр анимации; тяжёлая часть (сеть) уже в контроллере. Порог заметности не пройден: low.",
+      "mechanism": "ConsumerWidget.build (:43) -> ref.watch(chatsProvider) (:50) -> Map known (:77-79) -> for allChats: 3x toLowerCase().contains (:83-90); rebuilds on every inboxSearchProvider change (per keystroke) and every chatsProvider emission"
+    },
+    {
+      "rule": "LAG-2",
+      "file": "lib/features/sessions/presentation/sessions_screen.dart",
+      "line": 185,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "quote": "pending:\n        ref.watch(sessionsControllerProvider) is SessionsReady &&\n        (ref.read(sessionsControllerProvider) as SessionsReady).revokingIds\n            .contains(session.id),",
+      "reason": "Механизм есть (каждая строка устройства подписана на весь контроллер, при revoke пересобираются все строки; read-после-watch действительно хрупок при асинхронной вставке). Но список устройств — единицы-десятки строк, перестройка SettingsListItem ~0.1-0.2 мс, и происходит только в момент revoke. Jank-эффекта нет; остаётся корректность (это не LAG-класс). low.",
+      "mechanism": "_deviceRow (:170-190) -> ref.watch(sessionsControllerProvider) inside SettingsListItem.pending (:186-188) + ref.read того же провайдера; parent list of AccountSession rows"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/core/utils/datetime_helpers.dart",
+      "line": 55,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "quote": "final locale = (localeCode ?? AppTimeSettings.localeCode)\n      .split(RegExp(r\"[_-]\"))\n      .first;",
+      "reason": "RegExp действительно создаётся на каждый вызов, но остальное в функции уже кешировано: DateFormat — топ-левел final (:4-7), Intl-данные локали грузятся один раз. Замер: 4.04 мкс ('7 минут назад'), 15.22 мкс ('3 дня назад') — JIT desktop, на телефоне x2-3. 20 видимых строк инбокса = 0.08-0.3 мс на перестроение. Работа реальная и лишняя (RegExp -> static final), лага нет: low.",
+      "mechanism": "chat_list_screen itemBuilder (:1186) / post_card:593 / call_log_view:388 -> formatRelativeTime (:53) -> split(RegExp('[_-]')) per call + AppTimeSettings.resolve (tz) + static DateFormat.format + Intl.plural(_minutesAgo/_daysAgo)"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/core/utils/message_preview_text.dart",
+      "line": 36,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "quote": "final document = md.Document(\n    extensionSet: md.ExtensionSet.gitHubFlavored,\n    encodeHtml: false,\n  );\n  for (final node in document.parseLines(source.split('\\n'))) {",
+      "reason": "Стоимость подтверждена замером (112.7 мкс на ~100 символов, 285.6 мкс на ~500), но посылка находки неверна: для секретных чатов _chatPreview выходит на :1407 (l10n.inboxEncryptedPreview) ДО _previewText, поэтому `cache: !chat.isSecret` (:1416) — мёртвое условие, а не путь переразбора. Остаётся только черновик (:1183, без кеша) — одна строка инбокса, ~0.1-0.3 мс на перестроение списка. 'Черновик на каждый кадр набора' тоже неверно: инбокс не строится, пока пользователь печатает в чате. low.",
+      "mechanism": "ChatTile subtitle: hasDraft ? messagePreviewText(draft!) (:1183, uncached) : _chatPreview(chat) -> _previewText(cache: !chat.isSecret) (:1414-1417), но :1407 `if (chat.isSecret) return l10n.inboxEncryptedPreview;` — secret rows never reach the parser; MessagePreviewFormatter.format caches by source (message_preview_text.dart:51-58)"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/models/interactive_message.dart",
+      "line": 21,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "quote": "String get fingerprint {\n    final keys = data.keys.toList()..sort();\n    return sha256\n        .convert(utf8.encode(jsonEncode({for (final k in keys) k: data[k]})))",
+      "reason": "Геттер каждый раз сортирует ключи, кодирует Map и считает SHA-256 — подтверждено, и вызывается он в build карточки (_stateFor :98) и дважды в didUpdateWidget (:124-125), хотя проекция уже кешируется по fingerprint. Но замер: 19.8 мкс на вызов (JIT); карточка перестраивается по тапу/апдейту, не покадрово; доска с 5 опросами ~0.1 мс. Реальная, но микроскопическая работа: low. Фикс (считать в parse) всё равно стоит сделать.",
+      "mechanism": "InteractiveMessageCard._stateFor (:96-119) -> widget.definition.fingerprint (:98) -> sort+jsonEncode+sha256 every build; didUpdateWidget compares old/new fingerprint twice (:124-125); InteractiveState (:165) and vote (:199)"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/widgets/contacts/call_log_view.dart",
+      "line": 388,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "quote": "Text(\n                                      '$statusText • ${formatRelativeTime(entry.timestamp)}',",
+      "reason": "Место верно, но список ленивый — ListView.separated (:285) с itemBuilder (:289), поэтому formatRelativeTime считается только для видимых строк. Замер самой функции 4-15 мкс; два O(n) прохода по журналу (:157 фильтр, :197 where(isMissed).length для подписи чипа) — десятки мкс на сотнях записей. Пересборка идёт по смене фильтра/провайдера, не покадрово. low.",
+      "mechanism": "build (:150) -> filter where(isMissed) (:155-157) + missed count (:197) -> ListView.separated(:285).itemBuilder(:289) -> formatRelativeTime(entry.timestamp) (:388)"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/widgets/settings/about_changelog_expander.dart",
+      "line": 71,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "quote": "for (final change in widget.changes) {\n  final TextPainter painter = TextPainter(\n    text: TextSpan(text: change, style: style),\n    textDirection: direction,\n    textScaler: scaler,\n  )..layout(maxWidth: constraints.maxWidth);",
+      "reason": "Механизм подтверждён: полный TextPainter.layout() по всем строкам заметок на каждый проход layout секции. Но: 5-15 коротких строк, экран About -> «Что нового», ~50-200 мкс на строку => 0.3-2 мс на layout, и только при смене constraints/масштаба/перестройке (не в скролле и не в кадре чата). Заметно лишь при живом ресайзе окна на десктопе — крайний сценарий. low.",
+      "mechanism": "AboutChangelogExpander.build -> LayoutBuilder (:61) -> for each widget.changes: TextPainter(...)..layout(maxWidth) (:70-81) -> fullHeight -> notes()/collapsed view; runs on every layout pass of the section (rebuild, textScale, resize)"
+    },
+    {
+      "rule": "LAG-5",
+      "file": "lib/core/storage/encrypted_history_archive.dart",
+      "line": 203,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "quote": "for (final message in messages) {\n      final previous = await _box.get(_identity(message.id));",
+      "reason": "Механизм есть (toJson на UI-изоляте + по одному await _box.get перед putAll), но объём в находке неверен: write() получает не окно на 300, а дельту — `changed` (backend_chat_provider:1751-1755), строки страницы (:3282), [optimisticMessage] (:3844), [failed] (:3962), []+remove (:4218). То есть обычно 0-5 сообщений, на первой загрузке до 50. Hive box.get — синхронный lookup по in-memory карте, обёрнутый в Future, поэтому «300 микрозадач» это ~0.3-0.6 мс, а JSON+AES уже уходят в EncryptedMessageCache._runCompute (:91-114). low.",
+      "mechanism": "archive.write(changed, remove:) (backend_chat_provider:1755/:3282/:3844) -> write (:181) -> _serialized -> _writeRows (:184): rows{...toJson} for the delta, await _encode (isolate) (:200), sequential await _box.get per message (:202-207), putAll+deleteAll+flush (:218-227)"
+    },
+    {
+      "rule": "LAG-2",
+      "file": "lib/widgets/nav/shell_window_title.dart",
+      "line": 102,
+      "verdict": "downgraded",
+      "severity_final": "low",
+      "quote": "if (!_browser) {\n      // Like Title below, the name is handed to the platform while building.\n      // The service drops a title that is already shown.\n      DesktopWindowService.instance.setTitle(title);",
+      "reason": "Ключевая часть находки опровергнута кодом: DesktopWindowService.setTitle (:113-115) начинается с `if (!isDesktop || !_initialized || title == _title) return;` — в platform-channel заголовок уходит только при реальной смене. Остаётся ShellWindowTitle.compose -> SettingsRegistry.getAllNodes().whereType<SettingsNavNode>().where(...).firstOrNull на каждый build при открытых настройках: десятки узлов, ~10-50 мкс. low.",
+      "mechanism": "build (:78-107) -> compose (:33-48) -> SettingsRegistry.getAllNodes() + whereType<SettingsNavNode> + where(sectionId) when settingsOpen -> DesktopWindowService.instance.setTitle(title) (:102) -> dedupe by title == _title (desktop_window_service.dart:113-115)"
+    },
+    {
+      "rule": "LAG-5",
+      "file": "lib/core/notifications/notification_history_store.dart",
+      "line": 71,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "quote": "final values = jsonDecode(raw) as List;\n    return values\n        .map(\n          (raw) => NotificationEvent.fromJson(\n            jsonDecode(raw as String) as Map<String, dynamic>,",
+      "reason": "Дословно и по механизму верно: restore() идёт из NotificationsNotifier.build (notifications_provider.dart:131-152) -> store.restore() (:67-81): box.get('snapshot') из AES-зашифрованного Hive-бокса, jsonDecode внешнего List, затем по каждому элементу второй jsonDecode + NotificationEvent.fromJson, всё на UI-изоляте до/во время первого кадра после старта. Объём ограничен take(100), стоимость декодов ~0.1-0.5 мс (дороже открытие зашифрованного бокса). Заявленный low подтверждается.",
+      "mechanism": "NotificationsNotifier.build -> NotificationHistoryStore.restore (:67) -> _open() (Hive.openBox with HiveAesCipher) -> box.get('snapshot') -> jsonDecode(List) (:71) -> map: jsonDecode(raw String) + NotificationEvent.fromJson (:72-80) -> belongsTo/take(100)"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/screens/chat_list_screen.dart",
+      "line": 1006,
+      "verdict": "confirmed",
+      "severity_final": "low",
+      "quote": "final index = filtered.indexWhere((chat) => chat.isSaved);\n      if (index > 0) filtered.insert(0, filtered.removeAt(index));",
+      "reason": "Из перф-аудита P1-16 (в shortlist записи нет, проверил по просьбе). Механизм подтверждён: на каждый build инбокса выполняются List.of-копии (:985-994), _applyFilter, indexWhere (:1006), filtered.any (:1010) и построение idToIndex (:1056-1058) — 3-4 O(n) прохода, триггером служит каждый пуш сообщения (новый List в chatsProvider). Для 200-500 чатов это ~20-100 мкс суммарно, меньше layout одной строки; findChildIndexCallback через idToIndex уже сделан. Реальная лишняя работа, но не лаг: low.",
+      "mechanism": "_buildSlivers/build -> filtered = List.of(_applyFilter(...)) (:985-994) -> indexWhere(isSaved)+removeAt/insert (:1006-1007) -> filtered.any(isSaved) (:1010) -> idToIndex map (:1056-1058) -> SliverChildBuilderDelegate (:1066)"
+    },
+    {
+      "rule": "LAG-3",
+      "file": "lib/screens/chat_list_screen.dart",
+      "line": 1065,
+      "verdict": "rejected",
+      "severity_final": null,
+      "quote": "sliver: SliverList(\n          delegate: SliverChildBuilderDelegate(",
+      "reason": "Отсутствие itemExtent/prototypeItem у SliverList не даёт покадровой цены: делегат индексируемый, дети строятся лениво, findChildIndexCallback есть, RepaintBoundary на строку есть. Ограничение проявляется только в точности jump-to/скроллбара (оценка средней высоты) и в лишних layout при резком прыжке — к jank скролла отношения не имеет. Как LAG-находка отклонено.",
+      "mechanism": "SliverList(delegate: SliverChildBuilderDelegate(...)) (:1065-1066) without itemExtent/prototypeItem; liveness/keys handled by findChildIndexCallback + ValueKey('chat_id')"
+    },
+    {
+      "rule": "LAG-3",
+      "file": "lib/widgets/create_chat_wizard_view.dart",
+      "line": 918,
+      "verdict": "confirmed",
+      "severity_final": "medium",
+      "quote": "child: ListView.separated(\n        shrinkWrap: true,\n        itemCount: contacts.length,",
+      "reason": "Перепроверил: `shrinkWrap: true` в lib/ ровно 10 (рекурсивный греп), и опасны не все. Реально неленивые: create_chat_wizard_view:918 — список контактов без ограничения высоты, строятся ВСЕ контакты (ListTile с аватаром) до первого кадра; chat_members_screen:124 — ListView.builder + shrinkWrap внутри бокса 0.4 экрана => все результаты поиска строятся сразу; media_grid_picker:594 — все альбомы с превью в шите. Остальные (presets_tab:58, onboarding:790, voice_effect_picker:67, interactive_composer:337, interactive_message_card:143,252, create_group_details:241) — заведомо короткие списки. medium по двум-трём реальным местам.",
+      "mechanism": "ListView.separated(shrinkWrap: true, itemCount: contacts.length) inside a Container without bounded height -> shrinkWrap forces layout of ALL children (no viewport culling of build) -> all avatars/CachedNetworkImage widgets created before first frame"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/widgets/message_bubble.dart",
+      "line": 1213,
+      "verdict": "rejected",
+      "severity_final": null,
+      "quote": "FileTypeDetector.detect(\n                          fileName: mediaLabel ?? '',\n                        ).icon,",
+      "reason": "Три вызова на бабл подтверждены (:1051, :1213, :1368), но замер detect(fileName) = 0.65 мкс: split('.') + цикл по ~10 категориям с contains по списку расширений. 3 вызова = ~2 мкс на бабл; на 15 видимых медиа-баблov ~30 мкс за кадр. Как лаг отклонено (дублирование — вопрос MESS-полосы).",
+      "mechanism": "MessageBubble build -> FileTypeDetector.detect (:1051) / detect(fileName: mediaLabel) in icon branch (:1213) / detect(fileName: mediaLabel ?? mediaUrl).isVideo (:1368) -> detectFromFileName: split('.') + for _typeMap.values: extensions.contains"
+    },
+    {
+      "rule": "LAG-1",
+      "file": "lib/widgets/chat/chat_input_bar.dart",
+      "line": 532,
+      "verdict": "rejected",
+      "severity_final": null,
+      "quote": "final bool isCompact = MediaQuery.sizeOf(context).width < 360;",
+      "reason": "P1-9 прошлого аудита (MediaQuery.of в панели ввода) уже неактуален: в chat_input_bar.dart нет ни одного `MediaQuery.of(` (grep = 0), используются MediaQuery.sizeOf (:532) и MediaQuery.viewInsetsOf (:536), т.е. подписка ограничена нужными аспектами. Находка устарела — отклонена.",
+      "mechanism": "chat_input_bar build (:528) -> MediaQuery.sizeOf(context).width (:532) + MediaQuery.viewInsetsOf(context).bottom (:536); no MediaQuery.of usage in the file (grep)"
+    }
+  ],
+  "out_of_area_notes": [
+    {
+      "file": "lib/models/settings/settings_node.dart",
+      "line": 4,
+      "rule": "ARCH-2",
+      "note": "Не LAG-находка (нарушение слоёв: models -> material_ui/l10n/providers). Покадрового механизма нет, к производительности не относится; вердикт по LAG не применим. Из смежной находки LAG-2 shell_window_title:102 проверил именно вызывающий SettingsRegistry.getAllNodes() — он дешёвый."
+    },
+    {
+      "file": "lib/core/network/ws_media_fetcher.dart",
+      "line": 27,
+      "rule": "ARCH-3",
+      "note": "Не LAG-находка (класс на 950 строк, пять зон ответственности). Заявляет поддерживаемость, не лаг; статические лоадеры на покадровую цену не влияют."
+    },
+    {
+      "file": "lib/core/services/push_notification_service.dart",
+      "line": 594,
+      "rule": "MESS-3",
+      "note": "Не LAG-находка (параллельные реализации чтения настроек push). Стоимость — единицы SharedPreferences-чтений на событие уведомления, вне кадра."
+    },
+    {
+      "file": "lib/core/storage/niosgram_saved_store.dart",
+      "line": 19,
+      "rule": "CODE-5",
+      "note": "Не LAG-находка (три копии очереди сериализации). Логика уже вынесена в _serial/_tails, покадровой цены нет."
+    },
+    {
+      "file": "lib/core/storage/local_storage_service.dart",
+      "line": 212,
+      "rule": "MESS-1",
+      "note": "Не LAG-находка (мёртвый checkIntegrity — нет вызовов в lib/). Если он не вызывается, лага нет по определению; проверять надо по MESS-полосе."
+    }
+  ],
+  "batch2_note": "Second pass: all 27 shortlist LAG items now verified (batch1=12, batch2=15). Duplicated rule/file/line pairs are kept as written in the shortlist (batch1 used 2-space-normalised quotes; batch2 quotes re-checked verbatim)."
+}

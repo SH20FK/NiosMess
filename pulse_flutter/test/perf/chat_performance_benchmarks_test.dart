@@ -2,9 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_flutter/core/media/animated_media_controller_pool.dart';
 import 'package:pulse_flutter/core/performance/adaptive_performance_provider.dart';
 import '../widgets/message_layout_delta_test.dart' as layout_algorithm;
-import 'package:pulse_flutter/models/chat_wallpaper_config.dart';
 import 'package:pulse_flutter/providers/upload_queue_provider.dart';
-import 'package:pulse_flutter/widgets/wallpaper/wallpaper_image_cache.dart';
 
 void main() {
   group('Chat algorithm and resource regressions', () {
@@ -88,28 +86,6 @@ void main() {
           isNot(equals(initialKey)),
           reason: 'Topology key must change when task membership changes',
         );
-      });
-    });
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // 3. Wallpaper Memory Budget Cache
-    // ─────────────────────────────────────────────────────────────────────────
-    group('Wallpaper Image Cache Memory Budget', () {
-      test('Cache enforces max entry capacity and evictExcept', () {
-        expect(WallpaperImageCache.entryCount, 0);
-
-        const config1 = ChatWallpaperConfig(
-          backgroundStyle: WallpaperBackgroundStyle.solid,
-          iconAlpha: 0.5,
-        );
-
-        // EvictExcept when empty should not throw
-        WallpaperImageCache.evictExcept(config1);
-        expect(WallpaperImageCache.entryCount, 0);
-
-        // Clear works cleanly
-        WallpaperImageCache.clear();
-        expect(WallpaperImageCache.entryCount, 0);
       });
     });
 

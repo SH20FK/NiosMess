@@ -592,7 +592,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
       Navigator.of(context).pop(results);
     } else {
       setState(() => _isSending = false);
-      AppToast.showError(context, 'Не удалось загрузить выбранные файлы');
+      AppToast.showError(context, context.l10n.filePickerUploadError);
     }
   }
 
@@ -704,7 +704,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                 child: Row(
                   children: <Widget>[
                     Text(
-                      'Недавние медиа',
+                      context.l10n.filePickerRecentMedia,
                       style: TextStyle(
                         color: scheme.onSurfaceVariant,
                         fontSize: 13,
@@ -715,7 +715,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                     GestureDetector(
                       onTap: _openFullGallery,
                       child: Text(
-                        'Все альбомы',
+                        context.l10n.filePickerAllAlbums,
                         style: TextStyle(
                           color: scheme.primary,
                           fontSize: 13,
@@ -744,8 +744,8 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                             const SizedBox(height: 8),
                             Text(
                               _isLimited
-                                  ? 'Доступны только выбранные фото'
-                                  : 'Нет недавних фото или альбом пуст',
+                                  ? context.l10n.filePickerLimitedPhotosOnly
+                                  : context.l10n.filePickerNoRecentMedia,
                               style: TextStyle(
                                 color: scheme.onSurfaceVariant,
                                 fontSize: 13,
@@ -764,7 +764,9 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                                       Icons.add_photo_alternate_rounded,
                                       size: 16,
                                     ),
-                                    label: const Text('Выбрать фото'),
+                                    label: Text(
+                                      context.l10n.filePickerPickPhoto,
+                                    ),
                                   ),
                                 FilledButton.tonalIcon(
                                   onPressed: _openCamera,
@@ -772,7 +774,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                                     Icons.camera_alt_rounded,
                                     size: 16,
                                   ),
-                                  label: const Text('Камера'),
+                                  label: Text(context.l10n.filePickerCamera),
                                 ),
                                 FilledButton.icon(
                                   onPressed: () => _pickFile(
@@ -783,7 +785,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                                     Icons.folder_open_rounded,
                                     size: 16,
                                   ),
-                                  label: const Text('Проводник'),
+                                  label: Text(context.l10n.filePickerExplorer),
                                 ),
                                 TextButton.icon(
                                   onPressed: _loadRecentMedia,
@@ -791,7 +793,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                                     Icons.refresh_rounded,
                                     size: 16,
                                   ),
-                                  label: const Text('Повторить'),
+                                  label: Text(context.l10n.commonRetry),
                                 ),
                               ],
                             ),
@@ -853,7 +855,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Доступ к галерее не предоставлен',
+                          context.l10n.filePickerGalleryDeniedTitle,
                           style: TextStyle(
                             color: scheme.onSurface,
                             fontWeight: FontWeight.w600,
@@ -863,7 +865,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Разрешите доступ в настройках или выберите файлы через проводник',
+                          context.l10n.filePickerGalleryDeniedBody,
                           style: TextStyle(
                             color: scheme.onSurfaceVariant,
                             fontSize: 12,
@@ -882,12 +884,12 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                                 Icons.settings_outlined,
                                 size: 16,
                               ),
-                              label: const Text('Настройки'),
+                              label: Text(context.l10n.filePickerSettings),
                             ),
                             FilledButton.tonalIcon(
                               onPressed: _loadRecentMedia,
                               icon: const Icon(Icons.refresh_rounded, size: 16),
-                              label: const Text('Повторить'),
+                              label: Text(context.l10n.commonRetry),
                             ),
                             FilledButton.icon(
                               onPressed: () => _pickFile(
@@ -898,7 +900,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                                 Icons.folder_open_rounded,
                                 size: 16,
                               ),
-                              label: const Text('Проводник'),
+                              label: Text(context.l10n.filePickerExplorer),
                             ),
                           ],
                         ),
@@ -934,7 +936,7 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                               controller: _captionController,
                               style: TextStyle(color: scheme.onSurface),
                               decoration: InputDecoration(
-                                hintText: 'Добавить подпись...',
+                                hintText: context.l10n.filePickerCaptionHint,
                                 hintStyle: TextStyle(
                                   color: scheme.onSurfaceVariant.withValues(
                                     alpha: 0.7,
@@ -960,8 +962,8 @@ class _M3AttachmentBottomSheetState extends State<M3AttachmentBottomSheet>
                                 : scheme.onSurfaceVariant,
                           ),
                           tooltip: _sendAsDocument
-                              ? 'Как файл (без сжатия)'
-                              : 'Как фото',
+                              ? context.l10n.filePickerAsFile
+                              : context.l10n.filePickerAsPhoto,
                           onPressed: () {
                             HapticService.tap();
                             setState(() => _sendAsDocument = !_sendAsDocument);
@@ -1093,7 +1095,7 @@ class _CameraCaptureTile extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Камера',
+              context.l10n.filePickerCamera,
               style: TextStyle(
                 color: scheme.onSurface,
                 fontSize: 12,
@@ -1334,7 +1336,10 @@ class _RecentPreviewScreenState extends State<_RecentPreviewScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      '${_currentIndex + 1} из ${widget.assets.length}',
+                      context.l10n.filePickerCounter(
+                        _currentIndex + 1,
+                        widget.assets.length,
+                      ),
                       style: TextStyle(
                         color: scheme.onSurface,
                         fontWeight: FontWeight.w600,
@@ -1409,7 +1414,7 @@ class _RecentPreviewScreenState extends State<_RecentPreviewScreen> {
                           controller: _captionController,
                           style: TextStyle(color: scheme.onSurface),
                           decoration: InputDecoration(
-                            hintText: 'Добавить подпись...',
+                            hintText: context.l10n.filePickerCaptionHint,
                             hintStyle: TextStyle(
                               color: scheme.onSurface.withValues(alpha: 0.6),
                             ),
@@ -1433,8 +1438,8 @@ class _RecentPreviewScreenState extends State<_RecentPreviewScreen> {
                             : scheme.onSurface,
                       ),
                       tooltip: _sendAsDocument
-                          ? 'Как файл (без сжатия)'
-                          : 'Как фото',
+                          ? context.l10n.filePickerAsFile
+                          : context.l10n.filePickerAsPhoto,
                       onPressed: () {
                         HapticService.tap();
                         setState(() => _sendAsDocument = !_sendAsDocument);

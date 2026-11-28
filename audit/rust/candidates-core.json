@@ -1,0 +1,101 @@
+[
+  {
+    "id": "e2ee-message-open",
+    "file": "pulse_flutter/lib/services/ordinary_e2ee/ordinary_e2ee_codec.dart",
+    "line": 220,
+    "what": "Opening one ordinary E2EE message: base64Decode of whole envelope + utf8 + 2x jsonDecode, repeated 3-5 times per message (recognises->header->packet), then pure-Dart Ed25519 verify, X25519 shared secret, HKDF-SHA256, AES-256-GCM",
+    "evidence": "  static E2eJson packet(String encoded) =>\n      jsonDecode(utf8.decode(decodeE2e(encoded))) as E2eJson;\n  static E2eJson header(String encoded) =>\n      jsonDecode(packet(encoded)['body'] as String) as E2eJson;",
+    "why_hot": "recognises() has 7 call sites (backend_chat_provider.dart:679,687,741,890,3861,3875,3914; mesh_history.dart:7); it runs on every push and per chat in _hydrateInboxPreviews (:724-745) at cold start; decrypt runs per message in a 300-message window and in the unbounded history catch-up (perf P0-3); mergeMeshHistory does 3 full envelope parses per message",
+    "est_gain": "300-message window ~3-8 s of main-isolate work -> ~0.1-0.3 s (batched in one isolate + native primitives). Estimate, not profiled",
+    "risk": "web has no Isolate (compute runs on main thread); WASM Ed25519 needs a fallback to WebCrypto; FFI per message ~1-5us vs ~10ms work, so batching is required; 1-4 KB envelope copy each way; keys can cross as [u8;32] seeds",
+    "verdict": "isolate-first"
+  },
+  {
+    "id": "secret-journal-snapshot",
+    "file": "pulse_flutter/lib/services/secret_chat/secret_journal.dart",
+    "line": 314,
+    "what": "jsonEncode of the entire account (all chats, all messages, base64 attachment ciphertext) + AES-GCM + base64 on the calling isolate every 128 committed events; per-event tx jsonEncode + AES-GCM + fsync",
+    "evidence": "            final encryptedSnapshot = await _aes.encrypt(\n              utf8.encode(jsonEncode(snapshot)),\n              secretKey: key,\n              aad: _aad(0),\n            );",
+    "why_hot": "commit() runs for every incoming/outgoing event of every secret chat (secret_chat_engine _commit/_receive/_sendNext); the 128-event threshold (:306) means an active conversation checkpoints every few minutes and history import checkpoints repeatedly; already listed in perf P1 #15",
+    "est_gain": "1-2 MB snapshot: ~50-150 ms -> ~10-20 ms in an isolate. Estimate",
+    "risk": "the input is a live Dart object tree, so an FFI call would have to serialize it first - the exact work being optimized; a real Rust win requires changing journal storage to an append-only byte blob (data-model change, not a function rewrite)",
+    "verdict": "isolate-first"
+  },
+  {
+    "id": "mesh-packet-verify",
+    "file": "pulse_flutter/lib/services/bluetooth_mesh/mesh_packet.dart",
+    "line": 222,
+    "what": "MeshPacket.parse: 2x Ed25519 verify (device permit signature + inner author signature) + 2x SHA-256 (packet id, proof-of-work) + 4-6 base64/JSON parses per received BLE frame",
+    "evidence": "    if (!await OrdinaryCodec.verify(\n      'niosmess-ble-v1:$body',\n      signature,\n      device,\n    )) {\n      throw const FormatException('Invalid mesh signature');\n    }",
+    "why_hot": "called from MeshRouter.receive (:172) per incoming frame, MeshRouter.restore (:93) for up to 128 stored packets at start, bluetooth_mesh_service.dart:248 for up to 256 outbox packets; limits are 256 frames/min per peer and 32 peers (MeshRouter:16-17); all of it serialized in one Dart queue (mesh_router.dart:32-39), so a slow verify delays delivery to every peer",
+    "est_gain": "~10-20 ms -> <1 ms per packet; 30 packets/min = up to 0.5-1 s CPU/min removed from the UI isolate. Estimate",
+    "risk": "low: bytes -> bool/(bool,id) boundary, no shared state, batch API natural; BLE does not exist on web (meshPlatformSupported false) so no WASM requirement; needs a cargo + ffi/flutter_rust_bridge step for Android arm64/armv7 and Windows x64",
+    "verdict": "rust-candidate"
+  },
+  {
+    "id": "dr-window-decrypt",
+    "file": "pulse_flutter/lib/services/double_ratchet_service.dart",
+    "line": 254,
+    "what": "Double Ratchet decrypt per message: session.copy() (Map copy of skipKs), header base64+jsonDecode, kdfck HKDF (2 HMAC-SHA256) per step, up to 100 steps for a gap, AES-GCM decrypt, metadata jsonDecode - all sequential over the loaded window",
+    "evidence": "    if (session.chnKrx != null) {\n      while (session.numRcv < until) {\n        final result = await kdfck(session.chnKrx!);\n        session.chnKrx = result.newChain;\n        session.skipKs['${base64Encode(session.dhrKeyBytes)}_${session.numRcv}'] =\n            result.msgKey;",
+    "why_hot": "secret_chat_engine._receiveMessage (:1131-1211) calls _dr.decrypt per message and is driven from backend_chat_provider.dart:2774-2823 inside a sequential await loop; default window is 300 messages (encrypted_history_archive.dart:262-263); after an offline gap each packet ratchets up to 100 skipKs steps",
+    "est_gain": "secret chat open: ~0.5-2 s -> ~50-150 ms by decrypting the window as one batch. Estimate",
+    "risk": "the session mutates (numSnt/numRcv/skipKs/keys), so an isolate or Rust call must take a snapshot and return the new one atomically; partial results must never be applied; keys currently live in Dart memory - keeping ratchet state inside Rust adds state-management risk",
+    "verdict": "isolate-first"
+  },
+  {
+    "id": "voice-filter-dsp",
+    "file": "pulse_flutter/lib/services/audio/voice_filter_processor.dart",
+    "line": 168,
+    "what": "Offline DSP over the whole PCM16 WAV: per-sample sin/round/tanh loops plus granular overlap-add pitch shift with 4n multiply-adds, 6-12 full passes over List<double>, synchronous on the UI isolate",
+    "evidence": "    for (int outPos = 0; outPos + grainSize <= n; outPos += hopOut) {\n      final int srcStart = inPos.round().clamp(0, math.max(0, n - grainSize));\n      for (int k = 0; k < grainSize; k++) {\n        final double w = window[k];\n        out[outPos + k] += input[srcStart + k] * w;",
+    "why_hot": "voice_recorder_service.dart:87-104 calls applyToWavBytes synchronously right after _recorder.stop(), inside the UI isolate; recording is 24 kHz mono (:43), so a 3-minute voice message is 4.32M samples and 5 minutes is 7.2M - a visible freeze on send",
+    "est_gain": "3-min WAV: ~0.3-1 s -> ~30-80 ms. Also unlocks realtime voice effects in calls (VoiceFilterPreset already reaches WebRtcCallSession._voiceEffect but no live DSP exists). Estimate",
+    "risk": "very low: Uint8List -> Uint8List pure function, no state; WAV recording is native-only (recordWav = !kIsWeb) so no web/WASM obligation; same Rust module as mesh",
+    "verdict": "rust-candidate"
+  },
+  {
+    "id": "ws-frame-crypto",
+    "file": "pulse_flutter/lib/core/network/web_socket_client.dart",
+    "line": 675,
+    "what": "AES-256-GCM + base64(utf8(json)) double encoding and base64 on ciphertext/iv/tag for every websocket frame; isolate threshold is 64 KB so all normal messages and pushes run inline",
+    "evidence": "    if (!kIsWeb && jsonStr.length >= _kCryptoIsolateThresholdBytes) {\n      return compute(_encryptEnvelopeWorker, job);\n    }\n    return _encryptEnvelopeWorker(job);",
+    "why_hot": "_onMessage (:375-527) decrypts every inbound frame, _doRequest (:629) encrypts every outbound request; an active chat produces dozens of frames per second (message, ack, mark_read, typing, history pages); on web it is always on the main thread",
+    "est_gain": "~0.3-1 ms -> ~0.05 ms per frame with native AES; removes a constant tax from every UI interaction. Estimate",
+    "risk": "cryptography_flutter (native AES/X25519/Ed25519) fixes this with one line and no FFI; the base64(JSON)-inside-GCM wire format cannot change without server cooperation; Rust help would come only via WebCrypto-equivalent on web",
+    "verdict": "isolate-first"
+  },
+  {
+    "id": "stream-reverify-open",
+    "file": "packages/nios_sdk/lib/src/stream/stream_object.dart",
+    "line": 325,
+    "what": "On NiosStreamDownload.open the code re-reads and AES-GCM-decrypts every already-verified segment just to check the tag, calling cryptoExecutor (Isolate.run in BackgroundStreamCrypto) once per segment",
+    "evidence": "      for (var index = 0; index < manifest.segmentCount; index++) {\n        cancellation?.throwIfCancelled();\n        if (!download.isSegmentVerified(index) && index != pendingIndex) {\n          continue;\n        }\n        download._setVerified(index, false);",
+    "why_hot": "secret_stream_service.dart:327-334 opens a download on every secret attachment/player open; readBytes (:439-474) and withExport (:479-549) do the same; a 1 GiB file is 1024 segments = 1024 isolate spawns before the first frame",
+    "est_gain": "1 GiB cache open: ~1-3 s -> ~0.2 s with one long-lived worker; 200 MB: ~200-600 ms saved. Estimate",
+    "risk": "crypto is already isolated - the problem is granularity (Isolate.run per megabyte), not primitive speed; a persistent Dart worker isolate or skipping re-verification on open gets the same win without Rust",
+    "verdict": "isolate-first"
+  },
+  {
+    "id": "album-crc32",
+    "file": "pulse_flutter/lib/core/media/media_album.dart",
+    "line": 69,
+    "what": "Pure-Dart CRC32 (package:archive) over every image of an album up to 40 MB, on the calling isolate, during encode",
+    "evidence": "      final n = utf8.encode(name), crc = getCrc32(bytes), offset = local.length;",
+    "why_hot": "screens/chat_detail_screen.dart:3475 calls MediaAlbum.encode on photo album send; decode is already wrapped in compute (widgets/chat/bubble/media_album_bubble.dart:42,52) while encode is not, so a 30-40 MB album freezes the UI before sending",
+    "est_gain": "30-40 MB album: ~0.3-0.8 s -> ~0 with compute(). Estimate",
+    "risk": "none for Rust (Uint8List -> Uint8List) but the one-line compute() fix already removes the freeze, so Rust is not justified",
+    "verdict": "isolate-first"
+  },
+  {
+    "id": "update-sha256",
+    "file": "pulse_flutter/lib/services/update/update_integrity.dart",
+    "line": 32,
+    "what": "SHA-256 of a ~100 MB APK stream on pure Dart (package:crypto) on the calling isolate",
+    "evidence": "    final digest = await sha256.bind(file.openRead()).first;",
+    "why_hot": "called by app_update_service before install; once per update, but it is a 1-2 s freeze exactly when the user is waiting for the installer",
+    "est_gain": "~1-2 s -> ~0.2 s with a native SHA-256 in an isolate. Estimate",
+    "risk": "single-shot operation, no web path; not worth a Rust module - Isolate.run is enough",
+    "verdict": "isolate-first"
+  }
+]

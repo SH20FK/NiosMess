@@ -377,7 +377,7 @@ void main() {
       notifier.setSeedColor(const Color(0xFF006C5B));
       await tester.pump();
       expect(find.byType(RawImage), findsNothing);
-      // Rapid accent changes must not recreate the disabled wallpaper renderer.
+      // Rapid accent changes must not recreate a decorative background renderer.
       await tester.pump(const Duration(milliseconds: 90));
       notifier.setSeedColor(const Color(0xFF475569));
       await tester.pump(const Duration(milliseconds: 60));

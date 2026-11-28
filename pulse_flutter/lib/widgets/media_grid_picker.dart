@@ -190,7 +190,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
       if (!hasAccess) {
         if (mounted) {
           setState(() {
-            _error = 'Разрешение на доступ к галерее не предоставлено';
+            _error = context.l10n.mediaGridPermissionDenied;
             _loading = false;
             _isLimited = false;
           });
@@ -366,7 +366,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Не удалось загрузить галерею: $e';
+          _error = context.l10n.mediaGridLoadError(e);
           _loading = false;
         });
       }
@@ -586,7 +586,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
     HapticService.tap();
     AppModal.showSheet<void>(
       context: context,
-      title: 'Альбомы',
+      title: context.l10n.mediaGridAlbums,
       builder: (BuildContext ctx) {
         final ColorScheme scheme = Theme.of(ctx).colorScheme;
         final TextTheme textTheme = Theme.of(ctx).textTheme;
@@ -674,7 +674,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, 'Ошибка выбора файлов');
+        AppToast.showError(context, context.l10n.mediaGridPickError);
       }
     }
   }
@@ -750,17 +750,17 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                   OutlinedButton.icon(
                     onPressed: _openAppSettings,
                     icon: const Icon(Icons.settings_outlined, size: 16),
-                    label: const Text('Настройки'),
+                    label: Text(context.l10n.filePickerSettings),
                   ),
                   FilledButton.icon(
                     onPressed: _openFilePicker,
                     icon: const Icon(Icons.folder_open_rounded, size: 16),
-                    label: const Text('Проводник'),
+                    label: Text(context.l10n.filePickerExplorer),
                   ),
                   TextButton.icon(
                     onPressed: _loadMedia,
                     icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: const Text('Повторить'),
+                    label: Text(context.l10n.commonRetry),
                   ),
                 ],
               ),
@@ -783,8 +783,8 @@ class _MediaGridPickerState extends State<MediaGridPicker>
               const SizedBox(height: 12),
               Text(
                 _isLimited
-                    ? 'Доступны только выбранные фото'
-                    : 'В галерее нет медиафайлов или доступ ограничен',
+                    ? context.l10n.filePickerLimitedPhotosOnly
+                    : context.l10n.mediaGridEmpty,
                 style: textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurface,
                   fontWeight: FontWeight.w500,
@@ -804,22 +804,22 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                         Icons.add_photo_alternate_rounded,
                         size: 16,
                       ),
-                      label: const Text('Выбрать фото'),
+                      label: Text(context.l10n.filePickerPickPhoto),
                     ),
                   FilledButton.tonalIcon(
                     onPressed: _openCameraCapture,
                     icon: const Icon(Icons.photo_camera_rounded, size: 16),
-                    label: const Text('Камера'),
+                    label: Text(context.l10n.filePickerCamera),
                   ),
                   FilledButton.icon(
                     onPressed: _openFilePicker,
                     icon: const Icon(Icons.folder_open_rounded, size: 16),
-                    label: const Text('Проводник'),
+                    label: Text(context.l10n.filePickerExplorer),
                   ),
                   TextButton.icon(
                     onPressed: _loadMedia,
                     icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: const Text('Повторить'),
+                    label: Text(context.l10n.commonRetry),
                   ),
                 ],
               ),
@@ -856,7 +856,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Камера',
+                          context.l10n.filePickerCamera,
                           style: textTheme.labelMedium?.copyWith(
                             color: scheme.primary,
                             fontWeight: FontWeight.w600,
@@ -979,7 +979,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                   FilledButton.tonalIcon(
                     onPressed: _openFilePicker,
                     icon: const Icon(Icons.folder_open_rounded, size: 18),
-                    label: const Text('Проводник'),
+                    label: Text(context.l10n.filePickerExplorer),
                   ),
                 ],
               ),
@@ -1006,7 +1006,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Ограниченный доступ к фото',
+                        context.l10n.mediaGridLimitedTitle,
                         style: textTheme.bodySmall?.copyWith(
                           color: scheme.onSurface,
                           fontWeight: FontWeight.w500,
@@ -1019,7 +1019,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                       ),
                       onPressed: _manageLimitedSelection,
-                      child: const Text('Выбрать ещё'),
+                      child: Text(context.l10n.mediaGridSelectMore),
                     ),
                   ],
                 ),
@@ -1048,7 +1048,7 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                           child: TextField(
                             controller: _captionController,
                             decoration: InputDecoration(
-                              hintText: 'Добавить подпись...',
+                              hintText: context.l10n.filePickerCaptionHint,
                               border: InputBorder.none,
                               isDense: true,
                               contentPadding: const EdgeInsets.symmetric(
@@ -1070,7 +1070,11 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                           ),
                         ),
                         FilterChip(
-                          label: Text(_sendAsDocument ? 'Как файл' : 'Фото'),
+                          label: Text(
+                            _sendAsDocument
+                                ? context.l10n.mediaGridAsFile
+                                : context.l10n.mediaGridPhoto,
+                          ),
                           selected: _sendAsDocument,
                           showCheckmark: false,
                           avatar: Icon(
@@ -1091,7 +1095,9 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
                         Text(
-                          'Выбрано: ${_selectedIds.length}',
+                          context.l10n.mediaGridSelectedCount(
+                            _selectedIds.length,
+                          ),
                           style: textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: scheme.onSurface,
@@ -1100,7 +1106,11 @@ class _MediaGridPickerState extends State<MediaGridPicker>
                         FilledButton.icon(
                           onPressed: _sendSelected,
                           icon: const Icon(Icons.send_rounded, size: 18),
-                          label: Text('Отправить (${_selectedIds.length})'),
+                          label: Text(
+                            context.l10n.mediaGridSendCount(
+                              _selectedIds.length,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1238,7 +1248,10 @@ class _MediaPreviewScreenState extends State<_MediaPreviewScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      '${_currentIndex + 1} из ${widget.assets.length}',
+                      context.l10n.filePickerCounter(
+                        _currentIndex + 1,
+                        widget.assets.length,
+                      ),
                       style: TextStyle(
                         color: widget.scheme.onSurface,
                         fontWeight: FontWeight.w600,
@@ -1314,7 +1327,7 @@ class _MediaPreviewScreenState extends State<_MediaPreviewScreen> {
                           controller: _captionController,
                           style: TextStyle(color: widget.scheme.onSurface),
                           decoration: InputDecoration(
-                            hintText: 'Добавить подпись...',
+                            hintText: context.l10n.filePickerCaptionHint,
                             hintStyle: TextStyle(
                               color: widget.scheme.onSurface.withValues(
                                 alpha: 0.6,
@@ -1340,8 +1353,8 @@ class _MediaPreviewScreenState extends State<_MediaPreviewScreen> {
                             : widget.scheme.onSurface,
                       ),
                       tooltip: _sendAsDocument
-                          ? 'Как файл (без сжатия)'
-                          : 'Как фото',
+                          ? context.l10n.filePickerAsFile
+                          : context.l10n.filePickerAsPhoto,
                       onPressed: () {
                         HapticService.tap();
                         setState(() => _sendAsDocument = !_sendAsDocument);

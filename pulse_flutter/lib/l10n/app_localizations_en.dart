@@ -2607,6 +2607,307 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filePickerReadError => 'Could not read selected file';
 
   @override
+  String get filePickerRecentMedia => 'Recent media';
+
+  @override
+  String get filePickerAllAlbums => 'All albums';
+
+  @override
+  String get filePickerLimitedPhotosOnly =>
+      'Only the selected photos are available';
+
+  @override
+  String get filePickerNoRecentMedia =>
+      'No recent photos or the album is empty';
+
+  @override
+  String get filePickerPickPhoto => 'Select photos';
+
+  @override
+  String get filePickerCamera => 'Camera';
+
+  @override
+  String get filePickerExplorer => 'File explorer';
+
+  @override
+  String get filePickerSettings => 'Settings';
+
+  @override
+  String get filePickerGalleryDeniedTitle => 'Gallery access not granted';
+
+  @override
+  String get filePickerGalleryDeniedBody =>
+      'Allow access in settings or pick files through the file explorer';
+
+  @override
+  String get filePickerCaptionHint => 'Add a caption...';
+
+  @override
+  String get filePickerAsFile => 'Send as file (no compression)';
+
+  @override
+  String get filePickerAsPhoto => 'Send as photo';
+
+  @override
+  String filePickerCounter(int current, int total) {
+    return '$current of $total';
+  }
+
+  @override
+  String get filePickerUploadError => 'Could not load the selected files';
+
+  @override
+  String get chatCreationFormatSubtitle =>
+      'Choose a format for chatting or broadcasting';
+
+  @override
+  String get chatCreationGroupSubtitle =>
+      'A chat for friends, colleagues or a community';
+
+  @override
+  String get chatCreationSecretTitle => 'New secret chat';
+
+  @override
+  String get chatCreationSecretSubtitle =>
+      'End-to-end E2EE encryption, no traces on the server';
+
+  @override
+  String get chatCreationChannelSubtitle =>
+      'A channel for posts, news and content';
+
+  @override
+  String get supportCenterTitle => 'Support and Spam Block';
+
+  @override
+  String get supportChatWithBot => 'Chat with @Support';
+
+  @override
+  String get supportRefresh => 'Refresh';
+
+  @override
+  String get supportNewTicket => 'New ticket';
+
+  @override
+  String supportMyTickets(int count) {
+    return 'My requests ($count)';
+  }
+
+  @override
+  String get supportFilterAll => 'All';
+
+  @override
+  String get supportFilterOpen => 'Open';
+
+  @override
+  String get supportFilterClosed => 'Closed';
+
+  @override
+  String supportLoadError(Object error) {
+    return 'Could not load tickets: $error';
+  }
+
+  @override
+  String get supportEmptyTitle => 'No requests yet';
+
+  @override
+  String get supportEmptyBody =>
+      'Tap "New ticket" or message the @Support bot - all messages will be collected into one convenient thread.';
+
+  @override
+  String get supportBlockedTitle => 'This account is under a spam block';
+
+  @override
+  String get supportNotBlockedTitle => 'Account status: no restrictions';
+
+  @override
+  String get supportNotBlockedBody =>
+      'Free access to public groups, channels, NiosGram and direct messages is maintained.';
+
+  @override
+  String supportBlockReason(String reason) {
+    return 'Reason: $reason';
+  }
+
+  @override
+  String get supportDefaultBlockReason => 'Violation of NiosMess rules';
+
+  @override
+  String supportBlockUntil(String date) {
+    return 'Ends: $date (lifted automatically when it expires)';
+  }
+
+  @override
+  String get supportBlockedSupportNote =>
+      'Contact with @Support and support tickets remain fully available.';
+
+  @override
+  String supportOpenAppeal(Object id) {
+    return 'Open appeal #$id';
+  }
+
+  @override
+  String get supportSubmitAppeal => 'Submit an appeal';
+
+  @override
+  String get supportStatusOpen => 'Open';
+
+  @override
+  String get supportStatusClosed => 'Closed';
+
+  @override
+  String get supportAppealTitle => 'Spam block appeal';
+
+  @override
+  String get supportSend => 'Send';
+
+  @override
+  String get supportAppealTooShort =>
+      'Describe the situation in more detail (at least 10 characters)';
+
+  @override
+  String supportAppealSent(Object id) {
+    return 'Appeal sent (#$id)';
+  }
+
+  @override
+  String get supportAppealBody =>
+      'Tell the moderators why the restriction was applied by mistake or what you have already fixed.';
+
+  @override
+  String get supportAppealFieldLabel => 'Appeal explanation';
+
+  @override
+  String get supportAppealFieldHint => 'At least 10 characters...';
+
+  @override
+  String get supportNewTicketTitle => 'New request';
+
+  @override
+  String get supportFillFields => 'Fill in the subject and the message';
+
+  @override
+  String supportTicketCreated(Object id) {
+    return 'Ticket #$id created';
+  }
+
+  @override
+  String get supportSubjectLabel => 'Subject';
+
+  @override
+  String get supportBodyLabel => 'Details';
+
+  @override
+  String get supportCategoryGeneral => 'General question';
+
+  @override
+  String get supportCategoryBug => 'Error / bug';
+
+  @override
+  String get supportCategoryPrivacy => 'Privacy / security';
+
+  @override
+  String get supportCategoryCopyright => 'Copyright';
+
+  @override
+  String get supportCategoryAbuse => 'Complaint / abuse';
+
+  @override
+  String get supportCategoryAppeal => 'Appeal';
+
+  @override
+  String get supportCategoryBugShort => 'Bug';
+
+  @override
+  String get supportCategoryPrivacyShort => 'Privacy';
+
+  @override
+  String get supportCategoryCopyrightShort => 'Copyright';
+
+  @override
+  String get supportCategoryAbuseShort => 'Violation';
+
+  @override
+  String get supportCategoryAccount => 'Account';
+
+  @override
+  String get supportCategorySupport => 'Support';
+
+  @override
+  String get mediaGridPermissionDenied =>
+      'Gallery access permission was not granted';
+
+  @override
+  String mediaGridLoadError(Object error) {
+    return 'Could not load the gallery: $error';
+  }
+
+  @override
+  String get mediaGridAlbums => 'Albums';
+
+  @override
+  String get mediaGridPickError => 'File selection error';
+
+  @override
+  String get mediaGridEmpty => 'No media in the gallery or access is limited';
+
+  @override
+  String get mediaGridLimitedTitle => 'Limited photo access';
+
+  @override
+  String get mediaGridSelectMore => 'Select more';
+
+  @override
+  String get mediaGridAsFile => 'As file';
+
+  @override
+  String get mediaGridPhoto => 'Photo';
+
+  @override
+  String mediaGridSelectedCount(int count) {
+    return 'Selected: $count';
+  }
+
+  @override
+  String mediaGridSendCount(int count) {
+    return 'Send ($count)';
+  }
+
+  @override
+  String get interactiveFutureTimeRequired => 'Choose a future end time';
+
+  @override
+  String get interactiveRepeatNever => 'Never';
+
+  @override
+  String get interactiveRepeatDaily => 'Every day';
+
+  @override
+  String get interactiveRepeatWeekly => 'Every week';
+
+  @override
+  String get interactiveVoteSettings => 'Voting settings';
+
+  @override
+  String get interactiveVoteDuration => 'Voting period';
+
+  @override
+  String get interactiveDurationAlways => 'Always';
+
+  @override
+  String get interactiveDuration1h => '1 hour';
+
+  @override
+  String get interactiveDuration24h => '24 hours';
+
+  @override
+  String get interactiveDurationCustom => 'Custom time';
+
+  @override
+  String interactiveUntil(String date) {
+    return 'Until $date';
+  }
+
+  @override
   String get badgeFieldName => 'Name';
 
   @override
@@ -3800,12 +4101,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceFloatingNavSubtitle => 'Detach the bottom bar from the screen edge';
 
   @override
-  String get appearanceWallpaperColors => 'Wallpaper colors';
-
-  @override
-  String get appearanceWallpaperColorsSubtitle => 'Updated automatically when wallpaper changes';
-
-  @override
   String get preferencesResetAll => 'Reset all settings';
 
   @override
@@ -4202,7 +4497,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get supportCannotBeReported => 'Cannot report NiosMess support';
   @override
-  String get reportSentSuccess => 'Report submitted';
+  String get reportSentSuccess => 'Report submitted';
+
   String get reportNeedsChat => 'Reporting becomes available after you start a chat with this user';
   @override
   String get blockedUsersTitle => 'Blocked Users';
@@ -4274,8 +4570,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatConnecting => 'Connecting to server...';
   @override
   String get chatReconnecting => 'Restoring chat connection';
-  @override
-  String get chatWallpaperMenu => 'Chat wallpaper';
   @override
   String get deleteForEveryone => 'Delete for everyone';
   @override
@@ -4476,14 +4770,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearancePredictiveBack => 'Predictive back gesture';
   @override
   String get appearancePredictiveBackDesc => 'Smooth system M3 back animation to the previous screen';
-  @override
-  String get appearanceChatWallpaperTitle => 'Chat wallpapers';
-  @override
-  String get appearanceChatWallpaperDesc => 'Live pattern generator based on vector icons and theme colors';
-  @override
-  String get appearanceWallpaperGenerator => 'Chat background generator';
-  @override
-  String get appearanceWallpaperGeneratorDesc => 'Select glyph, grid layout, density and animation';
   @override
   String get appearanceCustomColor => 'Custom color';
   @override
@@ -4728,13 +5014,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsChatsSelectedEmoji => 'Selected emoji';
   @override
   String get settingsChatsDoubleTapHint => 'Double-tapping a message will send this reaction';
-  String get settingsChatsWallpaperSection => 'Wallpaper & Background';
-  @override
-  String get settingsChatsWallpaperSectionDesc => 'Custom chat wallpapers and vector pattern generator';
-  @override
-  String get settingsChatsWallpaperGenerator => 'Chat Wallpaper Generator';
-  @override
-  String get settingsChatsWallpaperGeneratorDesc => 'Customize patterns, animations, and color palettes';
   @override
   String get settingsAccountNiosIdError => 'Failed to open Nios ID page';
   @override
@@ -4954,159 +5233,4 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoDeleteCustom => 'Custom duration';
   @override
   String get autoDeleteUpdated => 'Auto-delete updated';
-  @override
-  String get wallpaperScreenTitle => 'Chat Wallpaper';
-  @override
-  String get wallpaperResetTitle => 'Reset wallpaper?';
-  @override
-  String get wallpaperResetSubtitle =>
-      'All layout, density, and symbol settings will return to defaults.';
-  @override
-  String get wallpaperResetAction => 'Reset';
-  @override
-  String get wallpaperRandomUndo => 'Random pattern applied';
-  @override
-  String get wallpaperSaved => 'Wallpaper saved';
-  @override
-  String get wallpaperForThisChat => 'For this chat';
-  @override
-  String get wallpaperForAllChats => 'For all chats';
-  @override
-  String get wallpaperCustomize => 'Customize pattern';
-  @override
-  String get wallpaperApply => 'Apply';
-  @override
-  String get wallpaperDiscard => 'Cancel';
-  @override
-  String get wallpaperRandomize => 'Randomize pattern';
-  @override
-  String get wallpaperMyPhoto => 'My photo';
-  @override
-  String get wallpaperChoosePhoto => 'Choose photo';
-  @override
-  String get wallpaperPhotoBlur => 'Blur';
-  @override
-  String get wallpaperPhotoDim => 'Dimming';
-  @override
-  String get wallpaperRemovePhoto => 'Remove photo';
-  @override
-  String get wallpaperTabPattern => 'Pattern';
-  @override
-  String get wallpaperTabColors => 'Color';
-  @override
-  String get wallpaperTabGeometry => 'Geometry';
-  @override
-  String get wallpaperAdvanced => 'Advanced';
-  @override
-  String get wallpaperLayoutGrid => 'Grid';
-  @override
-  String get wallpaperLayoutStagger => 'Stagger';
-  @override
-  String get wallpaperLayoutScatter => 'Scatter';
-  @override
-  String get wallpaperLayoutHex => 'Hex';
-  @override
-  String get wallpaperLayoutSpiral => 'Spiral';
-  @override
-  String get wallpaperBgSolid => 'Solid';
-  @override
-  String get wallpaperBgGradient => 'Gradient';
-  @override
-  String get wallpaperBgGlow => 'Radial glow';
-  @override
-  String get wallpaperColorModeSingle => 'Single tone';
-  @override
-  String get wallpaperColorModeAccents => 'Accents';
-  @override
-  String get wallpaperColorModePalette => 'Palette';
-  @override
-  String get wallpaperPackAll => 'All';
-  @override
-  String get wallpaperPackChat => 'Chat';
-  @override
-  String get wallpaperPackTech => 'Tech';
-  @override
-  String get wallpaperPackSpace => 'Space';
-  @override
-  String get wallpaperPackFood => 'Food';
-  @override
-  String get wallpaperPackNature => 'Nature';
-  @override
-  String get wallpaperPackMinimal => 'Minimal';
-  @override
-  String get wallpaperPackCustom => 'Custom set';
-  @override
-  String get wallpaperSourceMaterial => 'Material Symbols';
-  @override
-  String get wallpaperSourceLucide => 'Lucide';
-  @override
-  String get wallpaperSourceTabler => 'Tabler';
-  @override
-  String get wallpaperSourceCupertino => 'Cupertino';
-  @override
-  String get wallpaperSourceShapes => 'M3 Shapes';
-  @override
-  String get wallpaperCellSize => 'Cell size';
-  @override
-  String get wallpaperDensity => 'Density';
-  @override
-  String get wallpaperOpacity => 'Opacity';
-  @override
-  String get wallpaperFilled => 'Filled glyphs';
-  @override
-  String get wallpaperGridAngle => 'Grid angle';
-  @override
-  String get wallpaperRandomRotation => 'Rotation jitter';
-  @override
-  String get wallpaperRandomScale => 'Scale jitter';
-  @override
-  String get wallpaperWeight => 'Glyph weight';
-  @override
-  String get wallpaperBaseColor => 'Base color';
-  @override
-  String get wallpaperSecondaryColor => 'Secondary color';
-  @override
-  String get wallpaperPresetCosmos => 'Cosmos';
-  @override
-  String get wallpaperPresetCyberpunk => 'Cyberpunk';
-  @override
-  String get wallpaperPresetSunset => 'Neon Sunset';
-  @override
-  String get wallpaperPresetOled => 'OLED Minimal';
-  @override
-  String get wallpaperPresetCupertino => 'Cupertino';
-  @override
-  String get wallpaperPresetPastel => 'Pastel';
-  @override
-  String get wallpaperPresetMatrix => 'Nios Matrix';
-  @override
-  String get wallpaperCustomSetTitle => 'Select glyphs';
-  @override
-  String get wallpaperCustomSetLimit => 'Maximum 12 glyphs';
-  @override
-  String get wallpaperSearchGlyphs => 'Search glyphs...';
-  @override
-  String get wallpaperSaveSet => 'Save set';
-  @override
-  String get wallpaperTryOn => 'Try on';
-  @override
-  String get wallpaperMockupToggle => 'Chat mockup';
-  @override
-  String get wallpaperNoPhotoSelected => 'No photo selected';
-  @override
-  String get wallpaperDiscardConfirmTitle => 'Discard changes?';
-  @override
-  String get wallpaperDiscardConfirmBody => 'All unsaved wallpaper changes will be lost.';
-  @override
-  String get wallpaperDiscardConfirmAction => 'Discard';
-  @override
-  String get wallpaperPacksTitle => 'Theme packs';
-  @override
-  String get wallpaperSymbolsStyle => 'Symbols style';
-  @override
-  String get wallpaperRevert => 'Revert';
-  @override
-  String get wallpaperMockupUserMessage => 'NiosMess Wallpaper';
-  @override
-  String get wallpaperMockupPartnerMessage => 'Material 3 Expressive';
 }

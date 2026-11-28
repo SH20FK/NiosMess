@@ -546,10 +546,10 @@ void main() {
             isTrue,
           );
 
-          // Disabled wallpaper controls must not be offered by search
+          // Removed controls must not be offered by search
           final wpRu = SettingsRegistry.search('обои', l10n);
           expect(
-            wpRu.any((r) => r.targetRoute == '/settings/wallpaper'),
+            wpRu.any((r) => r.node.id == 'appearance.wallpaper'),
             isFalse,
           );
         },

@@ -243,16 +243,21 @@ class BluetoothMeshService extends ChangeNotifier {
         if (pending != null && pending.length < 8 * 1024 * 1024) {
           final values = jsonDecode(pending);
           if (values is List && values.length <= 256) {
-            for (final wire in values.whereType<String>()) {
-              try {
-                final packet = await MeshPacket.parse(wire, forBackfill: true);
-                final age =
-                    DateTime.now().millisecondsSinceEpoch -
-                    (jsonDecode(packet.body)['created'] as int);
-                if (age <= const Duration(days: 30).inMilliseconds) {
-                  _outbox[packet.id] = packet;
-                }
-              } catch (_) {}
+            // Outbox authentication is offloaded in one batch; ordering and
+            // per-entry rejection are unchanged.
+            final packets = await MeshPacket.parseBatch(
+              values.whereType<String>().toList(),
+              now: DateTime.now(),
+              forBackfill: true,
+              limit: 256,
+            );
+            for (final packet in packets) {
+              final age =
+                  DateTime.now().millisecondsSinceEpoch -
+                  (jsonDecode(packet.body)['created'] as int);
+              if (age <= const Duration(days: 30).inMilliseconds) {
+                _outbox[packet.id] = packet;
+              }
             }
           }
         }

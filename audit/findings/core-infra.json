@@ -1,0 +1,215 @@
+{
+  "lane": "core-infra",
+  "truncated": 4,
+  "findings": [
+    {
+      "rule": "ARCH-1",
+      "severity": "high",
+      "file": "pulse_flutter/lib/core/services/push_notification_service.dart",
+      "line": 15,
+      "evidence": "import 'package:pulse_flutter/providers/notification_preferences_provider.dart';\nimport 'package:pulse_flutter/core/services/push_notification_service.dart';",
+      "why": "Цикл core -> providers -> core: push_notification_service.dart:15 импортирует notification_preferences_provider.dart, тот (строка 4) импортирует providers/auth_provider.dart, а auth_provider.dart:23 импортирует обратно push_notification_service.dart. Из-за этого core-слой нельзя собрать/протестировать без Riverpod-провайдеров авторизации, а любой импорт push-сервиса из UI тянет auth_provider + backend_chat_provider; при добавлении поля в AuthState компилятор валит и push-путь, и наоборот.",
+      "impact": "Хрупкая сборка: любое изменение auth-провайдера пересобирает весь push-слой; невозможно покрыть тестами сервис уведомлений без контейнера провайдеров.",
+      "patch_sketch": "Вынести чтение настроек в колбэк-параметр configureAccount (prefs-снапшот), убрать импорт провайдеров из core/services.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-1",
+      "severity": "high",
+      "file": "pulse_flutter/lib/core/services/app_url_launcher.dart",
+      "line": 7,
+      "evidence": "import 'package:pulse_flutter/router/app_router.dart';\nimport 'package:pulse_flutter/core/services/app_url_launcher.dart';",
+      "why": "Второй цикл core <-> router: app_url_launcher.dart:7 импортирует router/app_router.dart (только за AppRouter.navigatorKey/incomingRoute), а app_router.dart:63 импортирует core/services/app_url_launcher.dart. Router держит 68 импортов экранов, поэтому core-сервис ссылок оказывается в одном цикле со всем UI-графом; это же ломает любую попытку вынести навигацию из core.",
+      "impact": "Цикл фиксирует навигацию внутри core: тесты сервиса ссылок подтягивают app_router со всеми экранами.",
+      "patch_sketch": "Отдать AppUrlLauncher колбэк navigate(String route) из router, убрать импорт app_router из core/services.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/worker/headless_worker_client.dart",
+      "line": 11,
+      "evidence": "final headlessWorkerClientProvider = Provider<HeadlessWorkerClient>((ref) {\n  final client = HeadlessWorkerClient();\n  ref.onDispose(() => unawaited(client.dispose()));",
+      "why": "Весь каталог core/worker (3 файла, ~470 строк: изолят + SqliteWalDurableStore + AES/ChaCha + поиск) не используется нигде в lib/ — grep по HeadlessWorkerClient/headlessWorkerClientProvider/WorkerAction даёт только сами эти файлы и test/unit/headless_worker_test.dart. При этом в dispose() строка 209 ставит _closed = true, а строка 213 вызывает execute(WorkerAction.shutdown), который на строке 83 сразу бросает StateError('HeadlessWorkerClient is closed') — то есть graceful close SQLite не выполняется никогда, изолят просто убивают. Мёртвый код маскирует реальный дефект.",
+      "impact": "470 строк второго стека шифрования/БД/поиска выглядят как боевой путь; при первом же включении изолят завершается без закрытия SQLite/WAL.",
+      "patch_sketch": "Удалить core/worker целиком вместе с тестом, либо перенести _closed = true после shutdown-RPC.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-5",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/storage/encrypted_history_archive.dart",
+      "line": 203,
+      "evidence": "for (final message in messages) {\n      final previous = await _box.get(_identity(message.id));\n      if (previous != null && previous != orderKey(message)) {",
+      "why": "_writeRows вызывается на каждое сохранение окна истории (до 300 сообщений) и делает последовательный await _box.get на каждое сообщение ПЕРЕД единственным putAll: 300 микрозадач + 300 map-конструкций toJson (строка 191-198) на UI-изоляте, плюс N get для remove. В perf-аудите этот путь не разбирался (там только M2 про saveMessages), а это вторая, более частая запись: выход из чата стабильно даёт синхронный блок на 300 итераций.",
+      "impact": "Пропуск кадра при каждом сохранении окна истории; стоимость растёт линейно с размером окна и с числом remove.",
+      "patch_sketch": "Собирать identity-ключи и отдавать всю пачку в один _box.getAll/_runCompute до putAll.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "LAG-5",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/storage/encrypted_message_cache.dart",
+      "line": 335,
+      "evidence": "return messagesJson.map((e) => ApiMessage.fromJson(e)).toList();",
+      "why": "Обратная сторона находки P1-20: jsonDecode ушёл в Isolate.run, но разбор 2000 Map в ApiMessage (каждый — десятки полей, вложенные reactions/reply/system_event) остаётся на UI-изоляте. Это путь открытия секретного чата: 2000 моделей на главном потоке — единый блок, которого perf-аудит (M2) не покрывал, он смотрел только сериализацию на запись.",
+      "impact": "Открытие секретного чата с длинной историей теряет кадр; чем длиннее кэш, тем хуже.",
+      "patch_sketch": "Возвращать из _runCompute уже List<ApiMessage> (модель передаётся через SendPort), а не Map-ы.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/services/app_url_launcher.dart",
+      "line": 228,
+      "evidence": "if (path.startsWith('/join/')) {\n      final String slug = path.substring(6);\n      if (slug.isNotEmpty) {\n        return Uri(path: '/join', queryParameters: {'slug': slug}).toString();",
+      "why": "resolveInternalAppRoute (170-320) — вторая, независимая от go_router таблица маршрутов: /join, /u, /c, /g, /niosgram/post, /stickers, /w, /wallpaper, /chat, /settings, /legal, /call, /main. Любой новый маршрут надо править в двух местах, иначе диплинк молча не откроется; внутри этого же резолвера статический сервис лезет в ProviderScope.containerOf(navigatorKey.currentContext) (строка 177), то есть core знает про DI и виджеты.",
+      "impact": "Дрейф таблицы маршрутов: ссылка из веба перестаёт открывать экран, а ошибка не видна ни в одном тесте.",
+      "patch_sketch": "Возвращать Uri и отдавать его в go_router (routerDelegate/parseRouteInformation) вместо собственного списка путей.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/services/push_notification_service.dart",
+      "line": 594,
+      "evidence": "if ((prefs.getBool('ui.notifications') ?? true) &&\n          options['calls'] != false) {",
+      "why": "Один и тот же JSON notification_preferences_$account читается в файле тремя способами: сырой Map здесь (594) и в showIncomingCallNotification (636-639, options['sound']), а в showLocalNotification (330-336) — через NotificationPreferences.fromJson с messagesEnabledFor(chat_kind). Разные интерпретации одного формата дают разное поведение для одного пользователя: выключенные «сообщения» учитываются только в одном пути, а отсутствующий ключ 'calls' трактуется как включённый.",
+      "impact": "Настройки уведомлений работают по-разному в foreground-пути и в фоновом показе — жалобы «мьютил, а звонок пришёл».",
+      "patch_sketch": "Везде NotificationPreferences.fromJson + один гейт isAllowed(event, prefs).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/services/push_notification_service.dart",
+      "line": 367,
+      "evidence": "await _local.initialize(\n        settings: const InitializationSettings(\n          android: AndroidInitializationSettings('@mipmap/ic_launcher'),",
+      "why": "FlutterLocalNotificationsPlugin.initialize вызывается повторно внутри showLocalNotification на КАЖДОЕ уведомление, хотя init() уже сделал это на строке 440 (и создал каналы). В фоновом изоляте _onBackgroundMessage -> showLocalNotification это platform-channel roundtrip + повторная регистрация onDidReceiveNotificationResponse перед каждым показом; при пачке пушей — N инициализаций.",
+      "impact": "Лишний канал-вызов и риск гонки колбэков тапа на каждый пуш; дублирует уже существующую инициализацию.",
+      "patch_sketch": "Убрать initialize() из showLocalNotification, гарантировать init() один раз (_initialized флаг).",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-5",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/storage/niosgram_saved_store.dart",
+      "line": 19,
+      "evidence": "Future<T> _serial<T>(Future<T> Function() action) {\n    final previous = _tails[accountId] ?? Future<void>.value();\n    final operation = previous.then((_) async {",
+      "why": "Один и тот же нетривиальный каркас «очередь на аккаунт + _generations + _tails + двойная проверка _valid» скопирован дословно в NiosgramSavedStore (19-32, 64-75) и NiosgramDraftStore (99-112, 186-209), а его третий вариант — EncryptedHistoryArchive._serialized (71-89). Все три отличаются поведением при ошибке: draft/saved глушат ошибку в _tails, архив удаляет tail только по identical — правки рассинхронизируются.",
+      "impact": "Три копии одного примитива сериализации: исправление гонки при logout нужно вносить трижды.",
+      "patch_sketch": "Вынести AccountSerialQueue(accountId, generations) в core/storage и использовать во всех трёх сторах.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LEAK-4",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/services/call_history_service.dart",
+      "line": 96,
+      "evidence": "List<CallLogEntry> build() {\n    _loadFromStorage();\n    return const <CallLogEntry>[];",
+      "why": "build() запускает незаадрешенный Future, который после await SharedPreferences.getInstance() присваивает state (строка 113) и ещё раз читает ref.read(chatsProvider) (119), не проверяя, жив ли нотифаер. Тот же паттерн в FavoriteContactsNotifier.build (favorite_contacts_service.dart:10, state = loaded на 22). Контейнер провайдеров пересоздаётся на logout/смене аккаунта; если диск ответит после dispose, riverpod 3 бросит StateError из оторванного нотифаера.",
+      "impact": "Необработанное исключение при выходе из аккаунта на медленном диске; часть записей истории звонков теряется.",
+      "patch_sketch": "Хранить Future в поле и проверять ref.mounted (или закрывать через ref.onDispose) перед state =.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "LAG-5",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/storage/chat_media_cache.dart",
+      "line": 140,
+      "evidence": "final List<ApiMessage> existing = getCachedMediaSync(chatId);\n      final Map<int, ApiMessage> byId = <int, ApiMessage>{};",
+      "why": "getCachedMediaSync синхронно читает Hive и разбирает до 300 Map в ApiMessage (95-105), и saveMediaMessages вызывает его на КАЖДОЕ сохранение снапшота сообщений — то есть при активной переписке полный декод кэша медиа повторяется много раз в секунду, а потом ещё сортируется (159-160). Из виджетов тот же sync-декод вызывается в profile_shared_media_tab_view.dart:108,121 прямо из состояния экрана.",
+      "impact": "Лишние O(300) декодов + sort на каждое обновление сообщений в чате с медиа.",
+      "patch_sketch": "Держать Map<int,ApiMessage> кэша в памяти рядом с боксом и обновлять инкрементально.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/network/ws_media_fetcher.dart",
+      "line": 27,
+      "evidence": "class WsMediaFetcher {\n  static Future<Uint8List> Function(String)? secretLocalLoader;",
+      "why": "Один статический класс на 950 строк совмещает пять несвязанных зон: транспорт (HTTP POST /api/files/download + WS get_file fallback), два CacheManager (private/playback), собственный RAM-LRU с двумя бюджетами, менеджмент staging-каталогов с проверкой симлинков и purge, и разбор путей/расширений. Плюс глобальные статические лоадеры (secretLocalLoader и др.), которые назначаются снаружи, — то есть поведение зависит от порядка инициализации в services.",
+      "impact": "Любая правка кэша затрагивает сеть и файловую безопасность; тестировать один слой нельзя.",
+      "patch_sketch": "Разделить на MediaDownloadTransport, MediaDiskCache, MediaMemoryCache, StagingWorkspace.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "ARCH-3",
+      "severity": "medium",
+      "file": "pulse_flutter/lib/core/services/push_notification_service.dart",
+      "line": 24,
+      "evidence": "class PushNotificationService {\n  static const String kVapidKey =",
+      "why": "722 строки в одном статическом классе: FCM-регистрация и токены, локальные уведомления с каналами, чтение/разбор prefs-настроек, дедуп кликов, ring/ended-call состояние, навигация через AppRouter.navigatorKey.go (767), запуск APK через OpenFile (760) и разрешение экрана уведомлений. Это пять ответственностей с разными жизненными циклами (background isolate vs UI), и все они делят статические поля _accountId/_routingReady/_currentChatId.",
+      "impact": "Гонки между background-хендлером и UI-путём идут через одни статические поля; правка одного сценария ломает другой.",
+      "patch_sketch": "Разнести на PushRegistrar, LocalNotificationPresenter, NotificationRouter; навигацию — через колбэк.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-5",
+      "severity": "low",
+      "file": "pulse_flutter/lib/core/notifications/notification_history_store.dart",
+      "line": 71,
+      "evidence": "final values = jsonDecode(raw) as List;\n    return values\n        .map(\n          (raw) => NotificationEvent.fromJson(\n            jsonDecode(raw as String) as Map<String, dynamic>,",
+      "why": "restore() вызывается на старте (провайдер истории уведомлений) и разбирает историю дважды: внешний jsonDecode списка + до 100 вложенных jsonDecode строк (следствие двойного jsonEncode из perf m8). Каждый NotificationEvent.fromJson копирует всю map через {...json}. На холодном старте это лишняя работа до первого кадра.",
+      "impact": "Двойной парсинг 100 событий на UI-изоляте при старте, поверх уже отмеченного m8.",
+      "patch_sketch": "Хранить List<Map> (как cache_service), читать один jsonDecode и убрать внутренний.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "low",
+      "file": "pulse_flutter/lib/core/storage/local_storage_service.dart",
+      "line": 212,
+      "evidence": "Future<LocalStorageHealth> checkIntegrity() async {",
+      "why": "checkIntegrity() и класс LocalStorageHealth (~55 строк вместе с проверкой директорий и ключей черновиков) не вызываются нигде: grep по lib/ и test/ даёт только само объявление. При этом экран настроек хранилища использует только snapshot()/clear*, то есть вся ветка диагностики целостности — мёртвый груз, который читается как действующая проверка.",
+      "impact": "Ложное впечатление, что целостность хранилища проверяется; код сопровождается без пользы.",
+      "patch_sketch": "Либо подключить checkIntegrity в settings_health_controller, либо удалить метод и класс.",
+      "confidence": "certain"
+    }
+  ],
+  "perf_status": [
+    {
+      "from": "audit/perf/00-summary.md#7",
+      "status": "still",
+      "file": "pulse_flutter/lib/core/performance/adaptive_performance_provider.dart",
+      "line": 122,
+      "note": "capacity: 7200 остался; сортировки теперь под гейтом `if (!kDebugMode && !const bool.fromEnvironment('PERF_TRACE')) return;` (строка 270), т.е. в release не считаются. Но performanceTelemetryProvider (строка 424) по-прежнему не читает ни один файл lib/ — публикация в мёртвый провайдер осталась (строка 281)."
+    },
+    {
+      "from": "audit/perf/00-summary.md#20",
+      "status": "still",
+      "file": "pulse_flutter/lib/core/storage/encrypted_message_cache.dart",
+      "line": 237,
+      "note": "toJson для 2000 сообщений всё ещё до Isolate.run (строки 236-242 без изменений)."
+    },
+    {
+      "from": "audit/perf/00-summary.md#21",
+      "status": "still",
+      "file": "pulse_flutter/lib/core/media/media_playback_visibility.dart",
+      "line": 55,
+      "note": "post-frame обход предков + localToGlobal на каждое ScrollNotification без изменений (зона media — только отметка)."
+    },
+    {
+      "from": "audit/perf/04-core.md#m5",
+      "status": "still",
+      "file": "pulse_flutter/lib/core/diagnostics/app_logger.dart",
+      "line": 102,
+      "note": "debugPrint(entry.toLogLine()) по-прежнему вне kDebugMode; entries (54) всё ещё отдаёт List.unmodifiable-копию, но читателей у неё нет (только instance.error из main.dart)."
+    },
+    {
+      "from": "audit/perf/04-core.md#m8",
+      "status": "still",
+      "file": "pulse_flutter/lib/core/notifications/notification_history_store.dart",
+      "line": 60,
+      "note": "двойной jsonEncode остался: строки 56 и 60; цена видна и на чтении (см. находку LAG-5 по строке 71)."
+    },
+    {
+      "from": "audit/perf/00-summary.md#P2 adaptive_glass",
+      "status": "still",
+      "file": "pulse_flutter/lib/widgets/adaptive/adaptive_glass.dart",
+      "line": 79,
+      "note": "мёртв: AdaptiveGlass не упоминается нигде в lib/ (0 использований), но внутри остался BackdropFilter/ImageFilter.blur."
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import 'package:pulse_flutter/core/motion/m3_motion.dart';
 import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
+import 'package:pulse_flutter/widgets/motion/m3_spring_switcher.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 enum LegalDocType { privacy, tos, consent }
@@ -239,27 +240,33 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
     return Scaffold(
       backgroundColor: scheme.surface,
       appBar: AppBar(
-        title: _searchActive
-            ? TextField(
-                controller: _searchController,
-                autofocus: true,
-                style: textTheme.bodyLarge?.copyWith(color: scheme.onSurface),
-                decoration: InputDecoration(
-                  hintText: 'Поиск по документу...',
-                  hintStyle: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+        title: M3SpringSwitcher(
+          type: M3SwitcherType.fadeSlideY,
+          duration: M3Durations.short3,
+          child: _searchActive
+              ? TextField(
+                  key: const ValueKey<String>('legal-search-field'),
+                  controller: _searchController,
+                  autofocus: true,
+                  style: textTheme.bodyLarge?.copyWith(color: scheme.onSurface),
+                  decoration: InputDecoration(
+                    hintText: 'Поиск по документу...',
+                    hintStyle: textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    ),
+                    border: InputBorder.none,
                   ),
-                  border: InputBorder.none,
+                )
+              : Text(
+                  _screenTitle,
+                  key: const ValueKey<String>('legal-title'),
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                    color: scheme.onSurface,
+                  ),
                 ),
-              )
-            : Text(
-                _screenTitle,
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                  color: scheme.onSurface,
-                ),
-              ),
+        ),
         centerTitle: false,
         backgroundColor: scheme.surface,
         iconTheme: IconThemeData(color: scheme.onSurface),
@@ -271,34 +278,49 @@ class _LegalViewerScreenState extends ConsumerState<LegalViewerScreen> {
           tooltip: 'Назад',
           onPressed: () => Navigator.of(context).pop(),
         ),
+        // `actions` takes a list, so the switcher lives in one Row item.
         actions: [
-          if (_searchActive)
-            IconButton(
-              icon: const Icon(Icons.close_rounded),
-              tooltip: 'Закрыть поиск',
-              onPressed: () {
-                setState(() {
-                  _searchActive = false;
-                  _searchController.clear();
-                  _searchQuery = '';
-                });
-              },
-            )
-          else ...[
-            IconButton(
-              icon: const Icon(Icons.search_rounded),
-              tooltip: 'Поиск в документе',
-              onPressed: () {
-                setState(() => _searchActive = true);
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.copy_rounded),
-              tooltip: 'Скопировать текст',
-              onPressed: _copyDocument,
-            ),
-          ],
-          const SizedBox(width: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              M3SpringSwitcher(
+                type: M3SwitcherType.fadeSlideY,
+                duration: M3Durations.short3,
+                child: _searchActive
+                    ? IconButton(
+                        key: const ValueKey<String>('legal-search-close'),
+                        icon: const Icon(Icons.close_rounded),
+                        tooltip: 'Закрыть поиск',
+                        onPressed: () {
+                          setState(() {
+                            _searchActive = false;
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : Row(
+                        key: const ValueKey<String>('legal-actions'),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.search_rounded),
+                            tooltip: 'Поиск в документе',
+                            onPressed: () {
+                              setState(() => _searchActive = true);
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.copy_rounded),
+                            tooltip: 'Скопировать текст',
+                            onPressed: _copyDocument,
+                          ),
+                        ],
+                      ),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
         ],
       ),
       body: SafeArea(

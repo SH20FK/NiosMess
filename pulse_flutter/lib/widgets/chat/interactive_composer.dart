@@ -151,7 +151,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
         ? DateTime.now().add(Duration(seconds: _duration))
         : null;
     if (closesAt != null && !closesAt.isAfter(DateTime.now())) {
-      setState(() => _error = 'Выберите будущее время завершения');
+      setState(() => _error = context.l10n.interactiveFutureTimeRequired);
       return;
     }
     final preview = '$_label: $title\n${items.map((s) => '— $s').join('\n')}';
@@ -202,7 +202,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
       time.minute,
     );
     if (!chosen.isAfter(DateTime.now())) {
-      setState(() => _error = 'Выберите будущее время завершения');
+      setState(() => _error = context.l10n.interactiveFutureTimeRequired);
       return;
     }
     setState(() {
@@ -259,7 +259,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Закрыть',
+                      tooltip: context.l10n.semanticsClose,
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close_rounded),
                     ),
@@ -364,7 +364,8 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                     visualDensity: VisualDensity.compact,
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-                                    tooltip: 'Правильный ответ ${i + 1}',
+                                    tooltip:
+                                        '${context.l10n.interactiveCorrectAnswer} ${i + 1}',
                                     onPressed: () {
                                       HapticService.selection();
                                       setState(() => _correct = i);
@@ -407,10 +408,10 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                           isExpanded: true,
                                           isDense: true,
                                           underline: const SizedBox.shrink(),
-                                          items: const [
-                                            DropdownMenuItem(value: 0, child: Text('Не повторять', maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                            DropdownMenuItem(value: 86400, child: Text('Каждый день', maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                            DropdownMenuItem(value: 604800, child: Text('Каждую неделю', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                          items: [
+                                            DropdownMenuItem(value: 0, child: Text(context.l10n.interactiveRepeatNever, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                            DropdownMenuItem(value: 86400, child: Text(context.l10n.interactiveRepeatDaily, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                            DropdownMenuItem(value: 604800, child: Text(context.l10n.interactiveRepeatWeekly, maxLines: 1, overflow: TextOverflow.ellipsis)),
                                           ],
                                           onChanged: (value) {
                                             if (value != null) {
@@ -507,7 +508,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Настройки голосования',
+                                  context.l10n.interactiveVoteSettings,
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -528,7 +529,7 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                 ],
 
                                 Text(
-                                  'Срок голосования',
+                                  context.l10n.interactiveVoteDuration,
                                   style: theme.textTheme.labelMedium?.copyWith(
                                     color: scheme.onSurfaceVariant,
                                   ),
@@ -541,22 +542,22 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                   runSpacing: 6,
                                   children: [
                                     ChoiceChip(
-                                      label: const Text('Всегда'),
+                                      label: Text(context.l10n.interactiveDurationAlways),
                                       selected: _duration == 0,
                                       onSelected: (_) => _selectDuration(0),
                                     ),
                                     ChoiceChip(
-                                      label: const Text('1 час'),
+                                      label: Text(context.l10n.interactiveDuration1h),
                                       selected: _duration == 3600,
                                       onSelected: (_) => _selectDuration(3600),
                                     ),
                                     ChoiceChip(
-                                      label: const Text('24 часа'),
+                                      label: Text(context.l10n.interactiveDuration24h),
                                       selected: _duration == 86400,
                                       onSelected: (_) => _selectDuration(86400),
                                     ),
                                     ChoiceChip(
-                                      label: const Text('Своё время'),
+                                      label: Text(context.l10n.interactiveDurationCustom),
                                       selected: _duration == -1,
                                       onSelected: (_) => _selectDuration(-1),
                                     ),
@@ -568,7 +569,9 @@ class _InteractiveComposerState extends State<_InteractiveComposer> {
                                   InputChip(
                                     avatar: const Icon(Icons.event_rounded, size: 16),
                                     label: Text(
-                                      'До ${_customClose!.day.toString().padLeft(2, '0')}.${_customClose!.month.toString().padLeft(2, '0')}.${_customClose!.year} ${_customClose!.hour.toString().padLeft(2, '0')}:${_customClose!.minute.toString().padLeft(2, '0')}',
+                                      context.l10n.interactiveUntil(
+                                        '${_customClose!.day.toString().padLeft(2, '0')}.${_customClose!.month.toString().padLeft(2, '0')}.${_customClose!.year} ${_customClose!.hour.toString().padLeft(2, '0')}:${_customClose!.minute.toString().padLeft(2, '0')}',
+                                      ),
                                     ),
                                     onDeleted: () {
                                       setState(() {

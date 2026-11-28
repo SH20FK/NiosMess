@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart' show compute, kIsWeb;
 
 enum DocxBlockType {
   title,
@@ -66,6 +67,41 @@ class DocxDocument {
 }
 
 class DocxParser {
+  // Compiled once: the previous version rebuilt these inside per-paragraph and
+  // per-run loops, which cost thousands of RegExp compilations per document.
+  static final RegExp _elementRegex = RegExp(
+    r'<w:(p|tbl)[\s>].*?<\/w:\1>',
+    dotAll: true,
+  );
+  static final RegExp _styleRegex = RegExp(
+    r'''pStyle[^>]*val=["']?([^"'\s/>]+)''',
+    caseSensitive: false,
+  );
+  static final RegExp _runRegex = RegExp(r'<w:r[\s>].*?<\/w:r>', dotAll: true);
+  static final RegExp _textRegex = RegExp(
+    r'<w:t(?:\s+[^>]*)?>(.*?)<\/w:t>',
+    dotAll: true,
+  );
+  static final RegExp _rowRegex = RegExp(r'<w:tr[\s>].*?<\/w:tr>', dotAll: true);
+  static final RegExp _cellRegex = RegExp(
+    r'<w:tc[\s>].*?<\/w:tc>',
+    dotAll: true,
+  );
+
+  /// Parses [bytes] off the UI isolate.
+  ///
+  /// Zip inflate plus the XML regex passes take 20-80 ms on real documents, so
+  /// the viewer must not run them inside `initState`. On web isolates are not
+  /// available: we yield once first so the loading skeleton can paint, then
+  /// parse on the UI thread as before.
+  static Future<DocxDocument> parseBytesAsync(Uint8List bytes) async {
+    if (kIsWeb) {
+      await Future<void>.delayed(Duration.zero);
+      return parseBytes(bytes);
+    }
+    return compute(_parseBytesInIsolate, bytes);
+  }
+
   /// Parses bytes of a .docx file and returns a structured [DocxDocument].
   static DocxDocument parseBytes(Uint8List bytes) {
     try {
@@ -91,9 +127,8 @@ class DocxParser {
   static List<DocxBlock> _parseDocumentXml(String xml) {
     final List<DocxBlock> blocks = <DocxBlock>[];
 
-    // Regex to extract top-level paragraphs <w:p>...</w:p> and tables <w:tbl>...</w:tbl>
-    final RegExp elementRegex = RegExp(r'<w:(p|tbl)[\s>].*?<\/w:\1>', dotAll: true);
-    final Iterable<Match> matches = elementRegex.allMatches(xml);
+    // Extract top-level paragraphs <w:p>...</w:p> and tables <w:tbl>...</w:tbl>
+    final Iterable<Match> matches = _elementRegex.allMatches(xml);
 
     for (final Match m in matches) {
       final String rawTag = m.group(1) ?? '';
@@ -119,10 +154,7 @@ class DocxParser {
     DocxBlockType type = DocxBlockType.paragraph;
 
     // Detect heading styles
-    final Match? styleMatch = RegExp(
-      r'''pStyle[^>]*val=["']?([^"'\s/>]+)''',
-      caseSensitive: false,
-    ).firstMatch(pXml);
+    final Match? styleMatch = _styleRegex.firstMatch(pXml);
     if (styleMatch != null) {
       final String styleVal = styleMatch.group(1)!.toLowerCase();
       if (styleVal.contains('title')) {
@@ -148,8 +180,7 @@ class DocxParser {
     }
 
     final List<DocxRun> runs = <DocxRun>[];
-    final RegExp runRegex = RegExp(r'<w:r[\s>].*?<\/w:r>', dotAll: true);
-    final Iterable<Match> runMatches = runRegex.allMatches(pXml);
+    final Iterable<Match> runMatches = _runRegex.allMatches(pXml);
 
     for (final Match rm in runMatches) {
       final String runXml = rm.group(0) ?? '';
@@ -158,8 +189,7 @@ class DocxParser {
       final bool isItalic = runXml.contains('<w:i/>') || runXml.contains('<w:i ');
       final bool isUnderline = runXml.contains('<w:u ') || runXml.contains('<w:u/>');
 
-      final RegExp textRegex = RegExp(r'<w:t(?:\s+[^>]*)?>(.*?)<\/w:t>', dotAll: true);
-      final Iterable<Match> textMatches = textRegex.allMatches(runXml);
+      final Iterable<Match> textMatches = _textRegex.allMatches(runXml);
 
       for (final Match tm in textMatches) {
         String rawText = tm.group(1) ?? '';
@@ -186,20 +216,17 @@ class DocxParser {
 
   static DocxBlock? _parseTable(String tblXml) {
     final List<List<String>> rows = <List<String>>[];
-    final RegExp rowRegex = RegExp(r'<w:tr[\s>].*?<\/w:tr>', dotAll: true);
-    final Iterable<Match> rowMatches = rowRegex.allMatches(tblXml);
+    final Iterable<Match> rowMatches = _rowRegex.allMatches(tblXml);
 
     for (final Match rm in rowMatches) {
       final String rowXml = rm.group(0) ?? '';
       final List<String> cells = <String>[];
 
-      final RegExp cellRegex = RegExp(r'<w:tc[\s>].*?<\/w:tc>', dotAll: true);
-      final Iterable<Match> cellMatches = cellRegex.allMatches(rowXml);
+      final Iterable<Match> cellMatches = _cellRegex.allMatches(rowXml);
 
       for (final Match cm in cellMatches) {
         final String cellXml = cm.group(0) ?? '';
-        final RegExp textRegex = RegExp(r'<w:t(?:\s+[^>]*)?>(.*?)<\/w:t>', dotAll: true);
-        final Iterable<Match> textMatches = textRegex.allMatches(cellXml);
+        final Iterable<Match> textMatches = _textRegex.allMatches(cellXml);
         final String cellText = textMatches
             .map((Match tm) => _unescapeXml(tm.group(1) ?? ''))
             .join(' ')
@@ -225,3 +252,5 @@ class DocxParser {
         .replaceAll('&apos;', "'");
   }
 }
+
+DocxDocument _parseBytesInIsolate(Uint8List bytes) => DocxParser.parseBytes(bytes);

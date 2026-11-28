@@ -266,28 +266,6 @@ class AppUrlLauncher {
       if (setId.isNotEmpty) return '/stickers/$setId';
     }
 
-    // /w/{code} (Nios Weave procedural wallpaper link)
-    if (path.startsWith('/w/')) {
-      final String code = path.substring(3);
-      if (code.isNotEmpty) {
-        final Map<String, String> qp = Map<String, String>.from(
-          uri.queryParameters,
-        );
-        qp['code'] = code;
-        return Uri(path: '/settings/wallpaper', queryParameters: qp).toString();
-      }
-    }
-    if (path == '/wallpaper') {
-      final String? code = uri.queryParameters['code'];
-      if (code != null && code.isNotEmpty) {
-        final Map<String, String> qp = Map<String, String>.from(
-          uri.queryParameters,
-        );
-        return Uri(path: '/settings/wallpaper', queryParameters: qp).toString();
-      }
-      return '/settings/wallpaper';
-    }
-
     // 4. /chat/{chatId} or /chat/dm/{username}
     if (path.startsWith('/chat/')) {
       return path + (uri.query.isNotEmpty ? '?${uri.query}' : '');

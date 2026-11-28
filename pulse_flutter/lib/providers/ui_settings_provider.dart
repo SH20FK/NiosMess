@@ -93,8 +93,6 @@ class UiSettingsState {
     this.paletteStyle = PaletteStyle.expressive,
     this.animateStickers = true,
     this.animateEmoji = true,
-    this.linkPreviewsInSecretChats = false,
-    this.secureScreenshotsInSecretChats = true,
   });
 
   VisualThemeSettings get visualTheme => VisualThemeSettings(
@@ -146,9 +144,7 @@ class UiSettingsState {
       uiCornerRadius = 20.0,
       paletteStyle = PaletteStyle.expressive,
       animateStickers = true,
-      animateEmoji = true,
-      linkPreviewsInSecretChats = false,
-      secureScreenshotsInSecretChats = true;
+      animateEmoji = true;
 
   final ThemeMode themeMode;
   final Color seedColor;
@@ -176,8 +172,6 @@ class UiSettingsState {
   final PaletteStyle paletteStyle;
   final bool animateStickers;
   final bool animateEmoji;
-  final bool linkPreviewsInSecretChats;
-  final bool secureScreenshotsInSecretChats;
 
   UiSettingsState copyWith({
     ThemeMode? themeMode,
@@ -208,8 +202,6 @@ class UiSettingsState {
     PaletteStyle? paletteStyle,
     bool? animateStickers,
     bool? animateEmoji,
-    bool? linkPreviewsInSecretChats,
-    bool? secureScreenshotsInSecretChats,
   }) {
     return UiSettingsState(
       themeMode: themeMode ?? this.themeMode,
@@ -244,10 +236,6 @@ class UiSettingsState {
       paletteStyle: paletteStyle ?? this.paletteStyle,
       animateStickers: animateStickers ?? this.animateStickers,
       animateEmoji: animateEmoji ?? this.animateEmoji,
-      linkPreviewsInSecretChats:
-          linkPreviewsInSecretChats ?? this.linkPreviewsInSecretChats,
-      secureScreenshotsInSecretChats:
-          secureScreenshotsInSecretChats ?? this.secureScreenshotsInSecretChats,
     );
   }
 
@@ -292,9 +280,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
   static const String _uiCornerRadiusKey = 'ui.cornerRadius';
   static const String _animateStickersKey = 'ui.animateStickers';
   static const String _animateEmojiKey = 'ui.animateEmoji';
-  static const String _linkPreviewsSecretKey = 'ui.linkPreviewsSecret';
-  static const String _secureScreenshotsSecretKey = 'ui.secureScreenshotsSecret';
-
   /// Keys of settings that no longer exist. Nothing reads them; a reset
   /// still clears what an older build may have stored.
   static const List<String> _retiredKeys = <String>[
@@ -312,6 +297,18 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     'ui.saveGalleryPrivate',
     'ui.saveGalleryGroups',
     'ui.saveGalleryChannels',
+    'ui.linkPreviewsSecret',
+    'ui.secureScreenshotsSecret',
+    // Chat wallpapers were removed: their global and per-chat configs are
+    // retired as well, including the per-account `_<id>` variants below.
+    'nios_global_wallpaper_v1',
+    'nios_chat_wallpapers_map_v1',
+  ];
+
+  /// Prefixes of retired per-account values that append `_<userId>`.
+  static const List<String> _retiredUserKeyPrefixes = <String>[
+    'nios_global_wallpaper_v1',
+    'nios_chat_wallpapers_map_v1',
   ];
 
   static SharedPreferences? cachedPrefs;
@@ -398,10 +395,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
           prefs.getBool(_animateStickersKey) ?? defaults.animateStickers,
       animateEmoji:
           prefs.getBool(_animateEmojiKey) ?? defaults.animateEmoji,
-      linkPreviewsInSecretChats:
-          prefs.getBool(_linkPreviewsSecretKey) ?? defaults.linkPreviewsInSecretChats,
-      secureScreenshotsInSecretChats:
-          prefs.getBool(_secureScreenshotsSecretKey) ?? defaults.secureScreenshotsInSecretChats,
     );
   }
 
@@ -747,20 +740,6 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
     (s, v) => s.copyWith(animateEmoji: v),
   );
 
-  void setLinkPreviewsInSecretChats(bool value) => _set<bool>(
-    _linkPreviewsSecretKey,
-    value,
-    (s) => s.linkPreviewsInSecretChats,
-    (s, v) => s.copyWith(linkPreviewsInSecretChats: v),
-  );
-
-  void setSecureScreenshotsInSecretChats(bool value) => _set<bool>(
-    _secureScreenshotsSecretKey,
-    value,
-    (s) => s.secureScreenshotsInSecretChats,
-    (s, v) => s.copyWith(secureScreenshotsInSecretChats: v),
-  );
-
   /// Resets all settings fields safely to [UiSettingsState.defaults()],
   /// keeping background message delivery in [BackgroundMode.reliable]
   /// and cleaning up persisted SharedPreferences keys in a single atomic batch.
@@ -807,9 +786,12 @@ class UiSettingsNotifier extends Notifier<UiSettingsState> {
       _uiCornerRadiusKey,
       _animateStickersKey,
       _animateEmojiKey,
-      _linkPreviewsSecretKey,
-      _secureScreenshotsSecretKey,
       ..._retiredKeys,
+      for (final String stored in prefs.getKeys())
+        if (_retiredUserKeyPrefixes.any(
+          (String prefix) => stored.startsWith('${prefix}_'),
+        ))
+          stored,
     ];
     await Future.wait(keys.map(prefs.remove));
     await prefs.reload();

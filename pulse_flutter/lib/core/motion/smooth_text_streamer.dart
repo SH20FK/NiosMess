@@ -14,6 +14,7 @@ class SmoothTextStreamer {
     this.initialText = '',
     this.minCharIntervalMs = 22,
     this.vsync,
+    this.reduceMotion = false,
   }) {
     _currentRendered = initialText;
   }
@@ -23,6 +24,11 @@ class SmoothTextStreamer {
   final void Function(dynamic error)? onError;
   final String initialText;
   final int minCharIntervalMs;
+
+  /// When true (the platform "reduce motion" setting) the queue is written
+  /// out at once and no [Ticker] is created: text still streams, it just is
+  /// not typed out character by character.
+  final bool reduceMotion;
 
   /// Host [TickerProvider] that drives the queue from the vsync frame callback.
   ///
@@ -54,6 +60,7 @@ class SmoothTextStreamer {
     if (_isDisposed) return;
     _targetBuffer.write(chunk);
     _target = _targetBuffer.toString();
+    if (_flushIfReducedMotion()) return;
     _ensureTickerStarted();
   }
 
@@ -66,7 +73,22 @@ class SmoothTextStreamer {
       _target = _targetBuffer.toString();
     }
     _isStreamCompleted = true;
+    if (_flushIfReducedMotion()) return;
     _ensureTickerStarted();
+  }
+
+  /// With reduced motion the queue is drained in one step and the driver is
+  /// never started. Returns `true` when the caller must not start it.
+  bool _flushIfReducedMotion() {
+    if (!reduceMotion) return false;
+    final bool changed = _currentRendered != _target;
+    _currentRendered = _target;
+    final bool isDone = _isStreamCompleted;
+    if (changed || isDone) {
+      onUpdate(_currentRendered, isDone);
+      if (isDone) onDone?.call(_currentRendered);
+    }
+    return true;
   }
 
   /// Cancels streaming immediately and stops the animation driver.

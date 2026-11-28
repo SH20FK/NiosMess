@@ -391,16 +391,19 @@ class _MediaViewerScreenState extends ConsumerState<MediaViewerScreen> {
               onTap: _toggleChrome,
             );
           } else if (item.mediaType == MediaType.video) {
-            return _InlineVideoPlayer(
-              key: ValueKey('video_${item.heroTag ?? index}'),
-              url: item.url,
-              e2eeFileKey: key,
-              isActive: _currentIndex == index,
-              onVisibilityChanged: (visible) {
-                if (mounted && _currentIndex == index) {
-                  setState(() => _showChrome = visible);
-                }
-              },
+            return MediaHero(
+              tag: item.heroTag,
+              child: _InlineVideoPlayer(
+                key: ValueKey('video_${item.heroTag ?? index}'),
+                url: item.url,
+                e2eeFileKey: key,
+                isActive: _currentIndex == index,
+                onVisibilityChanged: (visible) {
+                  if (mounted && _currentIndex == index) {
+                    setState(() => _showChrome = visible);
+                  }
+                },
+              ),
             );
           } else {
             return _buildFallback(scheme, item);

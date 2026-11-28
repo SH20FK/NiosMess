@@ -124,7 +124,7 @@ void main() {
             bytes: output == null
                 ? bytes
                 : (await rootBundle.load(
-                    'assets/developers/SH20FK.png',
+                    'assets/developers/SH20FK_clean.png',
                   )).buffer.asUint8List(),
           );
           await tester.pumpWidget(

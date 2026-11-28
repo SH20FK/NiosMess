@@ -10,7 +10,7 @@ import 'package:pulse_flutter/providers/auth_provider.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 
 /// A readable contact code; its light surface preserves scanner contrast in
-/// either app theme. Profile decoration never becomes a chat wallpaper action.
+/// either app theme. Profile decoration never becomes a chat background action.
 class MyQrCodeSheet extends ConsumerWidget {
   const MyQrCodeSheet({
     this.username,

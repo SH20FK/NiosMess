@@ -1,6 +1,7 @@
 import 'package:pulse_flutter/models/api/sticker_model.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'package:pulse_flutter/core/network/api_exception.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
@@ -590,6 +591,9 @@ class OrdinaryE2eeService extends ChangeNotifier {
       chatId,
       sender,
       reply: header['reply'] as int?,
+      // Already verified against packet.author by MeshPacket.parse; the codec
+      // re-checks that this proof seals the exact same key/body/signature.
+      authenticated: packet.proof,
     );
     if (body['text'] is! String ||
         utf8.encode(body['text'] as String).length > 4096 ||
@@ -685,118 +689,248 @@ class OrdinaryE2eeService extends ChangeNotifier {
     },
   );
   final Map<(int, int, int?, int?, String), E2eJson> _opened = {};
-  Future<ApiMessage> decrypt(ApiMessage message) async {
-    if (message.e2eeContent == null) return message;
-    var waitingForKeys = false;
-    try {
-      if (!OrdinaryCodec.recognises(message.e2eeContent!)) {
-        throw const FormatException('Unknown E2E format');
-      }
-      if (!initialised) {
-        waitingForKeys = true;
+
+  /// Control port of the last worker that opened a page of envelopes. Set
+  /// where the cryptography actually ran, so a test can prove a batch left
+  /// this isolate instead of trusting a flag.
+  @visibleForTesting
+  static SendPort? lastBatchWorkerPort;
+
+  static Future<List<E2eJson>> _openBatchOffThread(
+    List<E2eJson> jobs,
+  ) async {
+    // One envelope does not pay for a worker; a history page does.
+    if (kIsWeb || jobs.length < 2) return decryptOrdinaryBatch(jobs);
+    final envelope = await Isolate.run(() async {
+      final results = await decryptOrdinaryBatch(jobs);
+      return <String, dynamic>{
+        'worker': Isolate.current.controlPort,
+        'results': results,
+      };
+    });
+    lastBatchWorkerPort = envelope['worker'] as SendPort?;
+    return (envelope['results'] as List).cast<E2eJson>();
+  }
+
+  Future<ApiMessage> decrypt(ApiMessage message) async =>
+      (await decryptBatch(<ApiMessage>[message])).first;
+
+  /// Opens a page of ordinary envelopes as one batch.
+  ///
+  /// Envelope parsing, key-ring lookup, identity resolution, contact notices,
+  /// cache writes and repair scheduling stay on this isolate — only the
+  /// CPU-bound Ed25519/X25519/AES work is handed to a worker. Every row keeps
+  /// its input position: a broken envelope becomes its own unavailable message
+  /// and the rest of the page still opens.
+  Future<List<ApiMessage>> decryptBatch(List<ApiMessage> messages) async {
+    if (messages.isEmpty) return const <ApiMessage>[];
+    final results = List<ApiMessage>.of(messages);
+    final waiting = List<bool>.filled(messages.length, false);
+
+    void fail(int index, {required bool waitingForKeys}) {
+      waiting[index] = waitingForKeys;
+      results[index] = _unopenedMessage(
+        messages[index],
+        waitingForKeys: waitingForKeys,
+      );
+    }
+
+    if (!messages.any((m) => m.e2eeContent != null)) return results;
+
+    Object? openError;
+    final needsKeys = messages.any(
+      (m) => m.e2eeContent != null && OrdinaryCodec.recognises(m.e2eeContent!),
+    );
+    if (!initialised && needsKeys) {
+      try {
         await open();
-        waitingForKeys = false;
+      } catch (error) {
+        openError = error;
       }
-      final h = OrdinaryCodec.header(message.e2eeContent!),
-          box = (h['boxes'] as E2eJson)['$userId'] as E2eJson;
-      final own = _keyring[box['epoch']];
+    }
+
+    final jobs = <E2eJson>[];
+    final slots = <int>[];
+    final senders = <int, E2eJson>{};
+    final bodies = <int, E2eJson>{};
+
+    for (var i = 0; i < messages.length; i++) {
+      final message = messages[i];
+      final content = message.e2eeContent;
+      if (content == null) continue;
+      if (openError != null) {
+        fail(i, waitingForKeys: true);
+        continue;
+      }
+      if (!OrdinaryCodec.recognises(content)) {
+        fail(i, waitingForKeys: false);
+        continue;
+      }
+      final E2eJson header;
+      try {
+        header = OrdinaryCodec.header(content);
+      } catch (_) {
+        fail(i, waitingForKeys: false);
+        continue;
+      }
+      E2eJson? box;
+      try {
+        box = (header['boxes'] as E2eJson)['$userId'] as E2eJson?;
+      } catch (_) {
+        box = null;
+      }
+      final own = box == null ? null : _keyring[box['epoch']];
       if (own == null) {
-        if (_missingEpochs.length < 256) {
+        if (box != null && _missingEpochs.length < 256) {
           _missingEpochs.add(box['epoch'] as String);
         }
-        waitingForKeys = true;
-        throw StateError('Waiting for the matching private key');
+        fail(i, waitingForKeys: true);
+        continue;
       }
-      waitingForKeys = true;
-      final sender = await _identity(message.senderId, h['epoch'] as String);
-      waitingForKeys = false;
+      final E2eJson sender;
+      try {
+        sender = await _identity(message.senderId, header['epoch'] as String);
+      } catch (_) {
+        fail(i, waitingForKeys: true);
+        continue;
+      }
       final cacheKey = (
         message.chatId,
         message.senderId,
         message.replyToId,
         message.editedAt == null ? null : message.id,
-        message.e2eeContent!,
+        content,
       );
       final cached = _opened.remove(cacheKey);
-      final body =
-          cached ??
-          await OrdinaryCodec.decrypt(
-            own,
-            sender,
-            message.e2eeContent!,
+      if (cached != null) {
+        bodies[i] = cached;
+        senders[i] = sender;
+        continue;
+      }
+      jobs.add({
+        'own': own.secret(),
+        'sender': sender,
+        'packet': content,
+        'chat': message.chatId,
+        'from': message.senderId,
+        'reply': message.replyToId,
+        'edit': message.editedAt == null ? null : message.id,
+      });
+      slots.add(i);
+      senders[i] = sender;
+    }
+
+    List<E2eJson> opened;
+    if (jobs.isEmpty) {
+      opened = const <E2eJson>[];
+    } else {
+      try {
+        opened = await _openBatchOffThread(jobs);
+      } catch (_) {
+        // A worker that cannot start must not take the page down with it.
+        opened = await decryptOrdinaryBatch(jobs);
+      }
+    }
+    for (var k = 0; k < slots.length && k < opened.length; k++) {
+      final result = opened[k];
+      if (result['ok'] == true && result['body'] is E2eJson) {
+        bodies[slots[k]] = result['body'] as E2eJson;
+      } else {
+        fail(slots[k], waitingForKeys: false);
+      }
+    }
+
+    for (var i = 0; i < messages.length; i++) {
+      final body = bodies[i];
+      if (body == null) continue;
+      final message = messages[i];
+      try {
+        if (body['text'] is! String) {
+          throw const FormatException('Invalid message text');
+        }
+        final fileKey = body['file_key'];
+        if (fileKey != null) decodeE2e(fileKey, 32);
+        if (message.hasMedia && fileKey == null && body['sticker'] == null) {
+          throw const FormatException('Unauthenticated attachment');
+        }
+        if (_disposed) throw StateError('Сеанс шифрования закрыт');
+        _refreshContact(message.chatId, senders[i]!);
+        if (message.e2eeContent!.length <= 65536) {
+          _opened[(
             message.chatId,
             message.senderId,
-            reply: message.replyToId,
-            edit: message.editedAt == null ? null : message.id,
-          );
-      if (body['text'] is! String) {
-        throw const FormatException('Invalid message text');
+            message.replyToId,
+            message.editedAt == null ? null : message.id,
+            message.e2eeContent!,
+          )] = body;
+          if (_opened.length > 128) _opened.remove(_opened.keys.first);
+        }
+        results[i] = _openedMessage(message, body);
+      } catch (_) {
+        fail(i, waitingForKeys: false);
       }
-      final fileKey = body['file_key'];
-      if (fileKey != null) decodeE2e(fileKey, 32);
-      if (message.hasMedia && fileKey == null && body['sticker'] == null) {
-        throw const FormatException('Unauthenticated attachment');
-      }
-      if (_disposed) throw StateError('Сеанс шифрования закрыт');
-      _refreshContact(message.chatId, sender);
-      if (message.e2eeContent!.length <= 65536) {
-        _opened[cacheKey] = body;
-        if (_opened.length > 128) _opened.remove(_opened.keys.first);
-      }
-      final verified = ApiMessage.fromJson({
-        ...message.toJson(),
-        'is_e2ee': true,
-        'is_decrypted': false,
-        'e2ee_file_key': null,
-        'sticker': null,
-        'is_sticker': false,
-        'sticker_set_id': null,
-        'reply_markup': null,
-        'system_event_type': null,
-        'system_event': null,
-        'media_name': null,
-        'media_size': null,
-      });
-      return verified.copyWith(
-        content: body['text'] as String? ?? '',
-        isDecrypted: true,
-        msgType: body['sticker'] != null
-            ? 'sticker'
-            : fileKey != null
-            ? (const ['media', 'voice', 'circle'].contains(body['media_kind'])
-                  ? body['media_kind'] as String
-                  : 'media')
-            : 'text',
-        sticker: body['sticker'] != null
-            ? ApiSticker.fromJson(body['sticker'] as E2eJson)
-            : null,
-        e2eeFileKey: body['file_key'] as String?,
-        mediaName: body['name'] as String?,
-        mediaSize: body['size'] as int?,
-      );
-    } catch (_) {
-      if (waitingForKeys) _repairKeys();
-      return ApiMessage.fromJson({
-        ...message.toJson(),
-        'content': waitingForKeys
-            ? 'Ожидаем ключи. Сообщение откроется автоматически после синхронизации.'
-            : 'Не удалось проверить зашифрованное сообщение.',
-        'is_e2ee': true,
-        'is_decrypted': false,
-        'msg_type': 'text',
-        'media_url': null,
-        'media_type': null,
-        'media_name': null,
-        'media_size': null,
-        'e2ee_file_key': null,
-        'sticker': null,
-        'is_sticker': false,
-        'sticker_set_id': null,
-        'reply_markup': null,
-        'system_event_type': null,
-        'system_event': null,
-      });
     }
+    if (waiting.contains(true)) _repairKeys();
+    return results;
+  }
+
+  ApiMessage _unopenedMessage(
+    ApiMessage message, {
+    required bool waitingForKeys,
+  }) => ApiMessage.fromJson({
+    ...message.toJson(),
+    'content': waitingForKeys
+        ? 'Ожидаем ключи. Сообщение откроется автоматически после синхронизации.'
+        : 'Не удалось проверить зашифрованное сообщение.',
+    'is_e2ee': true,
+    'is_decrypted': false,
+    'msg_type': 'text',
+    'media_url': null,
+    'media_type': null,
+    'media_name': null,
+    'media_size': null,
+    'e2ee_file_key': null,
+    'sticker': null,
+    'is_sticker': false,
+    'sticker_set_id': null,
+    'reply_markup': null,
+    'system_event_type': null,
+    'system_event': null,
+  });
+
+  ApiMessage _openedMessage(ApiMessage message, E2eJson body) {
+    final fileKey = body['file_key'];
+    final verified = ApiMessage.fromJson({
+      ...message.toJson(),
+      'is_e2ee': true,
+      'is_decrypted': false,
+      'e2ee_file_key': null,
+      'sticker': null,
+      'is_sticker': false,
+      'sticker_set_id': null,
+      'reply_markup': null,
+      'system_event_type': null,
+      'system_event': null,
+      'media_name': null,
+      'media_size': null,
+    });
+    return verified.copyWith(
+      content: body['text'] as String? ?? '',
+      isDecrypted: true,
+      msgType: body['sticker'] != null
+          ? 'sticker'
+          : fileKey != null
+          ? (const ['media', 'voice', 'circle'].contains(body['media_kind'])
+                ? body['media_kind'] as String
+                : 'media')
+          : 'text',
+      sticker: body['sticker'] != null
+          ? ApiSticker.fromJson(body['sticker'] as E2eJson)
+          : null,
+      e2eeFileKey: body['file_key'] as String?,
+      mediaName: body['name'] as String?,
+      mediaSize: body['size'] as int?,
+    );
   }
 
   Future<void> acknowledgeBackup() async {

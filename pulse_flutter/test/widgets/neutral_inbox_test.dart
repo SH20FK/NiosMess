@@ -30,7 +30,6 @@ import 'package:pulse_flutter/providers/chat_list_fab_provider.dart';
 import 'package:pulse_flutter/widgets/chat/bubble/bubble_footer.dart';
 import 'package:pulse_flutter/widgets/pulse_avatar.dart';
 import 'package:pulse_flutter/widgets/pulse_scaffold_body.dart';
-import 'package:pulse_flutter/widgets/wallpaper/chat_wallpaper_background.dart';
 import 'package:universal_io/io.dart';
 
 class _Settings extends UiSettingsNotifier {
@@ -165,13 +164,15 @@ void main() {
   );
 
   testWidgets(
-    'page and chat backdrop never create painters or read wallpaper storage',
+    'neutral page surfaces create no painters and load no images',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: PulseScaffoldBody(
             expand: true,
-            child: const ChatWallpaperBackground(chatId: 'example'),
+            child: ColoredBox(
+              color: AppSurfaces.background(Brightness.light),
+            ),
           ),
         ),
       );

@@ -87,14 +87,15 @@ class MeshRouter {
     if (value is! Map || value['v'] != 1) return;
     final values = value['packets'];
     if (values is! List || values.length > maxPackets) return;
-    for (final wire in values) {
-      try {
-        if (wire is! String) continue;
-        final packet = await MeshPacket.parse(wire, now: now());
-        _packets[packet.id] = packet;
-      } catch (_) {
-        /* Corrupt/expired entries are never forwarded. */
-      }
+    // Authentication of up to 128 packets is CPU work; keep it off the UI
+    // isolate. Batch order and per-entry rejection match the serial loop.
+    final parsed = await MeshPacket.parseBatch(
+      values.whereType<String>().toList(),
+      now: now(),
+      limit: maxPackets,
+    );
+    for (final packet in parsed) {
+      _packets[packet.id] = packet;
     }
     final seen = value['seen'];
     if (seen is Map && seen.length <= maxSeen) {

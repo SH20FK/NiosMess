@@ -46,6 +46,7 @@ import 'package:pulse_flutter/widgets/chat/ordinary_encryption_settings_button.d
 import 'package:pulse_flutter/widgets/chat/noto_message_emoji.dart';
 import 'package:pulse_flutter/widgets/chat/sticker_set_details_sheet.dart';
 import 'package:pulse_flutter/widgets/chat/ws_cached_image.dart';
+import 'package:pulse_flutter/widgets/common/touch_container.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/widgets/voice_message_player.dart';
 import 'package:universal_io/io.dart';
@@ -418,8 +419,11 @@ class MessageBubble extends ConsumerWidget {
                 headers: headers,
               )
             else
-              InkWell(
+              // TouchContainer adds the M3 press-scale (M3PressScale inside,
+              // after a short press delay) that the bare InkWell never had.
+              TouchContainer(
                 borderRadius: bubbleRadius,
+                enableHaptics: false,
                 onDoubleTap: onReactionTap != null
                     ? () {
                         final String emoji = ref
@@ -437,7 +441,7 @@ class MessageBubble extends ConsumerWidget {
                         onLongPress!();
                       }
                     : null,
-                onSecondaryTapUp: (_) {
+                onSecondaryTapDown: (Offset _) {
                   if (onLongPress != null) {
                     HapticService.confirm();
                     onLongPress!();
@@ -1056,6 +1060,9 @@ class MessageBubble extends ConsumerWidget {
       return VideoMessagePreview(url: mediaUrl!, fileKey: e2eeFileKey,
         mimeType: messageData?.mediaType?.startsWith('video/') == true ? messageData!.mediaType : null,
         duration: messageData?.mediaDuration, name: mediaLabel,
+        heroTag: messageData == null
+            ? null
+            : chatMediaHeroTag(chatId, messageData!.id),
         onOpen: onOpenMedia, onLongPress: onLongPressMedia);
     }
 
@@ -1501,10 +1508,11 @@ class MessageBubble extends ConsumerWidget {
     }
     return Semantics(
       label: isMine ? context.l10n.messageSentByMe : senderDisplayName,
-      child: InkWell(
+      child: TouchContainer(
         borderRadius: BorderRadius.circular(radius),
+        enableHaptics: false,
         onLongPress: onLongPress,
-        onSecondaryTapUp: onLongPress == null ? null : (_) => onLongPress!(),
+        onSecondaryTapDown: onLongPress == null ? null : (_) => onLongPress!(),
         onDoubleTap: onReactionTap == null
             ? null
             : () {

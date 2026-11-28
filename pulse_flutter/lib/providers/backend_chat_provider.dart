@@ -2703,20 +2703,28 @@ class ChatMessagesNotifier extends AsyncNotifier<List<ApiMessage>> {
     // Wire/storage is_decrypted flags are not proof that this batch opened an
     // envelope. Identity also keeps duplicate IDs from sharing provenance.
     final authenticatedOrdinary = Set<ApiMessage>.identity();
-    messages = await Future.wait(
-      messages.map((message) async {
-        if (ordinary != null &&
-            message.e2eeContent != null &&
-            ref.read(chatByIdProvider(_chatId))?.isSecret != true) {
-          final decoded = await ordinary.decrypt(message);
-          if (decoded.isE2ee && decoded.isDecrypted) {
-            authenticatedOrdinary.add(decoded);
+    messages = List<ApiMessage>.of(messages);
+    final isSecretChat = ref.read(chatByIdProvider(_chatId))?.isSecret == true;
+    if (ordinary != null && !isSecretChat) {
+      final batch = <int>[
+        for (var i = 0; i < messages.length; i++)
+          if (messages[i].e2eeContent != null) i,
+      ];
+      if (batch.isNotEmpty) {
+        // One page, one worker: the whole page opens off the UI isolate and
+        // every row comes back in place, failed or not.
+        final decoded = await ordinary.decryptBatch(<ApiMessage>[
+          for (final index in batch) messages[index],
+        ]);
+        for (var k = 0; k < batch.length && k < decoded.length; k++) {
+          final message = decoded[k];
+          if (message.isE2ee && message.isDecrypted) {
+            authenticatedOrdinary.add(message);
           }
-          return decoded;
+          messages[batch[k]] = message;
         }
-        return message;
-      }),
-    );
+      }
+    }
     if (!ref.mounted || generation != _generation) return const [];
     final currentSession = ref.read(authProvider).session;
     if (session?.userId != currentSession?.userId ||

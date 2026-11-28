@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:pulse_flutter/core/localization/l10n.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/core/utils/haptic_service.dart';
@@ -97,15 +98,15 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AppDialog(
-          title: 'Апелляция спам-блока',
+          title: context.l10n.supportAppealTitle,
           icon: Icons.gavel_rounded,
           actions: [
             AppDialogAction(
-              label: 'Отмена',
+              label: context.l10n.commonCancel,
               onPressed: submitting ? null : () => Navigator.of(ctx).pop(),
             ),
             AppDialogAction(
-              label: 'Отправить',
+              label: context.l10n.supportSend,
               isPrimary: true,
               isLoading: submitting,
               onPressed: submitting
@@ -115,7 +116,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                       if (text.length < 10) {
                         AppToast.showError(
                           ctx,
-                          'Опишите ситуацию подробнее (минимум 10 символов)',
+                          ctx.l10n.supportAppealTooShort,
                         );
                         return;
                       }
@@ -130,7 +131,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                         if (ticket != null && ticket.id > 0 && mounted) {
                           AppToast.showSuccess(
                             context,
-                            'Апелляция отправлена (#${ticket.id})',
+                            context.l10n.supportAppealSent(ticket.id),
                           );
                           await context.push('/support/${ticket.id}');
                           await _loadData(silent: true);
@@ -148,7 +149,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Расскажите модераторам, почему ограничение было наложено ошибочно или что вы уже исправили.',
+                ctx.l10n.supportAppealBody,
                 style: Theme.of(ctx).textTheme.bodySmall,
               ),
               const SizedBox(height: AppSpacing.md),
@@ -158,9 +159,9 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                 minLines: 4,
                 maxLines: 7,
                 maxLength: 3000,
-                decoration: const InputDecoration(
-                  labelText: 'Пояснение к апелляции',
-                  hintText: 'Минимум 10 символов...',
+                decoration: InputDecoration(
+                  labelText: ctx.l10n.supportAppealFieldLabel,
+                  hintText: ctx.l10n.supportAppealFieldHint,
                 ),
               ),
             ],
@@ -178,27 +179,27 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
     String category = 'general';
     bool submitting = false;
 
-    const categories = <(String, String)>[
-      ('general', 'Общий вопрос'),
-      ('bug', 'Ошибка / баг'),
-      ('privacy', 'Приватность / безопасность'),
-      ('copyright', 'Авторские права'),
-      ('abuse', 'Жалоба / злоупотребление'),
+    final categories = <(String, String)>[
+      ('general', context.l10n.supportCategoryGeneral),
+      ('bug', context.l10n.supportCategoryBug),
+      ('privacy', context.l10n.supportCategoryPrivacy),
+      ('copyright', context.l10n.supportCategoryCopyright),
+      ('abuse', context.l10n.supportCategoryAbuse),
     ];
 
     await showAppDialog<void>(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AppDialog(
-          title: 'Новое обращение',
+          title: context.l10n.supportNewTicketTitle,
           icon: Icons.support_agent_rounded,
           actions: [
             AppDialogAction(
-              label: 'Отмена',
+              label: context.l10n.commonCancel,
               onPressed: submitting ? null : () => Navigator.of(ctx).pop(),
             ),
             AppDialogAction(
-              label: 'Создать',
+              label: context.l10n.commonCreate,
               isPrimary: true,
               isLoading: submitting,
               onPressed: submitting
@@ -209,7 +210,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                       if (subj.isEmpty || body.isEmpty) {
                         AppToast.showError(
                           ctx,
-                          'Заполните тему и сообщение',
+                          ctx.l10n.supportFillFields,
                         );
                         return;
                       }
@@ -230,7 +231,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                         if (ticket != null && ticket.id > 0 && mounted) {
                           AppToast.showSuccess(
                             context,
-                            'Тикет #${ticket.id} создан',
+                            context.l10n.supportTicketCreated(ticket.id),
                           );
                           await context.push('/support/${ticket.id}');
                           await _loadData(silent: true);
@@ -265,7 +266,9 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                 controller: subjectCtrl,
                 enabled: !submitting,
                 maxLength: 160,
-                decoration: const InputDecoration(labelText: 'Тема'),
+                decoration: InputDecoration(
+                  labelText: context.l10n.supportSubjectLabel,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               TextField(
@@ -274,7 +277,9 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                 minLines: 3,
                 maxLines: 6,
                 maxLength: 4000,
-                decoration: const InputDecoration(labelText: 'Подробности'),
+                decoration: InputDecoration(
+                  labelText: context.l10n.supportBodyLabel,
+                ),
               ),
             ],
           ),
@@ -296,14 +301,14 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
   }
 
   String _categoryLabel(SupportTicket t) {
-    if (t.isSpamAppeal) return 'Апелляция';
+    if (t.isSpamAppeal) return context.l10n.supportCategoryAppeal;
     return switch (t.category) {
-      'bug' => 'Баг',
-      'privacy' => 'Приватность',
-      'copyright' => 'Авторское право',
-      'abuse' => 'Нарушение',
-      'account' => 'Аккаунт',
-      _ => 'Поддержка',
+      'bug' => context.l10n.supportCategoryBugShort,
+      'privacy' => context.l10n.supportCategoryPrivacyShort,
+      'copyright' => context.l10n.supportCategoryCopyrightShort,
+      'abuse' => context.l10n.supportCategoryAbuseShort,
+      'account' => context.l10n.supportCategoryAccount,
+      _ => context.l10n.supportCategorySupport,
     };
   }
 
@@ -322,15 +327,15 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Поддержка и Спам-Блок'),
+        title: Text(context.l10n.supportCenterTitle),
         actions: [
           IconButton(
-            tooltip: 'Чат с @Support',
+            tooltip: context.l10n.supportChatWithBot,
             icon: const Icon(Icons.chat_outlined),
             onPressed: () => context.push('/chat/direct/support'),
           ),
           IconButton(
-            tooltip: 'Обновить',
+            tooltip: context.l10n.supportRefresh,
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () => unawaited(_loadData()),
           ),
@@ -339,7 +344,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openNewTicketDialog,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Новый тикет'),
+        label: Text(context.l10n.supportNewTicket),
       ),
       body: _loading
           ? const Center(child: AppLoadingIndicator())
@@ -362,7 +367,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Мои обращения (${_tickets.length})',
+                          context.l10n.supportMyTickets(_tickets.length),
                           style: textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -380,18 +385,18 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                     spacing: 8,
                     children: [
                       FilterChip(
-                        label: const Text('Все'),
+                        label: Text(context.l10n.supportFilterAll),
                         selected: _statusFilter == 'all',
                         onSelected: (_) => setState(() => _statusFilter = 'all'),
                       ),
                       FilterChip(
-                        label: const Text('Открытые'),
+                        label: Text(context.l10n.supportFilterOpen),
                         selected: _statusFilter == 'open',
                         onSelected: (_) =>
                             setState(() => _statusFilter = 'open'),
                       ),
                       FilterChip(
-                        label: const Text('Закрытые'),
+                        label: Text(context.l10n.supportFilterClosed),
                         selected: _statusFilter == 'closed',
                         onSelected: (_) =>
                             setState(() => _statusFilter = 'closed'),
@@ -407,7 +412,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(
-                        'Не удалось загрузить тикеты: $_error',
+                        context.l10n.supportLoadError(_error!),
                         style: TextStyle(color: scheme.onErrorContainer),
                       ),
                     )
@@ -429,14 +434,14 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'Обращений пока нет',
+                            context.l10n.supportEmptyTitle,
                             style: textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Нажмите «Новый тикет» или напишите боту @Support — все сообщения соберутся в один удобный тред.',
+                            context.l10n.supportEmptyBody,
                             textAlign: TextAlign.center,
                             style: textTheme.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant,
@@ -495,8 +500,8 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
               Expanded(
                 child: Text(
                   isBlocked
-                      ? 'На аккаунте действует Спам-Блок'
-                      : 'Статус аккаунта: без ограничений',
+                      ? context.l10n.supportBlockedTitle
+                      : context.l10n.supportNotBlockedTitle,
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -507,20 +512,22 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
           const SizedBox(height: 8),
           if (!isBlocked)
             Text(
-              'Свободный доступ к публичным группам, каналам, NiosGram и личным сообщениям соблюдается.',
+              context.l10n.supportNotBlockedBody,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
             )
           else ...[
             Text(
-              'Причина: ${reason ?? "Нарушение правил NiosMess"}',
+              context.l10n.supportBlockReason(
+                reason ?? context.l10n.supportDefaultBlockReason,
+              ),
               style: textTheme.bodyMedium,
             ),
             if (until != null) ...[
               const SizedBox(height: 4),
               Text(
-                'Окончание: ${_formatDate(until)} (автоматически снимается по истечении)',
+                context.l10n.supportBlockUntil(_formatDate(until)),
                 style: textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -528,7 +535,7 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
             ],
             const SizedBox(height: 6),
             Text(
-              'Связь с @Support и тикеты поддержки остаются полностью доступными.',
+              context.l10n.supportBlockedSupportNote,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -543,13 +550,15 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                       await _loadData(silent: true);
                     },
                     icon: const Icon(Icons.forum_outlined, size: 18),
-                    label: Text('Открыть апелляцию #$appealTicketId'),
+                    label: Text(
+                      context.l10n.supportOpenAppeal(appealTicketId),
+                    ),
                   )
                 else
                   FilledButton.icon(
                     onPressed: _openAppealDialog,
                     icon: const Icon(Icons.gavel_rounded, size: 18),
-                    label: const Text('Подать апелляцию'),
+                    label: Text(context.l10n.supportSubmitAppeal),
                   ),
               ],
             ),
@@ -631,7 +640,9 @@ class _SupportCenterScreenState extends ConsumerState<SupportCenterScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      ticket.isClosed ? 'Закрыт' : 'Открыт',
+                      ticket.isClosed
+                          ? context.l10n.supportStatusClosed
+                          : context.l10n.supportStatusOpen,
                       style: textTheme.labelSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: ticket.isClosed

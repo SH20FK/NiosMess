@@ -212,38 +212,92 @@ class CallControlDock extends StatelessWidget {
             ),
 
             // ── Quick Call Reactions ───────────────────────────────────
-            PopupMenuButton<String>(
-              tooltip: 'Реакция',
-              color: CallTokens.darkSurfaceContainerHigh,
-              onSelected: (emoji) {
-                HapticService.tap();
-                session.sendReaction(emoji);
-              },
-              itemBuilder: (_) => const <PopupMenuEntry<String>>[
-                PopupMenuItem(value: '👍', child: Text('👍  Класс')),
-                PopupMenuItem(value: '❤️', child: Text('❤️  Сердце')),
-                PopupMenuItem(value: '🔥', child: Text('🔥  Огонь')),
-                PopupMenuItem(value: '👏', child: Text('👏  Аплодисменты')),
-                PopupMenuItem(value: '😂', child: Text('😂  Смех')),
-                PopupMenuItem(value: '🤯', child: Text('🤯  Шок')),
-              ],
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: data.localReaction != null
-                      ? scheme.primaryContainer
-                      : CallTokens.darkSurfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.add_reaction_rounded,
-                  color: data.localReaction != null
-                      ? scheme.onPrimaryContainer
-                      : scheme.onSurface,
-                  size: 22,
+            MenuAnchor(
+              style: const MenuStyle(
+                backgroundColor: WidgetStatePropertyAll<Color>(
+                  CallTokens.darkSurfaceContainerHigh,
                 ),
               ),
+              menuChildren: <Widget>[
+                MenuItemButton(
+                  onPressed: () {
+                    HapticService.tap();
+                    session.sendReaction('👍');
+                  },
+                  child: const Text('👍  Класс'),
+                ),
+                MenuItemButton(
+                  onPressed: () {
+                    HapticService.tap();
+                    session.sendReaction('❤️');
+                  },
+                  child: const Text('❤️  Сердце'),
+                ),
+                MenuItemButton(
+                  onPressed: () {
+                    HapticService.tap();
+                    session.sendReaction('🔥');
+                  },
+                  child: const Text('🔥  Огонь'),
+                ),
+                MenuItemButton(
+                  onPressed: () {
+                    HapticService.tap();
+                    session.sendReaction('👏');
+                  },
+                  child: const Text('👏  Аплодисменты'),
+                ),
+                MenuItemButton(
+                  onPressed: () {
+                    HapticService.tap();
+                    session.sendReaction('😂');
+                  },
+                  child: const Text('😂  Смех'),
+                ),
+                MenuItemButton(
+                  onPressed: () {
+                    HapticService.tap();
+                    session.sendReaction('🤯');
+                  },
+                  child: const Text('🤯  Шок'),
+                ),
+              ],
+              builder: (
+                BuildContext context,
+                MenuController controller,
+                Widget? child,
+              ) {
+                return Tooltip(
+                  message: 'Реакция',
+                  child: TouchContainer(
+                    width: 48,
+                    height: 48,
+                    borderRadius: BorderRadius.circular(24),
+                    color: data.localReaction != null
+                        ? scheme.primaryContainer
+                        : CallTokens.darkSurfaceContainerHighest,
+                    scaleDown: 0.92,
+                    releaseCurve: M3SpringCurves.spatialFast,
+                    enableHaptics: true,
+                    onTap: () {
+                      if (controller.isOpen) {
+                        controller.close();
+                      } else {
+                        controller.open();
+                      }
+                    },
+                    child: Center(
+                      child: Icon(
+                        Icons.add_reaction_rounded,
+                        color: data.localReaction != null
+                            ? scheme.onPrimaryContainer
+                            : scheme.onSurface,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
 
             // ── Voice Effect Preset ────────────────────────────────────

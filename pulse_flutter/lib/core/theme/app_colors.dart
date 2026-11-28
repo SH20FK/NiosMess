@@ -7,9 +7,6 @@ class AppColors {
   /// Unified semantic online presence green across all screens.
   static const Color statusOnline = Color(0xFF22C55E);
 
-  /// Unified semantic call decline and destructive red across all screens.
-  static const Color statusDanger = Color(0xFFE53935);
-
   /// Deterministic, scheme-harmonized avatar color for any user or chat ID.
   static Color avatarColorFor(String id, ColorScheme scheme) =>
       NiosMark.resolveColor(id, scheme);

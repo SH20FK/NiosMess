@@ -27,6 +27,7 @@ import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 import 'package:pulse_flutter/core/theme/expressive_tokens.dart';
 import 'package:pulse_flutter/core/utils/app_toast.dart';
 import 'package:pulse_flutter/widgets/common/touch_container.dart';
+import 'package:pulse_flutter/widgets/motion/m3_spring_switcher.dart';
 
 class ChatInputBar extends ConsumerStatefulWidget {
   const ChatInputBar({
@@ -1262,11 +1263,11 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar>
             color: _isVideoMode ? scheme.tertiary : scheme.primary,
             shape: BoxShape.circle,
           ),
-          child: AnimatedSwitcher(
+          child: M3SpringSwitcher(
+            type: M3SwitcherType.scale,
             duration: context.reduceMotion
                 ? Duration.zero
                 : M3Durations.short4,
-            transitionBuilder: _iconSwapTransition,
             child: Icon(
               _isVideoMode ? Icons.videocam_rounded : Icons.mic_rounded,
               key: ValueKey<bool>(_isVideoMode),

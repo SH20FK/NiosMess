@@ -119,6 +119,12 @@ class CallSessionManager {
   Timer? _soloTimer;
   bool _ended = false;
 
+  /// UI-relevant state of the last provider notify. Duration ticks are
+  /// excluded: they reach the call screens through [stateStream] and their
+  /// own [ValueNotifier], so rebuilding every provider watcher each second
+  /// only re-runs the call stage and dock.
+  List<Object?>? _lastUiSignature;
+
   /// Set once the peer is in the room, so the ringback loop and the
   /// "connected" cue fire exactly once per call.
   bool _answerHandled = false;
@@ -298,12 +304,78 @@ class CallSessionManager {
     }
   }
 
+  static const Object _participantMarker = Object();
+
+  /// Everything the call UI draws, minus [CallSessionData.durationSeconds]
+  /// and participant heartbeat timestamps.
+  List<Object?> _uiSignature(CallSessionData d) => <Object?>[
+    d.state,
+    d.callId,
+    d.roomId,
+    d.isVideo,
+    d.isGroup,
+    d.direction,
+    d.localClientId,
+    d.peerName,
+    d.peerAvatarUrl,
+    d.peerUsername,
+    d.isMuted,
+    d.isSpeakerOn,
+    d.isSelfVideoEnabled,
+    d.isScreenSharing,
+    d.isHandRaised,
+    d.isSelfSpeaking,
+    d.localReaction,
+    d.voiceEffect,
+    d.forceRelay,
+    d.isPlus,
+    d.maxVideoHeight,
+    d.maxScreenHeight,
+    d.maxFps,
+    d.activeScreenPeerId,
+    d.activeScreenPeerName,
+    d.isListener,
+    d.fatalError,
+    d.quality.level,
+    d.quality.reason,
+    d.verificationEmojis.join('\u0000'),
+    for (final p in d.remoteParticipants) ...<Object?>[
+      _participantMarker,
+      p.clientId,
+      p.nickname,
+      p.audioEnabled,
+      p.videoEnabled,
+      p.screenSharing,
+      p.screenStreamId,
+      p.handRaised,
+      p.isSpeaking,
+      p.reaction,
+      p.voiceEffect,
+    ],
+  ];
+
+  /// Rebuilds provider watchers only when a non-duration field changed.
+  void _notifyIfStateChanged(CallSessionData data) {
+    final List<Object?> signature = _uiSignature(data);
+    final List<Object?>? previous = _lastUiSignature;
+    _lastUiSignature = signature;
+    if (previous != null && listEquals(previous, signature)) return;
+    ref.read(callSessionProvider.notifier).notify();
+  }
+
+  /// Feeds one state snapshot through the rebuild gate, as the session
+  /// stream does, without needing live media.
+  @visibleForTesting
+  void debugNotifySessionData(CallSessionData data) =>
+      _notifyIfStateChanged(data);
+
   void _onSessionData(CallSessionData data) {
     if (_disposed) return;
+    final CallSessionData snapshot = currentData;
     if (!_stateController.isClosed) {
-      _stateController.add(currentData);
+      _stateController.add(snapshot);
     }
-    ref.read(callSessionProvider.notifier).notify();
+    _notifyIfStateChanged(snapshot);
 
     // Ringback ends the moment the other side is actually in the room.
     if (!_answerHandled && (_session?.wasAnswered ?? false)) {

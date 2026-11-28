@@ -1,0 +1,119 @@
+{
+  "lane": "crypto",
+  "truncated": 0,
+  "findings": [
+    {
+      "rule": "SEC-4",
+      "severity": "high",
+      "file": "lib/services/ordinary_e2ee/ordinary_e2ee_service.dart",
+      "line": 1080,
+      "evidence": "    final target = data['target_key'] as String,\n        request = data['request_id'] as String;\n    final packet = await OrdinaryCodec.pair(\n      _keys!,\n      _recovery!,\n      target,",
+      "why": "Ручное сопряжение принимает произвольную внешнюю строку `niosmess-e2e:...`; из неё проверяется только самозаявленные `v` и `user_id`. `target_key` выбирает получателя, и в него шифруется весь `_keyring` (все эпохи, см. `old:` в codec:344-348) вместе с `_recovery` — кодом, которым открывается серверный backup. Публичный числовой userId виден в профиле и ссылках, поэтому любой может сгенерировать такой код и прислать его в чат: одно нажатие «сопрячь» в настройках (widgets/settings/ordinary_e2ee_settings.dart:565) отдаёт атакующему полный ключевой материал. В отличие от auto-enrollment (строки 831-893) здесь нет ни proof NiosID, ни привязки target-ключа к аккаунту, ни подтверждения, что код выпущен своим устройством. Описание, без патча.",
+      "impact": "Полная компрометация ordinary-E2EE аккаунта и возможности восстановления при социальной инженерии одного действия.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "SEC-4",
+      "severity": "medium",
+      "file": "lib/services/ordinary_e2ee/ordinary_e2ee_codec.dart",
+      "line": 291,
+      "evidence": "    if (h['v'] != 1 ||\n        h['chat'] != chat ||\n        h['sender'] != from ||\n        h['epoch'] != sender['epoch'] ||\n        sender['user_id'] != from ||",
+      "why": "`h['id']` входит в AAD (`_aad`, строка 193 — `p['id']`), то есть подписан, но при расшифровке не сверяется с `message.id`: проверяются только chat/sender/epoch/reply/edit (291-296). Валидный конверт можно переотдать под другим id — подпись сойдётся, `h['edit']` останется null, и сообщение появится в истории как новое (реплей сервером или тем, кто может писать в очередь доставки). Содержимое подделать нельзя, но привязка «конверт ↔ конкретное сообщение» объявлена в AAD и не проверяется. Описание, без патча.",
+      "impact": "Реплей и дублирование подписанных сообщений ordinary-E2EE под новыми id; сорванная дедупликация и «воскрешение» старых отправок.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "LAG-5",
+      "severity": "high",
+      "file": "lib/services/ordinary_e2ee/ordinary_e2ee_codec.dart",
+      "line": 297,
+      "evidence": "        !await verify(\n          p['body'] as String,\n          p['signature'] as String,\n          sender['ed'] as String,\n        )) {",
+      "why": "На главном изоляте: 1 Ed25519-verify (297), 1 X25519 shared secret + HKDF (317, `_wrap` 197-218), 2×AES-GCM (315-319, 322) — всё pure-Dart `cryptography`. В pubspec только `cryptography: ^2.9.0`, `cryptography_flutter` нет, `FlutterCryptography` не встречается ни разу (0 в lib/), то есть нативной крипты нет. Вызывается по одному сообщению (`ordinary_e2ee_service.dart:723`) в последовательном цикле страницы/догона, поэтому N сообщений = N×(verify+dh+aes) подряд в кадре. Паттерн выноса в проекте уже есть и работает в других местах: `Isolate.run` в `core/storage/encrypted_message_cache.dart:148-153` и `core/storage/encrypted_history_archive.dart:96,124`, `compute` в `services/blob_hasher.dart:100`, `Isolate.run` в `core/network/web_socket_client.dart:657-683`. В ordinary_e2ee и secret_chat таких вызовов нет ни одного.",
+      "impact": "Открытие чата и догон истории после офлайна залипают: сотни миллисекунд CPU на страницу 80 сообщений, до секунды на окно 300.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-5",
+      "severity": "high",
+      "file": "lib/services/secret_chat/secret_journal.dart",
+      "line": 298,
+      "evidence": "        final encrypted = await _aes.encrypt(\n          utf8.encode(jsonEncode(tx)),\n          secretKey: key,\n          aad: _aad(_sequence),\n        );\n        await backend.append(base64Encode(encrypted.concatenation()));",
+      "why": "Один коммит = jsonEncode всей транзакции + AES-GCM + base64 + `box.flush()` (69-72) на КАЖДОЕ событие синка, всё в главном изоляте. Чекпоинт (306-332) сериализует и шифрует снапшот всей истории всех секретных чатов (`jsonEncode(snapshot)`) прямо посреди отправки/приёма. `restore()` (206-240) прогоняет base64+AES+jsonDecode+`secretFreeze` по всей пачке записей синхронно до первого кадра инбокса: он ждётся из `providers/secret_chat_provider.dart:181` внутри `_open`, который ожидает `ChatsNotifier.build()`. В `lib/services/secret_chat/` нет ни одного `Isolate.run`/`compute` (проверено grep по `lib/services`).",
+      "impact": "100 событий страницы = 100 fsync + 100 AES + 100 jsonEncode в кадре; холодный старт с секретными чатами блокирует список чатов на сотни миллисекунд.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-5",
+      "severity": "medium",
+      "file": "lib/services/secret_chat/secret_chat_engine.dart",
+      "line": 731,
+      "evidence": "      for (final event in ordered) {\n        await _serial.run(key, () => _receive(key, event));\n      }",
+      "why": "Страница синка до 100 событий (`limit: 100`, строка 711) обрабатывается строго по одному событию: DR-расшифровка (`DoubleRatchetService` → HKDF+AES-GCM), `jsonDecode`, затем коммит журнала (AES+jsonEncode+flush) — всё на UI-изоляте, без батча. Цикл страниц ограничен только счётчиком 50 (706), не временем. Отправка симметрична: `_sendNext` шифрует ратчет и весь body (1313-1331) в главном изоляте, `pump` крутит до 32 сообщений подряд (552-554).",
+      "impact": "Синк после реконнекта и массовая отправка очереди идут сериями блокировок кадра; при 100 событиях — секунды без отрисовки.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-3",
+      "severity": "medium",
+      "file": "lib/services/secret_chat/secret_chat_engine.dart",
+      "line": 1160,
+      "evidence": "            await AesGcm.with256bits().decrypt(\n              SecretBox(\n                base64Decode(packet['ciphertext'] as String),\n                nonce: base64Decode(packet['iv'] as String),\n                mac: Mac(base64Decode(packet['tag'] as String)),",
+      "why": "Формат v1 ({ciphertext, iv, tag} + X25519 shared secret + AES-GCM/256) реализован дважды: здесь (1143-1168, легаси-ветка секретного чата) и в `services/e2ee_service.dart:204-219`, а шифрование — здесь же и в `e2ee_service.dart:168-187`. Это один и тот же конверт, но две независимые реализации с разными путями ошибок: правка одной (например добавление AAD или проверки длины iv) не доедет до второй, а история старых чатов читается обеими.",
+      "impact": "Двойная поддержка одного формата: любая правка безопасности делается в двух местах, расхождение читается как «часть сообщений не расшифровалась».",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-3",
+      "severity": "medium",
+      "file": "lib/services/secret_chat/secret_journal.dart",
+      "line": 215,
+      "evidence": "      final box = SecretBox.fromConcatenation(\n        packed,\n        nonceLength: 12,\n        macLength: 16,\n      );",
+      "why": "Байтовый AEAD-конверт `base64(nonce12 | ciphertext | mac16)` реализован дважды: `OrdinaryCodec.seal/open` (codec:100-125 — `[...box.nonce, ...box.cipherText, ...box.mac.bytes]` и обратный `sublist(12, …)`/`b.length - 16`) и здесь (`_aes.encrypt` + `concatenation()` на 303, `fromConcatenation(nonceLength: 12, macLength: 16)` на 215). Дублируются не протоколы, а именно кодек байтового формата и магические 12/16 — два места, где одинаковый формат может разъехаться.",
+      "impact": "Дубли codec'ов: смена раскладки (или добавление версии конверта) требует синхронной правки в двух несвязанных модулях, иначе журнал перестаёт восстанавливаться.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-5",
+      "severity": "medium",
+      "file": "lib/services/ordinary_e2ee/ordinary_e2ee_service.dart",
+      "line": 317,
+      "evidence": "      value: jsonEncode({\n        'keys': keys.secret(),\n        'recovery': OrdinaryCodec.recoveryCode(_recovery!),\n        'old': _keyring.values",
+      "why": "Схема key-bundle `{keys, recovery, old}` собирается литералами в трёх местах: `_save` (317-324), `resetAfterLoss`/pending (1036-1039) и `OrdinaryCodec.pair` (codec:344-348, уходит на другое устройство), а разбирается кастами в `_open` (263-271), auto-pair (880) и `completePairing` (1110). Общей модели нет, поэтому добавление поля (версия, pending-флаг) в одну ветку означает тихую потерю старых эпох при восстановлении с другого устройства — парсер ждёт ровно эти ключи.",
+      "impact": "Дрейф схемы ключевого бандла = невосстановимые старые сообщения после смены эпохи; ошибка проявится только у пользователя с бэкапом.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "CODE-4",
+      "severity": "low",
+      "file": "lib/services/secret_chat/secret_chat_engine.dart",
+      "line": 22,
+      "evidence": "class SecretChatEngine {  // 1402 строки в lib/services/secret_chat/secret_chat_engine.dart",
+      "why": "1402 строки в одном классе: handshake/ратчет (782-982), транспортный цикл и ретраи (533-583, 1253-1375), проекции сообщений (312-423), импорт легаси (195-269), удаление/архив сессий (588-621, 984-991). Правка любой из зон требует держать в голове сериализацию `_serial` и порядок коммитов журнала, из-за чего цена ревью и риск регрессии растут непропорционально.",
+      "impact": "Читаемость и риск регрессии в самом чувствительном модуле (ключи, ратчет, потеря сообщений).",
+      "confidence": "certain"
+    }
+  ],
+  "perf_status": [
+    {
+      "from": "audit/perf/00-summary.md#P0-2",
+      "status": "still",
+      "file": "lib/services/ordinary_e2ee/ordinary_e2ee_codec.dart",
+      "line": 297,
+      "note": "codec:297 verify, :317 _wrap, :322 open; service:723 OrdinaryCodec.decrypt по одному сообщению. Ни Isolate.run, ни cryptography_flutter (0 вхождений FlutterCryptography, в pubspec только cryptography ^2.9.0)."
+    },
+    {
+      "from": "audit/perf/00-summary.md#P0-3",
+      "status": "still",
+      "file": "lib/providers/backend_chat_provider.dart",
+      "line": 2601,
+      "note": "Зона providers (только отметка): `while (true)` на месте, потолка страниц нет; расшифровка страницы — всё ещё в 2601-2623."
+    },
+    {
+      "from": "audit/perf/00-summary.md#P1-15",
+      "status": "still",
+      "file": "lib/services/secret_chat/secret_journal.dart",
+      "line": 69,
+      "note": "append() + flush() 69-72; чекпоинт 306-332 (jsonEncode всего аккаунта + AES); engine:731-732 последовательный цикл событий; journal.restore() 206-240 ждётся из providers/secret_chat_provider.dart:181."
+    }
+  ]
+}

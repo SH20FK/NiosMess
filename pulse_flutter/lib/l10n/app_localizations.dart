@@ -704,7 +704,6 @@ abstract class AppLocalizations {
   /// **'Joined'**
   String get profileJoinedDate;
 
-
   /// No description provided for @profileReport.
   ///
   /// In en, this message translates to:
@@ -4773,6 +4772,534 @@ abstract class AppLocalizations {
   /// **'Could not read selected file'**
   String get filePickerReadError;
 
+  /// No description provided for @filePickerRecentMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent media'**
+  String get filePickerRecentMedia;
+
+  /// No description provided for @filePickerAllAlbums.
+  ///
+  /// In en, this message translates to:
+  /// **'All albums'**
+  String get filePickerAllAlbums;
+
+  /// No description provided for @filePickerLimitedPhotosOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the selected photos are available'**
+  String get filePickerLimitedPhotosOnly;
+
+  /// No description provided for @filePickerNoRecentMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'No recent photos or the album is empty'**
+  String get filePickerNoRecentMedia;
+
+  /// No description provided for @filePickerPickPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Select photos'**
+  String get filePickerPickPhoto;
+
+  /// No description provided for @filePickerCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get filePickerCamera;
+
+  /// No description provided for @filePickerExplorer.
+  ///
+  /// In en, this message translates to:
+  /// **'File explorer'**
+  String get filePickerExplorer;
+
+  /// No description provided for @filePickerSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get filePickerSettings;
+
+  /// No description provided for @filePickerGalleryDeniedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Gallery access not granted'**
+  String get filePickerGalleryDeniedTitle;
+
+  /// No description provided for @filePickerGalleryDeniedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow access in settings or pick files through the file explorer'**
+  String get filePickerGalleryDeniedBody;
+
+  /// No description provided for @filePickerCaptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a caption...'**
+  String get filePickerCaptionHint;
+
+  /// No description provided for @filePickerAsFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Send as file (no compression)'**
+  String get filePickerAsFile;
+
+  /// No description provided for @filePickerAsPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Send as photo'**
+  String get filePickerAsPhoto;
+
+  /// No description provided for @filePickerCounter.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String filePickerCounter(int current, int total);
+
+  /// No description provided for @filePickerUploadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the selected files'**
+  String get filePickerUploadError;
+
+  /// No description provided for @chatCreationFormatSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a format for chatting or broadcasting'**
+  String get chatCreationFormatSubtitle;
+
+  /// No description provided for @chatCreationGroupSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A chat for friends, colleagues or a community'**
+  String get chatCreationGroupSubtitle;
+
+  /// No description provided for @chatCreationSecretTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New secret chat'**
+  String get chatCreationSecretTitle;
+
+  /// No description provided for @chatCreationSecretSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'End-to-end E2EE encryption, no traces on the server'**
+  String get chatCreationSecretSubtitle;
+
+  /// No description provided for @chatCreationChannelSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A channel for posts, news and content'**
+  String get chatCreationChannelSubtitle;
+
+  /// No description provided for @supportCenterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Support and Spam Block'**
+  String get supportCenterTitle;
+
+  /// No description provided for @supportChatWithBot.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with @Support'**
+  String get supportChatWithBot;
+
+  /// No description provided for @supportRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get supportRefresh;
+
+  /// No description provided for @supportNewTicket.
+  ///
+  /// In en, this message translates to:
+  /// **'New ticket'**
+  String get supportNewTicket;
+
+  /// No description provided for @supportMyTickets.
+  ///
+  /// In en, this message translates to:
+  /// **'My requests ({count})'**
+  String supportMyTickets(int count);
+
+  /// No description provided for @supportFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get supportFilterAll;
+
+  /// No description provided for @supportFilterOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get supportFilterOpen;
+
+  /// No description provided for @supportFilterClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get supportFilterClosed;
+
+  /// No description provided for @supportLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load tickets: {error}'**
+  String supportLoadError(Object error);
+
+  /// No description provided for @supportEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No requests yet'**
+  String get supportEmptyTitle;
+
+  /// No description provided for @supportEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap "New ticket" or message the @Support bot - all messages will be collected into one convenient thread.'**
+  String get supportEmptyBody;
+
+  /// No description provided for @supportBlockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This account is under a spam block'**
+  String get supportBlockedTitle;
+
+  /// No description provided for @supportNotBlockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account status: no restrictions'**
+  String get supportNotBlockedTitle;
+
+  /// No description provided for @supportNotBlockedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Free access to public groups, channels, NiosGram and direct messages is maintained.'**
+  String get supportNotBlockedBody;
+
+  /// No description provided for @supportBlockReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason: {reason}'**
+  String supportBlockReason(String reason);
+
+  /// No description provided for @supportDefaultBlockReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Violation of NiosMess rules'**
+  String get supportDefaultBlockReason;
+
+  /// No description provided for @supportBlockUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends: {date} (lifted automatically when it expires)'**
+  String supportBlockUntil(String date);
+
+  /// No description provided for @supportBlockedSupportNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact with @Support and support tickets remain fully available.'**
+  String get supportBlockedSupportNote;
+
+  /// No description provided for @supportOpenAppeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Open appeal #{id}'**
+  String supportOpenAppeal(Object id);
+
+  /// No description provided for @supportSubmitAppeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit an appeal'**
+  String get supportSubmitAppeal;
+
+  /// No description provided for @supportStatusOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get supportStatusOpen;
+
+  /// No description provided for @supportStatusClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get supportStatusClosed;
+
+  /// No description provided for @supportAppealTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Spam block appeal'**
+  String get supportAppealTitle;
+
+  /// No description provided for @supportSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get supportSend;
+
+  /// No description provided for @supportAppealTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe the situation in more detail (at least 10 characters)'**
+  String get supportAppealTooShort;
+
+  /// No description provided for @supportAppealSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Appeal sent (#{id})'**
+  String supportAppealSent(Object id);
+
+  /// No description provided for @supportAppealBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell the moderators why the restriction was applied by mistake or what you have already fixed.'**
+  String get supportAppealBody;
+
+  /// No description provided for @supportAppealFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Appeal explanation'**
+  String get supportAppealFieldLabel;
+
+  /// No description provided for @supportAppealFieldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'At least 10 characters...'**
+  String get supportAppealFieldHint;
+
+  /// No description provided for @supportNewTicketTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New request'**
+  String get supportNewTicketTitle;
+
+  /// No description provided for @supportFillFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the subject and the message'**
+  String get supportFillFields;
+
+  /// No description provided for @supportTicketCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticket #{id} created'**
+  String supportTicketCreated(Object id);
+
+  /// No description provided for @supportSubjectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject'**
+  String get supportSubjectLabel;
+
+  /// No description provided for @supportBodyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get supportBodyLabel;
+
+  /// No description provided for @supportCategoryGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General question'**
+  String get supportCategoryGeneral;
+
+  /// No description provided for @supportCategoryBug.
+  ///
+  /// In en, this message translates to:
+  /// **'Error / bug'**
+  String get supportCategoryBug;
+
+  /// No description provided for @supportCategoryPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy / security'**
+  String get supportCategoryPrivacy;
+
+  /// No description provided for @supportCategoryCopyright.
+  ///
+  /// In en, this message translates to:
+  /// **'Copyright'**
+  String get supportCategoryCopyright;
+
+  /// No description provided for @supportCategoryAbuse.
+  ///
+  /// In en, this message translates to:
+  /// **'Complaint / abuse'**
+  String get supportCategoryAbuse;
+
+  /// No description provided for @supportCategoryAppeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Appeal'**
+  String get supportCategoryAppeal;
+
+  /// No description provided for @supportCategoryBugShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Bug'**
+  String get supportCategoryBugShort;
+
+  /// No description provided for @supportCategoryPrivacyShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get supportCategoryPrivacyShort;
+
+  /// No description provided for @supportCategoryCopyrightShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Copyright'**
+  String get supportCategoryCopyrightShort;
+
+  /// No description provided for @supportCategoryAbuseShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Violation'**
+  String get supportCategoryAbuseShort;
+
+  /// No description provided for @supportCategoryAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get supportCategoryAccount;
+
+  /// No description provided for @supportCategorySupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Support'**
+  String get supportCategorySupport;
+
+  /// No description provided for @mediaGridPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Gallery access permission was not granted'**
+  String get mediaGridPermissionDenied;
+
+  /// No description provided for @mediaGridLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the gallery: {error}'**
+  String mediaGridLoadError(Object error);
+
+  /// No description provided for @mediaGridAlbums.
+  ///
+  /// In en, this message translates to:
+  /// **'Albums'**
+  String get mediaGridAlbums;
+
+  /// No description provided for @mediaGridPickError.
+  ///
+  /// In en, this message translates to:
+  /// **'File selection error'**
+  String get mediaGridPickError;
+
+  /// No description provided for @mediaGridEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No media in the gallery or access is limited'**
+  String get mediaGridEmpty;
+
+  /// No description provided for @mediaGridLimitedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Limited photo access'**
+  String get mediaGridLimitedTitle;
+
+  /// No description provided for @mediaGridSelectMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Select more'**
+  String get mediaGridSelectMore;
+
+  /// No description provided for @mediaGridAsFile.
+  ///
+  /// In en, this message translates to:
+  /// **'As file'**
+  String get mediaGridAsFile;
+
+  /// No description provided for @mediaGridPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get mediaGridPhoto;
+
+  /// No description provided for @mediaGridSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected: {count}'**
+  String mediaGridSelectedCount(int count);
+
+  /// No description provided for @mediaGridSendCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Send ({count})'**
+  String mediaGridSendCount(int count);
+
+  /// No description provided for @interactiveFutureTimeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a future end time'**
+  String get interactiveFutureTimeRequired;
+
+  /// No description provided for @interactiveRepeatNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get interactiveRepeatNever;
+
+  /// No description provided for @interactiveRepeatDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day'**
+  String get interactiveRepeatDaily;
+
+  /// No description provided for @interactiveRepeatWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Every week'**
+  String get interactiveRepeatWeekly;
+
+  /// No description provided for @interactiveVoteSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Voting settings'**
+  String get interactiveVoteSettings;
+
+  /// No description provided for @interactiveVoteDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Voting period'**
+  String get interactiveVoteDuration;
+
+  /// No description provided for @interactiveDurationAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get interactiveDurationAlways;
+
+  /// No description provided for @interactiveDuration1h.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get interactiveDuration1h;
+
+  /// No description provided for @interactiveDuration24h.
+  ///
+  /// In en, this message translates to:
+  /// **'24 hours'**
+  String get interactiveDuration24h;
+
+  /// No description provided for @interactiveDurationCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom time'**
+  String get interactiveDurationCustom;
+
+  /// No description provided for @interactiveUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Until {date}'**
+  String interactiveUntil(String date);
+
   /// No description provided for @badgeFieldName.
   ///
   /// In en, this message translates to:
@@ -6632,8 +7159,6 @@ abstract class AppLocalizations {
 
   String get appearanceFloatingNav;
   String get appearanceFloatingNavSubtitle;
-  String get appearanceWallpaperColors;
-  String get appearanceWallpaperColorsSubtitle;
 
   String get preferencesResetAll;
   String get preferencesResetAllSubtitle;
@@ -7230,7 +7755,8 @@ abstract class AppLocalizations {
   String get userUnblockFailed;
   String get supportCannotBeBlocked;
   String get supportCannotBeReported;
-  String get reportSentSuccess;
+  String get reportSentSuccess;
+
   String get reportNeedsChat;
   String get blockedUsersTitle;
   String get searchByUsernameOrName;
@@ -7267,7 +7793,6 @@ abstract class AppLocalizations {
   String get secretChatFeature4;
   String get chatConnecting;
   String get chatReconnecting;
-  String get chatWallpaperMenu;
   String get deleteForEveryone;
   String get deleteForMe;
   String get spamBannerSpam;
@@ -7368,10 +7893,6 @@ abstract class AppLocalizations {
   String get appearanceInterfaceNavDesc;
   String get appearancePredictiveBack;
   String get appearancePredictiveBackDesc;
-  String get appearanceChatWallpaperTitle;
-  String get appearanceChatWallpaperDesc;
-  String get appearanceWallpaperGenerator;
-  String get appearanceWallpaperGeneratorDesc;
   String get appearanceCustomColor;
   String get appearanceThemeDark;
   String get appearanceThemeDarkActive;
@@ -7478,10 +7999,6 @@ abstract class AppLocalizations {
   String get settingsChatsQuickReactionDesc;
   String get settingsChatsSelectedEmoji;
   String get settingsChatsDoubleTapHint;
-  String get settingsChatsWallpaperSection;
-  String get settingsChatsWallpaperSectionDesc;
-  String get settingsChatsWallpaperGenerator;
-  String get settingsChatsWallpaperGeneratorDesc;
   String get settingsAccountNiosIdError;
   String get loginWaitingBrowserConfirmation;
   String get loginCodeExpiresIn;
@@ -7587,83 +8104,6 @@ abstract class AppLocalizations {
   String get autoDelete30Days;
   String get autoDeleteCustom;
   String get autoDeleteUpdated;
-  String get wallpaperScreenTitle;
-  String get wallpaperResetTitle;
-  String get wallpaperResetSubtitle;
-  String get wallpaperResetAction;
-  String get wallpaperRandomUndo;
-  String get wallpaperSaved;
-  String get wallpaperForThisChat;
-  String get wallpaperForAllChats;
-  String get wallpaperCustomize;
-  String get wallpaperApply;
-  String get wallpaperDiscard;
-  String get wallpaperRandomize;
-  String get wallpaperMyPhoto;
-  String get wallpaperChoosePhoto;
-  String get wallpaperPhotoBlur;
-  String get wallpaperPhotoDim;
-  String get wallpaperRemovePhoto;
-  String get wallpaperTabPattern;
-  String get wallpaperTabColors;
-  String get wallpaperTabGeometry;
-  String get wallpaperAdvanced;
-  String get wallpaperLayoutGrid;
-  String get wallpaperLayoutStagger;
-  String get wallpaperLayoutScatter;
-  String get wallpaperLayoutHex;
-  String get wallpaperLayoutSpiral;
-  String get wallpaperBgSolid;
-  String get wallpaperBgGradient;
-  String get wallpaperBgGlow;
-  String get wallpaperColorModeSingle;
-  String get wallpaperColorModeAccents;
-  String get wallpaperColorModePalette;
-  String get wallpaperPackAll;
-  String get wallpaperPackChat;
-  String get wallpaperPackTech;
-  String get wallpaperPackSpace;
-  String get wallpaperPackFood;
-  String get wallpaperPackNature;
-  String get wallpaperPackMinimal;
-  String get wallpaperPackCustom;
-  String get wallpaperSourceMaterial;
-  String get wallpaperSourceLucide;
-  String get wallpaperSourceTabler;
-  String get wallpaperSourceCupertino;
-  String get wallpaperSourceShapes;
-  String get wallpaperCellSize;
-  String get wallpaperDensity;
-  String get wallpaperOpacity;
-  String get wallpaperFilled;
-  String get wallpaperGridAngle;
-  String get wallpaperRandomRotation;
-  String get wallpaperRandomScale;
-  String get wallpaperWeight;
-  String get wallpaperBaseColor;
-  String get wallpaperSecondaryColor;
-  String get wallpaperPresetCosmos;
-  String get wallpaperPresetCyberpunk;
-  String get wallpaperPresetSunset;
-  String get wallpaperPresetOled;
-  String get wallpaperPresetCupertino;
-  String get wallpaperPresetPastel;
-  String get wallpaperPresetMatrix;
-  String get wallpaperCustomSetTitle;
-  String get wallpaperCustomSetLimit;
-  String get wallpaperSearchGlyphs;
-  String get wallpaperSaveSet;
-  String get wallpaperTryOn;
-  String get wallpaperMockupToggle;
-  String get wallpaperNoPhotoSelected;
-  String get wallpaperDiscardConfirmTitle;
-  String get wallpaperDiscardConfirmBody;
-  String get wallpaperDiscardConfirmAction;
-  String get wallpaperPacksTitle;
-  String get wallpaperSymbolsStyle;
-  String get wallpaperRevert;
-  String get wallpaperMockupUserMessage;
-  String get wallpaperMockupPartnerMessage;
 }
 
 class _AppLocalizationsDelegate

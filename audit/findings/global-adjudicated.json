@@ -1,0 +1,28 @@
+{
+  "lane": "global-adjudicated",
+  "truncated": 0,
+  "findings": [
+    {
+      "rule": "SEC-3",
+      "severity": "medium",
+      "file": "lib/core/utils/screen_security_service.dart",
+      "line": 6,
+      "evidence": "static Future<void> setSecureFlag({required bool enabled}) async {\n  try {\n    await _channel.invokeMethod('setSecureFlag', enabled);\n  } catch (e) {\n    // Platform not supported or not available\n  }",
+      "why": "Защита от скриншотов реализована только на Android (MainActivity.kt:34,41-50). На iOS канала нет (AppDelegate.swift 15 строк, grep по ios/ пуст), на Windows/macOS/web регистрации канала нет и плагина в pubspec тоже. MissingPluginException глотается пустым catch: не падает, не логируется, фолбэка (блюр/app-switcher) нет. Severity понижена с high до medium после верификации: утечки без действия пользователя нет, и UI больше защиту не обещает (тумблеры убраны осознанно).",
+      "impact": "Секретные чаты на iOS и десктопе: скриншоты и запись экрана не блокируются и об этом никак не сообщается",
+      "patch_sketch": "Реализовать канал на iOS или возвращать явный флаг «платформа не поддерживает» + блюр в app-switcher",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "low",
+      "file": "lib/providers/ui_settings_provider.dart",
+      "line": 179,
+      "evidence": "final bool linkPreviewsInSecretChats;\nfinal bool secureScreenshotsInSecretChats;",
+      "why": "Обе настройки — мёртвая проводка: поля, defaults, copyWith, prefs-ключи, setter и reset есть, потребителей 0. Из UI они уже убраны осознанно (settings_security_screen.dart:62-66: «stay out of the UI until the behaviour lands»), поэтому «вранья в интерфейсе» нет — остаётся удалить ~22 строки проводки в следующей правке провайдера.",
+      "impact": "Мёртвый код и путаница при чтении настроек",
+      "patch_sketch": "Удалить поля, ключи prefs, ветки copyWith/reset; вернуть вместе с реализацией превью и защиты",
+      "confidence": "certain"
+    }
+  ]
+}

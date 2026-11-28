@@ -5,6 +5,7 @@ import 'package:extended_image/extended_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:photo_view/photo_view.dart';
 
+import 'package:pulse_flutter/core/call_design_tokens.dart';
 import 'package:pulse_flutter/widgets/pulse_loading_indicator.dart';
 
 /// ВРЕМЕННЫЙ dev-экран.
@@ -225,9 +226,10 @@ class _DemoViewerState extends State<_DemoViewer> {
   @override
   Widget build(BuildContext context) {
     final image = widget.images[_index];
+    final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: scheme.scrim,
       body: Stack(
         children: [
           Positioned.fill(
@@ -328,6 +330,7 @@ class _DemoViewerState extends State<_DemoViewer> {
   }
 
   Widget _buildTopBar(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
@@ -335,22 +338,22 @@ class _DemoViewerState extends State<_DemoViewer> {
           IconButton(
             onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.close_rounded),
-            color: Colors.white,
+            color: CallTokens.onDarkSurface,
             style: IconButton.styleFrom(
-              backgroundColor: Colors.black.withValues(alpha: 0.45),
+              backgroundColor: scheme.scrim.withValues(alpha: 0.45),
             ),
           ),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.45),
+              color: scheme.scrim.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
               '${_index + 1} / ${widget.images.length}',
               style: const TextStyle(
-                color: Colors.white,
+                color: CallTokens.onDarkSurface,
                 fontWeight: FontWeight.w700,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
@@ -370,12 +373,16 @@ class _DemoViewerState extends State<_DemoViewer> {
             style: ButtonStyle(
               backgroundColor: WidgetStateProperty.resolveWith((states) {
                 return states.contains(WidgetState.selected)
-                    ? Colors.white.withValues(alpha: 0.22)
-                    : Colors.black.withValues(alpha: 0.4);
+                    ? CallTokens.onDarkSurface.withValues(alpha: 0.22)
+                    : scheme.scrim.withValues(alpha: 0.4);
               }),
-              foregroundColor: const WidgetStatePropertyAll(Colors.white),
+              foregroundColor: const WidgetStatePropertyAll(
+                CallTokens.onDarkSurface,
+              ),
               side: WidgetStatePropertyAll(
-                BorderSide(color: Colors.white.withValues(alpha: 0.25)),
+                BorderSide(
+                  color: CallTokens.onDarkSurface.withValues(alpha: 0.25),
+                ),
               ),
             ),
             onSelectionChanged: (selection) {
@@ -388,10 +395,11 @@ class _DemoViewerState extends State<_DemoViewer> {
   }
 
   Widget _buildBottomBar(BuildContext context, _DemoImage image) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
+        color: scheme.scrim.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -401,7 +409,7 @@ class _DemoViewerState extends State<_DemoViewer> {
           Text(
             '${image.width}×${image.height} · ${image.megapixels} МП',
             style: const TextStyle(
-              color: Colors.white,
+              color: CallTokens.onDarkSurface,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -411,7 +419,7 @@ class _DemoViewerState extends State<_DemoViewer> {
                 ? 'extended_image: декод ${image.decodeWidth(context)} px по ширине'
                 : 'photo_view: декод в полном разрешении (~${image.fullDecodeMb} МБ RGBA)',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
+              color: CallTokens.onDarkSurface.withValues(alpha: 0.78),
               height: 1.35,
             ),
           ),
@@ -509,6 +517,10 @@ const List<_DemoSpec> _demoSpecs = <_DemoSpec>[
   ),
 ];
 
+/// Ink for the generated demo artwork (grid, rings, title). This is image
+/// content baked into the PNG, not UI chrome, so it does not follow the theme.
+const Color _demoArtworkInk = Color(0xFFFFFFFF);
+
 Future<List<_DemoImage>> _generateDemoImages() async {
   final out = <_DemoImage>[];
   for (final spec in _demoSpecs) {
@@ -529,7 +541,7 @@ Future<List<_DemoImage>> _generateDemoImages() async {
 
     // Мелкая сетка и кольца — чтобы зум было видно, а не «размытый градиент».
     final Paint grid = Paint()
-      ..color = Colors.white.withValues(alpha: 0.07)
+      ..color = _demoArtworkInk.withValues(alpha: 0.07)
       ..strokeWidth = 1;
     for (double x = 0; x <= w; x += w / 48) {
       canvas.drawLine(Offset(x, 0), Offset(x, h), grid);
@@ -541,7 +553,7 @@ Future<List<_DemoImage>> _generateDemoImages() async {
     final Paint ring = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = w * 0.008
-      ..color = Colors.white.withValues(alpha: 0.16);
+      ..color = _demoArtworkInk.withValues(alpha: 0.16);
     for (double r = 0.12; r < 0.62; r += 0.08) {
       canvas.drawCircle(Offset(w / 2, h / 2), w * r, ring);
     }
@@ -553,7 +565,7 @@ Future<List<_DemoImage>> _generateDemoImages() async {
           fontSize: w * 0.3,
           fontWeight: FontWeight.w800,
           letterSpacing: -w * 0.01,
-          color: Colors.white.withValues(alpha: 0.9),
+          color: _demoArtworkInk.withValues(alpha: 0.9),
         ),
       ),
       textDirection: TextDirection.ltr,

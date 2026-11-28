@@ -18,6 +18,7 @@ class MeshPacket {
     this.expiresAt,
     this.author,
     this.purpose,
+    this.proof,
   );
   static const maxBytes = 24576;
   static const maxHops = 8;
@@ -25,6 +26,12 @@ class MeshPacket {
   final String body, signature, id, envelope, author, purpose;
   final int work, hops;
   final DateTime expiresAt;
+
+  /// Proof that the inner message signature inside [envelope] was verified
+  /// against [author] by [parse]. Delivery reuses it instead of verifying the
+  /// same Ed25519 signature a third time. Only [parse] can set it.
+  final VerifiedSignature? proof;
+
   String get wire => jsonEncode({
     'v': 1,
     'body': body,
@@ -43,6 +50,7 @@ class MeshPacket {
     expiresAt,
     author,
     purpose,
+    proof,
   );
 
   static String _id(String body) => base64UrlEncode(
@@ -151,6 +159,29 @@ class MeshPacket {
     return data;
   }
 
+  /// Parses a bounded batch on a background isolate so restoring persisted
+  /// relay state or the offline outbox does not block the first frame. Order is
+  /// preserved and invalid entries are dropped exactly as a serial loop would.
+  /// No key, format or signature semantics change: every packet still runs the
+  /// same [parse] checks, including both Ed25519 verifications.
+  static Future<List<MeshPacket>> parseBatch(
+    List<String> wires, {
+    required DateTime now,
+    bool forBackfill = false,
+    int limit = 256,
+  }) => Isolate.run(() async {
+    final packets = <MeshPacket>[];
+    for (final wire in wires) {
+      if (packets.length >= limit) break;
+      try {
+        packets.add(await parse(wire, now: now, forBackfill: forBackfill));
+      } catch (_) {
+        /* Corrupt/expired entries are never forwarded. */
+      }
+    }
+    return packets;
+  });
+
   static Future<MeshPacket> parse(
     String wire, {
     DateTime? now,
@@ -236,11 +267,14 @@ class MeshPacket {
         header['epoch'] != claim['epoch']) {
       throw const FormatException('Mismatched offline credential');
     }
-    if (!await OrdinaryCodec.verify(
+    // The only Ed25519 check of the inner message signature. The resulting
+    // proof is carried on the packet so delivery does not repeat it.
+    final proof = await VerifiedSignature.mint(
+      author,
       inner['body'] as String,
       inner['signature'] as String,
-      author,
-    )) {
+    );
+    if (proof == null) {
       throw const FormatException('Mismatched message author');
     }
     return MeshPacket._(
@@ -253,6 +287,7 @@ class MeshPacket {
       expires,
       author,
       value['purpose'] as String,
+      proof,
     );
   }
 }

@@ -1,0 +1,176 @@
+{
+  "lane": "settings (widgets/settings, features/settings, widgets/profile, features/sessions|account_deletion|storage)",
+  "truncated": 3,
+  "perf_status": [
+    {
+      "from": "audit/perf/00-summary.md#14 / audit/perf/02-widgets.md#M5",
+      "status": "still",
+      "file": "lib/widgets/settings/ordinary_e2ee_settings.dart",
+      "line": 581,
+      "note": "строки 574 → 581: ref.watch(chatsProvider) по-прежнему без select, весь _contactSection пересобирается на любое событие чатов"
+    },
+    {
+      "from": "audit/perf/00-summary.md#6 / audit/perf/02-widgets.md#M1",
+      "status": "fixed",
+      "file": "lib/widgets/profile_header_delegate.dart",
+      "line": 45,
+      "note": "порядок исправлен: Opacity(opacity: opacity, child: RepaintBoundary(child: child)) — шапка больше не ре-recording на каждый пиксель скролла"
+    }
+  ],
+  "findings": [
+    {
+      "rule": "LAG-1",
+      "severity": "high",
+      "file": "lib/widgets/settings/custom_color_picker_sheet.dart",
+      "line": 75,
+      "evidence": "final scheme = Theme.of(context).colorScheme;\nfinal preview = ColorScheme.fromSeed(\n  seedColor: _selected,\n  brightness: scheme.brightness,\n  dynamicSchemeVariant: DynamicSchemeVariant.expressive,\n);",
+      "why": "Пикер акцента пересобирается на каждый кадр перетаскивания: onPanUpdate → _select() → setState() (строка 215), а build() строит целую палитру ColorScheme.fromSeed с dynamicSchemeVariant.expressive. fromSeed с expressive — самая дорогая ветка генерации схемы (проект держит LRU-кэш на 64 ThemeData именно чтобы не считать её на кадре). Тянем область цвета — получаем fromSeed 60-120 раз в секунду плюс 13 HSV-конверсий, три AnimatedContainer и DeocratedBox-градиенты; кадр не успевает, ползунок отстаёт от пальца. Второй такой же fromSeed стоит в списке пресетов (строка 371) — на каждый элемент на каждый билд.",
+      "impact": "Выбор кастомного акцента в Appearance (web и desktop тоже) — самый лагучий интерактив настроек.",
+      "patch_sketch": "Считать ColorScheme.fromSeed один раз на изменение _selected через late/кэш (или ThemeCache проекта) и отдавать пресетам готовый onPrimary из уже посчитанной схемы.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-1",
+      "severity": "medium",
+      "file": "lib/screens/settings_security_screen.dart",
+      "line": 72,
+      "evidence": "SettingsRow(\n  leading: Icon(Icons.link_rounded, color: scheme.primary),\n  title: l.settingsSecretLinkPreviewsTitle,\n  control: ToggleControl(\n    value: secretChats.linkPreviews,",
+      "why": "Мёртвые настройки: grep по linkPreviewsInSecretChats / secureScreenshotsInSecretChats по всему lib/ находит только объявление в ui_settings_provider.dart и этот экран. Ни один потребитель не читает флаги: превью ссылок в секретных чатах не гасятся, FLAG_SECURE / защита от скриншотов не включаются нигде (слова FLAG_SECURE в lib/ нет вообще). Пользователь видит включённый по умолчанию тумблер «защита от скриншотов» (secureScreenshotsInSecretChats = true) и считает, что секретный чат защищён, — это ложное обещание безопасности, а не косметика.",
+      "impact": "Доверие к разделу Security; расхождение «тумблер включён — защиты нет».",
+      "patch_sketch": "Либо подключить флаги к secret-chat рендеру (превью ссылок) и к FLAG_SECURE в main_shell/auth-gate, либо убрать оба ряда до реализации.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-2",
+      "severity": "medium",
+      "file": "lib/widgets/settings/ordinary_e2ee_settings.dart",
+      "line": 581,
+      "evidence": "Widget _contactSection() {\n  final chats = ref.watch(chatsProvider).value ?? const [];\n  final candidates = chats\n      .where((c) => c.chatType == 'direct' && !c.isSecret && !c.isBotChat)\n      .toList();",
+      "why": "P1-14 из перф-аудита жив (было 574, стало 581). Подписка на весь chatsProvider без select: любое входящее сообщение, unread или presence-апдейт пересобирает _contactSection вместе с фильтром по всем чатам и пересоздаёт items: DropdownButtonFormField (по элементу на каждый direct-чат). Пользователь, сидящий в E2EE-настройках, платит полный build+layout страницы на каждое событие чатов.",
+      "impact": "Открытые настройки E2EE при активной переписке на другом устройстве.",
+      "patch_sketch": "Вынести секцию в отдельный ConsumerWidget с ref.watch(chatsProvider.select((v) => v.value?.where(...).map((c) => (c.id, c.name)).toList())) или отдельным directChatOptionsProvider.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-3",
+      "severity": "medium",
+      "file": "lib/widgets/profile/profile_shared_media_tab_view.dart",
+      "line": 537,
+      "evidence": "return Padding(\n  padding: const EdgeInsets.only(right: 8),\n  child: Material(\n    color: Colors.transparent,\n    child: InkWell(\n      onTap: () {\n        HapticService.selection();",
+      "why": "Параллельная реализация уже существующего компонента: в этой же настрой-зоне лежит SettingsChoiceButtons<T> — пill-группа из ChoiceChip с M3SelectionMotion, тональным треком и общим звуком/хаптиком. Здесь тот же паттерн собран вручную (Material+InkWell+AnimatedContainer, haptic прямо в onTap), со своими радиусами 20/10/14 (строки 496, 544, 553) и своим AnimatedSwitcher для контента таба (399-419) вместо M3SpringSwitcher. Итог: два разных вида «выбора одного из N» и две разные физики в одном аккаунте, а правка пружины требует двух файлов.",
+      "impact": "Профиль → «Общие медиа»: табы визуально и тактильно не совпадают с остальными переключателями.",
+      "patch_sketch": "Заменить _buildPillBar на SettingsChoiceButtons<int> (label с count) и AnimatedSwitcher на M3SpringSwitcher(type: fade).",
+      "confidence": "likely"
+    },
+    {
+      "rule": "MOTION-2",
+      "severity": "medium",
+      "file": "lib/widgets/settings/ordinary_e2ee_settings.dart",
+      "line": 701,
+      "evidence": "Widget _reveal(String key, Widget? child) => AnimatedSize(\n  duration: context.reduceMotion\n      ? Duration.zero\n      : M3Durations.medium2,\n  curve: M3SpringCurves.expressiveStandard,",
+      "why": "Раскрытие секций E2EE (recovery-код, отпечаток, QR-код пары, отпечаток собеседника — 4 вызова _reveal) сделано ручным AnimatedSize + KeyedSubtree, хотя для этого ровно есть M3Reveal(revealed:, child:, type: M3RevealType.expandY) с нормализованной пружиной, fade и внутренней проверкой reduce motion. Показательно, что в этой же зоне M3Reveal уже используется в account_security_section.dart:141, background_delivery_section.dart:121, account_deletion_screen.dart:279, sessions_screen.dart:88 — то есть один экран E2EE выбивается из общего поведения (нет fade, только высота).",
+      "impact": "Раскрытие блоков на странице E2EE и на соседних страницах Security/Account ощущается по-разному.",
+      "patch_sketch": "Заменить _reveal на M3Reveal(revealed: child != null, child: child ?? SizedBox.shrink()).",
+      "confidence": "likely"
+    },
+    {
+      "rule": "LAG-4",
+      "severity": "medium",
+      "file": "lib/widgets/settings/settings_skeleton.dart",
+      "line": 103,
+      "evidence": "child: AnimatedBuilder(\n  animation: _opacity,\n  builder: (BuildContext context, Widget? child) => Opacity(\n    opacity: _reduceMotion ? 1.0 : _opacity.value,\n    child: child,",
+      "why": "Скелетон настроек (он же «загрузка» для SettingsAsyncSwitcher) пульсирует альфой 0.55→1.0 на общем контроллере, и Opacity стоит над всей колонкой из widget.rows строк (7 строк на Notifications, 5 на Privacy). Ребёнок не RepaintBoundary, поэтому каждый кадр 1200-мс цикла — saveLayer на всю высоту группы и перезапись всех DecoratedBox. Это тот же дефект, что перф-аудит нашёл в pulse_skeleton.dart#m6, только в новом файле: показывается он именно в момент, когда страница и так занята первым layout+запросом.",
+      "impact": "Первый кадр страниц Notifications/Privacy/Storage на слабом Android.",
+      "patch_sketch": "Opacity(..., child: RepaintBoundary(child: child)) — альфа применится на композитинге кэшированного слоя.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MESS-3",
+      "severity": "medium",
+      "file": "lib/features/account_deletion/presentation/account_deletion_screen.dart",
+      "line": 155,
+      "evidence": "AnimatedSize(\n  duration: M3Durations.medium2,\n  curve: M3SpringCurves.expressiveDecel,\n  alignment: Alignment.topCenter,\n  child: AnimatedSwitcher(",
+      "why": "Экран уже держит AsyncValue<AccountDeletionStatus> в руках (строка 139) и сам сводит его к трём формам, но переключает их вручную AnimatedSize+AnimatedSwitcher — то есть переписывает SettingsAsyncSwitcher<T>(value:, data:, loading:, error:) из lib/widgets/settings/settings_async_switcher.dart, который делает ровно это (M3SpringSwitcher + Stack с IgnorePointer/ExcludeFocus для уходящей формы). Результат расходится в деталях: здесь уходящий ребёнок остаётся кликабельным и фокусируемым, в SettingsAsyncSwitcher — нет.",
+      "impact": "Переход loading→pending/форма удаления аккаунта; поведение фокуса у уходящей формы.",
+      "patch_sketch": "Заменить ручную пару на SettingsAsyncSwitcher<AccountDeletionStatus> с теми же тремя билдерами.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "LAG-2",
+      "severity": "medium",
+      "file": "lib/features/sessions/presentation/sessions_screen.dart",
+      "line": 185,
+      "evidence": "pending:\n    ref.watch(sessionsControllerProvider) is SessionsReady &&\n    (ref.read(sessionsControllerProvider) as SessionsReady).revokingIds\n        .contains(session.id),",
+      "why": "Каждая строка устройства подписана на весь sessionsControllerProvider и внутри build делает ref.read того же провайдера с приведением типа. Один revoke или terminateOthers (флаг pending меняется на каждом тике) пересобирает все строки списка, а не одну; при этом строка в рантайме полагается на то, что read вернёт ровно то же значение, что и watch — хрупко при любой асинхронной вставке между ними.",
+      "impact": "Список устройств в Security → Devices при отзыве сессии.",
+      "patch_sketch": "ref.watch(sessionsControllerProvider.select((s) => s is SessionsReady && s.revokingIds.contains(session.id))) и вынести строку в отдельный ConsumerWidget.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "LAG-1",
+      "severity": "medium",
+      "file": "lib/widgets/settings/about_changelog_expander.dart",
+      "line": 71,
+      "evidence": "for (final change in widget.changes) {\n  final TextPainter painter = TextPainter(\n    text: TextSpan(text: change, style: style),\n    textDirection: direction,\n    textScaler: scaler,\n  )..layout(maxWidth: constraints.maxWidth);",
+      "why": "Заметки о релизе измеряются TextPainter.layout() на каждый элемент на каждый проход layout внутри LayoutBuilder. Это тот же класс дефекта, что перф-аудит отметил в core/modal/app_modal_content.dart:134. Здесь он в новом коде: смена text scale, поворот, ресайз панели и любая пересборка таба «Что нового» заново раскладывает весь список строк (обычно 5-15), чтобы получить одно число fullHeight, которое зависит только от текста и ширины.",
+      "impact": "Вкладка «Что нового» в About на ресайзе окна / смене масштаба текста.",
+      "patch_sketch": "Считать fullHeight один раз при смене widget.changes/constraints.maxWidth/scaler и кэшировать в State.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-2",
+      "severity": "low",
+      "file": "lib/screens/settings_about_screen.dart",
+      "line": 462,
+      "evidence": "class _TabTravelTransition extends StatelessWidget {\n  const _TabTravelTransition({\n    required this.animation,\n    required this.travel,\n    required this.child,",
+      "why": "Новый класс (строки 462-492, 40 строк) вручную собирает FadeTransition + AnimatedBuilder(Transform.translate) — это ровно M3SpringSwitcher(type: M3SwitcherType.fadeSlideY) из lib/widgets/motion/m3_spring_switcher.dart, у которого уже есть нормализованный fade (expressiveDecel/Accel) и слайд по Y, плюс dual-transition логика. Отличие только в знаке направления (_tabDirection), то есть в одном параметре, а не в новом классе: сейчас переключение табов About — единственное место в настройках со своим переходом, и оно не получит будущие правки M3SpringSwitcher (например reduce-motion внутрь блока).",
+      "impact": "Табы About (Что нового / Правовое / Команда).",
+      "patch_sketch": "Свернуть в M3SpringSwitcher(type: fadeSlideY) или добавить в него параметр direction вместо локального _TabTravelTransition.",
+      "confidence": "likely"
+    },
+    {
+      "rule": "M3E-3",
+      "severity": "medium",
+      "file": "lib/features/settings/presentation/settings_row.dart",
+      "line": 70,
+      "evidence": "decoration: BoxDecoration(\n  color: highlighted\n      ? scheme.primaryContainer.withValues(alpha: 0.38)\n      : Colors.transparent,\n  borderRadius: BorderRadius.circular(16),\n),",
+      "why": "Радиус подсветки строки-якоря задан литералом 16, хотя в проекте есть AppRadii.of(context) (superellipse/адаптивный радиус) и пользовательская настройка формы (settings_appearance_shape_screen меняет uiCornerRadius). Из-за литерала рамка поиска остаётся «круглой 16» при любой выбранной форме — то есть M3E-выразительность формы работает везде, кроме подсветки, которую видит пользователь сразу после поиска по настройкам. Тот же литеральный набор (10/14/18/20/24/28) повторяется в profile_shared_media_tab_view.dart:496,544,590,621, working_hours_widget.dart:44,53,66, my_qr_code_sheet.dart:125, about_memorial_sheet.dart:39,76,107.",
+      "impact": "Настройка «форма/скругления» перестаёт действовать на подсветку строк и на профильные карточки.",
+      "patch_sketch": "AppRadii.of(context).mdRadius / .superellipse(...) вместо BorderRadius.circular(16) и остальных литералов в перечисленных местах.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "M3E-1",
+      "severity": "low",
+      "file": "lib/core/theme/app_theme.dart",
+      "line": 227,
+      "evidence": "iconButtonTheme: IconButtonThemeData(\n  style: ButtonStyle(\n    iconColor: WidgetStateProperty.resolveWith<Color?>(\n      (Set<WidgetState> states) => states.contains(WidgetState.disabled)\n          ? scheme.onSurface.withValues(alpha: 0.38)",
+      "why": "M3E-опт-ин у IconButton — это variant в IconButtonThemeData (IconButtonTheme.variantOf в material_ui 1.11.1), и он не задан ни здесь, ни где-либо ещё (StyleVariant в lib/ — 0 вхождений). Поэтому все IconButton этой зоны — refresh в sessions_screen.dart:77, закрытие шита в profile_sheet_layout.dart:67 и custom_color_picker_sheet.dart:104, очистка дня рождения в edit_profile_sheet.dart:413 — рисуются классическим M3-видом: без expressive size/shape-вариантов, при том что остальная настрой-зона (сквирклы, пружины, тональные слои) заявлена как M3E. ElevatedButton в зоне не используется, так что второй доступный опт-ин (ElevatedButtonThemeData.variant) неприменим.",
+      "impact": "Иконка-кнопки в шапках настроек: единственный невыразительный элемент на M3E-странице.",
+      "patch_sketch": "IconButtonThemeData(variant: StyleVariant.material3Expressive, style: ...) в app_theme.dart.",
+      "confidence": "certain"
+    },
+    {
+      "rule": "MOTION-1",
+      "severity": "low",
+      "file": "lib/features/sessions/presentation/sessions_screen.dart",
+      "line": 138,
+      "evidence": "children: [\n  for (final session in ready.otherSessions)\n    _deviceRow(context, ref, session, pending),\n],",
+      "why": "Список устройств приходит из сети одним куском и появляется в один кадр: M3Reveal прячет только спиннер, а сами строки вставляются без входа. В настройках для этого уже есть M3StaggeredItem(index:) (settings_ui.dart:196, max 8 элементов, дальше рендер сразу), и сессий обычно 2-6 — цена: пересборка одной строки SettingsListItem на элемент, ровно столько же, сколько сейчас. Ещё заметнее при отзыве: строка исчезает мгновенно, хотя соседние табы «умеют» пружину.",
+      "impact": "Security → Devices: появление и исчезновение устройств.",
+      "patch_sketch": "Обернуть _deviceRow в M3StaggeredItem(index: i) и скрывать отозванную строку через M3Reveal(revealed:false).",
+      "confidence": "likely"
+    },
+    {
+      "rule": "MESS-4",
+      "severity": "low",
+      "file": "lib/widgets/profile/profile_shared_media_tab_view.dart",
+      "line": 31,
+      "evidence": "class ProfileSharedMediaTabView extends ConsumerStatefulWidget {\n  const ProfileSharedMediaTabView({",
+      "why": "1507 строк в одном файле (лимит проекта — 1000): внутри один State с загрузкой медиа всех чатов (_loadAllChatMedia), свой pill bar, четыре независимых билдера списков (_buildMediaGrid, _buildVoiceList, _buildFilesList, _buildLinksList), шиммер, плейсхолдеры и три вспомогательных виджета со скачиванием файла (_SharedFileTile). Любая правка одного таба требует чтения всего файла, а сами табы уже не связаны ничем, кроме _selectedTabIndex.",
+      "impact": "Сопровождение профиля; риск конфликтов при параллельных правках табов.",
+      "patch_sketch": "Разнести на profile_shared_media_grid/voice/files/links.dart + отдельный контроллер загрузки, оставив в файле только каркас с табами.",
+      "confidence": "certain"
+    }
+  ]
+}

@@ -335,12 +335,6 @@ abstract class SecretChatLocalizations {
   /// **'Actions'**
   String get inboxActions;
 
-  /// No description provided for @backgroundsPaused.
-  ///
-  /// In en, this message translates to:
-  /// **'Backgrounds are temporarily disabled'**
-  String get backgroundsPaused;
-
   /// No description provided for @inboxChatType.
   ///
   /// In en, this message translates to:
@@ -4822,42 +4816,6 @@ abstract class SecretChatLocalizations {
   /// In en, this message translates to:
   /// **'After 30 minutes'**
   String get settingsLockTimeout30Minutes;
-
-  /// No description provided for @settingsWallpaperEntryHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Pattern, colors and a photo behind your chats'**
-  String get settingsWallpaperEntryHint;
-
-  /// No description provided for @wallpaperForChatNamed.
-  ///
-  /// In en, this message translates to:
-  /// **'For “{title}”'**
-  String wallpaperForChatNamed(String title);
-
-  /// No description provided for @wallpaperTabPresets.
-  ///
-  /// In en, this message translates to:
-  /// **'Presets'**
-  String get wallpaperTabPresets;
-
-  /// No description provided for @wallpaperTabEffects.
-  ///
-  /// In en, this message translates to:
-  /// **'Effects'**
-  String get wallpaperTabEffects;
-
-  /// No description provided for @wallpaperResetDefault.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset to default'**
-  String get wallpaperResetDefault;
-
-  /// No description provided for @wallpaperCopyCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy wallpaper code'**
-  String get wallpaperCopyCode;
 
   /// No description provided for @settingsSpamBlockServerHint.
   ///

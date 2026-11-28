@@ -7,7 +7,7 @@ import 'package:pulse_flutter/core/identity/nios_mark.dart';
 ///
 /// Harmonizes the partner's unique Nios Mark color with the user's active theme
 /// via [Blend.harmonize] to tint chat surfaces, bubbles, and accents without
-/// clashing with user theme brightness or custom wallpapers.
+/// clashing with user theme brightness.
 abstract final class NiosChroma {
   /// Bounded LRU cache of harmonized [ColorScheme] instances per chat.
   static final LinkedHashMap<String, ColorScheme> _chromaCache =
@@ -15,13 +15,7 @@ abstract final class NiosChroma {
   static const int _maxCacheSize = 64;
 
   /// Determines whether Nios Chroma contextual palette should be applied to a chat.
-  ///
-  /// Per the design specification, custom user wallpapers take precedence over Chroma.
-  static bool shouldApply({
-    required bool hasCustomWallpaper,
-    bool userChromaEnabled = true,
-  }) {
-    if (hasCustomWallpaper) return false;
+  static bool shouldApply({bool userChromaEnabled = true}) {
     return userChromaEnabled;
   }
 

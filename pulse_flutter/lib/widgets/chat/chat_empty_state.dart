@@ -1,6 +1,5 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:pulse_flutter/core/motion/m3_motion.dart';
-import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
+import 'package:pulse_flutter/widgets/motion/m3_entrance.dart';
 
 enum ChatEmptyStateVariant {
   empty,
@@ -127,21 +126,8 @@ class ChatEmptyState extends StatelessWidget {
     }
 
     return Center(
-      child: TweenAnimationBuilder<double>(
-        tween: Tween<double>(begin: 0.0, end: 1.0),
-        duration: context.reduceMotion
-            ? Duration.zero
-            : M3Durations.short4,
-        curve: M3SpringCurves.expressiveDecel,
-        builder: (context, value, child) {
-          return Opacity(
-            opacity: value,
-            child: Transform.scale(
-              scale: 0.98 + (0.02 * value),
-              child: child,
-            ),
-          );
-        },
+      child: M3Entrance(
+        scaleFrom: 0.98,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
