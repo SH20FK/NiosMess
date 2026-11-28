@@ -450,6 +450,15 @@ class _SettingsAboutScreenState extends ConsumerState<SettingsAboutScreen> {
             ),
           ),
         ),
+        // The client is GPLv3 and parts of it come from exteraGram; their
+        // additional terms ask for that notice where the app shows its own
+        // name and version, which is this page.
+        SettingsListItem.nav(
+          icon: Icons.code_rounded,
+          title: l.aboutBasedOnTitle,
+          subtitle: l.aboutBasedOnSubtitle,
+          onTap: () => _openUrl('https://github.com/exteraSquad/exteraGram'),
+        ),
       ],
     );
   }

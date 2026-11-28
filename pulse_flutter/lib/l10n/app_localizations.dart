@@ -7113,6 +7113,8 @@ abstract class AppLocalizations {
   String get aboutChangelogErrorMessage;
   String get aboutThirdPartyLicensesTitle;
   String get aboutThirdPartyLicensesSubtitle;
+  String get aboutBasedOnTitle;
+  String get aboutBasedOnSubtitle;
   String get aboutFounderRole;
   String get aboutLeadDevRole;
   String aboutContactDevTooltip(String handle);

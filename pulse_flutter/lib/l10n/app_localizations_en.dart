@@ -3975,6 +3975,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutThirdPartyLicensesSubtitle => 'Information about open-source client components';
 
   @override
+  String get aboutBasedOnTitle => 'Based on exteraGram';
+
+  @override
+  String get aboutBasedOnSubtitle => 'Community ideas and code under GPLv3';
+
+  @override
   String get aboutFounderRole => 'Founder & Chief Architect';
 
   @override

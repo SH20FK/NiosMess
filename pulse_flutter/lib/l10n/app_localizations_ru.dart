@@ -4003,6 +4003,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get aboutThirdPartyLicensesSubtitle => 'Информация об открытых компонентах клиента';
 
   @override
+  String get aboutBasedOnTitle => 'Основано на exteraGram';
+
+  @override
+  String get aboutBasedOnSubtitle => 'Идеи и код сообщества под GPLv3';
+
+  @override
   String get aboutFounderRole => 'Основатель & Главный Архитектор';
 
   @override
