@@ -14,6 +14,7 @@ import 'package:pulse_flutter/widgets/chat/file_request_action.dart';
 import 'package:pulse_flutter/widgets/chat/interactive_composer.dart';
 import 'package:pulse_flutter/models/interactive_message.dart';
 import 'package:pulse_flutter/providers/secret_chat_provider.dart';
+import 'package:pulse_flutter/services/secret_chat/secret_chat_engine.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_app_bar.dart';
 import 'package:pulse_flutter/widgets/chat/chat_detail_input_area.dart';
 import 'package:pulse_flutter/widgets/chat/chat_viewport.dart';
@@ -55,6 +56,7 @@ import 'package:pulse_flutter/core/motion/m3_spring_constants.dart';
 import 'package:pulse_flutter/core/utils/draft_storage.dart';
 import 'package:pulse_flutter/core/utils/file_opener.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_ai_rewrite_controller.dart';
+import 'package:pulse_flutter/screens/chat_detail/chat_draft_controller.dart';
 import 'package:pulse_flutter/screens/chat_detail/chat_message_presenter.dart';
 import 'package:pulse_flutter/screens/media_viewer_screen.dart';
 import 'package:pulse_flutter/models/api/chat_member_model.dart';
@@ -112,16 +114,14 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   late final FocusNode _inputFocusNode;
 
   // Cache providers that may be needed in dispose()
-  late DraftStorage _draftStorage;
-  SecretChatCoordinator? _secretCoordinator;
+  SecretDraftSink? _secretDraftSink;
   bool _savingSecretMessage = false;
   bool _desktopPasteInFlight = false;
   DateTime? _lastDesktopPasteAt;
   final DesktopPasteDeduplicator _pasteDeduplicator =
       DesktopPasteDeduplicator();
 
-  Timer? _draftSaveTimer;
-  bool _showDraftRestoredBanner = false;
+  late final ChatDraftController _draft;
 
   final ValueNotifier<ChatComposerState> _composerNotifier =
       ValueNotifier<ChatComposerState>(const ChatComposerState());
@@ -205,7 +205,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _draftStorage = ref.read(draftStorageProvider); // cache before dispose
     _scrollCoordinator = ChatScrollCoordinator(
       onJumpError: (error) {
         if (mounted) {
@@ -266,6 +265,21 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       onSound: (SoundEvent event) =>
           ref.read(appSoundProvider).playEvent(event),
     );
+    _draft = ChatDraftController(
+      chatId: _chatId,
+      textController: _inputController,
+      // Read once here: `dispose()` saves the draft and must not touch `ref`.
+      storage: ref.read(draftStorageProvider),
+      isSecret: () => _isSecret,
+      canPersistOrdinaryDraft: () => _canPersistOrdinaryDraft,
+      secretSink: () => _secretDraftSink,
+      ensureSecretReady: () async =>
+          _bindSecret(await ref.read(secretChatCoordinatorProvider.future)),
+      onBannerChanged: () {
+        if (mounted) setState(() {});
+      },
+      onError: (Object error) => debugPrint('Draft save failed: $error'),
+    );
     final int? cid = _chatId;
     if (cid != null) PushNotificationService.setCurrentChat(cid);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -275,9 +289,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         _scrollCoordinator.setHasNewerHistory(
           ref.read(chatHistoryWindowProvider(id)).hasNewer,
         );
+        // Secure flag first: restoring a draft needs `_isSecret` to be current
+        // so a secret chat reads the engine, never DraftStorage.
+        _applySecureFlag();
+        if (ref.read(chatByIdProvider(id)) != null) {
+          unawaited(_draft.restore());
+        }
       }
-      _restoreDraft();
-      _applySecureFlag();
       _refreshNow();
     });
   }
@@ -292,9 +310,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _canPersistOrdinaryDraft = chat?.isSecret == false;
     if (chat?.isSecret == true) {
       _isSecret = true;
-      _secretCoordinator = ref.read(secretChatCoordinatorProvider).value;
+      _bindSecret(ref.read(secretChatCoordinatorProvider).value);
       ScreenSecurityService.setSecureFlag(enabled: true);
     }
+  }
+
+  /// Keeps the engine handle the draft controller saves through in sync with
+  /// the coordinator. Never awaited from `dispose()`.
+  void _bindSecret(SecretChatCoordinator? coordinator) {
+    if (coordinator == null) return;
+    _secretDraftSink = _SecretDraftSink(coordinator);
   }
 
   DateTime? _lastScreenshotAlertTime;
@@ -355,8 +380,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     _scrollCoordinator.dispose();
     _loadingOlderNotifier.dispose();
     _composerNotifier.dispose();
-    _draftSaveTimer?.cancel();
-    _saveDraft();
+    // Cancel the pending debounce, then write the last text: the only chance
+    // to persist the final <500 ms of typing.
+    _draft.dispose();
     _inputController.removeListener(_onInputChanged);
     _inputController.dispose();
     _inputFocusNode.dispose();
@@ -418,8 +444,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
   }
 
   void _onInputChanged() {
+    _draft.scheduleSave();
     final bool isEmpty = _inputController.text.trim().isEmpty;
-    _scheduleDraftSave();
     if (_isSecret ||
         ref.read(chatByIdProvider(_chatId ?? 0))?.isSecret != false) {
       return;
@@ -434,11 +460,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
         ref.read(typingProvider(chatId).notifier).sendTyping();
       }
     }
-  }
-
-  void _scheduleDraftSave() {
-    _draftSaveTimer?.cancel();
-    _draftSaveTimer = Timer(const Duration(milliseconds: 500), _saveDraft);
   }
 
   Future<void> _processTextWithAi(
@@ -493,44 +514,6 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     } catch (e) {
       debugPrint('Failed to refresh: $e');
     }
-  }
-
-  Future<void> _restoreDraft() async {
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-    final metadata = ref.read(chatByIdProvider(chatId));
-    if (metadata == null) return;
-    final isSecret = metadata.isSecret;
-    _canPersistOrdinaryDraft = !isSecret;
-    if (isSecret) {
-      _secretCoordinator = await ref.read(secretChatCoordinatorProvider.future);
-    }
-    final String? draft = isSecret
-        ? _secretCoordinator?.engine.chat(chatId)['draft'] as String?
-        : await ref.read(draftStorageProvider).get(chatId);
-    if (draft != null && draft.isNotEmpty && _inputController.text.isEmpty) {
-      _inputController.text = draft;
-      _showDraftRestoredBanner = true;
-      if (mounted) {
-        setState(() {});
-      }
-    }
-  }
-
-  void _saveDraft() {
-    final int? chatId = _chatId;
-    if (chatId == null) return;
-    final String text = _inputController.text.trim();
-    if (_isSecret || _secretCoordinator?.engine.findChat(chatId) != null) {
-      unawaited(
-        _secretCoordinator?.engine
-            .saveDraft(chatId, text)
-            .catchError((Object _) {}),
-      );
-      return;
-    }
-    if (!_canPersistOrdinaryDraft) return;
-    _draftStorage.set(chatId, text); // use cached ref — safe in dispose()
   }
 
   Future<void> _sendMessage() async {
@@ -1765,7 +1748,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
     ) {
       if (isSecret == null) return;
       _canPersistOrdinaryDraft = !isSecret;
-      if (previous == null) unawaited(_restoreDraft());
+      if (previous == null) unawaited(_draft.restore());
       if (isSecret != _isSecret) {
         _isSecret = isSecret;
         ScreenSecurityService.setSecureFlag(enabled: isSecret);
@@ -1784,11 +1767,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
       next,
     ) {
       if (isSecret || !next.hasValue || _editingMessageId != null) return;
-      final before = previous?.value?[chatId] ?? '';
-      final after = next.value?[chatId] ?? '';
-      if (_inputController.text.trim() == before && before != after) {
-        _inputController.text = after;
-      }
+      _draft.applyRemote(next.value?[chatId] ?? '');
     });
     if (isSecret && !_isSecret) {
       _isSecret = true;
@@ -1915,7 +1894,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                           chatId: chatId,
                           onSelected: (text) {
                             _inputController.text = text;
-                            _saveDraft();
+                            _draft.saveNow();
                           },
                         ),
                     ],
@@ -1959,23 +1938,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen>
                     composerNotifier: _composerNotifier,
                     inputController: _inputController,
                     inputFocusNode: _inputFocusNode,
-                    showDraftRestoredBanner: _showDraftRestoredBanner,
-                    onClearDraft: () {
-                      final int? cid = _chatId;
-                      if (cid != null) {
-                        if (_isSecret) {
-                          unawaited(
-                            _secretCoordinator?.engine.saveDraft(cid, ''),
-                          );
-                        } else {
-                          _draftStorage.remove(cid);
-                        }
-                      }
-                      _inputController.clear();
-                      setState(() {
-                        _showDraftRestoredBanner = false;
-                      });
-                    },
+                    showDraftRestoredBanner: _draft.showRestoredBanner,
+                    onClearDraft: _draft.clear,
                     onSend: _sendMessage,
                     onCommitEdit: _commitEdit,
                     onCancelEdit: _cancelEdit,
@@ -2841,3 +2805,23 @@ class _TypingSubtitle extends ConsumerWidget {
 Uint8List _encodeAlbum(List<PastedImage> images) => MediaAlbum.encode([
   for (final image in images) AlbumImage(image.name, image.bytes),
 ]);
+
+/// Adapts the account engine to [SecretDraftSink]. `engine` is a `late` field
+/// on the coordinator, so it is touched only when a draft is read or written —
+/// never while the sink is being bound.
+class _SecretDraftSink implements SecretDraftSink {
+  _SecretDraftSink(this._coordinator);
+
+  final SecretChatCoordinator _coordinator;
+
+  SecretChatEngine get _engine => _coordinator.engine;
+
+  @override
+  bool isOpen(int chatId) => _engine.findChat(chatId) != null;
+
+  @override
+  String? read(int chatId) => _engine.chat(chatId)['draft'] as String?;
+
+  @override
+  Future<void> save(int chatId, String text) => _engine.saveDraft(chatId, text);
+}
